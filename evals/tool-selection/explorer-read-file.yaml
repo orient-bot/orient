@@ -1,0 +1,16 @@
+name: explorer-read-file
+description: Explorer should read files when asked for implementation details
+type: tool_selection
+agent: explorer
+
+input:
+  prompt: 'Show me the agent registry implementation'
+
+expect:
+  tool_calls:
+    required:
+      - name: read
+
+  assertions:
+    - type: response_matches
+      pattern: 'agent registry|AgentRegistry|registry|agents'

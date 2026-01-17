@@ -1,0 +1,145 @@
+# =============================================================================
+# Orient - Infrastructure Only (Local Development)
+# =============================================================================
+# This compose file contains only infrastructure services for local development:
+# - Nginx (reverse proxy to native services via host.docker.internal)
+# - PostgreSQL (database)
+# - MinIO (S3-compatible storage)
+#
+# Usage:
+#   docker compose -f docker/docker-compose.infra.yml up -d
+#
+# Or via the run script:
+#   ./run.sh dev
+#
+# Native services (OpenCode, WhatsApp bot) run on the host with hot-reload.
+# =============================================================================
+
+services:
+  # ===========================================================================
+  # Nginx - Reverse Proxy to Native Services
+  # ===========================================================================
+  nginx:
+    image: nginx:alpine
+    container_name: orienter-nginx-${AI_INSTANCE_ID:-0}
+    restart: unless-stopped
+    ports:
+      - '${NGINX_PORT:-80}:80'
+    volumes:
+      - ./nginx-local.conf:/etc/nginx/conf.d/default.conf:ro
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    networks:
+      - orienter-network
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost/health']
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    logging:
+      driver: json-file
+      options:
+        max-size: '5m'
+        max-file: '2'
+
+  # ===========================================================================
+  # PostgreSQL - Database for messages and permissions
+  # ===========================================================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: orienter-postgres-${AI_INSTANCE_ID:-0}
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB:-whatsapp_bot_0}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      - '${POSTGRES_PORT:-5432}:5432'
+    networks:
+      - orienter-network
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB:-whatsapp_bot_0}']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    logging:
+      driver: json-file
+      options:
+        max-size: '5m'
+        max-file: '2'
+
+  # ===========================================================================
+  # MinIO - S3-Compatible Object Storage
+  # ===========================================================================
+  minio:
+    image: minio/minio:latest
+    container_name: orienter-minio-${AI_INSTANCE_ID:-0}
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
+    ports:
+      - '${MINIO_API_PORT:-9000}:9000' # S3 API
+      - '${MINIO_CONSOLE_PORT:-9001}:9001' # MinIO Console
+    volumes:
+      - minio-data:/data
+    networks:
+      - orienter-network
+    healthcheck:
+      test: ['CMD', 'mc', 'ready', 'local']
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    logging:
+      driver: json-file
+      options:
+        max-size: '5m'
+        max-file: '2'
+
+  # ===========================================================================
+  # MinIO Setup - Creates bucket on startup
+  # ===========================================================================
+  minio-setup:
+    image: minio/mc:latest
+    container_name: orienter-minio-setup-${AI_INSTANCE_ID:-0}
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
+      - S3_BUCKET=${S3_BUCKET:-orienter-data-0}
+    entrypoint: >
+      /bin/sh -c "
+        echo 'Waiting for MinIO to be ready...';
+        sleep 3;
+        mc alias set myminio http://minio:9000 $${MINIO_ROOT_USER} $${MINIO_ROOT_PASSWORD};
+        mc mb myminio/$${S3_BUCKET} --ignore-existing;
+        mc anonymous set download myminio/$${S3_BUCKET};
+        echo 'MinIO bucket $${S3_BUCKET} created successfully';
+        exit 0;
+      "
+    networks:
+      - orienter-network
+
+# =============================================================================
+# Networks
+# =============================================================================
+networks:
+  orienter-network:
+    driver: bridge
+
+# =============================================================================
+# Volumes
+# =============================================================================
+volumes:
+  postgres-data:
+    driver: local
+  minio-data:
+    driver: local

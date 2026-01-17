@@ -1,0 +1,95 @@
+# packages/mcp-tools/Dockerfile.opencode
+# Multi-stage build for the MCP Server (OpenCode sidecar)
+# This is used as a sidecar with OpenCode to provide JIRA, Slack, and other tools
+
+# ============================================
+# Base Stage
+# ============================================
+FROM node:20-alpine AS base
+WORKDIR /app
+
+# Install pnpm
+RUN corepack enable && corepack prepare pnpm@latest --activate
+
+# Install system dependencies
+RUN apk add --no-cache curl bash
+
+# ============================================
+# Dependencies Stage
+# ============================================
+FROM base AS deps
+
+# Copy workspace config files
+COPY pnpm-workspace.yaml pnpm-lock.yaml ./
+COPY package.json ./
+
+# Copy package.json files for all packages this depends on
+COPY packages/core/package.json ./packages/core/
+COPY packages/mcp-tools/package.json ./packages/mcp-tools/
+
+# Install dependencies for this package and its dependencies
+# Use BuildKit cache mount for faster rebuilds
+RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
+    pnpm install --frozen-lockfile --filter @orient/mcp-tools...
+
+# ============================================
+# Build Stage
+# ============================================
+FROM deps AS builder
+
+# Copy source files for all required packages
+COPY packages/core ./packages/core
+COPY packages/mcp-tools ./packages/mcp-tools
+COPY tsconfig.json ./
+
+# Build the package and its dependencies
+RUN pnpm --filter @orient/mcp-tools... build
+
+# ============================================
+# Production Stage
+# ============================================
+FROM node:20-alpine AS runner
+WORKDIR /app
+
+# Install pnpm and runtime dependencies
+RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN apk add --no-cache curl bash
+
+# Create non-root user
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S nodejs -u 1001
+
+# Copy workspace files
+COPY pnpm-workspace.yaml pnpm-lock.yaml package.json ./
+
+# Copy built packages
+COPY --from=builder /app/packages/core/dist ./packages/core/dist
+COPY --from=builder /app/packages/core/package.json ./packages/core/
+COPY --from=builder /app/packages/mcp-tools/dist ./packages/mcp-tools/dist
+COPY --from=builder /app/packages/mcp-tools/package.json ./packages/mcp-tools/
+
+# Install production dependencies only
+# Use BuildKit cache mount for faster rebuilds
+RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
+    pnpm install --frozen-lockfile --prod --filter @orient/mcp-tools...
+
+# Create directories
+RUN mkdir -p /app/logs /app/data && \
+    chown -R nodejs:nodejs /app
+
+# Set working directory to package
+WORKDIR /app/packages/mcp-tools
+
+# Set environment variables
+ENV NODE_ENV=production
+ENV LOG_DIR=/app/logs
+ENV DATA_DIR=/app/data
+
+# Note: MCP server runs on stdio, not HTTP, so no health check needed
+# The parent process (OpenCode) manages the MCP server lifecycle
+
+# Run as non-root user
+USER nodejs
+
+# Start the MCP server (stdio mode)
+CMD ["node", "dist/main.js"]

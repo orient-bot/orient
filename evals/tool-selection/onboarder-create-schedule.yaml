@@ -1,0 +1,27 @@
+name: onboarder-create-schedule
+description: Onboarder should use config_create_schedule to set up scheduled messages
+type: tool_selection
+agent: onboarder
+
+context:
+  platform: dashboard
+  route: /automation
+
+input:
+  prompt: 'Create a daily standup reminder at 9am to the engineering Slack channel'
+
+expect:
+  tool_calls:
+    required:
+      - name: config_create_schedule
+    forbidden:
+      - config_set_prompt
+      - config_set_secret
+
+  assertions:
+    - type: response_matches
+      pattern: 'pending|confirm|schedule|standup|9|daily'
+
+scoring:
+  llm_judge:
+    enabled: false

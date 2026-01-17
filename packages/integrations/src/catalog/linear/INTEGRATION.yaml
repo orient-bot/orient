@@ -1,0 +1,146 @@
+name: linear
+title: Linear
+description: >-
+  Project management and issue tracking with Linear. Access issues, projects,
+  cycles, teams, and workflows. Create and update issues, manage project roadmaps,
+  track team velocity, and integrate with development workflows.
+version: 1.0.0
+author: Orient
+icon: /icons/linear.svg
+status: beta
+
+oauth:
+  type: oauth2
+  authorizationUrl: https://linear.app/oauth/authorize
+  tokenUrl: https://api.linear.app/oauth/token
+  revocationUrl: https://api.linear.app/oauth/revoke
+  scopes:
+    - read
+    - write
+    - issues:create
+    - comments:create
+  scopeDescriptions:
+    read: Read access to all resources
+    write: Write access to all resources
+    issues:create: Create new issues
+    comments:create: Create comments on issues
+
+requiredSecrets:
+  - name: LINEAR_CLIENT_ID
+    description: OAuth Client ID from Linear Developer Settings
+    category: oauth
+    required: true
+  - name: LINEAR_CLIENT_SECRET
+    description: OAuth Client Secret from Linear Developer Settings
+    category: oauth
+    required: true
+  - name: LINEAR_WEBHOOK_SECRET
+    description: Webhook signing secret (optional, for webhooks)
+    category: webhook
+    required: false
+
+tools:
+  # Issue management
+  - name: issues.list
+    description: List issues with filters (team, project, status, assignee)
+    category: issues
+    requiredScopes:
+      - read
+  - name: issues.get
+    description: Get details of a specific issue by ID or identifier
+    category: issues
+    requiredScopes:
+      - read
+  - name: issues.create
+    description: Create a new issue with title, description, and properties
+    category: issues
+    requiredScopes:
+      - issues:create
+  - name: issues.update
+    description: Update an existing issue (status, assignee, priority, etc.)
+    category: issues
+    requiredScopes:
+      - write
+  - name: issues.search
+    description: Search issues by text query
+    category: issues
+    requiredScopes:
+      - read
+
+  # Project management
+  - name: projects.list
+    description: List all projects in the workspace
+    category: projects
+    requiredScopes:
+      - read
+  - name: projects.get
+    description: Get project details including progress and milestones
+    category: projects
+    requiredScopes:
+      - read
+  - name: projects.create
+    description: Create a new project
+    category: projects
+    requiredScopes:
+      - write
+
+  # Cycle management
+  - name: cycles.list
+    description: List cycles (sprints) with status and dates
+    category: cycles
+    requiredScopes:
+      - read
+  - name: cycles.current
+    description: Get the current active cycle for a team
+    category: cycles
+    requiredScopes:
+      - read
+
+  # Team operations
+  - name: teams.list
+    description: List all teams in the workspace
+    category: teams
+    requiredScopes:
+      - read
+  - name: teams.members
+    description: Get team members and their roles
+    category: teams
+    requiredScopes:
+      - read
+
+  # Comments
+  - name: comments.list
+    description: List comments on an issue
+    category: comments
+    requiredScopes:
+      - read
+  - name: comments.create
+    description: Add a comment to an issue
+    category: comments
+    requiredScopes:
+      - comments:create
+
+  # Labels and workflow
+  - name: labels.list
+    description: List available labels
+    category: labels
+    requiredScopes:
+      - read
+  - name: workflow.states
+    description: Get workflow states for a team
+    category: workflow
+    requiredScopes:
+      - read
+
+webhooks:
+  events:
+    - Issue
+    - Comment
+    - Project
+    - Cycle
+    - IssueLabel
+  signatureHeader: Linear-Signature
+  signatureAlgorithm: hmac-sha256
+
+docsUrl: https://developers.linear.app/docs
+apiBaseUrl: https://api.linear.app/graphql

@@ -1,0 +1,29 @@
+name: scheduler-calendar-list
+description: Scheduler should list calendar events when asked about schedule
+type: tool_selection
+agent: scheduler
+
+input:
+  prompt: "What's on my calendar for tomorrow?"
+
+mocks:
+  google:
+    google_calendar_list_events:
+      response:
+        events:
+          - id: 'event-101'
+            summary: 'Project sync'
+            start: '2025-01-14T09:00:00+02:00'
+            end: '2025-01-14T09:30:00+02:00'
+            attendees:
+              - 'alex@example.com'
+              - 'sam@example.com'
+
+expect:
+  tool_calls:
+    required:
+      - name: google_calendar_list_events
+
+  assertions:
+    - type: response_matches
+      pattern: 'calendar|event|tomorrow|schedule|meeting'

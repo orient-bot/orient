@@ -1,0 +1,26 @@
+name: onboarder-cancel-action
+description: Onboarder cancels a pending configuration action when user declines
+type: multi_step_workflow
+agent: onboarder
+
+context:
+  platform: dashboard
+  has_pending_action: true
+
+input:
+  prompt: 'No, cancel that change'
+
+expect:
+  tool_calls:
+    required:
+      - name: config_cancel_action
+    forbidden:
+      - config_confirm_action
+
+  assertions:
+    - type: response_matches
+      pattern: 'cancel|reject|discard|undo'
+
+scoring:
+  llm_judge:
+    enabled: false

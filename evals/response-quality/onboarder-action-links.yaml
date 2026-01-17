@@ -1,0 +1,21 @@
+name: onboarder-action-links
+description: Onboarder includes action links to guide users to dashboard sections
+type: response_quality
+agent: onboarder
+
+context:
+  platform: dashboard
+
+input:
+  prompt: 'Where can I manage my API keys?'
+
+expect:
+  assertions:
+    - type: response_matches
+      pattern: 'secret|api|key|token'
+    - type: response_matches
+      pattern: "\\[action:|/secret"
+
+scoring:
+  llm_judge:
+    enabled: false

@@ -1,0 +1,56 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "default_agent": "pm-assistant",
+  "model": "opencode/grok-code",
+  "permission": {
+    "edit": "allow",
+    "bash": "allow",
+    "webfetch": "allow",
+    "skill": "allow",
+    "doom_loop": "allow",
+    "external_directory": "allow",
+    "mcp": "allow",
+    "read": "allow"
+  },
+  "mcp": {
+    "orient-coding": {
+      "type": "local",
+      "command": ["/usr/local/bin/mcp-wrapper.sh"],
+      "enabled": true
+    },
+    "Atlassian-MCP-Server": {
+      "type": "remote",
+      "url": "https://mcp.atlassian.com/v1/sse",
+      "enabled": true
+    }
+  },
+  "agent": {
+    "build": {
+      "mode": "primary",
+      "description": "Default agent with full access for development work",
+      "tools": {
+        "task": false,
+        "bash": true
+      }
+    },
+    "plan": {
+      "mode": "primary",
+      "description": "Read-only agent for analysis and planning",
+      "tools": {
+        "write": false,
+        "edit": false,
+        "bash": false
+      }
+    },
+    "pm-assistant": {
+      "mode": "primary",
+      "description": "Orient PM assistant for JIRA, Slack, WhatsApp messages, and project management tasks. Use this agent when asked about issues, blockers, weekly summaries, team communication, or searching messages.",
+      "prompt": "You are an Orient Project Management assistant. You have access to JIRA, Slack, WhatsApp, and Google Slides tools through the orienter MCP server. Focus on:\n\n- Querying and managing JIRA issues for the YOUR_COMPONENT component\n- Checking blockers, SLA breaches, and sprint progress\n- Sending Slack messages and looking up users\n- Searching WhatsApp messages and conversations\n- Updating weekly presentations\n\nAlways provide concise, actionable summaries when reporting on project status. Use the discover_tools tool first if you need to find the right tool for a task.",
+      "tools": {
+        "write": false,
+        "edit": false,
+        "bash": false
+      }
+    }
+  }
+}

@@ -1,0 +1,95 @@
+version: '3.9'
+
+# =============================================================================
+# Orient - Demo Docker Compose
+# =============================================================================
+# Minimal demo setup:
+# - PostgreSQL
+# - MinIO
+# - WhatsApp bot (includes dashboard + QR UI)
+#
+# Demo credentials are intentionally weak; do not use in production.
+# =============================================================================
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: orient-demo-postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=orient_demo
+      - POSTGRES_PASSWORD=orient_demo_password
+      - POSTGRES_DB=orient_demo
+    volumes:
+      - demo-postgres-data:/var/lib/postgresql/data
+    ports:
+      - '5432:5432'
+
+  minio:
+    image: minio/minio:latest
+    container_name: orient-demo-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      - MINIO_ROOT_USER=orientdemo
+      - MINIO_ROOT_PASSWORD=orientdemo_password
+    ports:
+      - '9000:9000'
+      - '9001:9001'
+    volumes:
+      - demo-minio-data:/data
+
+  minio-setup:
+    image: minio/mc:latest
+    container_name: orient-demo-minio-setup
+    depends_on:
+      minio:
+        condition: service_started
+    environment:
+      - MINIO_ROOT_USER=orientdemo
+      - MINIO_ROOT_PASSWORD=orientdemo_password
+      - S3_BUCKET=orient-demo
+    entrypoint: >
+      /bin/sh -c "
+        sleep 3;
+        mc alias set myminio http://minio:9000 $${MINIO_ROOT_USER} $${MINIO_ROOT_PASSWORD};
+        mc mb myminio/$${S3_BUCKET} --ignore-existing;
+        mc anonymous set download myminio/$${S3_BUCKET};
+        exit 0;
+      "
+
+  whatsapp-bot:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.whatsapp
+    container_name: orient-demo-whatsapp
+    restart: unless-stopped
+    depends_on:
+      - postgres
+      - minio
+      - minio-setup
+    environment:
+      - NODE_ENV=production
+      - TZ=UTC
+      - DATABASE_URL=postgresql://orient_demo:orient_demo_password@postgres:5432/orient_demo
+      - S3_BUCKET=orient-demo
+      - AWS_ACCESS_KEY_ID=orientdemo
+      - AWS_SECRET_ACCESS_KEY=orientdemo_password
+      - AWS_ENDPOINT_URL=http://minio:9000
+      - AWS_REGION=us-east-1
+      - OPENCODE_ENABLED=false
+    volumes:
+      - demo-whatsapp-data:/app/data
+      - demo-logs:/app/logs
+      - ../apps:/app/apps:ro
+    ports:
+      - '4097:4097'
+      - '4098:4098'
+    stdin_open: true
+    tty: true
+
+volumes:
+  demo-postgres-data:
+  demo-minio-data:
+  demo-whatsapp-data:
+  demo-logs:

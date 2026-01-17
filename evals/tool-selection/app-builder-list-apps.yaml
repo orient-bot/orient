@@ -1,0 +1,30 @@
+name: app-builder-list-apps
+description: App builder should list existing apps on request
+type: tool_selection
+agent: app-builder
+
+input:
+  prompt: 'What apps are available?'
+
+mocks:
+  google:
+    ai_first_list_apps:
+      response:
+        apps:
+          - id: 'app-101'
+            name: 'meeting-scheduler'
+            description: 'Schedule meetings with availability'
+            status: 'active'
+          - id: 'app-102'
+            name: 'team-poll'
+            description: 'Collect votes from team members'
+            status: 'active'
+
+expect:
+  tool_calls:
+    required:
+      - name: ai_first_list_apps
+
+  assertions:
+    - type: response_matches
+      pattern: 'apps|available|list|scheduler|poll'

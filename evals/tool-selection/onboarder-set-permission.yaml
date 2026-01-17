@@ -1,0 +1,27 @@
+name: onboarder-set-permission
+description: Onboarder should use config_set_permission to change WhatsApp chat permissions
+type: tool_selection
+agent: onboarder
+
+context:
+  platform: dashboard
+  route: /whatsapp/chats
+
+input:
+  prompt: 'Enable read_write permissions for WhatsApp chat ID 120363123456789@g.us'
+
+expect:
+  tool_calls:
+    required:
+      - name: config_set_permission
+    forbidden:
+      - config_set_prompt
+      - config_set_secret
+
+  assertions:
+    - type: response_matches
+      pattern: 'pending|confirm|permission|read_write|family'
+
+scoring:
+  llm_judge:
+    enabled: false

@@ -1,0 +1,433 @@
+---
+name: claude-worktree-manager
+description: Create and manage Claude-specific worktrees with automated setup and cleanup. Use this skill when asked to "create a worktree", "new worktree", "worktree for feature/staging", "setup isolated environment", or "cleanup old worktrees". Handles smart naming, .env copying, background pnpm install, and automatic cleanup of stale worktrees.
+---
+
+# Claude Worktree Manager
+
+Automated worktree management for Claude Code development sessions with smart naming, auto-setup, and cleanup.
+
+## Quick Start
+
+### Create a Worktree
+
+When the user asks to create a worktree for a feature or environment, derive a short, descriptive kebab-case name from their request:
+
+**Naming examples:**
+
+- "staging environment" → `staging-env`
+- "add dark mode toggle" → `dark-mode`
+- "fix authentication bug" → `fix-auth-bug`
+- "update API endpoints" → `update-api`
+
+Then run:
+
+```bash
+# Standard (uses shared dev database)
+.claude/skills/core/claude-worktree-manager/scripts/worktree.sh create <derived-name>
+
+# Isolated (creates dedicated database with seeding)
+.claude/skills/core/claude-worktree-manager/scripts/worktree.sh create <derived-name> --isolated
+```
+
+**What happens:**
+
+1. Cleans up worktrees older than 7 days
+2. Creates branch: `worktree/<name>-<timestamp>`
+3. Creates worktree at: `~/claude-worktrees/<project-name>/<name>-<timestamp>`
+4. Copies `.env` from main repo
+5. Copies `.claude/settings.local.json` from main repo (API keys, preferences)
+6. Starts `pnpm install` in background
+7. If `--isolated`: Creates dedicated database and seeds it with test data
+8. Returns the worktree path immediately
+
+### When to Use --isolated
+
+Use the `--isolated` flag when:
+
+- **Schema changes:** Testing database migrations
+- **Migration testing:** Verifying migration scripts work correctly
+- **Isolated experiments:** Need a clean database state
+- **Breaking changes:** Don't want to affect shared dev data
+
+For normal feature development, skip `--isolated` to use the shared database.
+
+**Important:** Return the worktree path to the user so they can open a new Claude Code session in that directory.
+
+### Ghostty Integration (Automatic)
+
+After creating a worktree, check if running in Ghostty terminal and automatically open a new tab with Claude:
+
+```bash
+# The worktree script outputs the path on its last line
+WORKTREE_PATH=$(.claude/skills/core/claude-worktree-manager/scripts/worktree.sh create <name> | tail -1)
+
+# If in Ghostty, open new tab with Claude (--no-enter types but doesn't execute)
+if [ "$TERM_PROGRAM" = "ghostty" ]; then
+    ghostty-tab -d "$WORKTREE_PATH" --no-enter "claude '<goal-prompt>'"
+fi
+```
+
+**Goal Prompt Guidelines:**
+
+- Keep it concise (1-2 sentences max)
+- Focus on the task objective
+- Use imperative voice
+- Avoid special characters that need escaping (use simple quotes)
+
+**Examples:**
+
+- "Refactor the project to support multi-tenant architecture"
+- "Fix the authentication redirect bug in login flow"
+- "Add OAuth2 support with Google and GitHub providers"
+- "Implement dark mode toggle with system preference detection"
+
+**Important:** The `ghostty-tab` command is at `~/.local/bin/ghostty-tab` and uses AppleScript to open a new Ghostty tab. It accepts:
+
+- `-d <path>` - Directory to cd into
+- `--no-enter` - Type the command but don't press enter (lets user review before executing)
+- `"<command>"` - Command to type/run after cd
+
+This automatically opens a new Ghostty tab, navigates to the worktree, and starts Claude with the goal context.
+
+### List Worktrees
+
+```bash
+.claude/skills/core/claude-worktree-manager/scripts/worktree.sh list
+```
+
+Shows all active worktrees for the current project with their branches.
+
+### Manual Cleanup
+
+```bash
+# Cleanup worktrees older than 7 days (default)
+.claude/skills/core/claude-worktree-manager/scripts/worktree.sh cleanup
+
+# Custom age threshold
+.claude/skills/core/claude-worktree-manager/scripts/worktree.sh cleanup --days 14
+```
+
+## Workflow
+
+### 1. User Requests Worktree
+
+User says: "I want to create a new worktree for developing a staging environment"
+
+### 2. Derive Smart Name
+
+Analyze the request and derive a concise kebab-case name:
+
+- Extract key purpose: "staging environment"
+- Convert to kebab-case: `staging-env`
+
+### 3. Create Worktree and Capture Path
+
+```bash
+# Run the script and capture the worktree path (last line of output)
+WORKTREE_PATH=$(.claude/skills/core/claude-worktree-manager/scripts/worktree.sh create staging-env | tail -1)
+echo "Created: $WORKTREE_PATH"
+```
+
+### 4. Open in Ghostty (if available)
+
+After creating the worktree, check if running in Ghostty and automatically open a new tab:
+
+```bash
+# Check if in Ghostty and open new tab with Claude (--no-enter lets user review first)
+if [ "$TERM_PROGRAM" = "ghostty" ]; then
+    ghostty-tab -d "$WORKTREE_PATH" --no-enter "claude 'Set up and configure the staging environment'"
+fi
+```
+
+### 5. Return Path
+
+The script outputs the worktree path. Return it to the user:
+
+```
+Worktree created at: ~/claude-worktrees/orienter/staging-env-1736639420
+
+✓ Opened new Ghostty tab with Claude command ready (press Enter to start)
+  Goal: Set up and configure the staging environment
+
+Note: pnpm install is running in the background. Check progress with:
+tail -f ~/claude-worktrees/orienter/staging-env-1736639420/.pnpm-install.log
+```
+
+If NOT in Ghostty, show manual instructions:
+
+```
+Worktree created at: ~/claude-worktrees/orienter/staging-env-1736639420
+
+You can now open a new Claude Code session in this directory:
+cd ~/claude-worktrees/orienter/staging-env-1736639420
+
+Note: pnpm install is running in the background. Check progress with:
+tail -f ~/claude-worktrees/orienter/staging-env-1736639420/.pnpm-install.log
+```
+
+## Background Installation
+
+The worktree creation starts `pnpm install` in the background using `nohup`. This means:
+
+- The path is returned immediately (don't wait for pnpm)
+- Installation runs async and logs to `.pnpm-install.log`
+- User can start working right away
+- Dependencies will be available after a few moments
+
+Check if installation is complete:
+
+```bash
+# Check if still running
+ps aux | grep pnpm
+
+# Watch the log
+tail -f <worktree-path>/.pnpm-install.log
+```
+
+## Database Seeding (Isolated Mode)
+
+When using `--isolated`, the script automatically:
+
+1. Creates a new PostgreSQL database: `worktree_<timestamp>`
+2. Updates the worktree's `.env` with the new DATABASE_URL
+3. Runs all migrations from `data/migrations/`
+4. Seeds the database with:
+   - **5 agents:** pm-assistant, communicator, scheduler, explorer, app-builder
+   - **6 context rules:** Platform and environment routing
+   - **6 test permissions:** Sample WhatsApp and Slack permissions
+   - **4 sample prompts:** Default prompts for testing
+
+Database seeding starts after pnpm install completes. Check progress:
+
+```bash
+tail -f <worktree-path>/.db-seed.log
+```
+
+### Manual Database Seeding
+
+If you need to seed an existing worktree:
+
+```bash
+# Seed with shared database (from .env)
+./scripts/seed-worktree-db.sh
+
+# Create isolated database and seed
+ISOLATED=true ./scripts/seed-worktree-db.sh
+```
+
+## Configuration Files
+
+The script automatically handles configuration files:
+
+**Automatically Available (via git):**
+
+- `.claude/skills/` - All skills are available in worktrees
+- `.claude/settings.json` - Committed Claude settings
+
+**Automatically Copied:**
+
+- `.env` - Environment variables for the application
+- `.claude/settings.local.json` - Local Claude settings (API keys, preferences)
+
+This ensures your worktree has the same development environment as the main repo.
+
+## Integration with worktree-operations
+
+After creating the worktree, users can reference the **worktree-operations** skill for:
+
+- Building packages: `pnpm run build`
+- Running tests: `pnpm test`
+- Development mode: `pnpm run dev`
+- Type checking: `pnpm run typecheck`
+
+The worktree-operations skill covers all pnpm/turbo commands for working in the monorepo.
+
+## Directory Structure
+
+```
+~/claude-worktrees/
+└── <project-name>/
+    ├── feature-a-1736639420/
+    ├── staging-env-1736639421/
+    └── fix-bug-1736639422/
+```
+
+Each project gets its own subdirectory under `~/claude-worktrees/`.
+
+## Cleanup Policy
+
+- **Automatic:** Runs before each worktree creation
+- **Threshold:** Removes worktrees older than 7 days (based on modification time)
+- **Safe:** Only removes worktrees in the Claude worktree directory
+- **Manual:** Can be triggered anytime with `./worktree.sh cleanup`
+
+## .env Configuration Requirements
+
+The `.env` file is copied to worktrees automatically. Ensure proper formatting to avoid shell parsing errors:
+
+### Quote Special Characters
+
+Values with special characters MUST be quoted:
+
+```bash
+# ✅ Correct - quoted values
+DATABASE_URL="postgresql://user:pass@localhost:5432/db"
+STANDUP_CRON="30 9 * * 1-5"
+STANDUP_CHANNEL="#orienter-standups"
+
+# ❌ Wrong - unquoted special chars cause shell errors
+STANDUP_CRON=30 9 * * 1-5          # Shell expands * as glob
+STANDUP_CHANNEL=#orienter-standups  # Shell treats # as comment
+```
+
+### Required Variables
+
+For database seeding to work, ensure `DATABASE_URL` is set:
+
+```bash
+DATABASE_URL="postgresql://aibot:aibot123@localhost:5432/whatsapp_bot"
+```
+
+### Common Shell Parsing Errors
+
+If you see errors like `command not found` when sourcing `.env`:
+
+- Check for unquoted cron expressions (`* * *`)
+- Check for unquoted channel names starting with `#`
+- Ensure no trailing spaces after values
+
+## Troubleshooting
+
+### pnpm install failed
+
+Check the log:
+
+```bash
+cat <worktree-path>/.pnpm-install.log
+```
+
+Re-run manually if needed:
+
+```bash
+cd <worktree-path>
+pnpm install
+```
+
+### .env not copied
+
+Copy manually:
+
+```bash
+cp <main-repo>/.env <worktree-path>/.env
+```
+
+### Database seeding failed
+
+Check the log:
+
+```bash
+cat <worktree-path>/.db-seed.log
+```
+
+Common issues:
+
+- PostgreSQL not running: `docker compose -f docker/docker-compose.infra.yml up -d postgres`
+- Invalid DATABASE_URL: Check quotes and format
+- Missing tables: Run `npm run db:migrate` first
+
+### Worktree creation failed
+
+Check git status and ensure:
+
+- You're in a git repository
+- Remote is accessible
+- No uncommitted changes blocking the operation
+
+## Examples
+
+### Create worktree for a feature (with Ghostty)
+
+User: "Create a worktree for adding OAuth support"
+
+```bash
+# 1. Create the worktree and capture path
+WORKTREE_PATH=$(.claude/skills/core/claude-worktree-manager/scripts/worktree.sh create oauth-support | tail -1)
+
+# 2. If in Ghostty, open new tab with Claude
+if [ "$TERM_PROGRAM" = "ghostty" ]; then
+    ghostty-tab -d "$WORKTREE_PATH" --no-enter "claude 'Add OAuth support with Google and GitHub providers'"
+fi
+```
+
+### Create worktree for bug fix
+
+User: "I need a worktree to fix the login redirect issue"
+
+```bash
+# 1. Create the worktree and capture path
+WORKTREE_PATH=$(.claude/skills/core/claude-worktree-manager/scripts/worktree.sh create fix-login-redirect | tail -1)
+
+# 2. If in Ghostty, open new tab with Claude
+if [ "$TERM_PROGRAM" = "ghostty" ]; then
+    ghostty-tab -d "$WORKTREE_PATH" --no-enter "claude 'Fix the login redirect issue'"
+fi
+```
+
+### Create worktree for refactoring
+
+User: "Create a new worktree for refactoring the project to make it multi-tenant"
+
+```bash
+# 1. Create the worktree and capture path
+WORKTREE_PATH=$(.claude/skills/core/claude-worktree-manager/scripts/worktree.sh create multi-tenant-refactor | tail -1)
+
+# 2. If in Ghostty, open new tab with Claude
+if [ "$TERM_PROGRAM" = "ghostty" ]; then
+    ghostty-tab -d "$WORKTREE_PATH" --no-enter "claude 'Refactor the project to support multi-tenant architecture'"
+fi
+```
+
+### Create worktree with isolated database
+
+User: "I need a worktree to test new database migrations"
+
+```bash
+# 1. Create the worktree with isolated DB and capture path
+WORKTREE_PATH=$(.claude/skills/core/claude-worktree-manager/scripts/worktree.sh create test-migrations --isolated | tail -1)
+
+# 2. If in Ghostty, open new tab with Claude
+if [ "$TERM_PROGRAM" = "ghostty" ]; then
+    ghostty-tab -d "$WORKTREE_PATH" --no-enter "claude 'Test new database migrations in isolated environment'"
+fi
+```
+
+### Create worktree for schema changes
+
+User: "Create a worktree for adding new agent tables"
+
+```bash
+# 1. Create the worktree with isolated DB and capture path
+WORKTREE_PATH=$(.claude/skills/core/claude-worktree-manager/scripts/worktree.sh create add-agent-tables --isolated | tail -1)
+
+# 2. If in Ghostty, open new tab with Claude
+if [ "$TERM_PROGRAM" = "ghostty" ]; then
+    ghostty-tab -d "$WORKTREE_PATH" --no-enter "claude 'Add new agent tables to the database schema'"
+fi
+```
+
+### List all worktrees
+
+User: "Show me all my worktrees"
+
+```bash
+.claude/skills/core/claude-worktree-manager/scripts/worktree.sh list
+```
+
+### Cleanup old worktrees
+
+User: "Clean up worktrees older than 3 days"
+
+```bash
+.claude/skills/core/claude-worktree-manager/scripts/worktree.sh cleanup --days 3
+```

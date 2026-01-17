@@ -1,0 +1,36 @@
+name: jira-blockers-detection
+description: Agent should use the blockers tool when asked about blocked issues
+type: tool_selection
+agent: pm-assistant
+
+input:
+  prompt: 'Are there any blocked tickets right now?'
+
+mocks:
+  jira:
+    ai_first_get_blockers:
+      response:
+        count: 2
+        issues:
+          - key: PROJ-123
+            summary: 'API integration blocked by external team'
+            status: 'Blocked'
+            priority: 'Blocker'
+            assignee: 'John Doe'
+            labels: ['blocked', 'api']
+          - key: PROJ-124
+            summary: 'Database migration blocked'
+            status: 'Blocked'
+            priority: 'High'
+            assignee: 'Jane Smith'
+            labels: ['blocked', 'database']
+
+expect:
+  tool_calls:
+    required:
+      - name: ai_first_get_blockers
+
+  assertions:
+    # Check response discusses blockers (not specific mock IDs since we use real APIs)
+    - type: response_matches
+      pattern: 'block|stuck|impediment|waiting'

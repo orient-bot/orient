@@ -1,0 +1,19 @@
+name: onboarder-friendly-tone
+description: Onboarder maintains a friendly, helpful tone
+type: response_quality
+agent: onboarder
+
+context:
+  platform: dashboard
+
+input:
+  prompt: "Hi! I'm new here."
+
+expect:
+  assertions:
+    - type: response_matches
+      pattern: 'welcome|hello|hi|help|started|orient'
+
+scoring:
+  llm_judge:
+    enabled: false

@@ -1,0 +1,28 @@
+name: onboarder-set-slack-prompt
+description: Onboarder should use config_set_prompt to change Slack platform prompt
+type: tool_selection
+agent: onboarder
+
+context:
+  platform: dashboard
+  route: /system-prompts
+
+input:
+  prompt: 'Change the Slack system prompt to recognize me as Tom'
+
+expect:
+  tool_calls:
+    required:
+      - name: config_set_prompt
+    forbidden:
+      - config_set_permission
+      - config_set_secret
+
+  assertions:
+    - type: response_matches
+      pattern: 'pending|confirm|action|prompt|slack'
+
+scoring:
+  # LLM judge is optional - eval passes if assertions pass
+  llm_judge:
+    enabled: false

@@ -1,0 +1,46 @@
+import type { PermissionPolicy } from './types.js';
+
+export const DEFAULT_POLICIES: PermissionPolicy[] = [
+  {
+    id: 'file-write',
+    name: 'File Write Operations',
+    toolPatterns: ['file_write', 'file_delete', 'file_move', 'file_edit'],
+    action: 'ask',
+    granularity: 'per_call',
+    riskLevel: 'medium',
+    promptTemplate: 'Allow writing to {path}?',
+    priority: 10,
+    enabled: true,
+  },
+  {
+    id: 'shell-execution',
+    name: 'Shell Commands',
+    toolPatterns: ['bash', 'shell', 'exec', 'run_command'],
+    action: 'ask',
+    granularity: 'per_call',
+    riskLevel: 'high',
+    promptTemplate: 'Allow running: {command}?',
+    priority: 20,
+    enabled: true,
+  },
+  {
+    id: 'external-api',
+    name: 'External API Calls',
+    toolPatterns: ['http_*', 'api_*', 'webhook_*'],
+    action: 'ask',
+    granularity: 'per_session',
+    riskLevel: 'medium',
+    priority: 5,
+    enabled: true,
+  },
+  {
+    id: 'sensitive-data',
+    name: 'Sensitive Data Access',
+    toolPatterns: ['secret_*', 'credential_*', 'token_*'],
+    action: 'ask',
+    granularity: 'per_call',
+    riskLevel: 'critical',
+    priority: 30,
+    enabled: true,
+  },
+];

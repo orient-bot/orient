@@ -1,0 +1,55 @@
+name: jira-sprint-issues
+description: Agent should use sprint issues tool when asked about current sprint
+type: tool_selection
+agent: pm-assistant
+
+input:
+  prompt: 'What issues are in the current sprint?'
+
+mocks:
+  jira:
+    ai_first_get_sprint_issues:
+      response:
+        sprint:
+          id: 42
+          name: 'Sprint 2024-W03'
+          state: 'active'
+          startDate: '2024-01-15'
+          endDate: '2024-01-26'
+        issues:
+          - key: PROJ-201
+            summary: 'Implement OAuth flow'
+            status: 'In Progress'
+            storyPoints: 5
+            assignee: 'Alice'
+          - key: PROJ-202
+            summary: 'Add rate limiting'
+            status: 'In Progress'
+            storyPoints: 3
+            assignee: 'Bob'
+          - key: PROJ-203
+            summary: 'Write API documentation'
+            status: 'To Do'
+            storyPoints: 2
+            assignee: null
+          - key: PROJ-204
+            summary: 'Update unit tests'
+            status: 'Done'
+            storyPoints: 2
+            assignee: 'Charlie'
+        stats:
+          totalPoints: 12
+          completedPoints: 2
+          remainingPoints: 10
+          issueCount: 4
+          completedCount: 1
+
+expect:
+  tool_calls:
+    required:
+      - name: ai_first_get_sprint_issues
+
+  assertions:
+    # Check response discusses sprint content (not mock IDs)
+    - type: response_matches
+      pattern: 'sprint|issue|progress|point'

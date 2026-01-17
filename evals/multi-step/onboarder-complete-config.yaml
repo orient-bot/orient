@@ -1,0 +1,37 @@
+name: onboarder-complete-config
+description: Onboarder completes a multi-step configuration workflow
+type: multi_step_workflow
+agent: onboarder
+
+context:
+  platform: dashboard
+  route: /system-prompts
+
+input:
+  prompt: "Set a custom Slack prompt that says I'm Tom and I work on the mobile team"
+
+workflow:
+  steps:
+    - name: call_config_tool
+      description: 'Agent calls config_set_prompt with appropriate parameters'
+      expect:
+        tool_calls:
+          required:
+            - name: config_set_prompt
+    - name: present_pending_action
+      description: 'Agent presents the pending action to user for confirmation'
+      expect:
+        assertions:
+          - type: response_matches
+            pattern: 'pending|confirm|action'
+
+expect:
+  assertions:
+    - type: response_matches
+      pattern: 'tom|mobile|team|slack'
+    - type: response_matches
+      pattern: 'pending|confirm'
+
+scoring:
+  llm_judge:
+    enabled: false

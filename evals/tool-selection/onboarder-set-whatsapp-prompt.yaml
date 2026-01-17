@@ -1,0 +1,26 @@
+name: onboarder-set-whatsapp-prompt
+description: Onboarder should use config_set_prompt to change WhatsApp platform prompt
+type: tool_selection
+agent: onboarder
+
+context:
+  platform: dashboard
+  route: /system-prompts
+
+input:
+  prompt: 'Update the WhatsApp default prompt to be more casual and friendly'
+
+expect:
+  tool_calls:
+    required:
+      - name: config_set_prompt
+    forbidden:
+      - config_set_permission
+
+  assertions:
+    - type: response_matches
+      pattern: 'pending|confirm|action|prompt|whatsapp'
+
+scoring:
+  llm_judge:
+    enabled: false

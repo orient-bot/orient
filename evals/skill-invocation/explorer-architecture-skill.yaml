@@ -1,0 +1,18 @@
+name: explorer-architecture-skill
+description: Explorer should activate project-architecture skill for architecture questions
+type: skill_invocation
+agent: explorer
+
+input:
+  prompt: "What's the architecture of this project?"
+
+expect:
+  skills:
+    activated:
+      - project-architecture
+
+  assertions:
+    - type: skill_activated
+      skill: project-architecture
+    - type: response_matches
+      pattern: 'architecture|services|packages|monorepo|components'

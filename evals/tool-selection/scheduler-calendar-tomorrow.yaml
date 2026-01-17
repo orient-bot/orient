@@ -1,0 +1,62 @@
+name: scheduler-calendar-tomorrow
+description: Agent should check calendar for tomorrow when asked about schedule in Hebrew
+type: tool_selection
+agent: scheduler
+
+context:
+  platform: whatsapp
+  chatId: '120363406740668957@g.us'
+
+input:
+  prompt: 'תגיד אתה יכול לבדוק לי את הלוז ולהגיד אם יש משהו שאני צריך לעשות מחר?'
+
+mocks:
+  google:
+    google_calendar_list_events:
+      response:
+        events:
+          - id: 'event-101'
+            summary: 'פגישת צוות'
+            start: '2026-01-17T09:00:00+02:00'
+            end: '2026-01-17T09:30:00+02:00'
+            attendees:
+              - 'alex@example.com'
+              - 'sam@example.com'
+            location: 'חדר ישיבות 3'
+          - id: 'event-102'
+            summary: 'שיחה עם לקוח'
+            start: '2026-01-17T14:00:00+02:00'
+            end: '2026-01-17T15:00:00+02:00'
+            attendees:
+              - 'client@company.com'
+          - id: 'event-103'
+            summary: 'יום הולדת לסבא'
+            start: '2026-01-17T18:00:00+02:00'
+            end: '2026-01-17T21:00:00+02:00'
+            description: 'לזכור להביא מתנה ועוגה'
+        calendarId: 'primary'
+        timeZone: 'Asia/Jerusalem'
+
+expect:
+  tool_calls:
+    required:
+      - name: google_calendar_list_events
+
+  assertions:
+    - type: response_matches
+      pattern: 'לוז|יומן|מחר|פגישה|אירוע|calendar|schedule'
+
+scoring:
+  llm_judge:
+    enabled: true
+    criteria:
+      - name: hebrew_response
+        description: "Response should be in Hebrew to match the user's language"
+        weight: 0.3
+      - name: complete_summary
+        description: 'Response should summarize all events for tomorrow with times'
+        weight: 0.4
+      - name: actionable
+        description: 'Response should highlight any action items or things to prepare'
+        weight: 0.3
+    threshold: 0.7

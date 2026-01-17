@@ -1,0 +1,81 @@
+{
+  "name": "@orient/mcp-tools",
+  "version": "1.0.0",
+  "description": "Portable MCP tools and registry for Orient",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "mcp-server": "./dist/main.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./registry": {
+      "types": "./dist/registry/index.d.ts",
+      "import": "./dist/registry/index.js",
+      "require": "./dist/registry/index.js",
+      "default": "./dist/registry/index.js"
+    },
+    "./tools": {
+      "types": "./dist/tools/index.d.ts",
+      "import": "./dist/tools/index.js",
+      "require": "./dist/tools/index.js",
+      "default": "./dist/tools/index.js"
+    },
+    "./config": {
+      "types": "./dist/tools/config/index.d.ts",
+      "import": "./dist/tools/config/index.js",
+      "require": "./dist/tools/config/index.js",
+      "default": "./dist/tools/config/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/main.ts",
+    "dev:watch": "tsc --watch",
+    "start": "node dist/main.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint src/**/*.ts",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@orient/core": "workspace:*",
+    "@orient/database-services": "workspace:*",
+    "@orient/integrations": "workspace:*",
+    "@modelcontextprotocol/sdk": "^1.24.3",
+    "jira.js": "^4.0.1",
+    "openai": "^4.77.0",
+    "zod": "^4.1.13"
+  },
+  "devDependencies": {
+    "@slack/web-api": "^7.0.0",
+    "@types/node": "^20.10.0",
+    "@vitest/coverage-v8": "^4.0.15",
+    "typescript": "^5.3.2",
+    "vitest": "^4.0.15"
+  },
+  "peerDependencies": {
+    "@slack/web-api": "^6.0.0 || ^7.0.0",
+    "typescript": "^5.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@slack/web-api": {
+      "optional": true
+    }
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ]
+}

@@ -1,0 +1,29 @@
+name: github-changelog-monitor
+version: 1.0.0
+title: GitHub Changelog Monitor
+description: Demo monitor for GitHub repository changelogs with local database storage
+author: tom.bensimon@genomemedical.com
+
+permissions:
+  slack:
+    read: false
+    write: true
+  system:
+    read: true
+    write: false
+
+capabilities:
+  scheduler:
+    enabled: true
+    max_jobs: 5
+    allowed_types: [cron, recurring]
+  webhooks:
+    enabled: true
+    max_endpoints: 2
+
+sharing:
+  mode: secret_link
+
+build:
+  entry: src/App.tsx
+  output: dist/

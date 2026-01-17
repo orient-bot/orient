@@ -1,0 +1,27 @@
+name: scheduler-task-create
+description: Scheduler should create a task when asked to add one
+type: tool_selection
+agent: scheduler
+
+input:
+  prompt: 'Add a task to review the PR by Friday'
+
+mocks:
+  google:
+    google_tasks_create:
+      response:
+        success: true
+        task:
+          id: 'task-501'
+          title: 'Review the PR'
+          due: '2025-01-17'
+          status: 'needsAction'
+
+expect:
+  tool_calls:
+    required:
+      - name: google_tasks_create
+
+  assertions:
+    - type: response_matches
+      pattern: 'task|review|friday|created|added'

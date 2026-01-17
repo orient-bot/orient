@@ -1,0 +1,41 @@
+name: app-builder-app-description
+description: App builder should describe the app clearly before creating it
+type: response_quality
+agent: app-builder
+
+input:
+  prompt: 'Build a feedback form with star ratings'
+
+mocks:
+  google:
+    ai_first_create_app:
+      response:
+        success: true
+        app:
+          id: 'app-301'
+          name: 'feedback-form'
+          pr_url: 'https://github.com/example/repo/pull/124'
+
+expect:
+  tool_calls:
+    required:
+      - name: ai_first_create_app
+
+  assertions:
+    - type: response_matches
+      pattern: 'feedback|form|rating|stars|create|app'
+
+scoring:
+  llm_judge:
+    enabled: true
+    criteria:
+      - name: clarity
+        description: 'Description is clear and understandable'
+        weight: 0.4
+      - name: completeness
+        description: 'Mentions key features like ratings and inputs'
+        weight: 0.4
+      - name: tool_usage
+        description: 'Uses app creation flow rather than direct coding'
+        weight: 0.2
+    threshold: 0.6

@@ -1,0 +1,22 @@
+name: onboarder-setup-guidance
+description: Onboarder provides clear setup guidance for new users
+type: response_quality
+agent: onboarder
+
+context:
+  platform: dashboard
+  route: /
+
+input:
+  prompt: 'I just installed Orient, how do I get started?'
+
+expect:
+  assertions:
+    - type: response_matches
+      pattern: 'whatsapp|slack|secret|api|setup'
+    - type: response_matches
+      pattern: 'step|first|start|begin'
+
+scoring:
+  llm_judge:
+    enabled: false

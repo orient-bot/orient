@@ -1,0 +1,32 @@
+# Model Matrix Configuration
+#
+# Defines model sets for different testing scenarios.
+
+models:
+  # Default: Run with Grok Code (FREE via OpenCode Zen)
+  default:
+    - opencode/grok-code
+
+  # Full matrix: Test across all models
+  full_matrix:
+    - opencode/grok-code
+    - anthropic/claude-sonnet-4-20250514
+    - anthropic/claude-opus-4-20250514
+
+  # Fast: Quick iteration with free Grok
+  fast:
+    - opencode/grok-code
+
+  # Quality: High-quality testing with Opus
+  quality:
+    - anthropic/claude-opus-4-20250514
+
+  # Claude models only
+  claude:
+    - anthropic/claude-sonnet-4-20250514
+    - anthropic/claude-haiku-3-5-20241022
+
+  # Comparison: Free vs paid
+  cost_comparison:
+    - opencode/grok-code
+    - anthropic/claude-sonnet-4-20250514

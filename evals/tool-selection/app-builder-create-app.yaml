@@ -1,0 +1,30 @@
+name: app-builder-create-app
+description: App builder should use create app tool and avoid direct edits
+type: tool_selection
+agent: app-builder
+
+input:
+  prompt: 'Create a scheduling app like Calendly'
+
+mocks:
+  google:
+    ai_first_create_app:
+      response:
+        success: true
+        app:
+          id: 'app-201'
+          name: 'calendly-lite'
+          pr_url: 'https://github.com/example/repo/pull/123'
+
+expect:
+  tool_calls:
+    required:
+      - name: ai_first_create_app
+    forbidden:
+      - write
+      - edit
+      - bash
+
+  assertions:
+    - type: response_matches
+      pattern: 'app|create|scheduler|calendly|pr|review'

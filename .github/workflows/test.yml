@@ -1,0 +1,224 @@
+name: Tests
+
+on:
+  push:
+    branches: [main, dev, stage]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '.claude/skills/**'
+      - 'apps/**'
+      - 'meetings/**'
+      - 'planning/**'
+  pull_request:
+    branches: [main, dev, stage]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '.claude/skills/**'
+      - 'apps/**'
+      - 'meetings/**'
+      - 'planning/**'
+
+jobs:
+  # Lint and type check all packages
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build packages
+        run: pnpm turbo build
+
+      - name: Run linter
+        run: npm run lint
+
+      - name: Run type check
+        run: npm run typecheck
+
+  # Package-level unit tests (parallel)
+  test-packages:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        package: [core, database, mcp-tools, bot-whatsapp, bot-slack, api-gateway, dashboard]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build dependencies
+        run: pnpm turbo build --filter=@orient/${{ matrix.package }}...
+
+      - name: Run package tests
+        run: pnpm --filter @orient/${{ matrix.package }} test
+
+      - name: Run package tests with coverage
+        run: pnpm --filter @orient/${{ matrix.package }} test:coverage
+        continue-on-error: true
+
+  # Root-level tests (legacy during migration)
+  test-root:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build packages
+        run: pnpm turbo build
+
+      - name: Run unit and integration tests
+        run: npm run test:ci
+
+      - name: Run tests with coverage
+        run: npm run test:coverage
+
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./coverage/coverage-final.json
+          fail_ci_if_error: false
+        continue-on-error: true
+
+  # Contract tests (API stability)
+  test-contracts:
+    runs-on: ubuntu-latest
+    needs: [test-packages]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build packages
+        run: pnpm turbo build
+
+      - name: Run contract tests
+        run: npx vitest run tests/contracts/
+
+  # Integration tests (requires database)
+  test-integration:
+    runs-on: ubuntu-latest
+    needs: [lint, test-packages]
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: orient
+          POSTGRES_PASSWORD: orient_test_password
+          POSTGRES_DB: orient_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build packages
+        run: pnpm turbo build
+
+      - name: Apply database migrations
+        run: |
+          for file in data/migrations/*.sql; do
+            echo "Applying migration: $file"
+            psql $DATABASE_URL < "$file"
+          done
+        env:
+          DATABASE_URL: postgresql://orient:orient_test_password@localhost:5432/orient_test
+          PGPASSWORD: orient_test_password
+
+      - name: Run integration tests
+        run: npm run test:integration
+        env:
+          DATABASE_URL: postgresql://orient:orient_test_password@localhost:5432/orient_test
+          TEST_DATABASE_URL: postgresql://orient:orient_test_password@localhost:5432/orient_test
+
+  # Build verification
+  build:
+    runs-on: ubuntu-latest
+    needs: [test-root, test-contracts]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build all packages
+        run: pnpm turbo build
+
+      - name: Build root application
+        run: npm run build

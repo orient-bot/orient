@@ -1,0 +1,49 @@
+name: slack-send-dm
+description: Agent should use the correct Slack tools to send a direct message
+type: tool_selection
+agent: communicator
+
+context:
+  platform: slack
+
+input:
+  prompt: 'Send a message to John about the project being delayed by 2 days'
+
+mocks:
+  slack:
+    ai_first_slack_lookup_user_by_email:
+      response:
+        id: U12345678
+        displayName: John Smith
+        email: john@example.com
+
+    ai_first_slack_send_dm:
+      response:
+        success: true
+        ts: '1705670400.000000'
+        channel: D12345678
+
+expect:
+  tool_calls:
+    required:
+      - name: ai_first_slack_send_dm
+
+  assertions:
+    # Check response confirms message action
+    - type: response_matches
+      pattern: 'sent|message|john|dm|direct'
+
+scoring:
+  llm_judge:
+    enabled: true
+    criteria:
+      - name: professionalism
+        description: 'Message maintains professional tone appropriate for work'
+        weight: 0.4
+      - name: clarity
+        description: 'Message clearly communicates the delay and timeline'
+        weight: 0.4
+      - name: empathy
+        description: 'Message acknowledges impact without being defensive'
+        weight: 0.2
+    threshold: 0.7

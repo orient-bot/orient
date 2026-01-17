@@ -1,0 +1,23 @@
+name: onboarder-list-pending-changes
+description: Onboarder lists pending configuration actions when asked
+type: multi_step_workflow
+agent: onboarder
+
+context:
+  platform: dashboard
+
+input:
+  prompt: 'What pending changes do I have?'
+
+expect:
+  tool_calls:
+    required:
+      - name: config_list_pending
+
+  assertions:
+    - type: response_matches
+      pattern: 'pending|action|change|none'
+
+scoring:
+  llm_judge:
+    enabled: false

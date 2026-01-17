@@ -1,0 +1,50 @@
+name: app-builder-list-and-create
+description: App builder should list apps then create a new one
+type: multi_step_workflow
+agent: app-builder
+
+input:
+  prompt: 'Show me existing apps, then create a dashboard app'
+
+mocks:
+  google:
+    ai_first_list_apps:
+      response:
+        apps:
+          - id: 'app-501'
+            name: 'status-dashboard'
+            description: 'Sprint status dashboard'
+            status: 'active'
+    ai_first_create_app:
+      response:
+        success: true
+        app:
+          id: 'app-502'
+          name: 'team-dashboard'
+          pr_url: 'https://github.com/example/repo/pull/126'
+
+expect:
+  tool_calls:
+    required:
+      - name: ai_first_list_apps
+      - name: ai_first_create_app
+
+  workflow:
+    steps:
+      - name: list_apps
+        tools:
+          - ai_first_list_apps
+        order: any
+      - name: create_app
+        tools:
+          - ai_first_create_app
+        order: any
+        depends_on: list_apps
+
+  assertions:
+    - type: workflow_completed
+      steps:
+        - list_apps
+        - create_app
+    - type: response_matches
+      pattern: 'apps|dashboard|create|list|app'

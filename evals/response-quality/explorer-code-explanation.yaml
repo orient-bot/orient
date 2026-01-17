@@ -1,0 +1,31 @@
+name: explorer-code-explanation
+description: Explorer should clearly explain how the agent registry works
+type: response_quality
+agent: explorer
+
+input:
+  prompt: 'Explain how the agent registry works'
+
+expect:
+  tool_calls:
+    required:
+      - name: read
+
+  assertions:
+    - type: response_matches
+      pattern: 'registry|agent|database|config|context'
+
+scoring:
+  llm_judge:
+    enabled: true
+    criteria:
+      - name: clarity
+        description: 'Explanation is clear and easy to follow'
+        weight: 0.4
+      - name: accuracy
+        description: 'Explanation accurately reflects the implementation'
+        weight: 0.4
+      - name: completeness
+        description: 'Covers core responsibilities and flow'
+        weight: 0.2
+    threshold: 0.6

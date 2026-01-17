@@ -1,0 +1,16 @@
+name: explorer-code-search
+description: Explorer should use grep to search the codebase
+type: tool_selection
+agent: explorer
+
+input:
+  prompt: 'Find where we handle authentication'
+
+expect:
+  tool_calls:
+    required:
+      - name: grep
+
+  assertions:
+    - type: response_matches
+      pattern: 'auth|login|password|token|session'

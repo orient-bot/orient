@@ -1,0 +1,32 @@
+name: app-builder-mini-apps-skill
+description: App builder should activate mini-apps skill for app requests
+type: skill_invocation
+agent: app-builder
+
+input:
+  prompt: 'Create a poll app for team voting'
+
+mocks:
+  google:
+    ai_first_create_app:
+      response:
+        success: true
+        app:
+          id: 'app-401'
+          name: 'team-poll'
+          pr_url: 'https://github.com/example/repo/pull/125'
+
+expect:
+  skills:
+    activated:
+      - mini-apps
+
+  tool_calls:
+    required:
+      - name: ai_first_create_app
+
+  assertions:
+    - type: skill_activated
+      skill: mini-apps
+    - type: response_matches
+      pattern: 'poll|vote|team|app|create'

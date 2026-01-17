@@ -1,0 +1,26 @@
+name: onboarder-no-manual-instructions
+description: Onboarder should use tools instead of giving manual dashboard instructions
+type: tool_selection
+agent: onboarder
+
+context:
+  platform: dashboard
+
+input:
+  prompt: "Change the Slack prompt to say 'You are a helpful assistant that helps with engineering tasks'"
+
+expect:
+  tool_calls:
+    required:
+      - name: config_set_prompt
+
+  assertions:
+    # Should NOT tell user to do it manually
+    - type: response_matches
+      pattern: 'pending|confirm|action|change'
+    # Should NOT contain manual instructions
+    # The pattern below should NOT match (we expect tool usage)
+
+scoring:
+  llm_judge:
+    enabled: false

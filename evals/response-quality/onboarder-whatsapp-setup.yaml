@@ -1,0 +1,20 @@
+name: onboarder-whatsapp-setup
+description: Onboarder explains WhatsApp pairing process
+type: response_quality
+agent: onboarder
+
+context:
+  platform: dashboard
+  route: /whatsapp/chats
+
+input:
+  prompt: 'How do I pair my WhatsApp?'
+
+expect:
+  assertions:
+    - type: response_matches
+      pattern: 'qr|scan|pair|phone|whatsapp'
+
+scoring:
+  llm_judge:
+    enabled: false

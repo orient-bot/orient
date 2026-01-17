@@ -1,0 +1,39 @@
+name: jira-in-progress-query
+description: Agent should use the in-progress tool when asked about current work
+type: tool_selection
+agent: pm-assistant
+
+input:
+  prompt: 'What issues are currently being worked on?'
+
+mocks:
+  jira:
+    ai_first_get_in_progress:
+      response:
+        count: 3
+        issues:
+          - key: PROJ-101
+            summary: 'Implement user authentication'
+            status: 'In Progress'
+            assignee: 'Developer 1'
+            storyPoints: 5
+          - key: PROJ-102
+            summary: 'Add API rate limiting'
+            status: 'In Progress'
+            assignee: 'Developer 2'
+            storyPoints: 3
+          - key: PROJ-103
+            summary: 'Update dashboard UI'
+            status: 'In Progress'
+            assignee: 'Developer 1'
+            storyPoints: 2
+
+expect:
+  tool_calls:
+    required:
+      - name: ai_first_get_in_progress
+
+  assertions:
+    # Check response discusses in-progress work
+    - type: response_matches
+      pattern: 'progress|working|current|active'

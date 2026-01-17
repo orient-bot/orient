@@ -1,0 +1,31 @@
+name: health-check-invocation
+description: Agent should use health check tool when asked about system status
+type: tool_selection
+agent: pm-assistant
+
+input:
+  prompt: 'Check if everything is working correctly'
+
+mocks:
+  jira:
+    ai_first_health_check:
+      response:
+        status: ok
+        jira:
+          connected: true
+          host: 'company.atlassian.net'
+          project: 'YOUR_PROJECT'
+          issueCount: 150
+        sla:
+          enabled: true
+          maxAgingDays: 14
+
+expect:
+  tool_calls:
+    required:
+      - name: ai_first_health_check
+
+  assertions:
+    # Check response discusses system health
+    - type: response_matches
+      pattern: 'healthy|ok|connected|working|status'

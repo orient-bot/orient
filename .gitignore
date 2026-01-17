@@ -1,0 +1,607 @@
+# ============================================================================
+# COMPREHENSIVE .gitignore - STRICT SECRET ENFORCEMENT
+# ============================================================================
+# This file ensures NO secrets, credentials, or sensitive data are committed.
+# When in doubt, exclude it. Better safe than sorry.
+# ============================================================================
+
+# ============================================================================
+# ENVIRONMENT VARIABLES & CONFIGURATION FILES
+# ============================================================================
+# These files commonly contain secrets and API keys
+
+.env
+.env.*
+.env.local
+.env.*.local
+.env.test
+.env.production
+.env.staging
+.env.development
+.env.development.local
+.env.production.local
+.env.staging.local
+.env.*.local
+!.env.example
+!.env.template
+!.env.sample
+
+# Configuration files that may contain secrets
+config.json
+config.local.json
+config.*.json
+!config.example.json
+!config.template.json
+*.config.local.*
+*.local.json
+*.local.yaml
+*.local.yml
+*.local.toml
+*.local.conf
+
+# MCP and Claude configuration
+.mcp.config.json
+.mcp.config.local.json
+.mcp.config.*.json
+!mcp.config.example.json
+.claude/settings.local.json
+.claude/settings.json
+opencode.local.json
+opencode.*.local.json
+!opencode.json
+
+# ============================================================================
+# CREDENTIALS & SECRETS
+# ============================================================================
+
+# API Keys, Tokens, Secrets (common patterns)
+# Note: These patterns are intentionally narrow to avoid matching source files.
+# Data files (JSON, YAML, TXT, etc.) with secret-related names are caught in
+# the "FINAL SAFETY NET" section below using explicit extension patterns.
+
+# Auth data patterns (but not source code)
+# Use specific patterns to avoid catching source files like oauthClientProvider.ts
+*_auth_data*
+*_auth_token*
+*_auth_secret*
+*.auth.json
+*.auth.yaml
+*.auth.yml
+*_authorization_*
+
+# Specific secret file patterns
+secrets.json
+secrets.yaml
+secrets.yml
+.secrets
+.secrets.*
+*.secret
+*.secrets
+*.key
+*.keys
+*.token
+*.tokens
+*.pwd
+*.pass
+*.cred
+*.creds
+
+# OAuth tokens and authentication data
+**/oauth-tokens/
+**/oauth_tokens/
+**/auth/
+**/authentication/
+*.oauth.json
+*.oauth.yaml
+*.oauth.yml
+oauth.json
+oauth.yaml
+oauth.yml
+auth.json
+auth.yaml
+auth.yml
+tokens.json
+tokens.yaml
+tokens.yml
+
+# Google credentials
+credentials/
+credentials/**/*
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*.cer
+*.der
+*.jks
+*.keystore
+*.truststore
+service-account.json
+service_account.json
+google-credentials.json
+google_credentials.json
+client_secret*.json
+client-secret*.json
+
+# SSL/TLS certificates and keys
+*.pem
+*.key
+*.crt
+*.cer
+*.der
+*.p12
+*.pfx
+*.jks
+*.keystore
+*.truststore
+ssl/
+tls/
+certs/
+certificates/
+*.csr
+*.ca-bundle
+*.ca.crt
+
+# SSH keys
+*.rsa
+*.rsa.pub
+*.dsa
+*.dsa.pub
+*.ecdsa
+*.ecdsa.pub
+*.ed25519
+*.ed25519.pub
+id_rsa*
+id_dsa*
+id_ecdsa*
+id_ed25519*
+*.ppk
+known_hosts
+ssh_config
+.ssh/
+
+# ============================================================================
+# DATABASE FILES
+# ============================================================================
+# Database files may contain sensitive user data
+
+# SQLite
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+*.sqlite-shm
+*.sqlite-wal
+*.db-journal
+
+# Database dumps and backups (but NOT migration files)
+*.sql
+!data/migrations/*.sql
+*.dump
+*.backup
+*.bak
+*_dump.sql
+*_backup.sql
+*_recover.sql
+*.corrupted
+*.corrupted.bak
+*.sql.gz
+*.dump.gz
+*.backup.gz
+
+# Database directories
+data/*.db
+data/*.db-shm
+data/*.db-wal
+data/db/
+**/databases/
+
+# ============================================================================
+# SESSION DATA & AUTHENTICATION STATE
+# ============================================================================
+
+# WhatsApp session data (contains auth credentials)
+data/whatsapp-auth/
+**/whatsapp-auth/
+**/whatsapp_auth/
+*.whatsapp-session
+*.whatsapp_session
+whatsapp-session/
+whatsapp_session/
+
+# Session storage
+sessions/
+session/
+*.session
+*.sess
+
+# ============================================================================
+# PERSONAL DATA & USER CONTENT
+# ============================================================================
+
+# Personal data directories
+data/media/
+data/oauth-tokens/
+packages/dashboard/data/oauth-tokens/
+packages/dashboard/data/**/oauth-tokens/
+**/personal/
+**/user-data/
+**/user_data/
+work/
+work/**/*
+work/docs/*.json
+
+# Media files (may contain user-uploaded content)
+data/media/
+**/uploads/
+**/user-uploads/
+**/user_uploads/
+
+# ============================================================================
+# LOGS & DEBUGGING
+# ============================================================================
+# Logs may contain sensitive information, errors, stack traces
+
+logs/
+log/
+*.log
+*.log.*
+*.log.*.gz
+*.log.*.zip
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+*.log.*
+debug.log
+error.log
+access.log
+combined.log
+
+# ============================================================================
+# DEPENDENCIES & PACKAGE MANAGERS
+# ============================================================================
+
+node_modules/
+.pnp
+.pnp.js
+.yarn/
+.pnpm-store/
+# Ignore non-pnpm lock files (this is a pnpm monorepo, pnpm-lock.yaml is committed)
+package-lock.json
+yarn.lock
+bun.lockb
+.npm/
+.esm-cache/
+.node_repl_history
+
+# ============================================================================
+# BUILD OUTPUTS & COMPILED CODE
+# ============================================================================
+
+dist/
+build/
+out/
+.next/
+.nuxt/
+.cache/
+*.tsbuildinfo
+*.tsbuildinfo.*
+
+# TypeScript compiled output in source directories
+# These are generated from .ts files and should not be committed
+packages/**/*.js
+packages/**/*.d.ts
+packages/**/*.js.map
+packages/**/*.d.ts.map
+!packages/**/*.config.js
+!packages/**/jest.config.js
+!packages/**/vitest.config.js
+!packages/**/eslint.config.js
+!packages/**/tailwind.config.js
+!packages/**/postcss.config.js
+!packages/**/vite.config.js
+
+src/**/*.js
+src/**/*.d.ts
+src/**/*.js.map
+src/**/*.d.ts.map
+!src/**/*.config.js
+
+# Root level build artifacts
+*.js.map
+*.d.ts.map
+
+lib/
+lib-cov/
+coverage/
+.nyc_output/
+*.lcov
+*.lcov.info
+
+# OpenCode config directory (local state)
+.opencode/
+
+# Root-level build artifacts and temp files
+utils/
+test-import.mjs
+
+# ============================================================================
+# TESTING & COVERAGE
+# ============================================================================
+
+coverage/
+.nyc_output/
+*.lcov
+*.lcov.info
+.jest/
+.vitest/
+test-results/
+playwright-report/
+playwright/.cache/
+*.test.js.map
+*.spec.js.map
+
+# ============================================================================
+# TEMPORARY FILES & CACHES
+# ============================================================================
+
+tmp/
+temp/
+.tmp/
+.temp/
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+.cache/
+.parcel-cache/
+.turbo/
+.vite/
+.temp/
+.tmp/
+*.cache
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# PID files
+*.pid
+.pid
+.dev-pids/
+.pnpm-install.pid
+
+# ============================================================================
+# IDE & EDITOR FILES
+# ============================================================================
+
+# VSCode
+.vscode/
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+.vscode-test/
+
+# IntelliJ / WebStorm / PyCharm
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+
+# Cursor
+.cursor/
+!.cursor/worktrees.json
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Vim
+*.swp
+*.swo
+*~
+.vim/
+
+# Emacs
+*~
+\#*\#
+.\#*
+*~
+*.elc
+auto-save-list
+tramp
+
+# ============================================================================
+# OPERATING SYSTEM FILES
+# ============================================================================
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.Spotlight-V100
+.Trashes
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+Desktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk
+
+# Linux
+*~
+.directory
+.Trash-*
+
+# ============================================================================
+# DOCKER & CONTAINERIZATION
+# ============================================================================
+
+.dockerignore
+docker-compose.override.yml
+docker-compose.*.local.yml
+*.dockerignore.local
+
+# ============================================================================
+# CI/CD & DEPLOYMENT
+# ============================================================================
+
+# CI secrets (if accidentally committed)
+.ci/
+.ci-secrets/
+.github/secrets/
+.gitlab-ci-secrets/
+.circleci/secrets/
+
+# Deployment scripts with secrets
+deploy.local.sh
+deploy.*.local.sh
+*.deploy.local.*
+
+# ============================================================================
+# PROJECT-SPECIFIC PATTERNS
+# ============================================================================
+
+# Personal skills
+.claude/skills/personal-*/
+.claude/skills/local/
+
+# Meeting notes (user-specific)
+meetings/action-items-report.md
+# Uncomment to exclude all personal meeting notes:
+# meetings/weekly/*.md
+# meetings/planning/*.md
+# meetings/retrospectives/*.md
+# meetings/1-on-1/*.md
+# meetings/ad-hoc/*.md
+# !meetings/**/.gitkeep
+
+# Workflow documents (user-specific)
+# Uncomment to exclude personal workflow docs:
+# workflow/weekly-reviews/*.md
+# workflow/sprint-health/*.md
+# workflow/weekly-summaries/*.md
+# !workflow/**/.gitkeep
+
+# Example ignore folder
+example-ignore/
+
+# Evaluation results
+eval-results/
+*.eval.json
+*.eval-result.json
+
+# Video generation
+.venv-video/
+
+# ============================================================================
+# ADDITIONAL SECURITY PATTERNS
+# ============================================================================
+
+# Common secret file names
+.secret
+.secrets
+.secret.*
+.secrets.*
+secret.txt
+secrets.txt
+password.txt
+passwords.txt
+credentials.txt
+keys.txt
+tokens.txt
+
+# Backup files that might contain secrets
+*.bak
+*.backup
+*.old
+*.orig
+*.save
+*.swp
+*~
+
+# Encrypted files (may contain secrets)
+*.enc
+*.encrypted
+*.gpg
+*.pgp
+
+# ============================================================================
+# FINAL SAFETY NET
+# ============================================================================
+# Catch-all for suspicious files that might contain secrets
+# Note: Source code files (.ts, .js, .tsx, .jsx) are explicitly allowed above
+
+# Secret/credential files (but not source code)
+**/*secret*.json
+**/*secret*.yaml
+**/*secret*.yml
+**/*secret*.txt
+**/*secret*.env
+**/*key*.json
+**/*key*.yaml
+**/*key*.yml
+**/*key*.txt
+**/*token*.json
+**/*token*.yaml
+**/*token*.yml
+**/*token*.txt
+**/*password*.json
+**/*password*.yaml
+**/*password*.yml
+**/*password*.txt
+**/*credential*.json
+**/*credential*.yaml
+**/*credential*.yml
+**/*credential*.txt
+**/*auth*.json
+**/*auth*.yaml
+**/*auth*.yml
+**/*auth*.txt
+**/*auth*.env
+
+# Configuration files in suspicious locations
+# Note: Only matching non-source file extensions
+**/local.json
+**/local.yaml
+**/local.yml
+**/local.toml
+**/local.conf
+**/*.local.json
+**/*.local.yaml
+**/*.local.yml
+**/*.local.toml
+**/*.local.conf
+**/private.json
+**/private.yaml
+**/private.yml
+**/*.private.json
+**/*.private.yaml
+**/*.private.yml
+**/personal.json
+**/personal.yaml
+**/personal.yml
+**/*.personal.json
+**/*.personal.yaml
+**/*.personal.yml
+
+# ============================================================================
+# END OF .gitignore
+# ============================================================================
+.vercel

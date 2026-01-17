@@ -1,0 +1,46 @@
+name: blocker-notification-workflow
+description: Agent should find blockers and notify stakeholders
+type: multi_step_workflow
+agent: pm-assistant
+
+input:
+  prompt: 'Check for any blocked issues and send a summary to the #project-status Slack channel'
+
+mocks:
+  jira:
+    ai_first_get_blockers:
+      response:
+        count: 2
+        issues:
+          - key: PROJ-190
+            summary: 'Waiting for API access from vendor'
+            status: 'Blocked'
+            priority: 'High'
+            assignee: 'Alice'
+            blockedDays: 5
+            labels: ['api', 'external-dependency']
+          - key: PROJ-195
+            summary: 'Database schema approval pending'
+            status: 'Blocked'
+            priority: 'Medium'
+            assignee: 'Bob'
+            blockedDays: 2
+            labels: ['database', 'approval']
+
+  slack:
+    ai_first_slack_send_channel_message:
+      response:
+        success: true
+        ts: '1705670400.000003'
+        channel: C98765432
+
+expect:
+  tool_calls:
+    required:
+      - name: ai_first_get_blockers
+      - name: ai_first_slack_send_channel_message
+
+  assertions:
+    # Check response discusses blocker notification workflow
+    - type: response_matches
+      pattern: 'block|sent|channel|notif|slack'

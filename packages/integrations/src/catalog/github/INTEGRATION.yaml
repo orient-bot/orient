@@ -1,0 +1,230 @@
+name: github
+title: GitHub
+description: >-
+  Complete GitHub integration for repository management, pull requests, issues,
+  actions, and code collaboration. Access repositories, create and manage PRs,
+  track issues, trigger workflows, and integrate with your development pipeline.
+version: 1.0.0
+author: Orient
+icon: /icons/github.svg
+status: stable
+
+oauth:
+  type: oauth2
+  authorizationUrl: https://github.com/login/oauth/authorize
+  tokenUrl: https://github.com/login/oauth/access_token
+  scopes:
+    - repo
+    - read:user
+    - user:email
+    - read:org
+    - workflow
+  scopeDescriptions:
+    repo: Full control of private repositories
+    read:user: Read access to user profile data
+    user:email: Access to user email addresses
+    read:org: Read-only access to organization data
+    workflow: Update GitHub Action workflows
+
+requiredSecrets:
+  - name: GITHUB_CLIENT_ID
+    description: OAuth App Client ID from GitHub Developer Settings
+    category: oauth
+    required: true
+  - name: GITHUB_CLIENT_SECRET
+    description: OAuth App Client Secret from GitHub Developer Settings
+    category: oauth
+    required: true
+  - name: GITHUB_WEBHOOK_SECRET
+    description: Webhook secret for payload verification (optional)
+    category: webhook
+    required: false
+  - name: GITHUB_TOKEN
+    description: Personal Access Token for server-side operations (optional)
+    category: api_key
+    required: false
+
+tools:
+  # Repository operations
+  - name: repos.list
+    description: List repositories accessible to the authenticated user
+    category: repositories
+    requiredScopes:
+      - repo
+  - name: repos.get
+    description: Get details of a specific repository
+    category: repositories
+    requiredScopes:
+      - repo
+  - name: repos.create
+    description: Create a new repository
+    category: repositories
+    requiredScopes:
+      - repo
+  - name: repos.contents
+    description: Get file contents from a repository
+    category: repositories
+    requiredScopes:
+      - repo
+
+  # Pull requests
+  - name: pulls.list
+    description: List pull requests in a repository
+    category: pull-requests
+    requiredScopes:
+      - repo
+  - name: pulls.get
+    description: Get details of a specific pull request
+    category: pull-requests
+    requiredScopes:
+      - repo
+  - name: pulls.create
+    description: Create a new pull request
+    category: pull-requests
+    requiredScopes:
+      - repo
+  - name: pulls.update
+    description: Update a pull request (title, body, state)
+    category: pull-requests
+    requiredScopes:
+      - repo
+  - name: pulls.merge
+    description: Merge a pull request
+    category: pull-requests
+    requiredScopes:
+      - repo
+  - name: pulls.reviews
+    description: List reviews on a pull request
+    category: pull-requests
+    requiredScopes:
+      - repo
+  - name: pulls.comments
+    description: List and create PR comments
+    category: pull-requests
+    requiredScopes:
+      - repo
+
+  # Issues
+  - name: issues.list
+    description: List issues in a repository
+    category: issues
+    requiredScopes:
+      - repo
+  - name: issues.get
+    description: Get details of a specific issue
+    category: issues
+    requiredScopes:
+      - repo
+  - name: issues.create
+    description: Create a new issue
+    category: issues
+    requiredScopes:
+      - repo
+  - name: issues.update
+    description: Update an issue (title, body, state, labels)
+    category: issues
+    requiredScopes:
+      - repo
+  - name: issues.comments
+    description: List and create issue comments
+    category: issues
+    requiredScopes:
+      - repo
+
+  # Branches and commits
+  - name: branches.list
+    description: List branches in a repository
+    category: git
+    requiredScopes:
+      - repo
+  - name: branches.create
+    description: Create a new branch
+    category: git
+    requiredScopes:
+      - repo
+  - name: branches.delete
+    description: Delete a branch
+    category: git
+    requiredScopes:
+      - repo
+  - name: commits.list
+    description: List commits on a branch
+    category: git
+    requiredScopes:
+      - repo
+  - name: commits.get
+    description: Get details of a specific commit
+    category: git
+    requiredScopes:
+      - repo
+
+  # GitHub Actions
+  - name: actions.workflows
+    description: List and manage workflow runs
+    category: actions
+    requiredScopes:
+      - workflow
+  - name: actions.trigger
+    description: Trigger a workflow dispatch event
+    category: actions
+    requiredScopes:
+      - workflow
+  - name: actions.runs
+    description: List workflow runs
+    category: actions
+    requiredScopes:
+      - repo
+
+  # Releases
+  - name: releases.list
+    description: List releases in a repository
+    category: releases
+    requiredScopes:
+      - repo
+  - name: releases.create
+    description: Create a new release
+    category: releases
+    requiredScopes:
+      - repo
+  - name: releases.latest
+    description: Get the latest release
+    category: releases
+    requiredScopes:
+      - repo
+
+  # User and organization
+  - name: user.profile
+    description: Get authenticated user profile
+    category: user
+    requiredScopes:
+      - read:user
+  - name: orgs.list
+    description: List organizations for the authenticated user
+    category: organizations
+    requiredScopes:
+      - read:org
+  - name: orgs.repos
+    description: List repositories in an organization
+    category: organizations
+    requiredScopes:
+      - repo
+      - read:org
+
+webhooks:
+  events:
+    - push
+    - pull_request
+    - issues
+    - issue_comment
+    - pull_request_review
+    - release
+    - workflow_run
+    - check_run
+    - check_suite
+    - deployment
+    - deployment_status
+  signatureHeader: X-Hub-Signature-256
+  signatureAlgorithm: hmac-sha256
+
+docsUrl: https://docs.github.com/en/rest
+apiBaseUrl: https://api.github.com

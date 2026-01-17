@@ -1,0 +1,27 @@
+name: onboarder-discover-tools
+description: Onboarder should use discover_tools when asked about available capabilities
+type: tool_selection
+agent: onboarder
+
+context:
+  platform: dashboard
+
+input:
+  prompt: 'What tools can you use to help me configure Orient?'
+
+expect:
+  tool_calls:
+    required:
+      - name: discover_tools
+    forbidden:
+      - config_set_prompt
+      - config_set_secret
+      - config_set_permission
+
+  assertions:
+    - type: response_matches
+      pattern: 'config|tool|permission|prompt|secret|schedule'
+
+scoring:
+  llm_judge:
+    enabled: false

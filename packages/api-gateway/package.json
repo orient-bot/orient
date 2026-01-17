@@ -1,0 +1,65 @@
+{
+  "name": "@orient/api-gateway",
+  "version": "1.0.0",
+  "description": "REST API gateway for Orient - webhooks, scheduler, and health monitoring",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "api-gateway": "./dist/main.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./scheduler": {
+      "types": "./dist/scheduler/index.d.ts",
+      "import": "./dist/scheduler/index.js",
+      "default": "./dist/scheduler/index.js"
+    },
+    "./webhooks": {
+      "types": "./dist/webhooks/index.d.ts",
+      "import": "./dist/webhooks/index.js",
+      "default": "./dist/webhooks/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/main.ts",
+    "dev:watch": "tsc --watch",
+    "start": "node dist/main.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint src/**/*.ts",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@orient/core": "workspace:*",
+    "@orient/database": "workspace:*",
+    "@orient/database-services": "workspace:*",
+    "express": "^5.0.0",
+    "node-cron": "^3.0.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/node": "^20.10.0",
+    "@types/node-cron": "^3.0.11",
+    "@vitest/coverage-v8": "^4.0.15",
+    "typescript": "^5.3.2",
+    "vitest": "^4.0.15"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ]
+}

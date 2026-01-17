@@ -1,0 +1,76 @@
+name: pm-assistant-weekly-summary-quality
+description: PM assistant should provide clear and well-structured weekly summaries
+type: response_quality
+agent: pm-assistant
+
+input:
+  prompt: "Give me a summary of this week's progress"
+
+mocks:
+  jira:
+    ai_first_get_weekly_summary:
+      response:
+        weekEnding: '2024-01-19'
+        summary:
+          completedCount: 5
+          velocityPoints: 13
+          addedCount: 3
+          agingCount: 1
+        completed:
+          - key: PROJ-90
+            summary: 'Fix login bug'
+            storyPoints: 2
+          - key: PROJ-91
+            summary: 'Add export feature'
+            storyPoints: 5
+          - key: PROJ-92
+            summary: 'Update documentation'
+            storyPoints: 1
+          - key: PROJ-93
+            summary: 'Performance optimization'
+            storyPoints: 3
+          - key: PROJ-94
+            summary: 'Code review fixes'
+            storyPoints: 2
+        added:
+          - key: PROJ-100
+            summary: 'New feature request'
+          - key: PROJ-101
+            summary: 'Bug report from QA'
+          - key: PROJ-102
+            summary: 'Tech debt item'
+        aging:
+          - key: PROJ-50
+            summary: 'Old blocked issue'
+            daysInProgress: 14
+
+expect:
+  tool_calls:
+    required:
+      - name: ai_first_get_weekly_summary
+
+  assertions:
+    # Check response discusses weekly summary topics
+    - type: response_matches
+      pattern: 'complet|week|progress|summar|status'
+
+scoring:
+  llm_judge:
+    enabled: true
+    criteria:
+      - name: clarity
+        description: 'Summary is clear and easy to understand'
+        weight: 0.3
+      - name: completeness
+        description: 'All key metrics are included (completed, velocity, new, aging)'
+        weight: 0.4
+      - name: structure
+        description: 'Information is well-organized and scannable'
+        weight: 0.3
+    threshold: 0.7
+    rubric: |
+      Score each criterion from 0-1:
+      - 1.0: Excellent - Professional quality summary
+      - 0.7: Good - Covers key points adequately
+      - 0.4: Needs improvement - Missing important information
+      - 0.0: Poor - Unclear or incomplete

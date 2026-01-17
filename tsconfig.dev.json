@@ -1,0 +1,52 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "lib": ["ES2022"],
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "baseUrl": ".",
+    "paths": {
+      "@orient/core": ["./packages/core/src/index"],
+      "@orient/core/*": ["./packages/core/src/*"],
+      "@orient/database": ["./packages/database/src/index"],
+      "@orient/database/*": ["./packages/database/src/*"],
+      "@orient/database-services": ["./packages/database-services/src/index"],
+      "@orient/database-services/*": ["./packages/database-services/src/*"],
+      "@orient/agents": ["./packages/agents/src/index"],
+      "@orient/agents/*": ["./packages/agents/src/*"],
+      "@orient/integrations": ["./packages/integrations/src/index"],
+      "@orient/integrations/*": ["./packages/integrations/src/*"],
+      "@orient/bot-whatsapp": ["./packages/bot-whatsapp/src/index"],
+      "@orient/bot-whatsapp/*": ["./packages/bot-whatsapp/src/*"],
+      "@orient/bot-slack": ["./packages/bot-slack/src/index"],
+      "@orient/bot-slack/*": ["./packages/bot-slack/src/*"],
+      "@orient/mcp-tools": ["./packages/mcp-tools/src/index"],
+      "@orient/mcp-tools/*": ["./packages/mcp-tools/src/*"],
+      "@orient/mcp-servers": ["./packages/mcp-servers/src/index"],
+      "@orient/mcp-servers/*": ["./packages/mcp-servers/src/*"],
+      "@orient/apps": ["./packages/apps/src/index"],
+      "@orient/apps/*": ["./packages/apps/src/*"],
+      "@orient/test-utils": ["./packages/test-utils/src/index"],
+      "@orient/test-utils/*": ["./packages/test-utils/src/*"],
+      "@orient/dashboard": ["./packages/dashboard/src/index"],
+      "@orient/dashboard/*": ["./packages/dashboard/src/*"],
+      "@orient/api-gateway": ["./packages/api-gateway/src/index"],
+      "@orient/api-gateway/*": ["./packages/api-gateway/src/*"]
+    }
+  },
+  "include": ["src/**/*", "packages/*/src/**/*"],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "**/*.test.ts",
+    "**/__tests__/**",
+    "packages/dashboard-frontend/**"
+  ]
+}

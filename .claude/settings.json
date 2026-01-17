@@ -1,0 +1,24 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "prompt",
+            "prompt": "Review the task that was just completed. If the task involved writing or modifying code (not just reading, exploring, or answering questions), evaluate whether tests should be written or run.\n\nConsider the testing-strategy skill guidelines:\n- Unit tests (*.test.ts) for business logic, utility functions, service methods\n- Integration tests (*.integration.test.ts) for MCP tool handlers, multi-service workflows\n- E2E tests (*.e2e.test.ts) for database schema changes\n\nDecision tree:\n1. If code was MODIFIED in packages/core/ → run: pnpm --filter @orient/core test\n2. If code was MODIFIED in packages/database/ → run: pnpm --filter @orient/database test\n3. If code was MODIFIED in packages/mcp-tools/ → run: pnpm --filter @orient/mcp-tools test\n4. If code was MODIFIED in src/services/ → run related service tests\n5. If NEW functionality was added → suggest writing tests\n6. If EXISTING tests were modified → run those tests\n7. If only reading/exploring/documentation → no tests needed\n\nRespond with JSON:\n- {\"ok\": true} if no testing needed (read-only, exploratory, documentation, or tests not applicable)\n- {\"ok\": false, \"reason\": \"Run tests: <command>\"} if tests should be run\n- {\"ok\": false, \"reason\": \"Write tests for: <description>\"} if new tests should be written",
+            "timeout": 30
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "prompt",
+            "prompt": "Evaluate the skills used during this task. Skills are located in .claude/skills/<skill-name>/SKILL.md.\n\nReview:\n1. Which skills were explicitly invoked (via Skill tool or /skill-name)?\n2. Which skills SHOULD have been used but weren't available?\n3. For skills that were used, were they adequate?\n\nEvaluation criteria for skill adequacy:\n- Did the skill provide accurate, up-to-date commands and procedures?\n- Were there missing steps that caused confusion or errors?\n- Did the skill cover edge cases encountered during the task?\n- Were there lessons learned that should be added to the skill?\n- Is there outdated information that needs updating?\n\nRespond with JSON:\n- {\"ok\": true} if no skill improvements needed (skills were adequate, or no skills were used)\n- {\"ok\": false, \"reason\": \"Update skill '<skill-name>': <specific improvement needed>\"} if a skill needs updating\n- {\"ok\": false, \"reason\": \"Create skill '<skill-name>': <description of what it should cover>\"} if a new skill should be created based on lessons learned",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}

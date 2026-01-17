@@ -1,0 +1,32 @@
+# Build outputs
+dist/
+build/
+
+# All node_modules (including nested)
+node_modules/
+**/node_modules/
+
+# Frontend apps with their own configs
+src/apps-portal/
+src/dashboard/frontend/
+
+# Test fixtures and mocks
+**/__mocks__/
+**/__tests__/
+
+# Eval tests (not in tsconfig)
+src/eval/
+
+# Files excluded from build (circular dependencies)
+packages/agents/src/services/whatsappAgentService.ts
+packages/agents/src/services/notificationService.ts
+
+# Config files outside tsconfig
+vitest.config.ts
+vitest.eval.config.ts
+vitest.workspace.ts
+drizzle.config.ts
+
+# Generated files
+*.d.ts
+coverage/

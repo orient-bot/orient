@@ -1,0 +1,23 @@
+name: onboarder-list-pending
+description: Onboarder should use config_list_pending to show pending actions
+type: tool_selection
+agent: onboarder
+
+context:
+  platform: dashboard
+
+input:
+  prompt: 'What pending configuration changes are there?'
+
+expect:
+  tool_calls:
+    required:
+      - name: config_list_pending
+
+  assertions:
+    - type: response_matches
+      pattern: 'pending|action|change|none|no pending'
+
+scoring:
+  llm_judge:
+    enabled: false

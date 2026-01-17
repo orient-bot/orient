@@ -1,0 +1,71 @@
+{
+  "slack": {
+    "botToken": "${SLACK_BOT_TOKEN}",
+    "signingSecret": "${SLACK_SIGNING_SECRET}",
+    "appToken": "${SLACK_APP_TOKEN}",
+    "channels": {
+      "standup": "#your-channel",
+      "alerts": "#your-channel"
+    }
+  },
+  "jira": {
+    "host": "${JIRA_HOST}",
+    "baseUrl": "https://${JIRA_HOST}",
+    "email": "${JIRA_EMAIL}",
+    "apiToken": "${JIRA_API_TOKEN}",
+    "projectKey": "YOUR_PROJECT",
+    "component": "YOUR_COMPONENT"
+  },
+  "cron": {
+    "standup": "30 9 * * 1-5",
+    "preStandup": "15 9 * * 1-5",
+    "staleCheck": "0 17 * * 1-5",
+    "weeklySummary": "0 16 * * 5"
+  },
+  "sla": {
+    "inProgressDays": 3,
+    "inReviewDays": 2,
+    "todoDays": 5
+  },
+  "timezone": "UTC",
+  "logLevel": "info",
+  "openai": {
+    "apiKey": "${OPENAI_API_KEY}",
+    "model": "gpt-4o"
+  },
+  "googleSlides": {
+    "presentationId": "your-presentation-id",
+    "credentialsPath": "credentials/service-account.json"
+  },
+  "googleOAuth": {
+    "clientId": "${GOOGLE_OAUTH_CLIENT_ID}",
+    "clientSecret": "${GOOGLE_OAUTH_CLIENT_SECRET}",
+    "callbackPort": 8766
+  },
+  "whatsapp": {
+    "adminPhone": "${WHATSAPP_ADMIN_PHONE}",
+    "sessionPath": "./data/whatsapp-auth",
+    "autoReconnect": true,
+    "messageRateLimit": 10,
+    "allowedGroupIds": ["your-group-id@g.us"]
+  },
+  "opencode": {
+    "serverUrl": "http://localhost",
+    "defaultAgent": "pm-assistant",
+    "defaultModel": "opencode/grok-code",
+    "visionModel": "anthropic/claude-sonnet-4-20250514",
+    "timeout": 120000
+  },
+  "dashboard": {
+    "enabled": true,
+    "port": 4098,
+    "jwtSecret": "${DASHBOARD_JWT_SECRET}",
+    "defaultPermission": "read_only"
+  },
+  "healthMonitor": {
+    "enabled": false,
+    "intervalMs": 300000,
+    "failureThreshold": 2,
+    "slackUserId": "${HEALTH_MONITOR_SLACK_USER_ID}"
+  }
+}

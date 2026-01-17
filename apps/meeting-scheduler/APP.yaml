@@ -1,0 +1,26 @@
+name: meeting-scheduler
+version: 1.0.0
+title: Meeting Scheduler
+description: Allow users to select a time slot and schedule a meeting with attendees
+
+permissions:
+  calendar:
+    read: true
+    write: true
+  google:
+    read: true
+    write: false
+
+capabilities:
+  scheduler:
+    enabled: true
+    max_jobs: 10
+    allowed_types: [once, recurring]
+
+sharing:
+  mode: secret_link
+  expires_after_days: 30
+
+build:
+  entry: src/App.tsx
+  output: dist/

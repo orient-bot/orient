@@ -1,0 +1,194 @@
+#!/usr/bin/env node
+/**
+ * Base MCP Server Factory
+ *
+ * Creates MCP servers with filtered tools based on configuration.
+ * This allows different server types (coding, assistant, core) to expose
+ * only the tools relevant to their use case.
+ */
+
+import { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
+import dotenv from 'dotenv';
+
+// Load environment variables
+dotenv.config();
+
+import {
+  createServiceLogger,
+  generateCorrelationId,
+  mcpToolLogger,
+  clearCorrelationId,
+} from '@orient/core';
+import { setSecretOverrides } from '@orient/core';
+import { createSecretsService } from '@orient/database-services';
+import { McpServerConfig, McpServerType, SERVER_CONFIGS } from './types.js';
+import { filterTools, isToolAvailable } from './tool-filter.js';
+
+// Import the executeToolCall function from the main server
+// This keeps all tool execution logic in one place
+import { executeToolCallFromRegistry } from './tool-executor.js';
+
+const serverLogger = createServiceLogger('mcp-server');
+const secretsService = createSecretsService();
+
+/**
+ * Creates an MCP server with the specified configuration
+ */
+export function createMcpServer(config: McpServerConfig): Server {
+  const server = new Server(
+    {
+      name: config.name,
+      version: config.version,
+    },
+    {
+      capabilities: {
+        tools: {},
+      },
+    }
+  );
+
+  serverLogger.info('MCP Server created', {
+    type: config.type,
+    name: config.name,
+    version: config.version,
+  });
+
+  // Get filtered tools for this server
+  const availableTools = filterTools(config.tools);
+
+  serverLogger.info('Tools configured', {
+    serverType: config.type,
+    toolCount: availableTools.length,
+    tools: availableTools.map((t) => t.name),
+  });
+
+  // Handle list tools request - return only filtered tools
+  server.setRequestHandler(ListToolsRequestSchema, async () => {
+    serverLogger.debug('ListTools request received', {
+      serverType: config.type,
+      toolCount: availableTools.length,
+    });
+    return { tools: availableTools };
+  });
+
+  // Handle tool calls
+  server.setRequestHandler(CallToolRequestSchema, async (request) => {
+    const { name, arguments: args } = request.params;
+    const correlationId = generateCorrelationId();
+    const startTime = Date.now();
+
+    // Check if tool is available for this server
+    if (!isToolAvailable(name, config.tools)) {
+      serverLogger.warn('Tool not available for this server', {
+        tool: name,
+        serverType: config.type,
+      });
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({
+              error: `Tool '${name}' is not available on ${config.name}. Use a different MCP server or discover_tools to find the right server.`,
+            }),
+          },
+        ],
+        isError: true,
+      };
+    }
+
+    // Log tool invocation
+    mcpToolLogger.toolStart(name, (args as Record<string, unknown>) || {}, correlationId);
+
+    try {
+      const result = await executeToolCallFromRegistry(name, args as Record<string, unknown>);
+      const duration = Date.now() - startTime;
+
+      // Log successful completion
+      mcpToolLogger.toolSuccess(name, result, duration);
+      clearCorrelationId();
+
+      return result;
+    } catch (error) {
+      const duration = Date.now() - startTime;
+
+      // Log error
+      mcpToolLogger.toolError(name, error instanceof Error ? error : String(error), duration);
+      clearCorrelationId();
+
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      return {
+        content: [{ type: 'text', text: JSON.stringify({ error: errorMessage }) }],
+        isError: true,
+      };
+    }
+  });
+
+  return server;
+}
+
+/**
+ * Load secrets from database and set as environment overrides
+ * This enables Google OAuth and other services that need credentials
+ */
+async function loadSecretsFromDatabase(): Promise<void> {
+  try {
+    const secrets = await secretsService.getAllSecrets();
+    if (Object.keys(secrets).length > 0) {
+      setSecretOverrides(secrets);
+      serverLogger.info('Loaded secrets from database', {
+        count: Object.keys(secrets).length,
+        keys: Object.keys(secrets),
+      });
+    } else {
+      serverLogger.debug('No secrets found in database');
+    }
+  } catch (error) {
+    serverLogger.warn('Failed to load secrets from database', {
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+}
+
+/**
+ * Creates and starts an MCP server of the specified type
+ */
+export async function startMcpServer(type: McpServerType): Promise<void> {
+  const config = SERVER_CONFIGS[type];
+  if (!config) {
+    throw new Error(`Unknown server type: ${type}`);
+  }
+
+  serverLogger.info('Starting MCP server...', { type });
+
+  // Load secrets from database before starting (for Google OAuth, etc.)
+  await loadSecretsFromDatabase();
+
+  const server = createMcpServer(config);
+  const transport = new StdioServerTransport();
+  await server.connect(transport);
+
+  serverLogger.info('MCP server running on stdio', {
+    type: config.type,
+    name: config.name,
+    tools: filterTools(config.tools).map((t) => t.name),
+  });
+}
+
+/**
+ * Main entry point - can be called with server type as argument
+ */
+export async function main(serverType: McpServerType = 'coding'): Promise<void> {
+  try {
+    await startMcpServer(serverType);
+  } catch (error) {
+    serverLogger.error('Failed to start MCP server', {
+      error: error instanceof Error ? error.message : String(error),
+    });
+    process.exit(1);
+  }
+}
+
+// Export for testing
+export { SERVER_CONFIGS } from './types.js';

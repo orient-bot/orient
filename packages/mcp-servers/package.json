@@ -1,0 +1,56 @@
+{
+  "name": "@orient/mcp-servers",
+  "version": "1.0.0",
+  "description": "MCP server implementations for the Orient",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./oauth": {
+      "types": "./dist/oauth.d.ts",
+      "import": "./dist/oauth.js",
+      "require": "./dist/oauth.js",
+      "default": "./dist/oauth.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint src/**/*.ts",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@orient/core": "workspace:*",
+    "@orient/mcp-tools": "workspace:*",
+    "@orient/agents": "workspace:*",
+    "@orient/apps": "workspace:*",
+    "@orient/database-services": "workspace:*",
+    "@orient/integrations": "workspace:*",
+    "@modelcontextprotocol/sdk": "^1.24.3",
+    "openai": "^4.104.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.27",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.16"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ]
+}

@@ -1,0 +1,64 @@
+# =============================================================================
+# Orient - Cloudflare R2 Storage Override
+# =============================================================================
+# This file configures services to use Cloudflare R2 instead of local MinIO.
+# Use in production alongside docker-compose.prod.yml:
+#
+#   docker compose -f docker-compose.v2.yml -f docker-compose.prod.yml -f docker-compose.r2.yml up -d
+#
+# Required environment variables (in .env):
+#   R2_ACCESS_KEY_ID      - Cloudflare R2 access key
+#   R2_SECRET_ACCESS_KEY  - Cloudflare R2 secret key
+#   R2_ACCOUNT_ID         - Cloudflare account ID (for endpoint URL)
+#   S3_BUCKET             - R2 bucket name (default: orienter-data)
+# =============================================================================
+
+services:
+  # ===========================================================================
+  # Disable MinIO services (not needed with R2)
+  # Using profiles to exclude them from default startup
+  # ===========================================================================
+  minio:
+    profiles:
+      - minio-only
+
+  minio-setup:
+    profiles:
+      - minio-only
+
+  # ===========================================================================
+  # OpenCode Server - Configure for R2
+  # ===========================================================================
+  opencode:
+    environment:
+      # Override S3 settings for Cloudflare R2
+      - AWS_ACCESS_KEY_ID=${R2_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${R2_SECRET_ACCESS_KEY}
+      - AWS_ENDPOINT_URL=https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com
+      - AWS_REGION=auto
+      - S3_BUCKET=${S3_BUCKET:-orienter-data}
+
+  # ===========================================================================
+  # WhatsApp Bot - Configure for R2
+  # V2 service name: bot-whatsapp (was: whatsapp-bot)
+  # ===========================================================================
+  bot-whatsapp:
+    environment:
+      # Override S3 settings for Cloudflare R2
+      - AWS_ACCESS_KEY_ID=${R2_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${R2_SECRET_ACCESS_KEY}
+      - AWS_ENDPOINT_URL=https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com
+      - AWS_REGION=auto
+      - S3_BUCKET=${S3_BUCKET:-orienter-data}
+
+  # ===========================================================================
+  # S3 Sync Service - Configure for R2 (disabled by default via profile in base)
+  # ===========================================================================
+  s3-sync:
+    environment:
+      # Override S3 settings for Cloudflare R2
+      - AWS_ACCESS_KEY_ID=${R2_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${R2_SECRET_ACCESS_KEY}
+      - AWS_ENDPOINT_URL=https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com
+      - AWS_REGION=auto
+      - S3_BUCKET=${S3_BUCKET:-orienter-data}

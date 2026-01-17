@@ -1,0 +1,16 @@
+name: explorer-discover-tools
+description: Explorer should use discover_tools to list available tools
+type: tool_selection
+agent: explorer
+
+input:
+  prompt: 'What tools are available for JIRA?'
+
+expect:
+  tool_calls:
+    required:
+      - name: discover_tools
+
+  assertions:
+    - type: response_matches
+      pattern: 'jira|tools|discover|available'

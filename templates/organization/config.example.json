@@ -1,0 +1,98 @@
+{
+  "$schema": "../../src/config/schema.json",
+  "_comment": "Copy this file to .mcp.config.local.json in your project root and customize",
+
+  "organization": {
+    "name": "Your Organization Name",
+    "jiraProjectKey": "PROJ",
+    "jiraComponent": "Your-Component"
+  },
+
+  "integrations": {
+    "jira": {
+      "host": "${JIRA_HOST}",
+      "email": "${JIRA_EMAIL}",
+      "apiToken": "${JIRA_API_TOKEN}"
+    },
+
+    "slack": {
+      "botToken": "${SLACK_BOT_TOKEN}",
+      "signingSecret": "${SLACK_SIGNING_SECRET}",
+      "appToken": "${SLACK_APP_TOKEN}",
+      "standupChannel": "#standup"
+    },
+
+    "whatsapp": {
+      "adminPhone": "${WHATSAPP_ADMIN_PHONE}",
+      "sessionPath": "./data/whatsapp-auth",
+      "autoReconnect": true,
+      "messageRateLimit": 10,
+      "allowedGroupIds": []
+    },
+
+    "googleDocs": {
+      "credentialsPath": "./credentials/service-account.json",
+      "presentationId": "${GOOGLE_SLIDES_PRESENTATION_ID}",
+      "templateSlides": {
+        "weeklyUpdate": "slide-id-for-weekly-template",
+        "sprintSummary": "slide-id-for-sprint-template"
+      }
+    },
+
+    "googleOAuth": {
+      "clientId": "${GOOGLE_OAUTH_CLIENT_ID}",
+      "clientSecret": "${GOOGLE_OAUTH_CLIENT_SECRET}",
+      "callbackPort": 8766,
+      "callbackUrl": "${GOOGLE_OAUTH_CALLBACK_URL}"
+    }
+  },
+
+  "features": {
+    "slaMonitoring": true,
+    "weeklyReports": true,
+    "whatsappBot": false,
+    "slackBot": false,
+    "googleSlides": false,
+    "mcpServer": true
+  },
+
+  "sla": {
+    "enabled": true,
+    "thresholds": [
+      { "status": "In Progress", "maxDays": 3 },
+      { "status": "In Review", "maxDays": 2 },
+      { "status": "To Do", "maxDays": 5 },
+      { "status": "Blocked", "maxDays": 1 }
+    ]
+  },
+
+  "board": {
+    "kanbanBacklogStatuses": ["IN BACKLOG", "BACKLOG- NEXT IN LINE", "BACKLOG"]
+  },
+
+  "cron": {
+    "standup": "30 9 * * 1-5",
+    "preStandup": "15 9 * * 1-5",
+    "staleCheck": "0 17 * * 1-5",
+    "weeklySummary": "0 16 * * 5"
+  },
+
+  "agent": {
+    "enabled": false,
+    "model": "claude-sonnet-4-20250514"
+  },
+
+  "dashboard": {
+    "enabled": true,
+    "port": 4098,
+    "defaultPermission": "read_only"
+  },
+
+  "messageDatabase": {
+    "dbPath": "./data/messages.db",
+    "retentionDays": 90
+  },
+
+  "timezone": "UTC",
+  "logLevel": "info"
+}

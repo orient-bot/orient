@@ -1,0 +1,28 @@
+name: personal-jira-project-management-skill-activation
+description: Agent should load and use personal-jira-project-management skill when creating issues
+type: skill_invocation
+agent: pm-assistant
+
+input:
+  prompt: 'Create a new story for implementing user authentication. Link it to the Security Epic PROJ-100.'
+
+mocks:
+  jira:
+    ai_first_jira_create_issue:
+      response:
+        success: true
+        issue:
+          key: PROJ-999
+          summary: 'Implement user authentication'
+          status: 'To Do'
+          issueType: 'Story'
+
+expect:
+  tool_calls:
+    required:
+      - name: ai_first_jira_create_issue
+
+  assertions:
+    # Check response discusses issue creation
+    - type: response_matches
+      pattern: 'creat|issue|story|epic|link'

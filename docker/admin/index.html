@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Orient | Control Panel</title>
+    <link rel="icon" type="image/png" href="/ori.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0a0a0f;
+            --bg-secondary: #12121a;
+            --bg-card: #1a1a24;
+            --bg-card-hover: #22222e;
+            --accent-cyan: #00d4ff;
+            --accent-magenta: #ff00aa;
+            --accent-green: #00ff88;
+            --accent-orange: #ff8800;
+            --text-primary: #f0f0f5;
+            --text-secondary: #8888a0;
+            --border-color: #2a2a3a;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Animated background */
+        .bg-grid {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image: 
+                linear-gradient(rgba(0, 212, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 212, 255, 0.03) 1px, transparent 1px);
+            background-size: 50px 50px;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .bg-glow {
+            position: fixed;
+            width: 600px;
+            height: 600px;
+            border-radius: 50%;
+            filter: blur(120px);
+            opacity: 0.15;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .bg-glow-1 {
+            top: -200px;
+            left: -200px;
+            background: var(--accent-cyan);
+            animation: float 20s ease-in-out infinite;
+        }
+
+        .bg-glow-2 {
+            bottom: -200px;
+            right: -200px;
+            background: var(--accent-magenta);
+            animation: float 25s ease-in-out infinite reverse;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translate(0, 0); }
+            50% { transform: translate(50px, 30px); }
+        }
+
+        .container {
+            position: relative;
+            z-index: 1;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 60px 24px;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 80px;
+        }
+
+        .logo {
+            display: inline-flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .logo-icon {
+            width: 64px;
+            height: 64px;
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-magenta));
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+            box-shadow: 0 0 40px rgba(0, 212, 255, 0.3);
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--text-primary) 0%, var(--accent-cyan) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .subtitle {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+            font-weight: 300;
+            letter-spacing: 0.5px;
+        }
+
+        .services-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 24px;
+            margin-bottom: 60px;
+        }
+
+        .service-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            padding: 32px;
+            text-decoration: none;
+            color: inherit;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .service-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: var(--card-accent);
+            transform: scaleX(0);
+            transition: transform 0.3s ease;
+        }
+
+        .service-card:hover {
+            background: var(--bg-card-hover);
+            border-color: var(--card-accent);
+            transform: translateY(-4px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .service-card:hover::before {
+            transform: scaleX(1);
+        }
+
+        .service-card.qr { --card-accent: var(--accent-green); }
+        .service-card.dashboard { --card-accent: var(--accent-cyan); }
+        .service-card.opencode { --card-accent: var(--accent-magenta); }
+        .service-card.integrations { --card-accent: var(--accent-orange); }
+
+        .service-icon {
+            width: 56px;
+            height: 56px;
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            margin-bottom: 20px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-color);
+        }
+
+        .service-card.qr .service-icon { 
+            background: rgba(0, 255, 136, 0.1);
+            border-color: rgba(0, 255, 136, 0.3);
+        }
+        .service-card.dashboard .service-icon { 
+            background: rgba(0, 212, 255, 0.1);
+            border-color: rgba(0, 212, 255, 0.3);
+        }
+        .service-card.opencode .service-icon { 
+            background: rgba(255, 0, 170, 0.1);
+            border-color: rgba(255, 0, 170, 0.3);
+        }
+        .service-card.integrations .service-icon { 
+            background: rgba(255, 136, 0, 0.1);
+            border-color: rgba(255, 136, 0, 0.3);
+        }
+
+        .service-title {
+            font-size: 1.4rem;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .service-description {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+
+        .service-path {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            color: var(--card-accent);
+            background: rgba(255, 255, 255, 0.05);
+            padding: 8px 14px;
+            border-radius: 8px;
+            display: inline-block;
+        }
+
+        .status-section {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 24px 32px;
+        }
+
+        .status-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .status-header h2 {
+            font-size: 1.1rem;
+            font-weight: 500;
+        }
+
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            background: var(--bg-card);
+            border-radius: 10px;
+            border: 1px solid var(--border-color);
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--accent-green);
+            box-shadow: 0 0 10px var(--accent-green);
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        .status-dot.checking {
+            background: var(--accent-orange);
+            box-shadow: 0 0 10px var(--accent-orange);
+        }
+
+        .status-dot.offline {
+            background: #ff4455;
+            box-shadow: 0 0 10px #ff4455;
+            animation: none;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .status-name {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+
+        footer {
+            text-align: center;
+            margin-top: 60px;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+        }
+
+        footer a {
+            color: var(--accent-cyan);
+            text-decoration: none;
+        }
+
+        footer a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-grid"></div>
+    <div class="bg-glow bg-glow-1"></div>
+    <div class="bg-glow bg-glow-2"></div>
+
+    <div class="container">
+        <header>
+            <div class="logo">
+                <div class="logo-icon">🤖</div>
+                <div>
+                    <h1>Orient</h1>
+                    <p class="subtitle">Control Panel</p>
+                </div>
+            </div>
+        </header>
+
+        <div class="services-grid">
+            <a href="/qr/" class="service-card qr">
+                <div class="service-icon">📱</div>
+                <h3 class="service-title">WhatsApp QR</h3>
+                <p class="service-description">
+                    Scan the QR code to connect your WhatsApp account. 
+                    View connection status and manage authentication.
+                </p>
+                <span class="service-path">/qr/</span>
+            </a>
+
+            <a href="/dashboard/" class="service-card dashboard">
+                <div class="service-icon">📊</div>
+                <h3 class="service-title">Dashboard</h3>
+                <p class="service-description">
+                    Monitor bot activity, view message logs, and manage 
+                    user permissions for the WhatsApp bot.
+                </p>
+                <span class="service-path">/dashboard/</span>
+            </a>
+
+            <a href="/opencode/" class="service-card opencode">
+                <div class="service-icon">🧠</div>
+                <h3 class="service-title">OpenCode</h3>
+                <p class="service-description">
+                    AI processing server with MCP tools. View sessions, 
+                    check health, and monitor AI operations.
+                </p>
+                <span class="service-path">/opencode/</span>
+            </a>
+
+            <a href="/dashboard/#/integrations" class="service-card integrations">
+                <div class="service-icon">🔌</div>
+                <h3 class="service-title">Integrations</h3>
+                <p class="service-description">
+                    Manage MCP server connections and OAuth authorization 
+                    for external services like Atlassian.
+                </p>
+                <span class="service-path">/dashboard/</span>
+            </a>
+        </div>
+
+        <div class="status-section">
+            <div class="status-header">
+                <span>⚡</span>
+                <h2>Service Status</h2>
+            </div>
+            <div class="status-grid">
+                <div class="status-item">
+                    <div class="status-dot checking" id="status-qr"></div>
+                    <span class="status-name">WhatsApp QR</span>
+                </div>
+                <div class="status-item">
+                    <div class="status-dot checking" id="status-dashboard"></div>
+                    <span class="status-name">Dashboard</span>
+                </div>
+                <div class="status-item">
+                    <div class="status-dot checking" id="status-opencode"></div>
+                    <span class="status-name">OpenCode</span>
+                </div>
+                <div class="status-item">
+                    <div class="status-dot checking" id="status-nginx"></div>
+                    <span class="status-name">Nginx</span>
+                </div>
+                <div class="status-item">
+                    <div class="status-dot checking" id="status-mcp"></div>
+                    <span class="status-name">MCP Integrations</span>
+                </div>
+            </div>
+        </div>
+
+        <footer>
+            <p>Orient Task Force • <a href="https://github.com/genoox" target="_blank">Genoox</a></p>
+        </footer>
+    </div>
+
+    <script>
+        // Check service health on load
+        async function checkHealth(endpoint, statusId) {
+            const dot = document.getElementById(statusId);
+            try {
+                const response = await fetch(endpoint, { 
+                    method: 'GET',
+                    mode: 'no-cors'  // Handle CORS for health checks
+                });
+                // With no-cors, we can't read the response, but if fetch succeeds, service is likely up
+                dot.classList.remove('checking', 'offline');
+            } catch (error) {
+                dot.classList.remove('checking');
+                dot.classList.add('offline');
+            }
+        }
+
+        // Check MCP server status via dashboard API
+        async function checkMCPStatus() {
+            const dot = document.getElementById('status-mcp');
+            try {
+                const response = await fetch('/dashboard/api/mcp/servers');
+                if (response.ok) {
+                    const data = await response.json();
+                    const servers = data.servers || [];
+                    const connectedCount = servers.filter(s => s.connected).length;
+                    const totalCount = servers.length;
+                    
+                    dot.classList.remove('checking', 'offline');
+                    
+                    if (connectedCount === 0 && totalCount > 0) {
+                        // No servers connected
+                        dot.classList.add('offline');
+                    } else if (connectedCount < totalCount) {
+                        // Some servers connected (partial)
+                        dot.style.background = 'var(--accent-orange)';
+                        dot.style.boxShadow = '0 0 10px var(--accent-orange)';
+                    }
+                    // All connected: default green styling applies
+                } else {
+                    throw new Error('API unavailable');
+                }
+            } catch (error) {
+                dot.classList.remove('checking');
+                dot.classList.add('offline');
+            }
+        }
+
+        // Check all services
+        setTimeout(() => {
+            checkHealth('/qr/', 'status-qr');
+            checkHealth('/dashboard/', 'status-dashboard');
+            checkHealth('/opencode/', 'status-opencode');
+            checkHealth('/health', 'status-nginx');
+            checkMCPStatus();
+        }, 1000);
+
+        // Refresh status every 30 seconds
+        setInterval(() => {
+            checkHealth('/qr/', 'status-qr');
+            checkHealth('/dashboard/', 'status-dashboard');
+            checkHealth('/opencode/', 'status-opencode');
+            checkHealth('/health', 'status-nginx');
+            checkMCPStatus();
+        }, 30000);
+    </script>
+</body>
+</html>
+
+

@@ -1,0 +1,82 @@
+name: whatsapp-group-messages
+description: Agent should search WhatsApp group messages when asked about a specific group
+type: tool_selection
+agent: pm-assistant
+
+context:
+  platform: whatsapp
+  chatId: '120363406740668957@g.us'
+
+input:
+  prompt: 'אתה יכול לבדוק בהודעות שיש לי בקבוצה אמאבא ולהגיד לי אם אני צריך לעשות משהו בקרוב'
+
+mocks:
+  whatsapp:
+    ai_first_whatsapp_list_groups:
+      response:
+        groups:
+          - id: '120363111111111111@g.us'
+            name: 'אמאבא'
+            isGroup: true
+            participantCount: 5
+          - id: '120363222222222222@g.us'
+            name: 'Work Team'
+            isGroup: true
+            participantCount: 12
+        totalCount: 2
+
+    ai_first_whatsapp_search_messages:
+      response:
+        messages:
+          - id: 'msg-001'
+            chatId: '120363111111111111@g.us'
+            sender: 'אמא'
+            content: 'תזכורת - יום הולדת לסבא ביום ראשון'
+            timestamp: '2026-01-17T10:00:00+02:00'
+            isFromMe: false
+            messageType: text
+          - id: 'msg-002'
+            chatId: '120363111111111111@g.us'
+            sender: 'אבא'
+            content: 'צריך לקנות מתנה'
+            timestamp: '2026-01-17T10:05:00+02:00'
+            isFromMe: false
+            messageType: text
+        totalCount: 2
+
+    ai_first_whatsapp_get_recent_messages:
+      response:
+        messages:
+          - id: 'msg-003'
+            chatId: '120363111111111111@g.us'
+            sender: 'אמא'
+            content: 'מישהו יכול להביא עוגה?'
+            timestamp: '2026-01-16T14:00:00+02:00'
+            isFromMe: false
+            messageType: text
+        hasMore: true
+
+expect:
+  tool_calls:
+    required:
+      - name: ai_first_whatsapp_list_groups
+      - name: ai_first_whatsapp_search_messages
+
+  assertions:
+    - type: response_matches
+      pattern: 'אמאבא|קבוצה|הודעות|יום הולדת|סבא|מתנה|עוגה'
+
+scoring:
+  llm_judge:
+    enabled: true
+    criteria:
+      - name: hebrew_response
+        description: "Response should be in Hebrew to match the user's language"
+        weight: 0.3
+      - name: action_summary
+        description: 'Response should summarize any action items or tasks from the messages'
+        weight: 0.4
+      - name: helpful
+        description: 'Response should be helpful and answer what the user needs to do'
+        weight: 0.3
+    threshold: 0.7

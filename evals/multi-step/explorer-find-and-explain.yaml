@@ -1,0 +1,33 @@
+name: explorer-find-and-explain
+description: Explorer should find a service and explain it
+type: multi_step_workflow
+agent: explorer
+
+input:
+  prompt: 'Find the scheduler service and explain how it works'
+
+expect:
+  tool_calls:
+    required:
+      - name: grep
+      - name: read
+
+  workflow:
+    steps:
+      - name: search_code
+        tools:
+          - grep
+        order: any
+      - name: read_file
+        tools:
+          - read
+        order: any
+        depends_on: search_code
+
+  assertions:
+    - type: workflow_completed
+      steps:
+        - search_code
+        - read_file
+    - type: response_matches
+      pattern: 'scheduler|service|jobs|schedule|reminder'

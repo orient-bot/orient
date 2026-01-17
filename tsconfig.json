@@ -1,0 +1,44 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "lib": ["ES2022"],
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "baseUrl": ".",
+    "paths": {
+      "@orient/core": ["./packages/core/src/index"],
+      "@orient/database": ["./packages/database/src/index"],
+      "@orient/database-services": ["./packages/database-services/src/index"],
+      "@orient/agents": ["./packages/agents/src/index"],
+      "@orient/integrations": ["./packages/integrations/src/index"],
+      "@orient/integrations/*": ["./packages/integrations/src/*"],
+      "@orient/bot-whatsapp": ["./packages/bot-whatsapp/src/index"],
+      "@orient/bot-slack": ["./packages/bot-slack/src/index"],
+      "@orient/mcp-tools": ["./packages/mcp-tools/src/index"],
+      "@orient/mcp-tools/config": ["./packages/mcp-tools/src/tools/config/index"],
+      "@orient/mcp-servers": ["./packages/mcp-servers/src/index"],
+      "@orient/apps": ["./packages/apps/src/index"],
+      "@orient/eval": ["./packages/eval/src/index"],
+      "@orient/cli": ["./packages/cli/src/index"],
+      "@orient/test-utils": ["./packages/test-utils/src/index"]
+    }
+  },
+  "include": ["packages/*/src/**/*"],
+  "exclude": [
+    "node_modules",
+    "**/dist/**",
+    "**/*.test.ts",
+    "**/__tests__/**",
+    "packages/dashboard-frontend/**",
+    "packages/agents/src/services/whatsappAgentService.ts",
+    "packages/agents/src/services/notificationService.ts"
+  ]
+}

@@ -1,0 +1,51 @@
+name: jira-daily-digest
+description: Agent should use daily digest tool when asked for today's status
+type: tool_selection
+agent: pm-assistant
+
+input:
+  prompt: "What's the status for today? Give me a daily digest."
+
+mocks:
+  jira:
+    ai_first_get_daily_digest:
+      response:
+        date: '2024-01-19'
+        inProgress:
+          count: 4
+          issues:
+            - key: PROJ-201
+              summary: 'Implement OAuth flow'
+              assignee: 'Alice'
+              daysInProgress: 2
+            - key: PROJ-202
+              summary: 'Add rate limiting'
+              assignee: 'Bob'
+              daysInProgress: 1
+        completed:
+          count: 2
+          issues:
+            - key: PROJ-199
+              summary: 'Fix login redirect'
+              completedAt: '2024-01-19T10:30:00Z'
+            - key: PROJ-200
+              summary: 'Update error messages'
+              completedAt: '2024-01-19T14:00:00Z'
+        blockers:
+          count: 1
+          issues:
+            - key: PROJ-190
+              summary: 'Waiting for API access'
+              blockedDays: 3
+        upcoming:
+          count: 3
+
+expect:
+  tool_calls:
+    required:
+      - name: ai_first_get_daily_digest
+
+  assertions:
+    # Check response discusses daily status
+    - type: response_matches
+      pattern: 'digest|status|today|progress|complet'

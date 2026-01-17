@@ -1,0 +1,459 @@
+# =============================================================================
+# Orient - Docker Compose V2 (Per-Package Builds)
+# =============================================================================
+# This is the new per-package containerization setup.
+# Each service builds from its own Dockerfile in packages/<name>/Dockerfile
+#
+# Migration: This file replaces the monolithic docker-compose.yml
+# See docs/docker-migration-plan.md for details
+#
+# Quick Start:
+#   docker compose -f docker-compose.v2.yml -f docker-compose.local.yml up -d
+#
+# =============================================================================
+
+services:
+  # ===========================================================================
+  # Nginx - Reverse Proxy / Ingress
+  # ===========================================================================
+  nginx:
+    image: nginx:alpine
+    container_name: orienter-nginx
+    restart: unless-stopped
+    depends_on:
+      opencode:
+        condition: service_healthy
+      bot-whatsapp:
+        condition: service_healthy
+      dashboard:
+        condition: service_healthy
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - ./nginx-ssl.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./admin:/usr/share/nginx/html:ro
+      - ../certbot/conf/live/${ORIENT_APP_DOMAIN}/fullchain.pem:/etc/nginx/ssl/${ORIENT_APP_DOMAIN}/fullchain.pem:ro
+      - ../certbot/conf/live/${ORIENT_APP_DOMAIN}/privkey.pem:/etc/nginx/ssl/${ORIENT_APP_DOMAIN}/privkey.pem:ro
+      - ../certbot/conf/live/${ORIENT_CODE_DOMAIN}/fullchain.pem:/etc/nginx/ssl/${ORIENT_CODE_DOMAIN}/fullchain.pem:ro
+      - ../certbot/conf/live/${ORIENT_CODE_DOMAIN}/privkey.pem:/etc/nginx/ssl/${ORIENT_CODE_DOMAIN}/privkey.pem:ro
+      - ../certbot/conf/archive:/etc/letsencrypt/archive:ro
+    networks:
+      - orienter-network
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost/health']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    logging:
+      driver: json-file
+      options:
+        max-size: '5m'
+        max-file: '2'
+
+  # ===========================================================================
+  # PostgreSQL - Database for messages and permissions
+  # ===========================================================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: orienter-postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB:-whatsapp_bot_0}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      - '5432:5432'
+    networks:
+      - orienter-network
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB:-whatsapp_bot_0}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    logging:
+      driver: json-file
+      options:
+        max-size: '5m'
+        max-file: '2'
+
+  # ===========================================================================
+  # MinIO - S3-Compatible Object Storage (Local Development)
+  # ===========================================================================
+  minio:
+    image: minio/minio:latest
+    container_name: orienter-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
+    ports:
+      - '9000:9000'
+      - '9001:9001'
+    volumes:
+      - minio-data:/data
+    networks:
+      - orienter-network
+    healthcheck:
+      test: ['CMD', 'mc', 'ready', 'local']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    logging:
+      driver: json-file
+      options:
+        max-size: '5m'
+        max-file: '2'
+
+  # ===========================================================================
+  # MinIO Setup - Creates bucket on startup
+  # ===========================================================================
+  minio-setup:
+    image: minio/mc:latest
+    container_name: orienter-minio-setup
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
+      - S3_BUCKET=${S3_BUCKET:-orienter-data}
+    entrypoint: >
+      /bin/sh -c "
+        echo 'Waiting for MinIO to be ready...';
+        sleep 5;
+        mc alias set myminio http://minio:9000 $${MINIO_ROOT_USER} $${MINIO_ROOT_PASSWORD};
+        mc mb myminio/$${S3_BUCKET} --ignore-existing;
+        mc anonymous set download myminio/$${S3_BUCKET};
+        echo 'MinIO bucket $${S3_BUCKET} created successfully';
+        exit 0;
+      "
+    networks:
+      - orienter-network
+
+  # ===========================================================================
+  # OpenCode Server + MCP Server (Sidecar Pattern)
+  # Uses legacy Dockerfile because OpenCode requires binary installation
+  # The MCP tools package is built into this image as a sidecar
+  # ===========================================================================
+  opencode:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.opencode.legacy
+    container_name: orienter-opencode
+    restart: unless-stopped
+    depends_on:
+      minio:
+        condition: service_healthy
+        required: false
+      minio-setup:
+        condition: service_completed_successfully
+        required: false
+      postgres:
+        condition: service_healthy
+    env_file:
+      - ../.env
+    environment:
+      - NODE_ENV=production
+      - TZ=Asia/Jerusalem
+      - OPENCODE_PORT=${OPENCODE_PORT:-4099}
+      - OPENCODE_HOSTNAME=0.0.0.0
+      - DATA_DIR=/app/data
+      - LOG_DIR=/app/logs
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-whatsapp_bot_0}
+      - S3_BUCKET=${S3_BUCKET:-orienter-data}
+      - S3_SYNC_INTERVAL=${S3_SYNC_INTERVAL:-60}
+      - AWS_ACCESS_KEY_ID=${MINIO_ROOT_USER}
+      - AWS_SECRET_ACCESS_KEY=${MINIO_ROOT_PASSWORD}
+      - AWS_ENDPOINT_URL=http://minio:9000
+      - AWS_REGION=us-east-1
+      - OAUTH_CALLBACK_PORT=${OAUTH_CALLBACK_PORT:-8765}
+      - OAUTH_CALLBACK_HOST=${OAUTH_CALLBACK_HOST:-localhost}
+      - OAUTH_CALLBACK_PROTOCOL=${OAUTH_CALLBACK_PROTOCOL:-http}
+      - OAUTH_CALLBACK_URL=${OAUTH_CALLBACK_URL:-}
+      - ORIENT_MASTER_KEY=${ORIENT_MASTER_KEY}
+    volumes:
+      - opencode-data:/app/data
+      - opencode-storage:/home/opencode/.local/share/opencode/storage
+      - ../logs:/app/logs
+      - ../.mcp.config.local.json:/app/.mcp.config.json:ro
+      - ../credentials:/app/credentials:ro
+      - ../data/oauth-tokens:/app/data/oauth-tokens
+    ports:
+      - '${OPENCODE_PORT:-4099}:${OPENCODE_PORT:-4099}'
+      - '${OAUTH_CALLBACK_PORT:-8765}:${OAUTH_CALLBACK_PORT:-8765}'
+    networks:
+      - orienter-network
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:${OPENCODE_PORT:-4099}/global/health']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    logging:
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '3'
+
+  # ===========================================================================
+  # WhatsApp Bot
+  # Uses per-package Dockerfile from packages/bot-whatsapp/
+  # ===========================================================================
+  bot-whatsapp:
+    build:
+      context: ..
+      dockerfile: packages/bot-whatsapp/Dockerfile
+    container_name: orienter-bot-whatsapp
+    restart: unless-stopped
+    depends_on:
+      opencode:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+        required: false
+      postgres:
+        condition: service_healthy
+    env_file:
+      - ../.env
+    environment:
+      - NODE_ENV=production
+      - TZ=Asia/Jerusalem
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-whatsapp_bot_0}
+      - OPENCODE_SERVER_URL=http://opencode:${OPENCODE_PORT:-4099}
+      - OPENCODE_URL=http://opencode:${OPENCODE_PORT:-4099}
+      - OPENCODE_ENABLED=true
+      - S3_BUCKET=${S3_BUCKET:-orienter-data}
+      - S3_SYNC_INTERVAL=${S3_SYNC_INTERVAL:-60}
+      - AWS_ACCESS_KEY_ID=${MINIO_ROOT_USER}
+      - AWS_SECRET_ACCESS_KEY=${MINIO_ROOT_PASSWORD}
+      - AWS_ENDPOINT_URL=http://minio:9000
+      - AWS_REGION=us-east-1
+      - WHATSAPP_CLOUD_API_ENABLED=${WHATSAPP_CLOUD_API_ENABLED:-false}
+      - WHATSAPP_CLOUD_API_PHONE_NUMBER_ID=${WHATSAPP_CLOUD_API_PHONE_NUMBER_ID:-}
+      - WHATSAPP_CLOUD_API_ACCESS_TOKEN=${WHATSAPP_CLOUD_API_ACCESS_TOKEN:-}
+      - WHATSAPP_CLOUD_API_BUSINESS_ACCOUNT_ID=${WHATSAPP_CLOUD_API_BUSINESS_ACCOUNT_ID:-}
+      - WHATSAPP_CLOUD_API_WEBHOOK_VERIFY_TOKEN=${WHATSAPP_CLOUD_API_WEBHOOK_VERIFY_TOKEN:-}
+      - WHATSAPP_CLOUD_API_APP_SECRET=${WHATSAPP_CLOUD_API_APP_SECRET:-}
+      - WEBHOOK_FORWARD_SECRET=${WEBHOOK_FORWARD_SECRET:-}
+      - ORIENT_MASTER_KEY=${ORIENT_MASTER_KEY}
+    volumes:
+      - ../data:/app/data
+      - ../.mcp.config.local.json:/app/.mcp.config.json:ro
+      - ../logs:/app/logs
+      - ../credentials:/app/credentials:ro
+    ports:
+      - '4097:4097'
+    networks:
+      - orienter-network
+    stdin_open: true
+    tty: true
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:4097/health']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+    logging:
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '3'
+
+  # ===========================================================================
+  # Slack Bot (Optional)
+  # Uses per-package Dockerfile from packages/bot-slack/
+  # ===========================================================================
+  bot-slack:
+    build:
+      context: ..
+      dockerfile: packages/bot-slack/Dockerfile
+    container_name: orienter-bot-slack
+    restart: unless-stopped
+    profiles:
+      - slack
+    depends_on:
+      opencode:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    env_file:
+      - ../.env
+    environment:
+      - NODE_ENV=production
+      - TZ=Asia/Jerusalem
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-whatsapp_bot_0}
+      - OPENCODE_SERVER_URL=http://opencode:${OPENCODE_PORT:-4099}
+      - OPENCODE_URL=http://opencode:${OPENCODE_PORT:-4099}
+      - OPENCODE_ENABLED=true
+      - SLACK_BOT_TOKEN=${SLACK_BOT_TOKEN}
+      - SLACK_SIGNING_SECRET=${SLACK_SIGNING_SECRET}
+      - SLACK_APP_TOKEN=${SLACK_APP_TOKEN}
+      - SLACK_STANDUP_CHANNEL=${SLACK_STANDUP_CHANNEL:-#standup}
+      - HEALTH_MONITOR_ENABLED=${HEALTH_MONITOR_ENABLED:-false}
+      - HEALTH_MONITOR_SLACK_USER_ID=${HEALTH_MONITOR_SLACK_USER_ID}
+      - WHATSAPP_ADMIN_PHONE=${WHATSAPP_ADMIN_PHONE}
+      - GITHUB_TOKEN=${GITHUB_TOKEN}
+      - GITHUB_REPO=${GITHUB_REPO}
+      - GITHUB_BASE_BRANCH=${GITHUB_BASE_BRANCH:-main}
+      - SKILL_ADMIN_PHONES=${SKILL_ADMIN_PHONES}
+      - SKILL_ADMIN_SLACK_IDS=${SKILL_ADMIN_SLACK_IDS}
+      - ORIENT_MASTER_KEY=${ORIENT_MASTER_KEY}
+    volumes:
+      - ../logs:/app/logs
+      - ../.mcp.config.local.json:/app/.mcp.config.json:ro
+      - ../credentials:/app/credentials:ro
+    networks:
+      - orienter-network
+    healthcheck:
+      test: ['CMD', 'node', '-e', "console.log('healthy')"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '3'
+
+  # ===========================================================================
+  # API Gateway (Optional - for scheduled messages and webhooks)
+  # Uses per-package Dockerfile from packages/api-gateway/
+  # ===========================================================================
+  api-gateway:
+    build:
+      context: ..
+      dockerfile: packages/api-gateway/Dockerfile
+    container_name: orienter-api-gateway
+    restart: unless-stopped
+    profiles:
+      - api
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - ../.env
+    environment:
+      - NODE_ENV=production
+      - TZ=Asia/Jerusalem
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-whatsapp_bot_0}
+      - API_GATEWAY_PORT=4100
+    volumes:
+      - ../logs:/app/logs
+      - ../.mcp.config.local.json:/app/.mcp.config.json:ro
+    ports:
+      - '4100:4100'
+    networks:
+      - orienter-network
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:4100/health']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    logging:
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '3'
+
+  # ===========================================================================
+  # Dashboard - Standalone dashboard service
+  # Uses per-package Dockerfile from packages/dashboard/
+  # ===========================================================================
+  dashboard:
+    build:
+      context: ..
+      dockerfile: packages/dashboard/Dockerfile
+    container_name: orienter-dashboard
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - ../.env
+    environment:
+      - NODE_ENV=production
+      - TZ=Asia/Jerusalem
+      - DASHBOARD_PORT=4098
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-whatsapp_bot_0}
+      - DASHBOARD_JWT_SECRET=${DASHBOARD_JWT_SECRET}
+      - ORIENT_MASTER_KEY=${ORIENT_MASTER_KEY}
+    volumes:
+      - ../logs:/app/logs
+    ports:
+      - '4098:4098'
+    networks:
+      - orienter-network
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:4098/health']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: '5m'
+        max-file: '2'
+
+  # ===========================================================================
+  # S3 Sync Service (Optional - for data persistence to MinIO/S3)
+  # ===========================================================================
+  s3-sync:
+    image: amazon/aws-cli:latest
+    container_name: orienter-s3-sync
+    restart: unless-stopped
+    profiles:
+      - s3 # Only starts when using: docker compose --profile s3 up
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      - S3_BUCKET=${S3_BUCKET:-orienter-data}
+      - AWS_ACCESS_KEY_ID=${MINIO_ROOT_USER}
+      - AWS_SECRET_ACCESS_KEY=${MINIO_ROOT_PASSWORD}
+      - AWS_ENDPOINT_URL=http://minio:9000
+      - AWS_REGION=us-east-1
+      - DATA_DIR=/app/data
+      - LOG_DIR=/app/logs
+      - S3_SYNC_INTERVAL=${S3_SYNC_INTERVAL:-60}
+    volumes:
+      - opencode-data:/app/data
+      - ../logs:/app/logs
+      - ./s3-sync.sh:/usr/local/bin/s3-sync.sh:ro
+    entrypoint: ['/bin/bash', '/usr/local/bin/s3-sync.sh', 'daemon']
+    networks:
+      - orienter-network
+    logging:
+      driver: json-file
+      options:
+        max-size: '5m'
+        max-file: '2'
+
+# =============================================================================
+# Networks
+# =============================================================================
+networks:
+  orienter-network:
+    driver: bridge
+
+# =============================================================================
+# Volumes
+# =============================================================================
+volumes:
+  postgres-data:
+    driver: local
+  minio-data:
+    driver: local
+  opencode-data:
+    driver: local
+  opencode-storage:
+    driver: local

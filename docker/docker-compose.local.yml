@@ -1,0 +1,27 @@
+# =============================================================================
+# Orient - Local Development Override
+# =============================================================================
+# This file overrides the main docker-compose.yml for local development.
+# It removes SSL certificate mounts and uses HTTP-only nginx config.
+#
+# Usage locally:
+#   docker compose -f docker-compose.yml -f docker-compose.local.yml up -d
+#
+# Or set as default in .env:
+#   COMPOSE_FILE=docker-compose.yml:docker-compose.local.yml
+# =============================================================================
+
+services:
+  # ===========================================================================
+  # Nginx - HTTP-only for local development (no SSL)
+  # ===========================================================================
+  nginx:
+    volumes:
+      # Override nginx config - use HTTP-only version
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./admin:/usr/share/nginx/html:ro
+      # Note: No SSL certificate mounts for local development
+
+
+
+

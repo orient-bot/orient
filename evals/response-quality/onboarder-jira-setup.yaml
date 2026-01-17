@@ -1,0 +1,22 @@
+name: onboarder-jira-setup
+description: Onboarder explains JIRA integration setup clearly
+type: response_quality
+agent: onboarder
+
+context:
+  platform: dashboard
+  route: /integrations
+
+input:
+  prompt: 'How do I connect Orient to JIRA?'
+
+expect:
+  assertions:
+    - type: response_matches
+      pattern: 'jira|token|api|secret|host|email'
+    - type: response_matches
+      pattern: 'step|config|setting'
+
+scoring:
+  llm_judge:
+    enabled: false

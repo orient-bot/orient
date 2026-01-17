@@ -1,0 +1,43 @@
+# =============================================================================
+# CODEOWNERS - Orient
+# =============================================================================
+# These owners will be automatically requested for review when someone opens
+# a pull request that modifies code they own.
+#
+# Learn more: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+# =============================================================================
+
+# Default owner for everything
+* @tombensim
+
+# =============================================================================
+# Core Packages
+# =============================================================================
+/packages/core/                    @tombensim
+/packages/database/                @tombensim
+/packages/database-services/       @tombensim
+
+# =============================================================================
+# Bot Implementations
+# =============================================================================
+/packages/bot-whatsapp/            @tombensim
+/packages/bot-slack/               @tombensim
+
+# =============================================================================
+# Infrastructure & Deployment
+# =============================================================================
+/docker/                           @tombensim
+/.github/workflows/                @tombensim
+
+# =============================================================================
+# Documentation & Website
+# =============================================================================
+/docs/                             @tombensim
+/website/                          @tombensim
+
+# =============================================================================
+# Security-Sensitive Files
+# =============================================================================
+/.env.example                      @tombensim
+/.gitignore                        @tombensim
+/CODEOWNERS                        @tombensim

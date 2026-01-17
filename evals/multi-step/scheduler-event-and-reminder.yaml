@@ -1,0 +1,61 @@
+name: scheduler-event-and-reminder
+description: Scheduler should create a calendar event and set a reminder
+type: multi_step_workflow
+agent: scheduler
+
+input:
+  prompt: 'Create a meeting for next week and remind me an hour before'
+
+mocks:
+  google:
+    google_calendar_create_event:
+      response:
+        success: true
+        event:
+          id: 'event-202'
+          summary: 'Team meeting'
+          start: '2025-01-22T10:00:00+02:00'
+          end: '2025-01-22T10:30:00+02:00'
+    config_create_schedule:
+      response:
+        success: true
+        schedule_id: 34
+        next_run: '2025-01-22T09:00:00+02:00'
+
+expect:
+  tool_calls:
+    required:
+      - name: google_calendar_create_event
+      - name: config_create_schedule
+
+  workflow:
+    steps:
+      - name: create_event
+        tools:
+          - google_calendar_create_event
+        order: any
+      - name: schedule_reminder
+        tools:
+          - config_create_schedule
+        order: any
+        depends_on: create_event
+
+  assertions:
+    - type: workflow_completed
+      steps:
+        - create_event
+        - schedule_reminder
+    - type: response_matches
+      pattern: 'meeting|event|remind|hour|scheduled'
+
+scoring:
+  llm_judge:
+    enabled: true
+    criteria:
+      - name: workflow_completion
+        description: 'Response confirms both event and reminder'
+        weight: 0.6
+      - name: clarity
+        description: 'Response is clear about timing'
+        weight: 0.4
+    threshold: 0.6

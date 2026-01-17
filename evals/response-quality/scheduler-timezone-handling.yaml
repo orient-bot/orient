@@ -1,0 +1,39 @@
+name: scheduler-timezone-handling
+description: Scheduler should handle time zones and natural language dates clearly
+type: response_quality
+agent: scheduler
+
+input:
+  prompt: 'Set a reminder for next Tuesday at 2pm'
+
+mocks:
+  google:
+    config_create_schedule:
+      response:
+        success: true
+        schedule_id: 21
+        next_run: '2025-01-21T14:00:00+02:00'
+
+expect:
+  tool_calls:
+    required:
+      - name: config_create_schedule
+
+  assertions:
+    - type: response_matches
+      pattern: "next\\s+tuesday|2pm|timezone|schedule|remind"
+
+scoring:
+  llm_judge:
+    enabled: true
+    criteria:
+      - name: clarity
+        description: 'Response is clear about the scheduled time'
+        weight: 0.4
+      - name: timezone
+        description: 'Mentions or implies the timezone used'
+        weight: 0.3
+      - name: correctness
+        description: 'Interprets the date/time correctly'
+        weight: 0.3
+    threshold: 0.6

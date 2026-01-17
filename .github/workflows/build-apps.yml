@@ -1,0 +1,196 @@
+name: Build Apps
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/**'
+      - '!apps/README.md'
+      - '!apps/_shared/**'
+  pull_request:
+    paths:
+      - 'apps/**'
+      - '!apps/README.md'
+      - '!apps/_shared/**'
+
+jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      apps: ${{ steps.changes.outputs.apps }}
+      apps_list: ${{ steps.changes.outputs.apps_list }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect Changed Apps
+        id: changes
+        run: |
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            BASE_SHA=${{ github.event.pull_request.base.sha }}
+          else
+            BASE_SHA=${{ github.event.before }}
+          fi
+
+          # Get list of changed app directories (excluding _shared, README)
+          CHANGED_APPS=$(git diff --name-only $BASE_SHA ${{ github.sha }} | \
+            grep '^apps/' | \
+            grep -v '^apps/README.md' | \
+            grep -v '^apps/_shared/' | \
+            cut -d'/' -f2 | \
+            sort -u | \
+            tr '\n' ' ')
+
+          echo "Changed apps: $CHANGED_APPS"
+
+          if [ -z "$CHANGED_APPS" ]; then
+            echo "apps=false" >> $GITHUB_OUTPUT
+            echo "apps_list=" >> $GITHUB_OUTPUT
+          else
+            echo "apps=true" >> $GITHUB_OUTPUT
+            # Convert to JSON array
+            APPS_JSON=$(echo "$CHANGED_APPS" | xargs | tr ' ' '\n' | jq -R . | jq -s .)
+            echo "apps_list=$APPS_JSON" >> $GITHUB_OUTPUT
+          fi
+
+  build-apps:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.apps == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        app: ${{ fromJson(needs.detect-changes.outputs.apps_list) }}
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: apps/${{ matrix.app }}/package.json
+
+      - name: Install Shared Dependencies
+        run: |
+          cd apps/_shared
+          if [ -f package.json ]; then
+            npm install
+          fi
+
+      - name: Install App Dependencies
+        run: |
+          cd apps/${{ matrix.app }}
+          npm install
+
+      - name: Build App
+        run: |
+          cd apps/${{ matrix.app }}
+          npm run build
+
+      - name: Upload Build Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-${{ matrix.app }}-build
+          path: apps/${{ matrix.app }}/dist/
+          retention-days: 7
+
+  # Deploy apps on main branch push
+  deploy-apps:
+    needs: [detect-changes, build-apps]
+    if: github.ref == 'refs/heads/main' && needs.detect-changes.outputs.apps == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download All Build Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: build-artifacts/
+
+      - name: Prepare Deployment
+        run: |
+          mkdir -p deploy
+          for app_dir in build-artifacts/app-*-build; do
+            app_name=$(basename $app_dir | sed 's/^app-//' | sed 's/-build$//')
+            echo "Preparing $app_name for deployment..."
+            mkdir -p deploy/$app_name
+            cp -r $app_dir/* deploy/$app_name/
+          done
+          ls -la deploy/
+
+      # Deploy to R2/S3/static hosting
+      # Uncomment and configure based on your hosting setup
+
+      # Option 1: Deploy to Cloudflare R2
+      # - name: Deploy to R2
+      #   uses: cloudflare/wrangler-action@v3
+      #   with:
+      #     apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      #     command: r2 object put apps --directory deploy/
+
+      # Option 2: Deploy to AWS S3
+      # - name: Deploy to S3
+      #   uses: jakejarvis/s3-sync-action@master
+      #   with:
+      #     args: --delete
+      #   env:
+      #     AWS_S3_BUCKET: ${{ secrets.AWS_S3_BUCKET }}
+      #     AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      #     AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      #     SOURCE_DIR: 'deploy'
+      #     DEST_DIR: 'apps'
+
+      # Option 3: Deploy via SSH
+      # - name: Deploy via SSH
+      #   uses: appleboy/scp-action@master
+      #   with:
+      #     host: ${{ secrets.DEPLOY_HOST }}
+      #     username: ${{ secrets.DEPLOY_USER }}
+      #     key: ${{ secrets.DEPLOY_KEY }}
+      #     source: "deploy/*"
+      #     target: "/var/www/apps/"
+
+      - name: Deployment Summary
+        run: |
+          echo "## Apps Built & Ready for Deployment" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          for dir in deploy/*/; do
+            app_name=$(basename $dir)
+            echo "- **$app_name**" >> $GITHUB_STEP_SUMMARY
+          done
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Configure deployment secrets to enable automatic deployment." >> $GITHUB_STEP_SUMMARY
+
+  # Build the apps portal
+  build-portal:
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'push' && 
+      github.ref == 'refs/heads/main' &&
+      contains(github.event.head_commit.modified, 'src/apps-portal/')
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Portal Dependencies
+        run: |
+          cd src/apps-portal
+          npm install
+
+      - name: Build Portal
+        run: |
+          cd src/apps-portal
+          npm run build
+
+      - name: Upload Portal Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: apps-portal-build
+          path: src/apps-portal/dist/
+          retention-days: 7

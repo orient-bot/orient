@@ -1,0 +1,41 @@
+name: slack-channel-message
+description: Agent should use channel message tool when asked to post to a channel
+type: tool_selection
+agent: communicator
+
+context:
+  platform: slack
+
+input:
+  prompt: 'Post an update to the #engineering channel about the deployment being completed'
+
+mocks:
+  slack:
+    ai_first_slack_send_channel_message:
+      response:
+        success: true
+        ts: '1705670400.000001'
+        channel: C12345678
+        message: 'Deployment completed successfully'
+
+expect:
+  tool_calls:
+    required:
+      - name: ai_first_slack_send_channel_message
+
+  assertions:
+    # Check response confirms message posted
+    - type: response_matches
+      pattern: 'post|sent|channel|message|deploy'
+
+scoring:
+  llm_judge:
+    enabled: true
+    criteria:
+      - name: formatting
+        description: 'Message uses proper Slack mrkdwn formatting'
+        weight: 0.5
+      - name: clarity
+        description: 'Message is clear and informative'
+        weight: 0.5
+    threshold: 0.6

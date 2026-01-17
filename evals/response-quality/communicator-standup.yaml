@@ -1,0 +1,44 @@
+name: communicator-standup-format
+description: Communicator should format standup messages properly for Slack
+type: response_quality
+agent: communicator
+
+context:
+  platform: slack
+
+input:
+  prompt: "Format a standup update: Yesterday I completed the API refactoring (PROJ-150), today I'm working on adding tests (PROJ-151), and I'm blocked by the database migration issue (PROJ-140)."
+
+mocks:
+  slack:
+    ai_first_slack_send_channel_message:
+      response:
+        success: true
+        ts: '1705670400.000002'
+        channel: C12345678
+
+expect:
+  assertions:
+    - type: response_matches
+      pattern: 'yesterday|completed|today|blocked'
+
+scoring:
+  llm_judge:
+    enabled: true
+    criteria:
+      - name: slack_formatting
+        description: 'Uses Slack mrkdwn correctly (bold with *single asterisks*, not **double**)'
+        weight: 0.3
+      - name: structure
+        description: 'Standup follows clear Yesterday/Today/Blockers structure'
+        weight: 0.4
+      - name: ticket_references
+        description: 'JIRA tickets are properly referenced and visible'
+        weight: 0.3
+    threshold: 0.7
+    rubric: |
+      Evaluate the standup message format:
+      - 1.0: Excellent - Perfect Slack formatting, clear structure, tickets linked
+      - 0.7: Good - Mostly correct, minor formatting issues
+      - 0.4: Needs work - Structure unclear or wrong markdown syntax
+      - 0.0: Poor - Wrong platform formatting (e.g., **bold** instead of *bold*)

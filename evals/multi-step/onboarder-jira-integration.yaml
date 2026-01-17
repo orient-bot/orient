@@ -1,0 +1,43 @@
+name: onboarder-jira-integration
+description: Onboarder helps user set up JIRA integration with secrets
+type: multi_step_workflow
+agent: onboarder
+
+context:
+  platform: dashboard
+  route: /integrations
+
+input:
+  prompt: 'Help me set up JIRA. My host is mycompany.atlassian.net, email is tom@example.com, and API token is secret123'
+
+workflow:
+  steps:
+    - name: set_jira_host
+      description: 'Agent calls config_set_secret for JIRA_HOST'
+      expect:
+        tool_calls:
+          required:
+            - name: config_set_secret
+    - name: set_jira_email
+      description: 'Agent calls config_set_secret for JIRA_EMAIL'
+      expect:
+        tool_calls:
+          required:
+            - name: config_set_secret
+    - name: set_jira_token
+      description: 'Agent calls config_set_secret for JIRA_API_TOKEN'
+      expect:
+        tool_calls:
+          required:
+            - name: config_set_secret
+
+expect:
+  assertions:
+    - type: response_matches
+      pattern: 'jira|host|email|token'
+    - type: response_matches
+      pattern: 'pending|confirm|secret'
+
+scoring:
+  llm_judge:
+    enabled: false

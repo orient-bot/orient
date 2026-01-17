@@ -1,0 +1,273 @@
+$schema: 'http://json-schema.org/draft-07/schema#'
+title: Eval Case Schema
+description: Schema for agent evaluation test cases
+
+type: object
+required:
+  - name
+  - type
+  - agent
+  - input
+  - expect
+
+properties:
+  name:
+    type: string
+    description: Unique identifier for this eval case
+    pattern: '^[a-z0-9-]+$'
+
+  description:
+    type: string
+    description: Human-readable description of what this eval tests
+
+  type:
+    type: string
+    description: Type of evaluation
+    enum:
+      - tool_selection
+      - response_quality
+      - skill_invocation
+      - multi_step_workflow
+
+  agent:
+    type: string
+    description: Agent ID to test (e.g., pm-assistant, communicator)
+
+  context:
+    type: object
+    description: Optional platform context for the eval
+    properties:
+      platform:
+        type: string
+        enum: [whatsapp, slack, opencode, cursor]
+      chatId:
+        type: string
+      channelId:
+        type: string
+
+  input:
+    type: object
+    description: Input configuration for the eval
+    required:
+      - prompt
+    properties:
+      prompt:
+        type: string
+        description: The user message to send to the agent
+      conversationHistory:
+        type: array
+        description: Optional prior conversation context
+        items:
+          type: object
+          required: [role, content]
+          properties:
+            role:
+              type: string
+              enum: [user, assistant]
+            content:
+              type: string
+
+  mocks:
+    type: object
+    description: Mock responses for external services
+    properties:
+      jira:
+        type: object
+        additionalProperties:
+          $ref: '#/definitions/MockResponse'
+      slack:
+        type: object
+        additionalProperties:
+          $ref: '#/definitions/MockResponse'
+      google:
+        type: object
+        additionalProperties:
+          $ref: '#/definitions/MockResponse'
+      whatsapp:
+        type: object
+        additionalProperties:
+          $ref: '#/definitions/MockResponse'
+
+  expect:
+    type: object
+    description: Expected behavior and assertions
+    properties:
+      tool_calls:
+        $ref: '#/definitions/ToolCallExpectations'
+      skills:
+        $ref: '#/definitions/SkillExpectations'
+      workflow:
+        $ref: '#/definitions/WorkflowExpectations'
+      assertions:
+        type: array
+        items:
+          $ref: '#/definitions/Assertion'
+
+  scoring:
+    type: object
+    description: LLM-as-judge scoring configuration
+    properties:
+      llm_judge:
+        $ref: '#/definitions/LLMJudgeConfig'
+
+definitions:
+  MockResponse:
+    type: object
+    required:
+      - response
+    properties:
+      response:
+        description: The mock response data
+      error:
+        type: string
+        description: Error message to simulate failure
+      delay:
+        type: number
+        description: Simulated delay in milliseconds
+
+  ToolCallExpectations:
+    type: object
+    properties:
+      required:
+        type: array
+        description: Tools that must be called
+        items:
+          type: object
+          required: [name]
+          properties:
+            name:
+              type: string
+            arguments:
+              type: object
+              additionalProperties: true
+      forbidden:
+        type: array
+        description: Tools that must NOT be called
+        items:
+          type: string
+      order:
+        type: string
+        description: Whether tool order matters
+        enum: [strict, any]
+        default: any
+
+  SkillExpectations:
+    type: object
+    properties:
+      activated:
+        type: array
+        description: Skills that should be activated
+        items:
+          type: string
+      content_used:
+        type: array
+        description: Content patterns that should be used from skills
+        items:
+          type: object
+          required: [pattern]
+          properties:
+            pattern:
+              type: string
+            reason:
+              type: string
+
+  WorkflowExpectations:
+    type: object
+    required:
+      - steps
+    properties:
+      steps:
+        type: array
+        description: Ordered steps in the workflow
+        items:
+          type: object
+          required: [name, tools]
+          properties:
+            name:
+              type: string
+              description: Step name for identification
+            tools:
+              type: array
+              items:
+                type: string
+              description: Tools expected in this step
+            order:
+              type: string
+              enum: [strict, any]
+              default: any
+            depends_on:
+              type: string
+              description: Previous step this depends on
+            arguments_contain:
+              type: object
+              additionalProperties: true
+              description: Expected argument patterns
+
+  Assertion:
+    type: object
+    required:
+      - type
+    properties:
+      type:
+        type: string
+        enum:
+          - tool_called
+          - tool_not_called
+          - tool_arguments
+          - skill_activated
+          - response_mentions
+          - response_matches
+          - workflow_completed
+      tool:
+        type: string
+        description: Tool name (for tool assertions)
+      skill:
+        type: string
+        description: Skill name (for skill assertions)
+      values:
+        type: array
+        items:
+          type: string
+        description: Values to check in response
+      pattern:
+        type: string
+        description: Regex pattern for response matching
+      steps:
+        type: array
+        items:
+          type: string
+        description: Workflow steps (for workflow_completed)
+
+  LLMJudgeConfig:
+    type: object
+    required:
+      - enabled
+      - criteria
+      - threshold
+    properties:
+      enabled:
+        type: boolean
+        description: Whether to use LLM-as-judge
+      criteria:
+        type: array
+        description: Scoring criteria
+        items:
+          type: object
+          required: [name, description, weight]
+          properties:
+            name:
+              type: string
+            description:
+              type: string
+            weight:
+              type: number
+              minimum: 0
+              maximum: 1
+      threshold:
+        type: number
+        description: Minimum passing score (0-1)
+        minimum: 0
+        maximum: 1
+      rubric:
+        type: string
+        description: Detailed rubric for the judge
