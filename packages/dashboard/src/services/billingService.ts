@@ -13,7 +13,8 @@
 import { createServiceLogger } from '@orient/core';
 import { GoogleAuth } from 'google-auth-library';
 import { createSecretsService, type SecretsService } from '@orient/database-services';
-import * as oci from 'oci-sdk';
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import type * as ociTypes from 'oci-sdk';
 import * as fs from 'fs';
 
 const logger = createServiceLogger('billing-service');
@@ -810,6 +811,9 @@ async function fetchOracleBilling(
   const op = logger.startOperation('fetch-oracle-billing');
 
   try {
+    // Lazy-load oci-sdk to avoid 13s startup delay (it's a heavy SDK)
+    const oci = await import('oci-sdk');
+
     // Read the private key file
     const privateKey = fs.readFileSync(config.privateKeyPath, 'utf-8');
 
@@ -839,7 +843,7 @@ async function fetchOracleBilling(
     normalizedEndDate.setUTCHours(0, 0, 0, 0);
 
     // Prepare the request
-    const requestDetails: oci.usageapi.models.RequestSummarizedUsagesDetails = {
+    const requestDetails: ociTypes.usageapi.models.RequestSummarizedUsagesDetails = {
       tenantId: config.tenancyOcid,
       timeUsageStarted: normalizedStartDate,
       timeUsageEnded: normalizedEndDate,
@@ -862,7 +866,7 @@ async function fetchOracleBilling(
       };
     }
 
-    const request: oci.usageapi.requests.RequestSummarizedUsagesRequest = {
+    const request: ociTypes.usageapi.requests.RequestSummarizedUsagesRequest = {
       requestSummarizedUsagesDetails: requestDetails,
     };
 
