@@ -1,0 +1,11 @@
+name: simple-todo
+version: "1.0.0"
+title: "Simple Todo List"
+description: "A clean and minimal todo list app for managing your daily tasks. Add, complete, and delete todos with an intuitive interface."
+permissions:
+capabilities:
+sharing:
+  mode: secret_link
+build:
+  entry: "src/App.tsx"
+  output: "dist/"
