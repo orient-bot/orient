@@ -1,215 +1,165 @@
 ---
 name: git-hooks
-description: Manage pre-commit hooks and temp commits for multi-agent workflows. Use when asked to "make a temp commit", "skip hooks", "bypass pre-commit", "commit without checks", or when working with multiple agents on the same codebase. Covers commit bypass options, hook configuration, and code quality checks.
+description: Manage pre-commit hooks, performance optimization, and temp commits. Use when asked about "pre-commit slow", "commit taking forever", "skip hooks", "bypass pre-commit", "optimize commits", or multi-agent workflows. Covers fast Prettier-only hook, ESLint performance issues, and CI delegation strategy.
 ---
 
 # Git Hooks Management
 
 ## Overview
 
-This monorepo uses Husky for Git hooks with a smart pre-commit hook that:
+This monorepo uses a **fast pre-commit hook** that only runs Prettier (~1-2 seconds). ESLint, typecheck, and tests run in CI.
 
-1. **Lints staged files** via lint-staged (ESLint + Prettier)
-2. **Type checks** the codebase via TypeScript
-3. **Runs related tests** for changed files via Vitest
+**Why?** ESLint with TypeScript type-aware rules takes ~2 minutes per file due to project-wide type loading.
 
-The hooks support bypass mechanisms for temp commits when multiple agents work on the same codebase.
+## Quick Reference
 
-## Quick Reference - Commit Commands
-
-### Regular Commit (with all checks)
+### Normal Commit (~1-2 seconds)
 
 ```bash
-git add .
-git commit -m "feat: add new feature"
+git commit -m "feat: add feature"
 ```
 
-### Temp Commit (bypass all checks)
+### Bypass All Checks (instant)
 
 ```bash
-# Option 1: Use npm script
-npm run commit:temp -- -m "[temp] work in progress"
-
-# Option 2: Use --no-verify flag
-git commit --no-verify -m "[temp] work in progress"
-
-# Option 3: Use environment variable
-TEMP_COMMIT=1 git commit -m "[temp] work in progress"
-
-# Option 4: Quick WIP commit
-npm run commit:wip
+git commit --no-verify -m "message"
+# or
+TEMP_COMMIT=1 git commit -m "[temp] message"
 ```
 
-### Partial Bypass
+### Auto-bypass Prefixes
+
+Commits starting with these bypass the hook:
+
+- `[temp]` - temporary, will squash
+- `[wip]` - work in progress
+- `[skip-ci]` - skip CI
+- `[no-verify]` - explicit bypass
+
+## What Runs Where
+
+| Check      | Pre-commit    | CI  | Editor |
+| ---------- | ------------- | --- | ------ |
+| Prettier   | ✅ ~1s        | ✅  | ✅     |
+| ESLint     | ❌ (too slow) | ✅  | ✅     |
+| TypeScript | ❌ (too slow) | ✅  | ✅     |
+| Tests      | ❌            | ✅  | manual |
+
+## Performance History
+
+Original hook: **~3-5 minutes**
+
+- lint-staged (ESLint): ~2 minutes
+- Turbo typecheck: ~2 minutes
+- Vitest tests: ~90 seconds
+
+Optimized hook: **~1-2 seconds**
+
+- Prettier only on staged files
+
+## Before Optimizing Your Hook
+
+Benchmark each step to identify the bottleneck:
 
 ```bash
-# Skip tests only (still run lint + typecheck)
-SKIP_TESTS=1 git commit -m "chore: minor update"
+# Benchmark lint-staged
+time npx lint-staged
 
-# Skip all hooks
-SKIP_HOOKS=1 git commit -m "[temp] quick save"
+# Benchmark ESLint directly on a single file
+time pnpm exec eslint packages/core/src/index.ts --fix
+
+# Benchmark Prettier directly
+time pnpm exec prettier packages/core/src/index.ts --write
+
+# Benchmark typecheck
+time pnpm turbo run typecheck --filter='[HEAD]'
 ```
 
-## Commit Message Prefixes
+## Performance Comparison (This Repo)
 
-The pre-commit hook automatically bypasses checks for commits with these prefixes:
+| Approach                             | Time  | Notes                   |
+| ------------------------------------ | ----- | ----------------------- |
+| Full lint-staged (ESLint + Prettier) | ~2:05 | ESLint type-aware rules |
+| ESLint alone on 1 file               | ~2:00 | Type loading dominates  |
+| Prettier alone on 1 file             | ~0.3s | No type loading         |
+| Prettier-only hook                   | ~1-2s | **Current approach**    |
 
-| Prefix        | Purpose                            | Example                             |
-| ------------- | ---------------------------------- | ----------------------------------- |
-| `[temp]`      | Temporary commit, will be squashed | `[temp] partial implementation`     |
-| `[wip]`       | Work in progress                   | `[wip] experimenting with approach` |
-| `[skip-ci]`   | Skip CI and hooks                  | `[skip-ci] docs update`             |
-| `[no-verify]` | Explicit bypass                    | `[no-verify] emergency fix`         |
+## Why ESLint is Slow
 
-## Multi-Agent Workflow
+The `.eslintrc.js` has type-aware linting enabled:
 
-When multiple agents work on the same codebase:
-
-### Scenario 1: Agent A needs to save work while Agent B is testing
-
-```bash
-# Agent A: Make a temp commit without running tests
-npm run commit:temp -- -m "[temp] save progress on feature X"
-
-# Later: Agent B can squash temp commits
-git rebase -i HEAD~3  # Interactive rebase to squash
-```
-
-### Scenario 2: Quick iteration on a shared branch
-
-```bash
-# Make quick saves without full validation
-TEMP_COMMIT=1 git commit -m "[wip] iteration 1"
-TEMP_COMMIT=1 git commit -m "[wip] iteration 2"
-
-# When ready, run full validation manually
-pnpm turbo run typecheck lint test
-
-# Final commit with full checks
-git commit -m "feat: complete feature"
-```
-
-### Scenario 3: Emergency fix while another agent works
-
-```bash
-# Skip hooks for urgent fix
-git commit --no-verify -m "[temp] urgent hotfix"
-git push
-
-# Don't forget to clean up later!
-```
-
-## Pre-commit Hook Details
-
-### What runs during normal commits:
-
-```
-Step 1/3: lint-staged
-  ├── ESLint --fix on *.ts, *.tsx files
-  └── Prettier --write on *.ts, *.tsx, *.json, *.md, *.yml files
-
-Step 2/3: TypeScript typecheck
-  └── tsc --noEmit (via turbo for packages)
-
-Step 3/3: Related tests (optional)
-  └── vitest run --changed HEAD --passWithNoTests
-```
-
-### lint-staged Configuration
-
-From `package.json`:
-
-```json
-{
-  "lint-staged": {
-    "*.{ts,tsx}": ["eslint --fix", "prettier --write"],
-    "*.{json,md,yml,yaml}": ["prettier --write"]
-  }
+```javascript
+parserOptions: {
+  project: './tsconfig.eslint.json',  // This loads entire TS project
 }
 ```
 
-## Manual Quality Checks
+This makes ESLint load and parse the entire TypeScript project for every file. In a monorepo with many packages, this can take 2+ minutes even for a single file.
 
-Run checks manually without committing:
+### Diagnosing Slow ESLint Rules
 
 ```bash
-# Lint all staged files
-npx lint-staged
+# Show timing for each rule
+TIMING=1 pnpm exec eslint packages/core/src/index.ts
 
-# TypeScript check
-npm run typecheck
-
-# Run all tests
-npm test
-
-# Run only changed tests
-npx vitest run --changed
-
-# Full CI validation
-npm run test:ci
+# Output shows which rules are slowest:
+# Rule                          | Time (ms)
+# @typescript-eslint/no-unsafe* | 45000ms  <- type-aware rules
 ```
+
+### Options to Fix
+
+1. **Remove `project` option** - disables type-aware rules, fastest
+2. **Use `TIMING=1`** - identify and disable specific slow rules
+3. **Skip ESLint in pre-commit** - run in CI only (current approach)
+4. **Switch to Biome** - faster Rust-based linter
+
+## Manual Checks Before PR
+
+Run full validation before creating PRs:
+
+```bash
+# Full CI-equivalent check
+pnpm turbo run typecheck lint test
+
+# Or individually
+pnpm exec eslint .
+pnpm turbo run typecheck
+pnpm test
+```
+
+## Hook Configuration
+
+**Location:** `.husky/pre-commit`
+
+Current hook does:
+
+1. Get staged `.ts`, `.tsx`, `.json`, `.md`, `.yml` files
+2. Run Prettier on them
+3. Re-stage formatted files
 
 ## Troubleshooting
 
-### Hook not running
+### Hook still slow?
+
+Check if someone re-added lint-staged:
 
 ```bash
-# Ensure husky is installed
-npm run prepare
-
-# Verify hook is executable
-chmod +x .husky/pre-commit
+grep -n "lint-staged\|eslint" .husky/pre-commit
 ```
 
-### Lint-staged taking too long
+### Need ESLint locally?
+
+Run it manually on specific files:
 
 ```bash
-# Check what files are staged
-git diff --cached --name-only
-
-# If too many files, consider partial commits
+pnpm exec eslint packages/core/src/myfile.ts
 ```
 
-### TypeScript errors blocking commit
+### CI failing but local passes?
+
+The hook doesn't run ESLint/typecheck. Run locally:
 
 ```bash
-# Fix types first
-npm run typecheck
-
-# Or bypass if urgent
-git commit --no-verify -m "[temp] fix types later"
+pnpm turbo run typecheck lint
 ```
-
-### Tests failing on unrelated code
-
-```bash
-# Skip tests but keep lint/typecheck
-SKIP_TESTS=1 git commit -m "feat: unrelated change"
-```
-
-## Available NPM Scripts
-
-| Script                            | Description                 |
-| --------------------------------- | --------------------------- |
-| `npm run commit:temp -- -m "msg"` | Temp commit bypassing hooks |
-| `npm run commit:wip`              | Quick WIP commit            |
-| `npm run lint`                    | Run ESLint                  |
-| `npm run lint:fix`                | Run ESLint with auto-fix    |
-| `npm run format`                  | Run Prettier                |
-| `npm run typecheck`               | Run TypeScript check        |
-| `npm run test`                    | Run all tests               |
-| `npm run test:ci`                 | Run CI-safe tests           |
-
-## Best Practices
-
-1. **Use temp commits sparingly** - They're for coordination, not avoiding quality checks
-2. **Squash temp commits** before merging to main branch
-3. **Run full checks** before creating pull requests
-4. **Communicate** with other agents when making temp commits
-5. **Clean up** - Don't leave `[temp]` or `[wip]` commits in the history
-
-## Hook Configuration Location
-
-- **Pre-commit hook**: `.husky/pre-commit`
-- **lint-staged config**: `package.json` (lint-staged field)
-- **Husky config**: `.husky/_/` directory
