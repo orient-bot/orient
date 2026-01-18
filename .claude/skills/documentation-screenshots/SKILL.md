@@ -1,0 +1,126 @@
+---
+name: documentation-screenshots
+description: Capture browser screenshots and add them to documentation. Use this skill when asked to "add screenshots to docs", "capture screenshots for documentation", "take screenshots of the dashboard", "replace TODO screenshots", or any task involving browser screenshot capture and documentation image embedding.
+---
+
+# Documentation Screenshots
+
+Workflow for capturing browser screenshots and embedding them in documentation.
+
+## Screenshot Capture with html2canvas
+
+Load html2canvas dynamically and capture screenshots:
+
+```javascript
+(async () => {
+  // Load html2canvas if not already loaded
+  if (typeof html2canvas === 'undefined') {
+    await new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = 'https://html2canvas.hertzen.com/dist/html2canvas.min.js';
+      script.onload = resolve;
+      script.onerror = reject;
+      document.head.appendChild(script);
+    });
+  }
+
+  // Capture and download
+  const canvas = await html2canvas(document.body, {
+    useCORS: true,
+    allowTaint: true,
+    scale: 2, // Higher quality
+  });
+
+  const link = document.createElement('a');
+  link.download = 'screenshot-name.png';
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+
+  return 'Downloaded screenshot-name.png';
+})();
+```
+
+**Important**: html2canvas must be reloaded after each page navigation.
+
+## Workflow
+
+1. **Plan screenshots** - Find TODO comments or identify needed screenshots
+2. **Navigate systematically** - Use browser tools to visit each page/view
+3. **Capture with descriptive names** - Use consistent naming (e.g., `feature-view-name.png`)
+4. **Move files to static folder** - Copy from Downloads to `website/static/img/screenshots/`
+5. **Update markdown files** - Replace TODOs with image embeds
+6. **Commit and PR** - Create branch `docs/add-*-screenshots`
+
+## Moving Downloaded Screenshots
+
+```bash
+# Create target directory
+mkdir -p website/static/img/screenshots/getting-started/
+
+# Move screenshots (use wildcards for batch)
+cp ~/Downloads/feature-*.png website/static/img/screenshots/getting-started/
+```
+
+## Image Embed Syntax (JSX/MDX)
+
+For Docusaurus/MDX documentation:
+
+```jsx
+<div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+  <img
+    src="/img/screenshots/getting-started/screenshot-name.png"
+    alt="Description"
+    style={{ maxWidth: '100%', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }}
+  />
+</div>
+```
+
+## Replacing TODO Comments
+
+Find and replace patterns:
+
+```
+// Before (old syntax)
+{/_ TODO: Add screenshot - Feature Name _/}
+
+// Before (new syntax)
+{/* TODO: Add screenshot - Feature Name */}
+
+// After
+<div style={{textAlign: 'center', marginBottom: '1.5rem'}}>
+  <img src="/img/screenshots/getting-started/feature-name.png" alt="Feature Name" style={{maxWidth: '100%', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)'}} />
+</div>
+```
+
+## File Naming Convention
+
+- Use kebab-case: `whatsapp-qr-code.png`
+- Include section prefix: `webhooks-dashboard.png`
+- Be descriptive: `webhooks-create-form.png` not `form.png`
+
+## Git Workflow
+
+```bash
+# Create branch
+git checkout -b docs/add-feature-screenshots
+
+# Stage files
+git add website/static/img/screenshots/ website/docs/
+
+# Commit
+git commit -m "docs: add screenshots to feature documentation"
+
+# Push and create PR
+git push -u origin docs/add-feature-screenshots
+gh pr create --title "docs: add screenshots" --base main
+```
+
+## Handling Screenshots Requiring Specific State
+
+Some screenshots require app state that may not be available:
+
+- Connected services (WhatsApp paired, Slack connected)
+- Existing data (webhook events, audit logs)
+- External platforms (Google Cloud Console, Slack API)
+
+Leave these as TODOs with a note, or capture from staging/demo environments when available.
