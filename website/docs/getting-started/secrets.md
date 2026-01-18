@@ -31,7 +31,7 @@ Secrets are encrypted at rest and can be managed through the Dashboard.
 1. Navigate to **Dashboard**, then the **Secrets** tab
 2. You will see a list of all configured secrets
 
-{/_ TODO: Add screenshot - Secrets Dashboard _/}
+{/* TODO: Add screenshot - Secrets Dashboard */}
 
 ### Secret Categories
 
@@ -62,7 +62,7 @@ Navigate to **Dashboard**, then **Secrets** tab.
 4. Optionally add a description
 5. Click **Save**
 
-{/_ TODO: Add screenshot - Add Secret Form _/}
+{/* TODO: Add screenshot - Add Secret Form */}
 
 ### Step 3: Apply Changes
 
@@ -100,7 +100,7 @@ You can set default providers for different use cases in the **Providers** tab:
 - **Code**: Which model to use for code generation
 - **Summary**: Which model to use for summarization
 
-{/_ TODO: Add screenshot - Providers Tab _/}
+{/* TODO: Add screenshot - Providers Tab */}
 
 ---
 
@@ -183,7 +183,7 @@ All secret changes are logged:
 2. When it was made
 3. What was changed (key only, not value)
 
-{/_ TODO: Add screenshot - Secrets Audit Log _/}
+{/* TODO: Add screenshot - Secrets Audit Log */}
 
 ---
 
