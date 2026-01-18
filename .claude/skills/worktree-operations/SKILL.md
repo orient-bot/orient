@@ -3349,6 +3349,268 @@ git merge -X theirs origin/staging  # Prefer their changes
 git merge -X ours origin/staging    # Prefer our changes
 ```
 
+## Merging Branches in Worktrees
+
+This section covers the complete workflow for merging branches, handling conflicts, and rebuilding after merges.
+
+### Standard Merge Workflow
+
+**Step 1: Fetch and Merge**
+
+```bash
+# Fetch latest from remote
+git fetch origin dev
+
+# Merge into your worktree branch
+git merge origin/dev --no-edit
+```
+
+**Step 2: Handle Conflicts (if any)**
+
+See conflict resolution patterns below.
+
+**Step 3: Rebuild After Merge**
+
+```bash
+# Install dependencies (lock file may have changed)
+pnpm install
+
+# Build with turbo (handles dependency order)
+pnpm turbo run build --force
+```
+
+### Conflict Resolution Patterns
+
+#### Pattern 1: pnpm-lock.yaml Conflicts
+
+**Problem**: Lock file conflicts are common when merging branches with different dependency versions.
+
+```bash
+# ❌ DON'T manually resolve pnpm-lock.yaml conflicts
+
+# ✅ DO accept theirs and regenerate
+git checkout --theirs pnpm-lock.yaml
+pnpm install  # Regenerates lock file with your package.json changes
+git add pnpm-lock.yaml
+git commit --no-edit
+```
+
+**Why this works**: pnpm regenerates the lock file based on your current `package.json` files, ensuring consistency.
+
+#### Pattern 2: .pnpm-install.pid Conflicts
+
+**Problem**: This temporary file tracks running pnpm processes and often causes merge conflicts.
+
+```bash
+# This file should NEVER be committed
+# If you see it in conflicts:
+
+# Option 1: Remove before merge
+rm .pnpm-install.pid
+git merge origin/dev --no-edit
+
+# Option 2: Remove during conflict resolution
+git checkout --theirs .pnpm-install.pid 2>/dev/null || true
+rm -f .pnpm-install.pid
+git add .pnpm-install.pid  # Stages deletion
+
+# Verify it's in .gitignore
+grep -q ".pnpm-install.pid" .gitignore || echo ".pnpm-install.pid" >> .gitignore
+```
+
+#### Pattern 3: Environment File Conflicts (.env, .env.local)
+
+**Problem**: Worktree-specific environment values conflict with merged changes.
+
+```bash
+# Keep your worktree's environment (usually correct)
+git checkout --ours .env
+git checkout --ours .env.local 2>/dev/null || true
+git add .env .env.local
+
+# If you need to merge new variables from dev:
+# 1. Save your current env
+cp .env .env.backup
+
+# 2. Accept theirs
+git checkout --theirs .env
+
+# 3. Manually merge new variables
+diff .env.backup .env  # See what changed
+# Add any new variables you need to .env.backup
+mv .env.backup .env
+git add .env
+```
+
+#### Pattern 4: Build Artifact Conflicts (dist/, _.js, _.d.ts)
+
+**Problem**: Compiled TypeScript files conflict.
+
+```bash
+# Build artifacts should not be committed
+# If they are, remove and rebuild
+
+rm -rf packages/*/dist
+rm -rf src/**/dist
+git add -A
+pnpm turbo run build --force
+```
+
+### TypeScript Module Resolution Errors After Merge
+
+**Common Error**: `Cannot find module '@orient/core'` or similar after merging from dev.
+
+**Cause**: Build order dependencies - packages must be built in the correct order.
+
+**Solution 1: Force Rebuild with Turbo**
+
+```bash
+# Turbo handles dependency ordering automatically
+pnpm turbo run build --force
+
+# The --force flag bypasses cache, ensuring fresh builds
+```
+
+**Solution 2: Clean Install and Build**
+
+```bash
+# Nuclear option - clean everything and rebuild
+rm -rf node_modules
+rm -rf packages/*/node_modules
+rm -rf packages/*/dist
+pnpm install
+pnpm turbo run build --force
+```
+
+**Solution 3: Build Specific Package First**
+
+```bash
+# If you know which package is missing, build it first
+pnpm --filter @orient/core run build
+pnpm --filter @orient/database run build
+
+# Then build the rest
+pnpm turbo run build
+```
+
+**Understanding Turbo Build Order**:
+
+```
+@orient/core           (no dependencies)
+    ↓
+@orient/database       (depends on core)
+    ↓
+@orient/agents         (depends on core, database)
+    ↓
+@orient/bot-whatsapp   (depends on agents)
+@orient/dashboard      (depends on multiple packages)
+```
+
+Turbo reads `turbo.json` and `package.json` dependencies to determine build order. When merging introduces new dependencies, turbo ensures they're built first.
+
+### Complete Merge Workflow Example
+
+Here's a full example of merging from dev with all best practices:
+
+```bash
+# 1. Pre-merge cleanup
+rm -f .pnpm-install.pid
+git stash push -m "WIP before merge" 2>/dev/null || true
+
+# 2. Fetch and merge
+git fetch origin dev
+git merge origin/dev --no-edit
+
+# 3. If conflicts occur:
+# Handle lock file
+if git diff --name-only --diff-filter=U | grep -q "pnpm-lock.yaml"; then
+  git checkout --theirs pnpm-lock.yaml
+fi
+
+# Handle .env (keep ours)
+if git diff --name-only --diff-filter=U | grep -q ".env"; then
+  git checkout --ours .env
+fi
+
+# Remove temp files from conflicts
+rm -f .pnpm-install.pid
+git add .pnpm-install.pid 2>/dev/null || true
+
+# Complete merge
+git add pnpm-lock.yaml .env 2>/dev/null || true
+git commit --no-edit 2>/dev/null || true
+
+# 4. Reinstall and rebuild
+pnpm install
+pnpm turbo run build --force
+
+# 5. Restore stashed changes
+git stash pop 2>/dev/null || true
+
+# 6. Verify
+pnpm run typecheck
+echo "✅ Merge complete!"
+```
+
+### Troubleshooting Post-Merge Issues
+
+**Issue: "TS2307: Cannot find module" after merge**
+
+```bash
+# Cause: Package build order issue
+# Solution: Force rebuild with turbo
+pnpm turbo run build --force
+
+# If still failing, check specific package
+pnpm --filter @orient/core run build
+# Then rebuild all
+pnpm turbo run build
+```
+
+**Issue: "ENOENT: no such file or directory" for dist files**
+
+```bash
+# Cause: dist/ directories not built
+# Solution: Build everything
+pnpm turbo run build --force
+
+# If persists, clean and rebuild
+rm -rf packages/*/dist
+pnpm turbo run build --force
+```
+
+**Issue: pnpm install fails with integrity errors**
+
+```bash
+# Cause: Lock file out of sync
+# Solution: Regenerate lock file
+rm pnpm-lock.yaml
+pnpm install
+git add pnpm-lock.yaml
+git commit -m "chore: regenerate pnpm-lock.yaml"
+```
+
+**Issue: Tests fail after merge but build succeeds**
+
+```bash
+# Cause: Test cache or mock files stale
+# Solution: Clear caches and rerun
+rm -rf node_modules/.cache
+pnpm test -- --clearCache
+pnpm test
+```
+
+### Best Practices Summary
+
+1. **✅ Always remove .pnpm-install.pid before merging**
+2. **✅ Use `git checkout --theirs pnpm-lock.yaml` for lock conflicts**
+3. **✅ Keep your .env file (use `git checkout --ours .env`)**
+4. **✅ Run `pnpm turbo run build --force` after every merge**
+5. **✅ Use `pnpm install` before building (lock file may have changed)**
+6. **❌ Don't manually edit pnpm-lock.yaml**
+7. **❌ Don't commit build artifacts (dist/)**
+8. **❌ Don't skip the rebuild step after merging**
+
 ## Cleanup
 
 When done with a worktree, follow the safe removal workflow above.
