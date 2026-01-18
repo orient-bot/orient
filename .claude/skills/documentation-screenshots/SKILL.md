@@ -7,6 +7,38 @@ description: Capture browser screenshots and add them to documentation. Use this
 
 Workflow for capturing browser screenshots and embedding them in documentation.
 
+## Before Taking Screenshots
+
+**Hide browser automation UI elements** before capturing:
+
+1. **Claude tab group banner** - Click the X on "Claude is active in this tab group" notification
+2. **Extension popups** - Close any browser extension UI
+3. **DevTools** - Close developer tools if open
+4. **Tooltips/notifications** - Wait for transient UI to disappear
+
+This ensures clean, professional screenshots for documentation.
+
+## Prettier MDX Parser Configuration
+
+**Critical**: Docusaurus uses MDX which requires JSX comment syntax `{/* */}`. Prettier's default markdown parser converts this to `{/_ _/}`, breaking the build.
+
+Add this override to `.prettierrc`:
+
+```json
+{
+  "overrides": [
+    {
+      "files": "website/**/*.md",
+      "options": {
+        "parser": "mdx"
+      }
+    }
+  ]
+}
+```
+
+This ensures Prettier preserves `{/* TODO */}` syntax in documentation files.
+
 ## Screenshot Capture with html2canvas
 
 Load html2canvas dynamically and capture screenshots:
