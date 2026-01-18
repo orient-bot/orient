@@ -45,9 +45,13 @@ jobs:
 
       - name: Run linter
         run: npm run lint
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
 
       - name: Run type check
         run: npm run typecheck
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
 
   # Package-level unit tests (parallel)
   test-packages:
@@ -222,3 +226,5 @@ jobs:
 
       - name: Build root application
         run: npm run build
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096

@@ -125,7 +125,12 @@ describe('Workspace Package Exports', () => {
   });
 
   describe('Main/Types Fields', () => {
-    it.each(getPackageDirectories())('%s should have main and types fields', (packageDir) => {
+    // Exclude frontend apps that are not libraries
+    const libraryPackages = getPackageDirectories().filter(
+      (dir) => !['dashboard-frontend'].includes(dir)
+    );
+
+    it.each(libraryPackages)('%s should have main and types fields', (packageDir) => {
       const pkg = readPackageJson(packageDir);
 
       // Should have main entry point
