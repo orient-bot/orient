@@ -4,9 +4,19 @@
 
 export type Service = 'whatsapp' | 'slack';
 export type WhatsAppView = 'chats' | 'discover' | 'audit';
-export type GlobalView = 'billing' | 'integrations' | 'automation' | 'prompts' | 'agents' | 'apps' | 'monitoring';
+export type GlobalView =
+  | 'billing'
+  | 'integrations'
+  | 'automation'
+  | 'prompts'
+  | 'agents'
+  | 'apps'
+  | 'monitoring'
+  | 'settings';
 export type IntegrationsView = 'catalog' | 'mcp-servers' | 'dual-mode' | 'secrets' | 'providers';
 export type AutomationView = 'schedules' | 'webhooks';
+export type SettingsView = 'connections' | 'providers' | 'secrets' | 'appearance';
+export type ConnectionsSubView = 'catalog' | 'mcp' | 'modes';
 
 /**
  * Route path constants (relative to basename /dashboard)
@@ -32,6 +42,14 @@ export const ROUTES = {
   PROMPTS: '/prompts',
   BILLING: '/billing',
   MONITORING: '/monitoring',
+  SETTINGS: '/settings',
+  SETTINGS_CONNECTIONS: '/settings/connections',
+  SETTINGS_CONNECTIONS_CATALOG: '/settings/connections/catalog',
+  SETTINGS_CONNECTIONS_MCP: '/settings/connections/mcp',
+  SETTINGS_CONNECTIONS_MODES: '/settings/connections/modes',
+  SETTINGS_PROVIDERS: '/settings/providers',
+  SETTINGS_SECRETS: '/settings/secrets',
+  SETTINGS_APPEARANCE: '/settings/appearance',
 } as const;
 
 export interface RouteState {
@@ -40,6 +58,8 @@ export interface RouteState {
   whatsappView: WhatsAppView;
   integrationsView: IntegrationsView;
   automationView: AutomationView;
+  settingsView: SettingsView;
+  connectionsSubView: ConnectionsSubView;
 }
 
 export function getRouteState(pathname: string): RouteState {
@@ -49,6 +69,8 @@ export function getRouteState(pathname: string): RouteState {
     whatsappView: 'chats',
     integrationsView: 'mcp-servers',
     automationView: 'schedules',
+    settingsView: 'connections',
+    connectionsSubView: 'catalog',
   };
 
   if (pathname.startsWith('/agents')) {
@@ -91,6 +113,57 @@ export function getRouteState(pathname: string): RouteState {
     return { ...defaultState, globalView: 'monitoring' };
   }
 
+  // Settings routes
+  if (pathname.startsWith('/settings/connections/catalog')) {
+    return {
+      ...defaultState,
+      globalView: 'settings',
+      settingsView: 'connections',
+      connectionsSubView: 'catalog',
+    };
+  }
+  if (pathname.startsWith('/settings/connections/mcp')) {
+    return {
+      ...defaultState,
+      globalView: 'settings',
+      settingsView: 'connections',
+      connectionsSubView: 'mcp',
+    };
+  }
+  if (pathname.startsWith('/settings/connections/modes')) {
+    return {
+      ...defaultState,
+      globalView: 'settings',
+      settingsView: 'connections',
+      connectionsSubView: 'modes',
+    };
+  }
+  if (pathname.startsWith('/settings/connections')) {
+    return {
+      ...defaultState,
+      globalView: 'settings',
+      settingsView: 'connections',
+      connectionsSubView: 'catalog',
+    };
+  }
+  if (pathname.startsWith('/settings/providers')) {
+    return { ...defaultState, globalView: 'settings', settingsView: 'providers' };
+  }
+  if (pathname.startsWith('/settings/secrets')) {
+    return { ...defaultState, globalView: 'settings', settingsView: 'secrets' };
+  }
+  if (pathname.startsWith('/settings/appearance')) {
+    return { ...defaultState, globalView: 'settings', settingsView: 'appearance' };
+  }
+  if (pathname.startsWith('/settings')) {
+    return {
+      ...defaultState,
+      globalView: 'settings',
+      settingsView: 'connections',
+      connectionsSubView: 'catalog',
+    };
+  }
+
   if (pathname.startsWith('/slack')) {
     return { ...defaultState, activeService: 'slack' };
   }
@@ -107,7 +180,7 @@ export function getRouteState(pathname: string): RouteState {
 export function getRoutePath(
   globalView: GlobalView | null,
   service: Service = 'whatsapp',
-  subView?: WhatsAppView | IntegrationsView | AutomationView
+  subView?: WhatsAppView | IntegrationsView | AutomationView | SettingsView | ConnectionsSubView
 ): string {
   if (globalView) {
     switch (globalView) {
@@ -120,6 +193,16 @@ export function getRoutePath(
       case 'automation':
         if (subView === 'webhooks') return ROUTES.AUTOMATION_WEBHOOKS;
         return ROUTES.AUTOMATION_SCHEDULES;
+      case 'settings':
+        // Handle settings sub-views
+        if (subView === 'providers') return ROUTES.SETTINGS_PROVIDERS;
+        if (subView === 'secrets') return ROUTES.SETTINGS_SECRETS;
+        if (subView === 'appearance') return ROUTES.SETTINGS_APPEARANCE;
+        // Handle connections sub-views
+        if (subView === 'mcp') return ROUTES.SETTINGS_CONNECTIONS_MCP;
+        if (subView === 'modes') return ROUTES.SETTINGS_CONNECTIONS_MODES;
+        if (subView === 'catalog') return ROUTES.SETTINGS_CONNECTIONS_CATALOG;
+        return ROUTES.SETTINGS_CONNECTIONS;
       case 'agents':
         return ROUTES.AGENTS;
       case 'apps':

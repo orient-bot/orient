@@ -30,6 +30,17 @@ describe('Frontend URL Routing', () => {
       expect(ROUTES.BILLING).toBe('/billing');
       expect(ROUTES.MONITORING).toBe('/monitoring');
     });
+
+    it('should have all expected settings route paths', () => {
+      expect(ROUTES.SETTINGS).toBe('/settings');
+      expect(ROUTES.SETTINGS_CONNECTIONS).toBe('/settings/connections');
+      expect(ROUTES.SETTINGS_CONNECTIONS_CATALOG).toBe('/settings/connections/catalog');
+      expect(ROUTES.SETTINGS_CONNECTIONS_MCP).toBe('/settings/connections/mcp');
+      expect(ROUTES.SETTINGS_CONNECTIONS_MODES).toBe('/settings/connections/modes');
+      expect(ROUTES.SETTINGS_PROVIDERS).toBe('/settings/providers');
+      expect(ROUTES.SETTINGS_SECRETS).toBe('/settings/secrets');
+      expect(ROUTES.SETTINGS_APPEARANCE).toBe('/settings/appearance');
+    });
   });
 
   describe('getRouteState', () => {
@@ -171,6 +182,61 @@ describe('Frontend URL Routing', () => {
       });
     });
 
+    describe('Settings routes', () => {
+      it('should match /settings path with connections default', () => {
+        const state = getRouteState('/settings');
+        expect(state.globalView).toBe('settings');
+        expect(state.settingsView).toBe('connections');
+        expect(state.connectionsSubView).toBe('catalog');
+      });
+
+      it('should match /settings/connections path with catalog default', () => {
+        const state = getRouteState('/settings/connections');
+        expect(state.globalView).toBe('settings');
+        expect(state.settingsView).toBe('connections');
+        expect(state.connectionsSubView).toBe('catalog');
+      });
+
+      it('should match /settings/connections/catalog path', () => {
+        const state = getRouteState('/settings/connections/catalog');
+        expect(state.globalView).toBe('settings');
+        expect(state.settingsView).toBe('connections');
+        expect(state.connectionsSubView).toBe('catalog');
+      });
+
+      it('should match /settings/connections/mcp path', () => {
+        const state = getRouteState('/settings/connections/mcp');
+        expect(state.globalView).toBe('settings');
+        expect(state.settingsView).toBe('connections');
+        expect(state.connectionsSubView).toBe('mcp');
+      });
+
+      it('should match /settings/connections/modes path', () => {
+        const state = getRouteState('/settings/connections/modes');
+        expect(state.globalView).toBe('settings');
+        expect(state.settingsView).toBe('connections');
+        expect(state.connectionsSubView).toBe('modes');
+      });
+
+      it('should match /settings/providers path', () => {
+        const state = getRouteState('/settings/providers');
+        expect(state.globalView).toBe('settings');
+        expect(state.settingsView).toBe('providers');
+      });
+
+      it('should match /settings/secrets path', () => {
+        const state = getRouteState('/settings/secrets');
+        expect(state.globalView).toBe('settings');
+        expect(state.settingsView).toBe('secrets');
+      });
+
+      it('should match /settings/appearance path', () => {
+        const state = getRouteState('/settings/appearance');
+        expect(state.globalView).toBe('settings');
+        expect(state.settingsView).toBe('appearance');
+      });
+    });
+
     describe('path prefix matching', () => {
       it('should match paths with trailing content', () => {
         const state = getRouteState('/agents/123');
@@ -243,6 +309,38 @@ describe('Frontend URL Routing', () => {
       });
     });
 
+    describe('settings sub-routes', () => {
+      it('should return connections path by default for settings', () => {
+        expect(getRoutePath('settings')).toBe('/settings/connections');
+      });
+
+      it('should return providers path when specified', () => {
+        expect(getRoutePath('settings', 'whatsapp', 'providers')).toBe('/settings/providers');
+      });
+
+      it('should return secrets path when specified', () => {
+        expect(getRoutePath('settings', 'whatsapp', 'secrets')).toBe('/settings/secrets');
+      });
+
+      it('should return appearance path when specified', () => {
+        expect(getRoutePath('settings', 'whatsapp', 'appearance')).toBe('/settings/appearance');
+      });
+
+      it('should return connections catalog path when specified', () => {
+        expect(getRoutePath('settings', 'whatsapp', 'catalog')).toBe(
+          '/settings/connections/catalog'
+        );
+      });
+
+      it('should return connections mcp path when specified', () => {
+        expect(getRoutePath('settings', 'whatsapp', 'mcp')).toBe('/settings/connections/mcp');
+      });
+
+      it('should return connections modes path when specified', () => {
+        expect(getRoutePath('settings', 'whatsapp', 'modes')).toBe('/settings/connections/modes');
+      });
+    });
+
     describe('service routes', () => {
       it('should return slack path', () => {
         expect(getRoutePath(null, 'slack')).toBe('/slack');
@@ -293,6 +391,28 @@ describe('Frontend URL Routing', () => {
       const state = getRouteState(path);
       expect(state.globalView).toBeNull();
       expect(state.activeService).toBe('slack');
+    });
+
+    it('should have matching getRouteState and getRoutePath for settings', () => {
+      const path = getRoutePath('settings');
+      const state = getRouteState(path);
+      expect(state.globalView).toBe('settings');
+      expect(state.settingsView).toBe('connections');
+    });
+
+    it('should have matching getRouteState and getRoutePath for settings/appearance', () => {
+      const path = getRoutePath('settings', 'whatsapp', 'appearance');
+      const state = getRouteState(path);
+      expect(state.globalView).toBe('settings');
+      expect(state.settingsView).toBe('appearance');
+    });
+
+    it('should have matching getRouteState and getRoutePath for settings/connections/mcp', () => {
+      const path = getRoutePath('settings', 'whatsapp', 'mcp');
+      const state = getRouteState(path);
+      expect(state.globalView).toBe('settings');
+      expect(state.settingsView).toBe('connections');
+      expect(state.connectionsSubView).toBe('mcp');
     });
   });
 });

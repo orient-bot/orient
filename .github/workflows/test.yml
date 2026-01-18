@@ -2,7 +2,7 @@ name: Tests
 
 on:
   push:
-    branches: [main, dev, stage]
+    branches: [main] # Only run on merge to main (avoids duplicate runs)
     paths-ignore:
       - '**.md'
       - 'docs/**'
@@ -11,7 +11,7 @@ on:
       - 'meetings/**'
       - 'planning/**'
   pull_request:
-    branches: [main, dev, stage]
+    branches: [main, dev, stage] # Validate all PRs before merge
     paths-ignore:
       - '**.md'
       - 'docs/**'
