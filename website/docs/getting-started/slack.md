@@ -4,7 +4,7 @@ sidebar_position: 2
 
 # Connect via Slack
 
-<div style={{textAlign: 'center', marginBottom: '2rem'}}>
+<div style={{ textAlign: 'center', marginBottom: '2rem' }}>
   <img src="/img/mascot/ori-happy.png" alt="Ori happy" width="180" />
 </div>
 
@@ -72,7 +72,7 @@ settings:
 
 6. Click **Next**, review the permissions, and click **Create**
 
-{/_ TODO: Add screenshot - Slack Create from Manifest _/}
+{/* TODO: Add screenshot - Slack Create from Manifest */}
 
 ## Step 2: Generate App-Level Token
 
@@ -85,7 +85,7 @@ After creating the app:
 5. Click **Generate**
 6. **Copy the token** (starts with `xapp-`) — this is your `SLACK_APP_TOKEN`
 
-{/_ TODO: Add screenshot - Slack App Token _/}
+{/* TODO: Add screenshot - Slack App Token */}
 
 ## Step 3: Install to Workspace
 
@@ -94,7 +94,7 @@ After creating the app:
 3. Review the permissions and click **Allow**
 4. **Copy the Bot User OAuth Token** (starts with `xoxb-`) — this is your `SLACK_BOT_TOKEN`
 
-{/_ TODO: Add screenshot - Slack Install App _/}
+{/* TODO: Add screenshot - Slack Install App */}
 
 ## Step 4: Get Signing Secret
 
@@ -102,7 +102,7 @@ After creating the app:
 2. Under **App Credentials**, find **Signing Secret**
 3. Click **Show** and copy it — this is your `SLACK_SIGNING_SECRET`
 
-{/_ TODO: Add screenshot - Slack Signing Secret _/}
+{/* TODO: Add screenshot - Slack Signing Secret */}
 
 ## Step 5: Configure Orient
 
@@ -118,7 +118,7 @@ You now have 3 tokens to configure:
 
 In the Dashboard, go to the Slack setup section and enter all three values, then click **Save Slack Configuration**.
 
-{/_ TODO: Add screenshot - Slack Dashboard Config _/}
+{/* TODO: Add screenshot - Slack Dashboard Config */}
 
 ### Option B: Secrets Panel
 

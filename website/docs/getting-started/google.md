@@ -4,7 +4,7 @@ sidebar_position: 3
 
 # Connect Google Workspace
 
-<div style={{textAlign: 'center', marginBottom: '2rem'}}>
+<div style={{ textAlign: 'center', marginBottom: '2rem' }}>
   <img src="/img/mascot/ori-attentive.png" alt="Ori attentive" width="180" />
 </div>
 
@@ -24,7 +24,7 @@ Connect Google to enable Calendar, Gmail, Tasks, and more.
 3. Enter a project name (e.g., "Orient Integration")
 4. Click **Create**
 
-{/_ TODO: Add screenshot - Google Cloud New Project _/}
+{/* TODO: Add screenshot - Google Cloud New Project */}
 
 ## Step 2: Enable APIs
 
@@ -36,7 +36,7 @@ Connect Google to enable Calendar, Gmail, Tasks, and more.
    - **Google Sheets API** (optional)
    - **Google Slides API** (optional)
 
-{/_ TODO: Add screenshot - Google Enable APIs _/}
+{/* TODO: Add screenshot - Google Enable APIs */}
 
 ## Step 3: Configure OAuth Consent Screen
 
@@ -54,7 +54,7 @@ Connect Google to enable Calendar, Gmail, Tasks, and more.
    - `https://www.googleapis.com/auth/tasks`
 6. Click **Save and Continue** through the remaining steps
 
-{/_ TODO: Add screenshot - Google OAuth Consent _/}
+{/* TODO: Add screenshot - Google OAuth Consent */}
 
 :::warning Test Mode
 If you chose "External", your app will be in test mode. You need to add your email as a test user under **OAuth consent screen**, then **Test users**.
@@ -72,7 +72,7 @@ If you chose "External", your app will be in test mode. You need to add your ema
 6. Click **Create**
 7. **Copy the Client ID and Client Secret**
 
-{/_ TODO: Add screenshot - Google OAuth Credentials _/}
+{/* TODO: Add screenshot - Google OAuth Credentials */}
 
 ## Step 5: Configure Orient
 
@@ -91,7 +91,7 @@ GOOGLE_OAUTH_CLIENT_SECRET=your-client-secret
 4. A popup will open for Google OAuth
 5. Sign in with your Google account and grant permissions
 
-{/_ TODO: Add screenshot - Google Connect Integration _/}
+{/* TODO: Add screenshot - Google Connect Integration */}
 
 Once connected, Orient can access your Calendar, Gmail, and Tasks!
 

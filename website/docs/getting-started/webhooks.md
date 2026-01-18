@@ -4,7 +4,7 @@ sidebar_position: 4
 
 # Webhooks
 
-<div style={{textAlign: 'center', marginBottom: '2rem'}}>
+<div style={{ textAlign: 'center', marginBottom: '2rem' }}>
   <img src="/img/mascot/ori-attentive.png" alt="Ori attentive" width="180" />
 </div>
 
@@ -33,8 +33,12 @@ Webhooks allow external services to send real-time notifications to Orient. When
 
 Navigate to **Dashboard**, then the **Webhooks** tab.
 
-<div style={{textAlign: 'center', marginBottom: '1.5rem'}}>
-  <img src="/img/screenshots/getting-started/webhooks-dashboard.png" alt="Webhooks Dashboard" style={{maxWidth: '100%', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)'}} />
+<div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+  <img
+    src="/img/screenshots/getting-started/webhooks-dashboard.png"
+    alt="Webhooks Dashboard"
+    style={{ maxWidth: '100%', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }}
+  />
 </div>
 
 ### Step 2: Create New Webhook
@@ -51,8 +55,12 @@ Navigate to **Dashboard**, then the **Webhooks** tab.
 | **Target**       | Phone number/group or Slack channel             |
 | **Event Filter** | Which events to listen for (optional)           |
 
-<div style={{textAlign: 'center', marginBottom: '1.5rem'}}>
-  <img src="/img/screenshots/getting-started/webhooks-create-form.png" alt="Create Webhook Form" style={{maxWidth: '100%', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)'}} />
+<div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+  <img
+    src="/img/screenshots/getting-started/webhooks-create-form.png"
+    alt="Create Webhook Form"
+    style={{ maxWidth: '100%', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }}
+  />
 </div>
 
 ### Step 3: Copy the Webhook URL
@@ -78,8 +86,12 @@ And a secret token for verification.
    - **Secret**: The token from Orient
    - **Events**: Choose which events to send
 
-<div style={{textAlign: 'center', marginBottom: '1.5rem'}}>
-  <img src="/img/screenshots/getting-started/webhooks-github-config.png" alt="GitHub Webhook Configuration" style={{maxWidth: '100%', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)'}} />
+<div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+  <img
+    src="/img/screenshots/getting-started/webhooks-github-config.png"
+    alt="GitHub Webhook Configuration"
+    style={{ maxWidth: '100%', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }}
+  />
 </div>
 
 ### Recommended GitHub Events
@@ -100,8 +112,12 @@ And a secret token for verification.
    - **URL**: Your Orient webhook URL
    - **Events**: Issue created, updated, etc.
 
-<div style={{textAlign: 'center', marginBottom: '1.5rem'}}>
-  <img src="/img/screenshots/getting-started/webhooks-jira-config.png" alt="JIRA Webhook Configuration" style={{maxWidth: '100%', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)'}} />
+<div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+  <img
+    src="/img/screenshots/getting-started/webhooks-jira-config.png"
+    alt="JIRA Webhook Configuration"
+    style={{ maxWidth: '100%', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }}
+  />
 </div>
 
 ---
@@ -146,7 +162,7 @@ View recent webhook events in the Dashboard:
 2. Click on a webhook to see its event history
 3. View payload, status, and any errors
 
-{/_ TODO: Add screenshot - Webhook Events _/}
+{/* TODO: Add screenshot - Webhook Events */}
 
 ---
 
