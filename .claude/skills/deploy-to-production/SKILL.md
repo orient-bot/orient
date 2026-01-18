@@ -39,10 +39,21 @@ ssh $OCI_USER@$OCI_HOST
 # Navigate to docker directory
 cd ~/orient/docker
 
-# Pull and restart (uses v2 compose by default)
-sudo docker compose -f docker-compose.v2.yml -f docker-compose.prod.yml -f docker-compose.r2.yml pull
-sudo docker compose -f docker-compose.v2.yml -f docker-compose.prod.yml -f docker-compose.r2.yml up -d
+# IMPORTANT: Always use --env-file to load environment variables
+COMPOSE_CMD="sudo docker compose --env-file ../.env -f docker-compose.v2.yml -f docker-compose.prod.yml -f docker-compose.r2.yml"
+
+# Pull latest images
+$COMPOSE_CMD pull
+
+# Start services (recreates containers with current .env values)
+$COMPOSE_CMD up -d
+
+# Or as single commands:
+sudo docker compose --env-file ../.env -f docker-compose.v2.yml -f docker-compose.prod.yml -f docker-compose.r2.yml pull
+sudo docker compose --env-file ../.env -f docker-compose.v2.yml -f docker-compose.prod.yml -f docker-compose.r2.yml up -d
 ```
+
+**Note**: Always pass `--env-file ../.env` to ensure environment variables are loaded. Without it, Docker Compose uses only variables from the shell environment.
 
 ## Smart Change Detection
 
@@ -266,6 +277,121 @@ sudo docker compose ${COMPOSE_FILES} up -d
 
 ## Troubleshooting
 
+### Docker Build Failures
+
+#### Missing Directories in Dockerfile
+
+**Error**: `failed to calculate checksum of ref: "/src": not found` or `/credentials": not found`
+
+**Cause**: Dockerfile tries to COPY directories that don't exist in the repo (e.g., `src/`, `credentials/`)
+
+**Fix**: Remove or comment out COPY statements for non-existent directories in `docker/Dockerfile.opencode.legacy`:
+
+```dockerfile
+# Remove these lines if directories don't exist:
+# COPY src ./src
+# COPY credentials ./credentials
+```
+
+#### DEPLOY_ENV Build Argument
+
+**Error**: `"/docker/opencode.local.json": not found`
+
+**Cause**: OpenCode Dockerfile defaults to `DEPLOY_ENV=local`, which looks for `opencode.local.json`
+
+**Fix**: Ensure workflow passes `DEPLOY_ENV=prod` build-arg:
+
+```yaml
+# In .github/workflows/deploy.yml
+- name: Build and push Docker image
+  uses: docker/build-push-action@v5
+  with:
+    build-args: |
+      DEPLOY_ENV=prod
+```
+
+### Server .env Configuration
+
+#### Complete .env File Requirements
+
+The server `.env` file at `~/orient/.env` must contain:
+
+```bash
+# REQUIRED - Domain Configuration
+ORIENT_APP_DOMAIN=app.orient.bot
+ORIENT_CODE_DOMAIN=code.orient.bot
+ORIENT_STAGING_DOMAIN=staging.orient.bot
+ORIENT_CODE_STAGING_DOMAIN=code-staging.orient.bot
+
+# REQUIRED - Database (generates crash loop if missing)
+POSTGRES_USER=aibot
+POSTGRES_PASSWORD=<secure-password>
+POSTGRES_DB=whatsapp_bot
+DATABASE_URL=postgresql://aibot:<password>@postgres:5432/whatsapp_bot
+
+# REQUIRED - Dashboard Security (crash loop if missing)
+DASHBOARD_JWT_SECRET=<openssl rand -hex 32>
+
+# REQUIRED - Encryption
+ORIENT_MASTER_KEY=<openssl rand -hex 32>
+
+# REQUIRED - MinIO (for local S3-compatible storage)
+MINIO_ROOT_USER=minioadmin
+MINIO_ROOT_PASSWORD=minioadmin123
+
+# OPTIONAL - API Keys (can be empty initially)
+ANTHROPIC_API_KEY=
+OPENAI_API_KEY=
+R2_ACCESS_KEY_ID=
+R2_SECRET_ACCESS_KEY=
+```
+
+#### Generate Secrets
+
+```bash
+# Generate secure values
+openssl rand -hex 32  # For DASHBOARD_JWT_SECRET
+openssl rand -hex 32  # For ORIENT_MASTER_KEY
+openssl rand -base64 24 | tr -d '/+=' | head -c 24  # For POSTGRES_PASSWORD
+```
+
+### PostgreSQL Authentication Failures
+
+**Error**: `password authentication failed for user "aibot"`
+
+**Cause**: PostgreSQL was initialized with a different password than what's in `.env`
+
+**Fix**: Reset the PostgreSQL data volume (WARNING: deletes all data):
+
+```bash
+ssh opc@152.70.172.33
+cd ~/orient/docker
+sudo docker compose --env-file ../.env \
+  -f docker-compose.v2.yml -f docker-compose.prod.yml -f docker-compose.r2.yml down -v
+sudo docker compose --env-file ../.env \
+  -f docker-compose.v2.yml -f docker-compose.prod.yml -f docker-compose.r2.yml up -d
+```
+
+### Nginx Upstream Errors
+
+**Error**: `host not found in upstream "orienter-opencode-staging:5099"`
+
+**Cause**: Nginx config references staging containers that don't exist in production-only deployment
+
+**Fix**: Use a production-only nginx config that doesn't define staging upstreams, or make staging upstreams return 503:
+
+```nginx
+# Staging servers - return 503 when staging not running
+server {
+    listen 443 ssl;
+    server_name staging.orient.bot code-staging.orient.bot;
+    # ... ssl config ...
+    location / {
+        return 503 'Staging environment not deployed';
+    }
+}
+```
+
 ### Container Won't Start
 
 1. Check logs: `docker logs orienter-dashboard --tail 100`
@@ -311,6 +437,33 @@ docker restart orienter-bot-whatsapp
 # Full reset if needed (clears session)
 rm -rf ~/orient/data/whatsapp-auth/*
 docker restart orienter-bot-whatsapp
+```
+
+### Health Endpoint Testing
+
+After deployment, verify all services are accessible:
+
+```bash
+# Test health endpoints
+curl -sf https://app.orient.bot/health && echo " OK"
+curl -sf https://code.orient.bot/health && echo " OK"
+
+# Test dashboard is serving
+curl -sf -o /dev/null -w "%{http_code}" https://app.orient.bot/
+
+# Check container health status
+ssh opc@152.70.172.33 "docker ps --format 'table {{.Names}}\t{{.Status}}'"
+```
+
+Expected output - all containers should show "(healthy)":
+
+```
+NAMES                   STATUS
+orienter-nginx          Up X minutes (healthy)
+orienter-bot-whatsapp   Up X minutes (healthy)
+orienter-opencode       Up X minutes (healthy)
+orienter-dashboard      Up X minutes (healthy)
+orienter-postgres       Up X minutes (healthy)
 ```
 
 ## Quick Commands
