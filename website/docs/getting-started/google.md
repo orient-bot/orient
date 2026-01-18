@@ -4,7 +4,7 @@ sidebar_position: 3
 
 # Connect Google Workspace
 
-<div style={{textAlign: 'center', marginBottom: '2rem'}}>
+<div style={{ textAlign: 'center', marginBottom: '2rem' }}>
   <img src="/img/mascot/ori-attentive.png" alt="Ori attentive" width="180" />
 </div>
 

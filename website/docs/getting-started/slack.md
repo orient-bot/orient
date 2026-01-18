@@ -4,7 +4,7 @@ sidebar_position: 2
 
 # Connect via Slack
 
-<div style={{textAlign: 'center', marginBottom: '2rem'}}>
+<div style={{ textAlign: 'center', marginBottom: '2rem' }}>
   <img src="/img/mascot/ori-happy.png" alt="Ori happy" width="180" />
 </div>
 

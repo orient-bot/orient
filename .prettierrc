@@ -4,5 +4,13 @@
   "singleQuote": true,
   "printWidth": 100,
   "tabWidth": 2,
-  "useTabs": false
+  "useTabs": false,
+  "overrides": [
+    {
+      "files": "website/**/*.md",
+      "options": {
+        "parser": "mdx"
+      }
+    }
+  ]
 }
