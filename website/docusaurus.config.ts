@@ -2,6 +2,7 @@ import { themes as prismThemes } from 'prism-react-renderer';
 import type { Config } from '@docusaurus/types';
 import type * as Preset from '@docusaurus/preset-classic';
 
+// GitHub repository: https://github.com/orient-bot/orient
 const config: Config = {
   title: 'Orient',
   tagline: 'Ask Ori. It acts.',
@@ -16,7 +17,7 @@ const config: Config = {
   baseUrl: '/',
 
   onBrokenLinks: 'throw',
-  
+
   // Open Graph / Social metadata
   headTags: [
     {
@@ -30,7 +31,8 @@ const config: Config = {
       tagName: 'meta',
       attributes: {
         property: 'og:description',
-        content: 'Open-source AI agent that runs on your infrastructure. Takes action through natural conversation.',
+        content:
+          'Open-source AI agent that runs on your infrastructure. Takes action through natural conversation.',
       },
     },
     {
@@ -79,7 +81,8 @@ const config: Config = {
       tagName: 'meta',
       attributes: {
         name: 'twitter:description',
-        content: 'Open-source AI agent that runs on your infrastructure. Takes action through natural conversation.',
+        content:
+          'Open-source AI agent that runs on your infrastructure. Takes action through natural conversation.',
       },
     },
     {
