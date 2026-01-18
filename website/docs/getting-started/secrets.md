@@ -31,7 +31,9 @@ Secrets are encrypted at rest and can be managed through the Dashboard.
 1. Navigate to **Dashboard**, then the **Secrets** tab
 2. You will see a list of all configured secrets
 
-{/_ TODO: Add screenshot - Secrets Dashboard _/}
+<div style={{textAlign: 'center', marginBottom: '1.5rem'}}>
+  <img src="/img/screenshots/getting-started/secrets-dashboard.png" alt="Secrets Dashboard" style={{maxWidth: '100%', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)'}} />
+</div>
 
 ### Secret Categories
 
@@ -62,7 +64,9 @@ Navigate to **Dashboard**, then **Secrets** tab.
 4. Optionally add a description
 5. Click **Save**
 
-{/_ TODO: Add screenshot - Add Secret Form _/}
+<div style={{textAlign: 'center', marginBottom: '1.5rem'}}>
+  <img src="/img/screenshots/getting-started/secrets-dashboard.png" alt="Add Secret Form" style={{maxWidth: '100%', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)'}} />
+</div>
 
 ### Step 3: Apply Changes
 
@@ -100,7 +104,9 @@ You can set default providers for different use cases in the **Providers** tab:
 - **Code**: Which model to use for code generation
 - **Summary**: Which model to use for summarization
 
-{/_ TODO: Add screenshot - Providers Tab _/}
+<div style={{textAlign: 'center', marginBottom: '1.5rem'}}>
+  <img src="/img/screenshots/getting-started/secrets-providers-tab.png" alt="AI Providers Configuration" style={{maxWidth: '100%', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)'}} />
+</div>
 
 ---
 
