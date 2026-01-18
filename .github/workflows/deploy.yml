@@ -1,0 +1,653 @@
+# =============================================================================
+# Orient - CI/CD Pipeline
+# =============================================================================
+# This workflow builds ARM64 Docker images and deploys to Oracle Cloud.
+#
+# Features:
+# - Smart change detection: only builds images for changed packages
+# - Test guard-rails: deployment blocked if tests fail
+# - Robust deployment with automatic permission handling
+# - Pre-flight checks before deployment
+# - Automatic rollback on failure
+# - Health verification after deployment
+# - Concurrency control: only one deployment at a time
+#
+# Trigger: Push to main branch
+# Registry: GitHub Container Registry (ghcr.io)
+# Target: Oracle Cloud ARM64 instance
+# =============================================================================
+
+name: Build and Deploy
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - 'meetings/**'
+      - 'planning/**'
+      - '.claude/skills/**'
+      - 'apps/**'
+  workflow_dispatch:
+    inputs:
+      force_build_all:
+        description: 'Force rebuild all images (bypass change detection)'
+        required: false
+        default: 'false'
+        type: boolean
+
+# =============================================================================
+# Concurrency Control
+# =============================================================================
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ghcr.io/${{ github.repository }}
+
+jobs:
+  # ===========================================================================
+  # Detect Changes - Determine which images need rebuilding
+  # ===========================================================================
+  detect-changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      opencode: ${{ steps.changes.outputs.opencode }}
+      whatsapp: ${{ steps.changes.outputs.whatsapp }}
+      dashboard: ${{ steps.changes.outputs.dashboard }}
+      any_image: ${{ steps.changes.outputs.opencode == 'true' || steps.changes.outputs.whatsapp == 'true' || steps.changes.outputs.dashboard == 'true' }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Check for force build
+        id: force
+        run: |
+          if [[ "${{ github.event.inputs.force_build_all }}" == "true" ]]; then
+            echo "Force build requested - all images will be built"
+            echo "force=true" >> $GITHUB_OUTPUT
+          else
+            echo "force=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Detect file changes
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            opencode:
+              - 'src/**'
+              - 'packages/core/**'
+              - 'packages/mcp-tools/**'
+              - 'packages/mcp-servers/**'
+              - 'packages/agents/**'
+              - 'docker/Dockerfile.opencode*'
+              - 'package.json'
+              - 'pnpm-lock.yaml'
+              - 'tsconfig.json'
+            whatsapp:
+              - 'packages/bot-whatsapp/**'
+              - 'packages/core/**'
+              - 'packages/database/**'
+              - 'package.json'
+              - 'pnpm-lock.yaml'
+            dashboard:
+              - 'packages/dashboard/**'
+              - 'packages/dashboard-frontend/**'
+              - 'packages/core/**'
+              - 'package.json'
+              - 'pnpm-lock.yaml'
+
+      - name: Compute final change flags
+        id: changes
+        run: |
+          if [[ "${{ steps.force.outputs.force }}" == "true" ]]; then
+            echo "opencode=true" >> $GITHUB_OUTPUT
+            echo "whatsapp=true" >> $GITHUB_OUTPUT
+            echo "dashboard=true" >> $GITHUB_OUTPUT
+          else
+            echo "opencode=${{ steps.filter.outputs.opencode }}" >> $GITHUB_OUTPUT
+            echo "whatsapp=${{ steps.filter.outputs.whatsapp }}" >> $GITHUB_OUTPUT
+            echo "dashboard=${{ steps.filter.outputs.dashboard }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Change Detection Summary
+        run: |
+          echo ""
+          echo "==============================================================="
+          echo "  CHANGE DETECTION SUMMARY"
+          echo "==============================================================="
+          echo "  Force build:        ${{ steps.force.outputs.force }}"
+          echo "  OpenCode changed:   ${{ steps.changes.outputs.opencode }}"
+          echo "  WhatsApp changed:   ${{ steps.changes.outputs.whatsapp }}"
+          echo "  Dashboard changed:  ${{ steps.changes.outputs.dashboard }}"
+          echo "==============================================================="
+
+  # ===========================================================================
+  # Run Tests - MUST pass before build/deploy
+  # ===========================================================================
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build workspace packages
+        run: pnpm turbo build --filter="@orient/*"
+        env:
+          NODE_OPTIONS: '--max-old-space-size=4096'
+
+      - name: Run tests
+        run: pnpm run test:ci
+
+      - name: Test Summary
+        if: always()
+        run: |
+          echo ""
+          echo "==============================================================="
+          echo "  TEST SUMMARY"
+          echo "==============================================================="
+          echo "  Commit:    ${{ github.sha }}"
+          echo "  Branch:    ${{ github.ref_name }}"
+          echo "  Status:    ${{ job.status }}"
+          echo "==============================================================="
+
+  # ===========================================================================
+  # Build OpenCode Image - Only if OpenCode-related files changed
+  # ===========================================================================
+  build-opencode:
+    needs: [test, detect-changes]
+    if: needs.detect-changes.outputs.opencode == 'true'
+    name: Build OpenCode Image
+    runs-on: [self-hosted, linux, arm64]
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_PREFIX }}/opencode
+          tags: |
+            type=sha,prefix=
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: docker/Dockerfile.opencode.legacy
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ===========================================================================
+  # Build WhatsApp Bot Image - Only if WhatsApp-related files changed
+  # ===========================================================================
+  build-whatsapp:
+    needs: [test, detect-changes]
+    if: needs.detect-changes.outputs.whatsapp == 'true'
+    name: Build WhatsApp Bot Image
+    runs-on: [self-hosted, linux, arm64]
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_PREFIX }}/whatsapp-bot
+          tags: |
+            type=sha,prefix=
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: packages/bot-whatsapp/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ===========================================================================
+  # Build Dashboard Image - Only if Dashboard-related files changed
+  # ===========================================================================
+  build-dashboard:
+    needs: [test, detect-changes]
+    if: needs.detect-changes.outputs.dashboard == 'true'
+    name: Build Dashboard Image
+    runs-on: [self-hosted, linux, arm64]
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_PREFIX }}/dashboard
+          tags: |
+            type=sha,prefix=
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: packages/dashboard/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ===========================================================================
+  # Deploy to Oracle Cloud
+  # ===========================================================================
+  deploy:
+    name: Deploy to Oracle Cloud
+    runs-on: ubuntu-latest
+    needs: [test, detect-changes, build-opencode, build-whatsapp, build-dashboard]
+    if: always() && needs.test.result == 'success'
+    environment: production
+    concurrency:
+      group: deploy-production-server
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      packages: read
+
+    steps:
+      - name: Check build results
+        run: |
+          echo "==============================================================="
+          echo "  BUILD RESULTS"
+          echo "==============================================================="
+          echo "  OpenCode build:   ${{ needs.build-opencode.result || 'skipped' }}"
+          echo "  WhatsApp build:   ${{ needs.build-whatsapp.result || 'skipped' }}"
+          echo "  Dashboard build:  ${{ needs.build-dashboard.result || 'skipped' }}"
+          echo "==============================================================="
+
+          if [[ "${{ needs.build-opencode.result }}" == "failure" ]] || \
+             [[ "${{ needs.build-whatsapp.result }}" == "failure" ]] || \
+             [[ "${{ needs.build-dashboard.result }}" == "failure" ]]; then
+            echo "One or more builds failed!"
+            exit 1
+          fi
+          echo "All builds passed or were skipped (no changes)"
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.OCI_SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.OCI_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Pre-flight checks
+        env:
+          OCI_HOST: ${{ secrets.OCI_HOST }}
+          OCI_USER: ${{ secrets.OCI_USER }}
+        run: |
+          echo "Running pre-flight checks..."
+
+          if ! ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 $OCI_USER@$OCI_HOST "echo 'SSH OK'"; then
+            echo "Cannot connect to server"
+            exit 1
+          fi
+          echo "SSH connectivity verified"
+
+          DISK_FREE=$(ssh $OCI_USER@$OCI_HOST "df -BG /home | tail -1 | awk '{print \$4}' | tr -d 'G'")
+          if [[ ${DISK_FREE} -lt 2 ]]; then
+            echo "Low disk space: ${DISK_FREE}GB free"
+            exit 1
+          fi
+          echo "Disk space OK: ${DISK_FREE}GB free"
+
+          if ! ssh $OCI_USER@$OCI_HOST "sudo docker info > /dev/null 2>&1"; then
+            echo "Docker is not running"
+            exit 1
+          fi
+          echo "Docker is running"
+          echo "Pre-flight checks passed!"
+
+      - name: Prepare deployment directories
+        env:
+          OCI_HOST: ${{ secrets.OCI_HOST }}
+          OCI_USER: ${{ secrets.OCI_USER }}
+        run: |
+          echo "Preparing deployment directories..."
+
+          ssh -o StrictHostKeyChecking=no $OCI_USER@$OCI_HOST << 'PREPARE_SCRIPT'
+            set -e
+
+            DEPLOY_DIR="${HOME}/orient"
+            DOCKER_DIR="${DEPLOY_DIR}/docker"
+            CONFIG_DIR="${DEPLOY_DIR}/config"
+            BACKUP_DIR="${DEPLOY_DIR}/backups"
+            DATA_DIR="${DEPLOY_DIR}/data"
+
+            mkdir -p "${DOCKER_DIR}" "${CONFIG_DIR}" "${BACKUP_DIR}"
+            mkdir -p "${DATA_DIR}/whatsapp-auth" "${DATA_DIR}/media" "${DATA_DIR}/oauth-tokens"
+            mkdir -p "${DEPLOY_DIR}/logs"
+
+            sudo chown -R $(whoami):$(whoami) "${DEPLOY_DIR}" 2>/dev/null || true
+
+            chmod 755 "${DEPLOY_DIR}" "${DOCKER_DIR}" "${CONFIG_DIR}"
+            chmod 700 "${BACKUP_DIR}"
+
+            echo "Fixing data directory permissions for container user..."
+            sudo chown -R 1001:1001 "${DATA_DIR}/whatsapp-auth" 2>/dev/null || true
+            sudo chown -R 1001:1001 "${DATA_DIR}/media" 2>/dev/null || true
+            sudo chown -R 1001:1001 "${DATA_DIR}/oauth-tokens" 2>/dev/null || true
+            sudo chown -R 1001:1001 "${DEPLOY_DIR}/logs" 2>/dev/null || true
+            sudo chmod -R 755 "${DATA_DIR}/whatsapp-auth" 2>/dev/null || true
+            sudo chmod -R 755 "${DATA_DIR}/media" 2>/dev/null || true
+            sudo chmod -R 755 "${DATA_DIR}/oauth-tokens" 2>/dev/null || true
+            sudo chmod -R 755 "${DEPLOY_DIR}/logs" 2>/dev/null || true
+
+            if [[ -f "${DEPLOY_DIR}/.env" ]] && [[ ! -f "${DOCKER_DIR}/.env" ]]; then
+              ln -sf "${DEPLOY_DIR}/.env" "${DOCKER_DIR}/.env"
+              echo "Created .env symlink"
+            fi
+
+            echo "Directories prepared successfully"
+          PREPARE_SCRIPT
+
+      - name: Sync configuration files
+        env:
+          OCI_HOST: ${{ secrets.OCI_HOST }}
+          OCI_USER: ${{ secrets.OCI_USER }}
+        run: |
+          echo "Syncing configuration files..."
+
+          rsync -avzO --progress --timeout=60 \
+            -e 'ssh -o StrictHostKeyChecking=no' \
+            docker/docker-compose.yml \
+            docker/docker-compose.v2.yml \
+            docker/docker-compose.prod.yml \
+            docker/docker-compose.r2.yml \
+            docker/docker-compose.local.yml \
+            docker/nginx-ssl.conf \
+            docker/nginx.conf \
+            docker/deploy-server.sh \
+            $OCI_USER@$OCI_HOST:~/orient/docker/
+
+          ssh $OCI_USER@$OCI_HOST "chmod +x ~/orient/docker/deploy-server.sh"
+
+          echo "Configuration synced"
+
+      - name: Update environment secrets
+        env:
+          OCI_HOST: ${{ secrets.OCI_HOST }}
+          OCI_USER: ${{ secrets.OCI_USER }}
+          ANTHROPIC_ADMIN_KEY: ${{ secrets.ANTHROPIC_ADMIN_KEY }}
+          OPENAI_BILLING_KEY: ${{ secrets.OPENAI_BILLING_KEY }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          OCI_TENANCY_OCID: ${{ secrets.OCI_TENANCY_OCID }}
+          OCI_USER_OCID: ${{ secrets.OCI_USER_OCID }}
+          OCI_FINGERPRINT: ${{ secrets.OCI_FINGERPRINT }}
+          OCI_REGION: ${{ secrets.OCI_REGION }}
+          WHATSAPP_CLOUD_API_ENABLED: ${{ secrets.WHATSAPP_CLOUD_API_ENABLED }}
+          WHATSAPP_CLOUD_API_PHONE_NUMBER_ID: ${{ secrets.WHATSAPP_CLOUD_API_PHONE_NUMBER_ID }}
+          WHATSAPP_CLOUD_API_ACCESS_TOKEN: ${{ secrets.WHATSAPP_CLOUD_API_ACCESS_TOKEN }}
+          WHATSAPP_CLOUD_API_BUSINESS_ACCOUNT_ID: ${{ secrets.WHATSAPP_CLOUD_API_BUSINESS_ACCOUNT_ID }}
+          WHATSAPP_CLOUD_API_WEBHOOK_VERIFY_TOKEN: ${{ secrets.WHATSAPP_CLOUD_API_WEBHOOK_VERIFY_TOKEN }}
+          WHATSAPP_CLOUD_API_APP_SECRET: ${{ secrets.WHATSAPP_CLOUD_API_APP_SECRET }}
+          HEALTH_MONITOR_ENABLED: ${{ secrets.HEALTH_MONITOR_ENABLED }}
+          HEALTH_MONITOR_SLACK_USER_ID: ${{ secrets.HEALTH_MONITOR_SLACK_USER_ID }}
+        run: |
+          echo "Updating environment secrets..."
+
+          ssh -o StrictHostKeyChecking=no $OCI_USER@$OCI_HOST "touch ~/orient/.env"
+
+          update_secret() {
+            local key="$1"
+            local value="$2"
+            if [[ -n "$value" ]]; then
+              ssh $OCI_USER@$OCI_HOST "grep -q '^${key}=' ~/orient/.env 2>/dev/null && sed -i 's|^${key}=.*|${key}=${value}|' ~/orient/.env || echo '${key}=${value}' >> ~/orient/.env"
+              echo "  Updated: $key"
+            fi
+          }
+
+          [[ -n "$ANTHROPIC_ADMIN_KEY" ]] && ssh $OCI_USER@$OCI_HOST "grep -q '^ANTHROPIC_ADMIN_KEY=' ~/orient/.env 2>/dev/null && sed -i 's|^ANTHROPIC_ADMIN_KEY=.*|ANTHROPIC_ADMIN_KEY=$ANTHROPIC_ADMIN_KEY|' ~/orient/.env || echo 'ANTHROPIC_ADMIN_KEY=$ANTHROPIC_ADMIN_KEY' >> ~/orient/.env" && echo "  ANTHROPIC_ADMIN_KEY"
+          [[ -n "$CLOUDFLARE_API_TOKEN" ]] && ssh $OCI_USER@$OCI_HOST "grep -q '^CLOUDFLARE_API_TOKEN=' ~/orient/.env 2>/dev/null && sed -i 's|^CLOUDFLARE_API_TOKEN=.*|CLOUDFLARE_API_TOKEN=$CLOUDFLARE_API_TOKEN|' ~/orient/.env || echo 'CLOUDFLARE_API_TOKEN=$CLOUDFLARE_API_TOKEN' >> ~/orient/.env" && echo "  CLOUDFLARE_API_TOKEN"
+          [[ -n "$CLOUDFLARE_ACCOUNT_ID" ]] && ssh $OCI_USER@$OCI_HOST "grep -q '^CLOUDFLARE_ACCOUNT_ID=' ~/orient/.env 2>/dev/null && sed -i 's|^CLOUDFLARE_ACCOUNT_ID=.*|CLOUDFLARE_ACCOUNT_ID=$CLOUDFLARE_ACCOUNT_ID|' ~/orient/.env || echo 'CLOUDFLARE_ACCOUNT_ID=$CLOUDFLARE_ACCOUNT_ID' >> ~/orient/.env" && echo "  CLOUDFLARE_ACCOUNT_ID"
+
+          echo "Environment secrets updated"
+
+      - name: Authenticate to container registry
+        env:
+          OCI_HOST: ${{ secrets.OCI_HOST }}
+          OCI_USER: ${{ secrets.OCI_USER }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Authenticating to container registry..."
+          ssh -o StrictHostKeyChecking=no $OCI_USER@$OCI_HOST \
+            "echo '$GITHUB_TOKEN' | sudo docker login ghcr.io -u ${{ github.actor }} --password-stdin"
+          echo "Registry authentication successful"
+
+      - name: Deploy services
+        env:
+          OCI_HOST: ${{ secrets.OCI_HOST }}
+          OCI_USER: ${{ secrets.OCI_USER }}
+          OPENCODE_CHANGED: ${{ needs.detect-changes.outputs.opencode }}
+          WHATSAPP_CHANGED: ${{ needs.detect-changes.outputs.whatsapp }}
+          DASHBOARD_CHANGED: ${{ needs.detect-changes.outputs.dashboard }}
+        run: |
+          echo "Deploying services..."
+          echo "  Images to update: opencode=$OPENCODE_CHANGED, whatsapp=$WHATSAPP_CHANGED, dashboard=$DASHBOARD_CHANGED"
+
+          ssh -o StrictHostKeyChecking=no $OCI_USER@$OCI_HOST << 'DEPLOY_SCRIPT'
+            set -e
+
+            DEPLOY_DIR="${HOME}/orient"
+            DOCKER_DIR="${DEPLOY_DIR}/docker"
+            BACKUP_DIR="${DEPLOY_DIR}/backups"
+            COMPOSE_FILES="-f docker-compose.v2.yml -f docker-compose.prod.yml -f docker-compose.r2.yml"
+            TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+
+            cd "${DOCKER_DIR}"
+
+            echo "=== Deployment Started ==="
+            echo "Time: $(date)"
+            echo "Commit: ${{ github.sha }}"
+
+            if [[ -f "docker-compose.yml" ]]; then
+              echo "Creating backup..."
+              mkdir -p "${BACKUP_DIR}/${TIMESTAMP}"
+              cp -f *.yml "${BACKUP_DIR}/${TIMESTAMP}/" 2>/dev/null || true
+              cp -f *.conf "${BACKUP_DIR}/${TIMESTAMP}/" 2>/dev/null || true
+              echo "${{ github.sha }}" > "${BACKUP_DIR}/${TIMESTAMP}/commit.txt"
+            fi
+
+            echo "Stopping services..."
+            sudo docker compose ${COMPOSE_FILES} down --remove-orphans 2>/dev/null || true
+
+            echo "Removing lingering containers..."
+            sudo docker rm -f orienter-postgres orienter-nginx orienter-bot-whatsapp orienter-opencode orienter-bot-slack orienter-dashboard 2>/dev/null || true
+
+            echo "Cleaning up..."
+            sudo docker container prune -f 2>/dev/null || true
+
+            echo "Pulling images..."
+            sudo docker compose ${COMPOSE_FILES} pull
+
+            echo "Starting services..."
+            sudo docker compose --env-file "${DEPLOY_DIR}/.env" ${COMPOSE_FILES} up -d
+
+            echo "Waiting for services to initialize..."
+            sleep 15
+
+            echo "=== Service Status ==="
+            sudo docker compose ${COMPOSE_FILES} ps
+
+            echo "Cleaning old backups..."
+            cd "${BACKUP_DIR}"
+            ls -t | tail -n +6 | xargs -r rm -rf
+
+            echo "Cleaning old images..."
+            sudo docker image prune -f
+
+            echo "=== Deployment Complete ==="
+          DEPLOY_SCRIPT
+
+      - name: Verify deployment
+        id: health_check
+        env:
+          OCI_HOST: ${{ secrets.OCI_HOST }}
+          OCI_USER: ${{ secrets.OCI_USER }}
+        run: |
+          echo "Verifying deployment health..."
+
+          sleep 10
+
+          HEALTHY=true
+
+          if curl -sf --max-time 10 "http://$OCI_HOST/health" > /dev/null; then
+            echo "Nginx: healthy"
+          else
+            echo "Nginx: unhealthy"
+            HEALTHY=false
+          fi
+
+          if curl -sf --max-time 10 "http://$OCI_HOST/opencode/global/health" > /dev/null; then
+            echo "OpenCode: healthy"
+          else
+            echo "OpenCode: may still be starting"
+          fi
+
+          if curl -sf --max-time 10 "http://$OCI_HOST/dashboard/api/health" > /dev/null; then
+            echo "Dashboard: healthy"
+          else
+            echo "Dashboard: may still be starting"
+          fi
+
+          echo "healthy=$HEALTHY" >> $GITHUB_OUTPUT
+
+          if [[ "$HEALTHY" == "true" ]]; then
+            echo ""
+            echo "Deployment verified successfully!"
+          else
+            echo ""
+            echo "Deployment verification failed!"
+          fi
+
+      - name: Rollback on failure
+        if: steps.health_check.outputs.healthy == 'false'
+        env:
+          OCI_HOST: ${{ secrets.OCI_HOST }}
+          OCI_USER: ${{ secrets.OCI_USER }}
+        run: |
+          echo "Initiating rollback..."
+
+          ssh -o StrictHostKeyChecking=no $OCI_USER@$OCI_HOST 'bash -s' << 'EOF'
+          cd ~/orient/docker
+          COMPOSE_FILES="-f docker-compose.v2.yml -f docker-compose.prod.yml -f docker-compose.r2.yml"
+
+          LATEST=$(ls -t ~/orient/backups 2>/dev/null | head -1)
+          if [[ -n "$LATEST" ]]; then
+            echo "Rolling back to: $LATEST"
+            sudo docker compose ${COMPOSE_FILES} down || true
+            cp -f ~/orient/backups/${LATEST}/*.yml . 2>/dev/null || true
+            cp -f ~/orient/backups/${LATEST}/*.conf . 2>/dev/null || true
+            sudo docker compose ${COMPOSE_FILES} up -d
+            echo "Rollback complete!"
+          else
+            echo "No backup found to rollback to"
+          fi
+          EOF
+
+          exit 1
+
+      - name: Deployment summary
+        if: always()
+        env:
+          OPENCODE_CHANGED: ${{ needs.detect-changes.outputs.opencode }}
+          WHATSAPP_CHANGED: ${{ needs.detect-changes.outputs.whatsapp }}
+          DASHBOARD_CHANGED: ${{ needs.detect-changes.outputs.dashboard }}
+        run: |
+          echo ""
+          echo "==============================================================="
+          echo "  DEPLOYMENT SUMMARY"
+          echo "==============================================================="
+          echo "  Commit:    ${{ github.sha }}"
+          echo "  Branch:    ${{ github.ref_name }}"
+          echo "  Triggered: ${{ github.event_name }}"
+          echo "  Actor:     ${{ github.actor }}"
+          echo "  Time:      $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+          echo "  -------------------------------------------------------------"
+          echo "  Images rebuilt:"
+          echo "    OpenCode:   $OPENCODE_CHANGED"
+          echo "    WhatsApp:   $WHATSAPP_CHANGED"
+          echo "    Dashboard:  $DASHBOARD_CHANGED"
+          echo "==============================================================="
