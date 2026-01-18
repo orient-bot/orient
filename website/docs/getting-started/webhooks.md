@@ -33,7 +33,7 @@ Webhooks allow external services to send real-time notifications to Orient. When
 
 Navigate to **Dashboard**, then the **Webhooks** tab.
 
-{/_ TODO: Add screenshot - Webhooks Dashboard _/}
+{/* TODO: Add screenshot - Webhooks Dashboard */}
 
 ### Step 2: Create New Webhook
 
@@ -49,7 +49,7 @@ Navigate to **Dashboard**, then the **Webhooks** tab.
 | **Target**       | Phone number/group or Slack channel             |
 | **Event Filter** | Which events to listen for (optional)           |
 
-{/_ TODO: Add screenshot - Create Webhook Form _/}
+{/* TODO: Add screenshot - Create Webhook Form */}
 
 ### Step 3: Copy the Webhook URL
 
@@ -74,7 +74,7 @@ And a secret token for verification.
    - **Secret**: The token from Orient
    - **Events**: Choose which events to send
 
-{/_ TODO: Add screenshot - GitHub Webhook Config _/}
+{/* TODO: Add screenshot - GitHub Webhook Config */}
 
 ### Recommended GitHub Events
 
@@ -94,7 +94,7 @@ And a secret token for verification.
    - **URL**: Your Orient webhook URL
    - **Events**: Issue created, updated, etc.
 
-{/_ TODO: Add screenshot - JIRA Webhook Config _/}
+{/* TODO: Add screenshot - JIRA Webhook Config */}
 
 ---
 
@@ -138,7 +138,7 @@ View recent webhook events in the Dashboard:
 2. Click on a webhook to see its event history
 3. View payload, status, and any errors
 
-{/_ TODO: Add screenshot - Webhook Events _/}
+{/* TODO: Add screenshot - Webhook Events */}
 
 ---
 

@@ -34,7 +34,7 @@ Orient uses a permission system where the bot can only send messages to explicit
 
 Navigate to your Orient dashboard and locate the **Workspace Setup** panel.
 
-{/_ TODO: Add screenshot - Dashboard WhatsApp Setup _/}
+{/* TODO: Add screenshot - Dashboard WhatsApp Setup */}
 
 ## Step 3: Choose Pairing Method
 
@@ -46,14 +46,14 @@ You have two options:
 2. Click **Get Pairing Code**
 3. You'll receive an 8-character code (e.g., `ABCD-1234`)
 
-{/_ TODO: Add screenshot - WhatsApp Pairing Code _/}
+{/* TODO: Add screenshot - WhatsApp Pairing Code */}
 
 ### Option B: QR Code
 
 1. Click **Show QR Code**
 2. A QR code will be displayed on screen
 
-{/_ TODO: Add screenshot - WhatsApp QR Code _/}
+{/* TODO: Add screenshot - WhatsApp QR Code */}
 
 :::tip
 The QR code refreshes every 60 seconds. If it expires, simply click to refresh it.
@@ -74,7 +74,7 @@ On your phone:
 
 Once linked, the dashboard will show **Connected** status.
 
-{/_ TODO: Add screenshot - WhatsApp Connected _/}
+{/* TODO: Add screenshot - WhatsApp Connected */}
 
 ## Step 6: Activate the Bot Group
 
@@ -88,7 +88,7 @@ Now you need to give the bot write permission to your group:
 
 The bot is now live and will respond to your messages!
 
-{/_ TODO: Add screenshot - WhatsApp Approve Permissions _/}
+{/* TODO: Add screenshot - WhatsApp Approve Permissions */}
 
 :::tip Permission Levels
 
