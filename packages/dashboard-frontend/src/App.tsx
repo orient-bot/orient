@@ -40,6 +40,7 @@ import ProvidersTab from './components/ProvidersTab';
 import IntegrationCatalog from './components/IntegrationCatalog';
 import OnboarderBubble from './components/OnboarderBubble';
 import OnboarderChat from './components/OnboarderChat';
+import { SettingsLayout, AppearancePage } from './components/Settings';
 import { ThemeProvider, useTheme } from './context/ThemeContext';
 import { AppLayout } from './components/Layout/AppLayout';
 import { CommandPalette, useCommandPalette, type Command } from './components/CommandPalette';
@@ -97,10 +98,15 @@ function AppContent() {
   const location = useLocation();
   useOriActivation();
 
-  const { globalView, activeService, whatsappView, integrationsView, automationView } = useMemo(
-    () => getRouteState(location.pathname),
-    [location.pathname]
-  );
+  const {
+    globalView,
+    activeService,
+    whatsappView,
+    integrationsView,
+    automationView,
+    settingsView,
+    connectionsSubView,
+  } = useMemo(() => getRouteState(location.pathname), [location.pathname]);
 
   useEffect(() => {
     if (location.pathname.startsWith('/schedules')) {
@@ -109,6 +115,31 @@ function AppContent() {
     }
     if (location.pathname.startsWith('/webhooks')) {
       navigate(ROUTES.AUTOMATION_WEBHOOKS, { replace: true });
+      return;
+    }
+    // Redirect old integrations routes to new settings routes
+    if (location.pathname.startsWith('/integrations/catalog')) {
+      navigate(ROUTES.SETTINGS_CONNECTIONS_CATALOG, { replace: true });
+      return;
+    }
+    if (location.pathname.startsWith('/integrations/mcp-servers')) {
+      navigate(ROUTES.SETTINGS_CONNECTIONS_MCP, { replace: true });
+      return;
+    }
+    if (location.pathname.startsWith('/integrations/dual-mode')) {
+      navigate(ROUTES.SETTINGS_CONNECTIONS_MODES, { replace: true });
+      return;
+    }
+    if (location.pathname.startsWith('/integrations/secrets')) {
+      navigate(ROUTES.SETTINGS_SECRETS, { replace: true });
+      return;
+    }
+    if (location.pathname.startsWith('/integrations/providers')) {
+      navigate(ROUTES.SETTINGS_PROVIDERS, { replace: true });
+      return;
+    }
+    if (location.pathname.startsWith('/integrations')) {
+      navigate(ROUTES.SETTINGS_CONNECTIONS, { replace: true });
       return;
     }
     if (location.pathname === '/' || location.pathname === '') {
@@ -292,8 +323,8 @@ function AppContent() {
     }
   };
 
-  const handleOpenIntegrations = () => {
-    navigate(ROUTES.INTEGRATIONS_DUAL);
+  const handleOpenSettings = () => {
+    navigate(ROUTES.SETTINGS_CONNECTIONS_MODES);
   };
 
   const handleOpenQrPage = () => {
@@ -347,11 +378,20 @@ function AppContent() {
     });
 
     cmds.push({
-      id: 'nav-integrations',
-      label: 'Integrations',
-      description: 'MCP servers and dual mode settings',
+      id: 'nav-settings',
+      label: 'Settings',
+      description: 'Connections, providers, secrets, and appearance',
       category: 'navigation',
-      keywords: ['mcp', 'servers', 'oauth', 'connections'],
+      keywords: [
+        'mcp',
+        'servers',
+        'oauth',
+        'connections',
+        'theme',
+        'appearance',
+        'providers',
+        'secrets',
+      ],
       icon: (
         <svg
           xmlns="http://www.w3.org/2000/svg"
@@ -364,11 +404,11 @@ function AppContent() {
           strokeLinecap="round"
           strokeLinejoin="round"
         >
-          <rect width="8" height="8" x="2" y="2" rx="2" />
-          <path d="M14 2c.6 0 1.1.2 1.5.5L20 6.5c.3.4.5.9.5 1.5v9c0 1.1-.9 2-2 2h-6c-1.1 0-2-.9-2-2V3c0-1.1.9-2 2-2Z" />
+          <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
+          <circle cx="12" cy="12" r="3" />
         </svg>
       ),
-      action: () => navigate(ROUTES.INTEGRATIONS),
+      action: () => navigate(ROUTES.SETTINGS),
     });
 
     if (schedulerAvailable) {
@@ -665,6 +705,38 @@ function AppContent() {
 
     // Settings
     cmds.push({
+      id: 'settings-appearance',
+      label: 'Appearance Settings',
+      description: 'Open theme and display settings',
+      category: 'settings',
+      keywords: ['theme', 'appearance', 'display', 'dark mode', 'light mode'],
+      icon: (
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <circle cx="12" cy="12" r="4" />
+          <path d="M12 2v2" />
+          <path d="M12 20v2" />
+          <path d="m4.93 4.93 1.41 1.41" />
+          <path d="m17.66 17.66 1.41 1.41" />
+          <path d="M2 12h2" />
+          <path d="M20 12h2" />
+          <path d="m6.34 17.66-1.41 1.41" />
+          <path d="m19.07 4.93-1.41 1.41" />
+        </svg>
+      ),
+      action: () => navigate(ROUTES.SETTINGS_APPEARANCE),
+    });
+
+    cmds.push({
       id: 'settings-theme-light',
       label: 'Light Mode',
       description: 'Switch to light theme',
@@ -917,7 +989,7 @@ function AppContent() {
                     <button
                       type="button"
                       className="btn btn-secondary h-9"
-                      onClick={handleOpenIntegrations}
+                      onClick={handleOpenSettings}
                     >
                       Integrations
                     </button>
@@ -966,7 +1038,7 @@ function AppContent() {
           onRefreshWhatsAppStatus={handleRefresh}
           onSkipWhatsApp={() => updateSetupSkips({ ...setupSkips, whatsapp: true })}
           onOpenSlackSetup={handleOpenSlackSetup}
-          onOpenIntegrations={handleOpenIntegrations}
+          onOpenIntegrations={handleOpenSettings}
           onSkipSlack={() => updateSetupSkips({ ...setupSkips, slack: true })}
         />
       )}
@@ -1147,6 +1219,42 @@ function AppContent() {
         {globalView === 'apps' && <AppsTab />}
 
         {globalView === 'monitoring' && <MonitoringTab />}
+
+        {globalView === 'settings' && (
+          <SettingsLayout currentView={settingsView}>
+            {settingsView === 'connections' && (
+              <>
+                {/* Connections Sub-tabs */}
+                <div className="flex gap-1 mb-6 p-1 bg-secondary rounded-lg w-fit border border-border">
+                  <Link
+                    to={ROUTES.SETTINGS_CONNECTIONS_CATALOG}
+                    className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${connectionsSubView === 'catalog' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                  >
+                    Catalog
+                  </Link>
+                  <Link
+                    to={ROUTES.SETTINGS_CONNECTIONS_MCP}
+                    className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${connectionsSubView === 'mcp' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                  >
+                    MCP Servers
+                  </Link>
+                  <Link
+                    to={ROUTES.SETTINGS_CONNECTIONS_MODES}
+                    className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${connectionsSubView === 'modes' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                  >
+                    Service Modes
+                  </Link>
+                </div>
+                {connectionsSubView === 'catalog' && <IntegrationCatalog />}
+                {connectionsSubView === 'mcp' && <MCPServers onUpdate={handleRefresh} />}
+                {connectionsSubView === 'modes' && <DualModeSettings onUpdate={handleRefresh} />}
+              </>
+            )}
+            {settingsView === 'providers' && <ProvidersTab />}
+            {settingsView === 'secrets' && <SecretsTab />}
+            {settingsView === 'appearance' && <AppearancePage />}
+          </SettingsLayout>
+        )}
 
         {!globalView && activeService === 'whatsapp' && (
           <>

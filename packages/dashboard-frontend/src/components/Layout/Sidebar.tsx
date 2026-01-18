@@ -10,7 +10,8 @@ type GlobalView =
   | 'prompts'
   | 'agents'
   | 'apps'
-  | 'monitoring';
+  | 'monitoring'
+  | 'settings';
 
 interface SidebarProps {
   slackAvailable: boolean;
@@ -152,9 +153,9 @@ export function Sidebar({
           </h3>
           <div className="space-y-1">
             <Link
-              to={ROUTES.INTEGRATIONS}
+              to={ROUTES.SETTINGS}
               className={`w-full flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-                isGlobalActive('integrations')
+                isGlobalActive('settings')
                   ? 'bg-primary text-primary-foreground'
                   : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
               }`}
@@ -170,13 +171,10 @@ export function Sidebar({
                 strokeLinecap="round"
                 strokeLinejoin="round"
               >
-                <rect width="8" height="8" x="2" y="2" rx="2" />
-                <path d="M14 2c.6 0 1.1.2 1.5.5L20 6.5c.3.4.5.9.5 1.5v9c0 1.1-.9 2-2 2h-6c-1.1 0-2-.9-2-2V3c0-1.1.9-2 2-2Z" />
-                <path d="M16 2v4a2 2 0 0 0 2 2h4" />
-                <path d="M2.1 12.1A2 2 0 0 1 4 10h16" />
-                <path d="M2.1 16.1A2 2 0 0 1 4 14h16" />
+                <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
+                <circle cx="12" cy="12" r="3" />
               </svg>
-              Integrations
+              Settings
             </Link>
 
             <Link

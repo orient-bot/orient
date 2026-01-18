@@ -160,20 +160,23 @@ orienter/
 
 ## Decision Tree - Which Tests to Run
 
-| Modified Package/File             | Tests to Run               | Command                                                 |
-| --------------------------------- | -------------------------- | ------------------------------------------------------- |
-| `packages/core/src/**`            | Core unit tests            | `pnpm --filter @orient/core test`                       |
-| `packages/database/src/**`        | Database tests             | `pnpm --filter @orient/database test`                   |
-| `packages/database/src/schema/**` | Database E2E               | `pnpm --filter @orient/database test:e2e`               |
-| `packages/mcp-tools/src/**`       | MCP Tools tests            | `pnpm --filter @orient/mcp-tools test`                  |
-| `src/services/*.ts`               | Service unit tests         | `npm test -- src/services/__tests__/<name>.test.ts`     |
-| `src/services/openCode*.ts`       | OpenCode E2E               | `npx vitest run tests/e2e/opencode-session.e2e.test.ts` |
-| `src/tools/*.ts`                  | Tool tests                 | `npm run test:tools`                                    |
-| `src/db/*.ts`                     | E2E database tests         | `npm run test:e2e`                                      |
-| `packages/*/Dockerfile`           | Docker tests               | `pnpm test:docker:files`                                |
-| `docker/docker-compose*.yml`      | Docker compose tests       | `pnpm test:docker:files`                                |
-| `packages/*/src/main.ts`          | Entry point + Docker tests | Package test + `pnpm test:docker:files`                 |
-| Multiple files                    | All tests                  | `npm run test:ci`                                       |
+| Modified Package/File                           | Tests to Run               | Command                                                 |
+| ----------------------------------------------- | -------------------------- | ------------------------------------------------------- |
+| `packages/core/src/**`                          | Core unit tests            | `pnpm --filter @orient/core test`                       |
+| `packages/database/src/**`                      | Database tests             | `pnpm --filter @orient/database test`                   |
+| `packages/database/src/schema/**`               | Database E2E               | `pnpm --filter @orient/database test:e2e`               |
+| `packages/mcp-tools/src/**`                     | MCP Tools tests            | `pnpm --filter @orient/mcp-tools test`                  |
+| `packages/dashboard-frontend/src/routes.ts`     | Frontend routing tests     | `pnpm --filter dashboard-frontend test -- routes`       |
+| `packages/dashboard-frontend/src/components/**` | Frontend component tests   | `pnpm --filter dashboard-frontend test`                 |
+| `packages/dashboard-frontend/src/App.tsx`       | Frontend integration tests | `pnpm --filter dashboard-frontend test`                 |
+| `src/services/*.ts`                             | Service unit tests         | `npm test -- src/services/__tests__/<name>.test.ts`     |
+| `src/services/openCode*.ts`                     | OpenCode E2E               | `npx vitest run tests/e2e/opencode-session.e2e.test.ts` |
+| `src/tools/*.ts`                                | Tool tests                 | `npm run test:tools`                                    |
+| `src/db/*.ts`                                   | E2E database tests         | `npm run test:e2e`                                      |
+| `packages/*/Dockerfile`                         | Docker tests               | `pnpm test:docker:files`                                |
+| `docker/docker-compose*.yml`                    | Docker compose tests       | `pnpm test:docker:files`                                |
+| `packages/*/src/main.ts`                        | Entry point + Docker tests | Package test + `pnpm test:docker:files`                 |
+| Multiple files                                  | All tests                  | `npm run test:ci`                                       |
 
 ## Writing New Tests
 
@@ -222,6 +225,77 @@ describe('ModuleName', () => {
     });
   });
 });
+```
+
+### Frontend Routing Tests (React/Vitest)
+
+Test routing utilities (`getRouteState`, `getRoutePath`) for React applications:
+
+```typescript
+/**
+ * Tests for Frontend URL Routing
+ * Location: packages/dashboard-frontend/__tests__/routes.test.ts
+ */
+
+import { describe, it, expect } from 'vitest';
+import { getRouteState, getRoutePath, ROUTES } from '../src/routes';
+
+describe('Frontend URL Routing', () => {
+  // Test route constants exist
+  describe('ROUTES constants', () => {
+    it('should have all expected route paths', () => {
+      expect(ROUTES.SETTINGS).toBe('/settings');
+      expect(ROUTES.SETTINGS_APPEARANCE).toBe('/settings/appearance');
+    });
+  });
+
+  // Test getRouteState - derives state from URL pathname
+  describe('getRouteState', () => {
+    it('should match route path and return correct view state', () => {
+      const state = getRouteState('/settings/appearance');
+      expect(state.globalView).toBe('settings');
+      expect(state.settingsView).toBe('appearance');
+    });
+
+    it('should return default state for unknown paths', () => {
+      const state = getRouteState('/unknown');
+      expect(state.globalView).toBeNull();
+      expect(state.activeService).toBe('whatsapp'); // default
+    });
+  });
+
+  // Test getRoutePath - generates URL from view state
+  describe('getRoutePath', () => {
+    it('should return correct path for view', () => {
+      expect(getRoutePath('settings', 'whatsapp', 'appearance')).toBe('/settings/appearance');
+    });
+  });
+
+  // Test round-trip consistency
+  describe('route consistency', () => {
+    it('should have matching getRouteState and getRoutePath', () => {
+      const path = getRoutePath('settings', 'whatsapp', 'appearance');
+      const state = getRouteState(path);
+      expect(state.globalView).toBe('settings');
+      expect(state.settingsView).toBe('appearance');
+    });
+  });
+});
+```
+
+**Key patterns for routing tests:**
+
+1. **Route constants** - Verify all route paths are defined correctly
+2. **getRouteState** - Test URL → state derivation for each route pattern
+3. **getRoutePath** - Test state → URL generation
+4. **Round-trip consistency** - Ensure `getRouteState(getRoutePath(...))` returns expected state
+5. **Default handling** - Test fallback behavior for unknown routes
+
+**Run frontend tests:**
+
+```bash
+pnpm --filter dashboard-frontend test
+pnpm --filter dashboard-frontend test -- __tests__/routes.test.ts
 ```
 
 ### Cross-Package Integration Test Template

@@ -2341,11 +2341,325 @@ docker ps | grep -E "orienter-.*-${AI_INSTANCE_ID}"  # Finds orienter-postgres-0
 4. Container names follow the pattern `orienter-<service>-<instance_id>`
 5. When scripting, match container names directly, not compose project names
 
-### 6. Database (Legacy Notes)
+### 6. Verifying Instance Isolation
+
+**CRITICAL**: When running multiple instances, you MUST verify that your `.env` file is properly configured for your instance. A common issue is copying `.env` from the main repo without updating instance-specific values.
+
+#### Quick Verification Command
+
+Run this one-liner to check if your `.env` matches your instance:
+
+```bash
+source scripts/instance-env.sh && echo "Instance: $AI_INSTANCE_ID" && \
+grep DATABASE_URL .env | grep -q ":$POSTGRES_PORT/" && echo "✅ DATABASE_URL OK" || echo "❌ DATABASE_URL WRONG (expected port $POSTGRES_PORT)"
+```
+
+#### Comprehensive Isolation Check Script
+
+Create or run this script to verify full isolation:
+
+```bash
+#!/bin/bash
+# verify-instance-isolation.sh
+# Run from worktree root directory
+
+set -e
+
+echo "=== Instance Isolation Verification ==="
+echo ""
+
+# Source instance environment
+source scripts/instance-env.sh
+
+echo "📋 Instance Configuration:"
+echo "   AI_INSTANCE_ID:    $AI_INSTANCE_ID"
+echo "   COMPOSE_PROJECT:   $COMPOSE_PROJECT_NAME"
+echo "   Expected ports:"
+echo "     - Nginx:         $NGINX_PORT"
+echo "     - Postgres:      $POSTGRES_PORT"
+echo "     - MinIO API:     $MINIO_API_PORT"
+echo "     - MinIO Console: $MINIO_CONSOLE_PORT"
+echo "     - Dashboard:     $DASHBOARD_PORT"
+echo "     - OpenCode:      $OPENCODE_PORT"
+echo ""
+
+ERRORS=0
+
+# Check DATABASE_URL
+echo "🔍 Checking DATABASE_URL..."
+CURRENT_DB_URL=$(grep "^DATABASE_URL=" .env 2>/dev/null | cut -d'=' -f2-)
+if [ -z "$CURRENT_DB_URL" ]; then
+  echo "   ❌ DATABASE_URL not found in .env"
+  ((ERRORS++))
+else
+  # Extract port from DATABASE_URL
+  DB_PORT=$(echo "$CURRENT_DB_URL" | grep -oE 'localhost:[0-9]+' | cut -d':' -f2)
+  DB_NAME=$(echo "$CURRENT_DB_URL" | grep -oE '/[^/]+$' | tr -d '/')
+
+  if [ "$DB_PORT" != "$POSTGRES_PORT" ]; then
+    echo "   ❌ DATABASE_URL uses port $DB_PORT, expected $POSTGRES_PORT"
+    echo "   Current:  $CURRENT_DB_URL"
+    echo "   Expected: postgresql://...@localhost:$POSTGRES_PORT/whatsapp_bot_$AI_INSTANCE_ID"
+    ((ERRORS++))
+  else
+    echo "   ✅ DATABASE_URL port is correct ($DB_PORT)"
+  fi
+
+  EXPECTED_DB_NAME="whatsapp_bot_$AI_INSTANCE_ID"
+  if [ "$DB_NAME" != "$EXPECTED_DB_NAME" ]; then
+    echo "   ⚠️  Database name is '$DB_NAME', expected '$EXPECTED_DB_NAME'"
+    echo "      (This may be intentional for shared database setups)"
+  else
+    echo "   ✅ Database name is correct ($DB_NAME)"
+  fi
+fi
+
+# Check S3_ENDPOINT / MinIO
+echo ""
+echo "🔍 Checking S3/MinIO configuration..."
+S3_ENDPOINT=$(grep "^S3_ENDPOINT=" .env 2>/dev/null | cut -d'=' -f2-)
+if [ -z "$S3_ENDPOINT" ]; then
+  echo "   ⚠️  S3_ENDPOINT not set (will default to localhost:9000 - instance 0)"
+  echo "   Expected: http://localhost:$MINIO_API_PORT"
+  ((ERRORS++))
+else
+  MINIO_PORT_IN_ENV=$(echo "$S3_ENDPOINT" | grep -oE ':[0-9]+' | tr -d ':')
+  if [ "$MINIO_PORT_IN_ENV" != "$MINIO_API_PORT" ]; then
+    echo "   ❌ S3_ENDPOINT uses port $MINIO_PORT_IN_ENV, expected $MINIO_API_PORT"
+    ((ERRORS++))
+  else
+    echo "   ✅ S3_ENDPOINT port is correct ($MINIO_PORT_IN_ENV)"
+  fi
+fi
+
+# Check AI_INSTANCE_ID in .env
+echo ""
+echo "🔍 Checking AI_INSTANCE_ID in .env..."
+ENV_INSTANCE_ID=$(grep "^AI_INSTANCE_ID=" .env 2>/dev/null | cut -d'=' -f2-)
+if [ -z "$ENV_INSTANCE_ID" ]; then
+  echo "   ⚠️  AI_INSTANCE_ID not set in .env (relies on auto-detection)"
+elif [ "$ENV_INSTANCE_ID" != "$AI_INSTANCE_ID" ]; then
+  echo "   ❌ AI_INSTANCE_ID in .env ($ENV_INSTANCE_ID) differs from detected ($AI_INSTANCE_ID)"
+  ((ERRORS++))
+else
+  echo "   ✅ AI_INSTANCE_ID matches ($ENV_INSTANCE_ID)"
+fi
+
+# Check for Docker containers
+echo ""
+echo "🔍 Checking Docker containers for instance $AI_INSTANCE_ID..."
+POSTGRES_CONTAINER="orienter-postgres-$AI_INSTANCE_ID"
+NGINX_CONTAINER="orienter-nginx-$AI_INSTANCE_ID"
+MINIO_CONTAINER="orienter-minio-$AI_INSTANCE_ID"
+
+for container in "$POSTGRES_CONTAINER" "$NGINX_CONTAINER" "$MINIO_CONTAINER"; do
+  if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "^${container}$"; then
+    echo "   ✅ $container is running"
+  else
+    echo "   ⚠️  $container is NOT running"
+  fi
+done
+
+# Check for port conflicts
+echo ""
+echo "🔍 Checking for port conflicts..."
+for port_var in NGINX_PORT POSTGRES_PORT MINIO_API_PORT DASHBOARD_PORT OPENCODE_PORT; do
+  port_value=$(eval echo \$$port_var)
+  pid=$(lsof -ti :$port_value 2>/dev/null | head -1)
+  if [ -n "$pid" ]; then
+    proc_name=$(ps -p $pid -o comm= 2>/dev/null)
+    echo "   Port $port_value ($port_var): in use by $proc_name (PID $pid)"
+  else
+    echo "   Port $port_value ($port_var): available"
+  fi
+done
+
+# Summary
+echo ""
+echo "=== Summary ==="
+if [ $ERRORS -eq 0 ]; then
+  echo "✅ All isolation checks passed!"
+else
+  echo "❌ Found $ERRORS isolation issue(s) - see above for details"
+  echo ""
+  echo "To fix DATABASE_URL, run:"
+  echo "  sed -i '' 's|localhost:5432/whatsapp_bot_0|localhost:$POSTGRES_PORT/whatsapp_bot_$AI_INSTANCE_ID|g' .env"
+  echo ""
+  echo "To add S3_ENDPOINT, run:"
+  echo "  echo 'S3_ENDPOINT=http://localhost:$MINIO_API_PORT' >> .env"
+fi
+```
+
+#### Auto-Fix Database URL
+
+If your DATABASE_URL points to the wrong instance, run this to fix it:
+
+```bash
+# Source instance env to get correct ports
+source scripts/instance-env.sh
+
+# Fix DATABASE_URL in .env
+# First, extract current credentials
+OLD_URL=$(grep "^DATABASE_URL=" .env | cut -d'=' -f2-)
+CREDS=$(echo "$OLD_URL" | grep -oE '//[^@]+@' | tr -d '/@')
+
+# Build new URL with correct port and database
+NEW_URL="postgresql://${CREDS}@localhost:${POSTGRES_PORT}/whatsapp_bot_${AI_INSTANCE_ID}"
+
+# Replace in .env
+sed -i '' "s|^DATABASE_URL=.*|DATABASE_URL=${NEW_URL}|" .env
+
+# Verify
+echo "Updated DATABASE_URL:"
+grep DATABASE_URL .env
+```
+
+#### Auto-Fix MinIO Endpoint
+
+```bash
+# Source instance env
+source scripts/instance-env.sh
+
+# Check if S3_ENDPOINT exists
+if grep -q "^S3_ENDPOINT=" .env; then
+  # Update existing
+  sed -i '' "s|^S3_ENDPOINT=.*|S3_ENDPOINT=http://localhost:${MINIO_API_PORT}|" .env
+else
+  # Add new
+  echo "S3_ENDPOINT=http://localhost:${MINIO_API_PORT}" >> .env
+fi
+
+# Also add AI_INSTANCE_ID for clarity
+if ! grep -q "^AI_INSTANCE_ID=" .env; then
+  echo "AI_INSTANCE_ID=${AI_INSTANCE_ID}" >> .env
+fi
+
+echo "Updated .env:"
+grep -E "(S3_ENDPOINT|AI_INSTANCE_ID)" .env
+```
+
+#### Detecting Database Sharing Issues
+
+**Symptom**: Changes in one worktree appear in another, or data conflicts occur.
+
+**Detection**:
+
+```bash
+# From each worktree, run:
+source scripts/instance-env.sh
+echo "Instance $AI_INSTANCE_ID using database:"
+grep DATABASE_URL .env
+
+# If two worktrees show the same DATABASE_URL, they're sharing!
+```
+
+**Fix**: Run the auto-fix script above in the worktree that has the wrong DATABASE_URL.
+
+#### Port Collision Detection
+
+When starting services, check for port conflicts:
+
+```bash
+# Quick check before starting
+source scripts/instance-env.sh
+echo "Checking ports for instance $AI_INSTANCE_ID..."
+
+for port in $NGINX_PORT $POSTGRES_PORT $MINIO_API_PORT $DASHBOARD_PORT $OPENCODE_PORT; do
+  if lsof -Pi :$port -sTCP:LISTEN -t >/dev/null 2>&1; then
+    echo "⚠️  Port $port is already in use!"
+    lsof -Pi :$port -sTCP:LISTEN
+  fi
+done
+```
+
+**Resolving Port Conflicts**:
+
+```bash
+# Option 1: Kill the process using the port
+lsof -ti :6080 | xargs kill -9
+
+# Option 2: Use a different instance ID
+export AI_INSTANCE_ID=7  # Try a different instance
+source scripts/instance-env.sh
+./run.sh dev
+
+# Option 3: Stop other instances first
+./run.sh stop  # Stop this instance's containers
+```
+
+#### Troubleshooting Common Isolation Issues
+
+**Issue: "Connection refused" to database**
+
+```bash
+# Check if container is running
+docker ps | grep "orienter-postgres-$AI_INSTANCE_ID"
+
+# If not running, start infrastructure
+source scripts/instance-env.sh
+docker compose -f docker/docker-compose.infra.yml up -d
+
+# Verify database exists
+docker exec orienter-postgres-$AI_INSTANCE_ID psql -U orient -c "\l" | grep whatsapp_bot
+```
+
+**Issue: Two instances writing to same database**
+
+```bash
+# Check what's using the database
+docker exec orienter-postgres-0 psql -U orient -d whatsapp_bot_0 -c "SELECT * FROM pg_stat_activity WHERE datname = 'whatsapp_bot_0';"
+
+# Fix: Ensure each worktree has correct DATABASE_URL
+# In worktree 1:
+grep DATABASE_URL .env  # Should show port 6432, database whatsapp_bot_1
+# In worktree 6:
+grep DATABASE_URL .env  # Should show port 11432, database whatsapp_bot_6
+```
+
+**Issue: MinIO bucket conflicts**
+
+```bash
+# Each instance should use its own MinIO
+# Check current MinIO endpoint
+grep S3_ENDPOINT .env
+
+# List buckets in your instance's MinIO
+docker exec orienter-minio-$AI_INSTANCE_ID mc ls local/
+```
+
+#### Environment Template for Worktrees
+
+When creating a new worktree, use this template to ensure proper isolation:
+
+```bash
+# Copy .env from main and fix instance-specific values
+cp /path/to/main/repo/.env .env
+
+# Auto-configure for this instance
+source scripts/instance-env.sh
+
+# Update instance-specific values
+cat >> .env << EOF
+
+# Instance $AI_INSTANCE_ID configuration (auto-generated)
+AI_INSTANCE_ID=$AI_INSTANCE_ID
+S3_ENDPOINT=http://localhost:$MINIO_API_PORT
+EOF
+
+# Fix DATABASE_URL
+OLD_URL=$(grep "^DATABASE_URL=" .env | head -1 | cut -d'=' -f2-)
+CREDS=$(echo "$OLD_URL" | grep -oE '//[^@]+@' | tr -d '/@')
+NEW_URL="postgresql://${CREDS}@localhost:${POSTGRES_PORT}/whatsapp_bot_${AI_INSTANCE_ID}"
+sed -i '' "s|^DATABASE_URL=.*|DATABASE_URL=${NEW_URL}|" .env
+
+echo "✅ Environment configured for instance $AI_INSTANCE_ID"
+```
+
+### 7. Database (Legacy Notes)
 
 In multi-instance setups, each worktree has its own database. For legacy single-instance behavior, database connections would be shared.
 
-### 7. Frontend Dependencies
+### 8. Frontend Dependencies
 
 When adding UI components that use new icon libraries or utilities:
 
@@ -3034,6 +3348,268 @@ git rebase origin/staging
 git merge -X theirs origin/staging  # Prefer their changes
 git merge -X ours origin/staging    # Prefer our changes
 ```
+
+## Merging Branches in Worktrees
+
+This section covers the complete workflow for merging branches, handling conflicts, and rebuilding after merges.
+
+### Standard Merge Workflow
+
+**Step 1: Fetch and Merge**
+
+```bash
+# Fetch latest from remote
+git fetch origin dev
+
+# Merge into your worktree branch
+git merge origin/dev --no-edit
+```
+
+**Step 2: Handle Conflicts (if any)**
+
+See conflict resolution patterns below.
+
+**Step 3: Rebuild After Merge**
+
+```bash
+# Install dependencies (lock file may have changed)
+pnpm install
+
+# Build with turbo (handles dependency order)
+pnpm turbo run build --force
+```
+
+### Conflict Resolution Patterns
+
+#### Pattern 1: pnpm-lock.yaml Conflicts
+
+**Problem**: Lock file conflicts are common when merging branches with different dependency versions.
+
+```bash
+# ❌ DON'T manually resolve pnpm-lock.yaml conflicts
+
+# ✅ DO accept theirs and regenerate
+git checkout --theirs pnpm-lock.yaml
+pnpm install  # Regenerates lock file with your package.json changes
+git add pnpm-lock.yaml
+git commit --no-edit
+```
+
+**Why this works**: pnpm regenerates the lock file based on your current `package.json` files, ensuring consistency.
+
+#### Pattern 2: .pnpm-install.pid Conflicts
+
+**Problem**: This temporary file tracks running pnpm processes and often causes merge conflicts.
+
+```bash
+# This file should NEVER be committed
+# If you see it in conflicts:
+
+# Option 1: Remove before merge
+rm .pnpm-install.pid
+git merge origin/dev --no-edit
+
+# Option 2: Remove during conflict resolution
+git checkout --theirs .pnpm-install.pid 2>/dev/null || true
+rm -f .pnpm-install.pid
+git add .pnpm-install.pid  # Stages deletion
+
+# Verify it's in .gitignore
+grep -q ".pnpm-install.pid" .gitignore || echo ".pnpm-install.pid" >> .gitignore
+```
+
+#### Pattern 3: Environment File Conflicts (.env, .env.local)
+
+**Problem**: Worktree-specific environment values conflict with merged changes.
+
+```bash
+# Keep your worktree's environment (usually correct)
+git checkout --ours .env
+git checkout --ours .env.local 2>/dev/null || true
+git add .env .env.local
+
+# If you need to merge new variables from dev:
+# 1. Save your current env
+cp .env .env.backup
+
+# 2. Accept theirs
+git checkout --theirs .env
+
+# 3. Manually merge new variables
+diff .env.backup .env  # See what changed
+# Add any new variables you need to .env.backup
+mv .env.backup .env
+git add .env
+```
+
+#### Pattern 4: Build Artifact Conflicts (dist/, _.js, _.d.ts)
+
+**Problem**: Compiled TypeScript files conflict.
+
+```bash
+# Build artifacts should not be committed
+# If they are, remove and rebuild
+
+rm -rf packages/*/dist
+rm -rf src/**/dist
+git add -A
+pnpm turbo run build --force
+```
+
+### TypeScript Module Resolution Errors After Merge
+
+**Common Error**: `Cannot find module '@orient/core'` or similar after merging from dev.
+
+**Cause**: Build order dependencies - packages must be built in the correct order.
+
+**Solution 1: Force Rebuild with Turbo**
+
+```bash
+# Turbo handles dependency ordering automatically
+pnpm turbo run build --force
+
+# The --force flag bypasses cache, ensuring fresh builds
+```
+
+**Solution 2: Clean Install and Build**
+
+```bash
+# Nuclear option - clean everything and rebuild
+rm -rf node_modules
+rm -rf packages/*/node_modules
+rm -rf packages/*/dist
+pnpm install
+pnpm turbo run build --force
+```
+
+**Solution 3: Build Specific Package First**
+
+```bash
+# If you know which package is missing, build it first
+pnpm --filter @orient/core run build
+pnpm --filter @orient/database run build
+
+# Then build the rest
+pnpm turbo run build
+```
+
+**Understanding Turbo Build Order**:
+
+```
+@orient/core           (no dependencies)
+    ↓
+@orient/database       (depends on core)
+    ↓
+@orient/agents         (depends on core, database)
+    ↓
+@orient/bot-whatsapp   (depends on agents)
+@orient/dashboard      (depends on multiple packages)
+```
+
+Turbo reads `turbo.json` and `package.json` dependencies to determine build order. When merging introduces new dependencies, turbo ensures they're built first.
+
+### Complete Merge Workflow Example
+
+Here's a full example of merging from dev with all best practices:
+
+```bash
+# 1. Pre-merge cleanup
+rm -f .pnpm-install.pid
+git stash push -m "WIP before merge" 2>/dev/null || true
+
+# 2. Fetch and merge
+git fetch origin dev
+git merge origin/dev --no-edit
+
+# 3. If conflicts occur:
+# Handle lock file
+if git diff --name-only --diff-filter=U | grep -q "pnpm-lock.yaml"; then
+  git checkout --theirs pnpm-lock.yaml
+fi
+
+# Handle .env (keep ours)
+if git diff --name-only --diff-filter=U | grep -q ".env"; then
+  git checkout --ours .env
+fi
+
+# Remove temp files from conflicts
+rm -f .pnpm-install.pid
+git add .pnpm-install.pid 2>/dev/null || true
+
+# Complete merge
+git add pnpm-lock.yaml .env 2>/dev/null || true
+git commit --no-edit 2>/dev/null || true
+
+# 4. Reinstall and rebuild
+pnpm install
+pnpm turbo run build --force
+
+# 5. Restore stashed changes
+git stash pop 2>/dev/null || true
+
+# 6. Verify
+pnpm run typecheck
+echo "✅ Merge complete!"
+```
+
+### Troubleshooting Post-Merge Issues
+
+**Issue: "TS2307: Cannot find module" after merge**
+
+```bash
+# Cause: Package build order issue
+# Solution: Force rebuild with turbo
+pnpm turbo run build --force
+
+# If still failing, check specific package
+pnpm --filter @orient/core run build
+# Then rebuild all
+pnpm turbo run build
+```
+
+**Issue: "ENOENT: no such file or directory" for dist files**
+
+```bash
+# Cause: dist/ directories not built
+# Solution: Build everything
+pnpm turbo run build --force
+
+# If persists, clean and rebuild
+rm -rf packages/*/dist
+pnpm turbo run build --force
+```
+
+**Issue: pnpm install fails with integrity errors**
+
+```bash
+# Cause: Lock file out of sync
+# Solution: Regenerate lock file
+rm pnpm-lock.yaml
+pnpm install
+git add pnpm-lock.yaml
+git commit -m "chore: regenerate pnpm-lock.yaml"
+```
+
+**Issue: Tests fail after merge but build succeeds**
+
+```bash
+# Cause: Test cache or mock files stale
+# Solution: Clear caches and rerun
+rm -rf node_modules/.cache
+pnpm test -- --clearCache
+pnpm test
+```
+
+### Best Practices Summary
+
+1. **✅ Always remove .pnpm-install.pid before merging**
+2. **✅ Use `git checkout --theirs pnpm-lock.yaml` for lock conflicts**
+3. **✅ Keep your .env file (use `git checkout --ours .env`)**
+4. **✅ Run `pnpm turbo run build --force` after every merge**
+5. **✅ Use `pnpm install` before building (lock file may have changed)**
+6. **❌ Don't manually edit pnpm-lock.yaml**
+7. **❌ Don't commit build artifacts (dist/)**
+8. **❌ Don't skip the rebuild step after merging**
 
 ## Cleanup
 
