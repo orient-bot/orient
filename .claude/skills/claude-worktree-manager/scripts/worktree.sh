@@ -158,11 +158,26 @@ create_worktree() {
     local main_branch
     main_branch=$(git -C "$repo_root" symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's@^refs/remotes/origin/@@' || echo "main")
 
+    # Check if a branch with the sanitized name already exists on origin
+    local checkout_ref="origin/$main_branch"
+    if git -C "$repo_root" rev-parse "origin/$sanitized_name" >/dev/null 2>&1; then
+        log_info "Found existing branch on origin: $sanitized_name"
+        log_info "Pulling latest changes from origin/$sanitized_name..."
+        checkout_ref="origin/$sanitized_name"
+        # Create local branch tracking the remote one
+        git -C "$repo_root" branch -D "$sanitized_name" 2>/dev/null || true
+        git -C "$repo_root" branch -t "$sanitized_name" "origin/$sanitized_name"
+        branch_name="$sanitized_name"
+    else
+        log_info "No existing branch found on origin, creating new branch from $main_branch"
+        checkout_ref="origin/$main_branch"
+    fi
+
     # Create the worktree
     log_info "Creating worktree: $worktree_path"
     log_info "Branch: $branch_name"
 
-    if ! git -C "$repo_root" worktree add -b "$branch_name" "$worktree_path" "origin/$main_branch"; then
+    if ! git -C "$repo_root" worktree add "$worktree_path" "$checkout_ref"; then
         log_error "Failed to create worktree"
         return 1
     fi
