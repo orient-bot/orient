@@ -19,6 +19,8 @@ on:
     branches: [main]
     paths:
       - 'website/**'
+      - 'pnpm-workspace.yaml'
+      - '.github/workflows/deploy-docs.yml'
   workflow_dispatch: # Allow manual triggering
 
 # Prevent concurrent docs deployments
