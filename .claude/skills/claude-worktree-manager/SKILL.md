@@ -33,13 +33,16 @@ Then run:
 **What happens:**
 
 1. Cleans up worktrees older than 7 days
-2. Creates branch: `worktree/<name>-<timestamp>`
-3. Creates worktree at: `~/claude-worktrees/<project-name>/<name>-<timestamp>`
-4. Copies `.env` from main repo
-5. Copies `.claude/settings.local.json` from main repo (API keys, preferences)
-6. Starts `pnpm install` in background
-7. If `--isolated`: Creates dedicated database and seeds it with test data
-8. Returns the worktree path immediately
+2. Fetches latest from origin
+3. Checks if a branch with your name already exists on origin:
+   - **If found:** Creates local branch tracking the remote, pulls latest changes
+   - **If not found:** Creates new branch: `worktree/<name>-<timestamp>` from main
+4. Creates worktree at: `~/claude-worktrees/<project-name>/<name>-<timestamp>`
+5. Copies `.env` from main repo
+6. Copies `.claude/settings.local.json` from main repo (API keys, preferences)
+7. Starts `pnpm install` in background
+8. If `--isolated`: Creates dedicated database and seeds it with test data
+9. Returns the worktree path immediately
 
 ### When to Use --isolated
 
@@ -107,6 +110,36 @@ Shows all active worktrees for the current project with their branches.
 # Custom age threshold
 .claude/skills/core/claude-worktree-manager/scripts/worktree.sh cleanup --days 14
 ```
+
+## Origin Branch Handling
+
+The script intelligently checks if a branch with your name already exists on origin:
+
+**Scenario 1: Branch exists on origin**
+
+```bash
+.claude/skills/core/claude-worktree-manager/scripts/worktree.sh create my-feature
+```
+
+If `origin/my-feature` exists, the script will:
+
+- Create a local branch tracking `origin/my-feature`
+- Pull the latest changes automatically
+- Create the worktree on this branch
+- Useful for continuing work on an existing feature branch
+
+**Scenario 2: Branch doesn't exist on origin**
+
+```bash
+.claude/skills/core/claude-worktree-manager/scripts/worktree.sh create my-feature
+```
+
+If `origin/my-feature` doesn't exist, the script will:
+
+- Create a new branch from main: `worktree/my-feature-<timestamp>`
+- Create a fresh worktree for new development
+
+This means you can use simple names (like `restructure-prompts`) and the script will automatically handle both new work and continuing existing branches.
 
 ## Workflow
 
