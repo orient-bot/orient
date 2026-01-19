@@ -15,11 +15,17 @@ There are two ways to create worktrees:
 
 Use the `Skill` tool to invoke this skill - **the script path is detected automatically**:
 
-```
-Skill(claude-worktree-manager) create feature-name --model opus
+```javascript
+// Using Skill tool with args parameter (Recommended)
+Skill(skill: 'claude-worktree-manager', args: 'create feature-name --model opus')
+Skill(skill: 'claude-worktree-manager', args: 'create feature-name --isolated --model sonnet')
+
+// All bash script flags work the same via args
+Skill(skill: 'claude-worktree-manager', args: 'list')
+Skill(skill: 'claude-worktree-manager', args: 'cleanup --days 14')
 ```
 
-The skill handles all path resolution using `git rev-parse --show-toplevel`, so you only need to provide the worktree name and optional flags.
+The skill handles all path resolution using `git rev-parse --show-toplevel`, so you only need to provide the worktree name and optional flags. All bash script flags (`--model`, `--isolated`, `--days`) work exactly the same when passed via the `args` parameter.
 
 ### 2. Via Direct Script Invocation
 
@@ -34,6 +40,24 @@ Or use the full absolute path:
 ```bash
 /path/to/repo/.claude/skills/claude-worktree-manager/scripts/worktree.sh create feature-name --model opus
 ```
+
+## Invocation Method Comparison
+
+To clarify the correct syntax for each invocation method:
+
+| Task                     | Skill Tool                                                                                | Direct Script                                                                                       |
+| ------------------------ | ----------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| Create standard worktree | `Skill(skill: 'claude-worktree-manager', args: 'create my-feature')`                      | `.claude/skills/claude-worktree-manager/scripts/worktree.sh create my-feature`                      |
+| With model flag          | `Skill(skill: 'claude-worktree-manager', args: 'create my-feature --model opus')`         | `.claude/skills/claude-worktree-manager/scripts/worktree.sh create my-feature --model opus`         |
+| With isolated database   | `Skill(skill: 'claude-worktree-manager', args: 'create schema-test --isolated')`          | `.claude/skills/claude-worktree-manager/scripts/worktree.sh create schema-test --isolated`          |
+| Both flags combined      | `Skill(skill: 'claude-worktree-manager', args: 'create complex --isolated --model opus')` | `.claude/skills/claude-worktree-manager/scripts/worktree.sh create complex --isolated --model opus` |
+| List worktrees           | `Skill(skill: 'claude-worktree-manager', args: 'list')`                                   | `.claude/skills/claude-worktree-manager/scripts/worktree.sh list`                                   |
+| Cleanup old worktrees    | `Skill(skill: 'claude-worktree-manager', args: 'cleanup --days 7')`                       | `.claude/skills/claude-worktree-manager/scripts/worktree.sh cleanup --days 7`                       |
+
+**Key Differences:**
+
+- **Skill tool:** All commands and flags are passed as a single string via the `args` parameter
+- **Direct script:** Commands and flags are bash arguments, requires absolute or relative path
 
 ## Quick Start
 
