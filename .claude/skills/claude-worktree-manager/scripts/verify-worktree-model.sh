@@ -36,9 +36,9 @@ else
     WORKTREE_PATH="$1"
 fi
 
-# Verify it's a valid worktree
-if [[ ! -d "$WORKTREE_PATH/.git" ]]; then
-    log_error "Not a git repository: $WORKTREE_PATH"
+# Verify it's a valid git repository or worktree
+if ! git -C "$WORKTREE_PATH" rev-parse --git-dir &>/dev/null; then
+    log_error "Not a git repository or worktree: $WORKTREE_PATH"
     exit 1
 fi
 
@@ -53,7 +53,7 @@ if [[ ! -f "$SETTINGS_FILE" ]]; then
     echo ""
     echo "To fix: Create the file with:"
     echo "  mkdir -p $WORKTREE_PATH/.claude"
-    echo '  echo '"'"'{ "model": "opus" }'"'"' > $SETTINGS_FILE"
+    echo "  echo '{\"model\": \"opus\"}' > $SETTINGS_FILE"
     exit 1
 fi
 
@@ -118,8 +118,5 @@ echo "  $SETTINGS_FILE"
 echo ""
 echo "Example with opus:"
 echo '  { "model": "opus", "permissions": { ... } }'
-echo ""
-echo "Or use this command to add/update the model:"
-echo "  Add to start of file: \"model\": \"opus\","
 echo ""
 exit 1
