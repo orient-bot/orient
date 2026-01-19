@@ -469,6 +469,71 @@ jobs:
 
           echo "Staging configuration synced"
 
+      - name: Sync and run database migrations (staging)
+        env:
+          OCI_HOST: ${{ secrets.OCI_HOST }}
+          OCI_USER: ${{ secrets.OCI_USER }}
+        run: |
+          echo "Syncing database migrations for staging..."
+
+          # Create migrations directory on server
+          ssh -o StrictHostKeyChecking=no $OCI_USER@$OCI_HOST "mkdir -p ~/orient/data/migrations"
+
+          # Sync migration files
+          rsync -avzO --progress --timeout=60 \
+            -e 'ssh -o StrictHostKeyChecking=no' \
+            data/migrations/*.sql \
+            $OCI_USER@$OCI_HOST:~/orient/data/migrations/
+
+          echo "Running database migrations for staging..."
+          ssh -o StrictHostKeyChecking=no $OCI_USER@$OCI_HOST << 'MIGRATION_SCRIPT'
+            set -e
+
+            DEPLOY_DIR="${HOME}/orient"
+            MIGRATIONS_DIR="${DEPLOY_DIR}/data/migrations"
+
+            # Wait for staging postgres to be ready
+            echo "Waiting for PostgreSQL (staging)..."
+            for i in {1..30}; do
+              if sudo docker exec orienter-postgres-staging psql -U orient -d whatsapp_bot_staging -c "SELECT 1" > /dev/null 2>&1; then
+                echo "PostgreSQL (staging) is ready"
+                break
+              fi
+              sleep 2
+            done
+
+            # Create migrations tracking table if not exists
+            sudo docker exec orienter-postgres-staging psql -U orient -d whatsapp_bot_staging -c "
+              CREATE TABLE IF NOT EXISTS _migrations (
+                id SERIAL PRIMARY KEY,
+                name VARCHAR(255) UNIQUE NOT NULL,
+                applied_at TIMESTAMP DEFAULT NOW()
+              );
+            " || true
+
+            # Run each migration if not already applied
+            for migration_file in ${MIGRATIONS_DIR}/*.sql; do
+              if [ -f "$migration_file" ]; then
+                migration_name=$(basename "$migration_file")
+
+                # Check if already applied
+                applied=$(sudo docker exec orienter-postgres-staging psql -U orient -d whatsapp_bot_staging -t -c "SELECT 1 FROM _migrations WHERE name = '$migration_name'" 2>/dev/null | tr -d ' ')
+
+                if [ "$applied" != "1" ]; then
+                  echo "Applying migration (staging): $migration_name"
+                  sudo docker cp "$migration_file" orienter-postgres-staging:/tmp/migration.sql
+                  sudo docker exec orienter-postgres-staging psql -U orient -d whatsapp_bot_staging -f /tmp/migration.sql
+                  sudo docker exec orienter-postgres-staging psql -U orient -d whatsapp_bot_staging -c "INSERT INTO _migrations (name) VALUES ('$migration_name') ON CONFLICT (name) DO NOTHING;"
+                  echo "  Applied: $migration_name"
+                else
+                  echo "  Skipped (already applied): $migration_name"
+                fi
+              fi
+            done
+
+            echo "Staging database migrations complete!"
+          MIGRATION_SCRIPT
+
       - name: Update staging environment secrets
         env:
           OCI_HOST: ${{ secrets.OCI_HOST }}
