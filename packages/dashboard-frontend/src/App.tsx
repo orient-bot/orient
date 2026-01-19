@@ -104,6 +104,7 @@ function AppContent() {
     whatsappView,
     integrationsView,
     automationView,
+    operationsView,
     settingsView,
     connectionsSubView,
   } = useMemo(() => getRouteState(location.pathname), [location.pathname]);
@@ -140,6 +141,24 @@ function AppContent() {
     }
     if (location.pathname.startsWith('/integrations')) {
       navigate(ROUTES.SETTINGS_CONNECTIONS, { replace: true });
+      return;
+    }
+    // Redirect legacy billing/monitoring/storage routes to operations
+    if (location.pathname === '/billing') {
+      navigate(ROUTES.OPERATIONS_BILLING, { replace: true });
+      return;
+    }
+    if (location.pathname === '/monitoring') {
+      navigate(ROUTES.OPERATIONS_MONITORING, { replace: true });
+      return;
+    }
+    if (location.pathname === '/storage') {
+      navigate(ROUTES.OPERATIONS_STORAGE, { replace: true });
+      return;
+    }
+    // Redirect /operations to default sub-view
+    if (location.pathname === '/operations') {
+      navigate(ROUTES.OPERATIONS_BILLING, { replace: true });
       return;
     }
     if (location.pathname === '/' || location.pathname === '') {
@@ -521,11 +540,35 @@ function AppContent() {
     });
 
     cmds.push({
-      id: 'nav-billing',
-      label: 'Billing',
+      id: 'nav-operations',
+      label: 'Operations',
+      description: 'Billing, monitoring, and storage',
+      category: 'navigation',
+      keywords: ['billing', 'monitoring', 'storage', 'costs', 'usage', 'health', 'database'],
+      icon: (
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+        </svg>
+      ),
+      action: () => navigate(ROUTES.OPERATIONS_BILLING),
+    });
+
+    cmds.push({
+      id: 'nav-operations-billing',
+      label: 'Operations: Billing',
       description: 'View usage and costs',
       category: 'navigation',
-      keywords: ['costs', 'usage', 'spending', 'money'],
+      keywords: ['costs', 'usage', 'spending', 'money', 'operations'],
       icon: (
         <svg
           xmlns="http://www.w3.org/2000/svg"
@@ -542,15 +585,15 @@ function AppContent() {
           <line x1="2" x2="22" y1="10" y2="10" />
         </svg>
       ),
-      action: () => navigate(ROUTES.BILLING),
+      action: () => navigate(ROUTES.OPERATIONS_BILLING),
     });
 
     cmds.push({
-      id: 'nav-monitoring',
-      label: 'Monitoring',
+      id: 'nav-operations-monitoring',
+      label: 'Operations: Monitoring',
       description: 'Server health and metrics',
       category: 'navigation',
-      keywords: ['cpu', 'memory', 'disk', 'server', 'health', 'docker', 'containers'],
+      keywords: ['cpu', 'memory', 'disk', 'server', 'health', 'docker', 'containers', 'operations'],
       icon: (
         <svg
           xmlns="http://www.w3.org/2000/svg"
@@ -566,15 +609,15 @@ function AppContent() {
           <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
         </svg>
       ),
-      action: () => navigate(ROUTES.MONITORING),
+      action: () => navigate(ROUTES.OPERATIONS_MONITORING),
     });
 
     cmds.push({
-      id: 'nav-storage',
-      label: 'Storage',
+      id: 'nav-operations-storage',
+      label: 'Operations: Storage',
       description: 'Database, media, and cloud storage',
       category: 'navigation',
-      keywords: ['database', 'media', 'files', 'postgresql', 'session', 'cleanup'],
+      keywords: ['database', 'media', 'files', 'postgresql', 'session', 'cleanup', 'operations'],
       icon: (
         <svg
           xmlns="http://www.w3.org/2000/svg"
@@ -592,7 +635,7 @@ function AppContent() {
           <path d="M3 12A9 3 0 0 0 21 12" />
         </svg>
       ),
-      action: () => navigate(ROUTES.STORAGE),
+      action: () => navigate(ROUTES.OPERATIONS_STORAGE),
     });
 
     // Actions
@@ -1188,6 +1231,30 @@ function AppContent() {
         </div>
       )}
 
+      {/* Operations Sub-tabs */}
+      {globalView === 'operations' && (
+        <div className="flex gap-1 mb-6 p-1 bg-secondary rounded-lg w-fit border border-border">
+          <Link
+            to={ROUTES.OPERATIONS_BILLING}
+            className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${operationsView === 'billing' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+          >
+            Billing
+          </Link>
+          <Link
+            to={ROUTES.OPERATIONS_MONITORING}
+            className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${operationsView === 'monitoring' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+          >
+            Monitoring
+          </Link>
+          <Link
+            to={ROUTES.OPERATIONS_STORAGE}
+            className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${operationsView === 'storage' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+          >
+            Storage
+          </Link>
+        </div>
+      )}
+
       {/* Content */}
       <div className="animate-fade-in space-y-6">
         {globalView === 'integrations' && integrationsView === 'catalog' && <IntegrationCatalog />}
@@ -1204,8 +1271,6 @@ function AppContent() {
 
         {globalView === 'integrations' && integrationsView === 'providers' && <ProvidersTab />}
 
-        {globalView === 'billing' && <BillingTab />}
-
         {globalView === 'automation' && automationView === 'schedules' && (
           <SchedulesTab onUpdate={handleRefresh} />
         )}
@@ -1214,13 +1279,15 @@ function AppContent() {
           <WebhooksTab onRefresh={handleRefresh} />
         )}
 
+        {globalView === 'operations' && operationsView === 'billing' && <BillingTab />}
+
+        {globalView === 'operations' && operationsView === 'monitoring' && <MonitoringTab />}
+
+        {globalView === 'operations' && operationsView === 'storage' && <StorageTab />}
+
         {globalView === 'agents' && <AgentsTab onUpdate={handleRefresh} />}
 
         {globalView === 'apps' && <AppsTab />}
-
-        {globalView === 'monitoring' && <MonitoringTab />}
-
-        {globalView === 'storage' && <StorageTab />}
 
         {globalView === 'settings' && (
           <SettingsLayout currentView={settingsView}>
