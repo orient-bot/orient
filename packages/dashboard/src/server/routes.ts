@@ -42,6 +42,7 @@ export function createDashboardRouter(services: DashboardServices): Router {
     webhookService,
     promptService,
     appsService,
+    storageDb,
     /* miniappEditService, */ auth,
   } = services;
   router.get('/config/version', (_req: Request, res: Response) => {
@@ -204,9 +205,9 @@ export function createDashboardRouter(services: DashboardServices): Router {
     router.use('/prompts', createPromptsRoutes(promptService, requireAuth));
   }
 
-  // Apps routes (for mini-apps listing)
+  // Apps routes (for mini-apps listing and bridge API)
   if (appsService) {
-    router.use('/apps', createAppsRoutes(appsService, requireAuth));
+    router.use('/apps', createAppsRoutes(appsService, requireAuth, { storageDb }));
   }
   // Secrets routes (always available)
   router.use('/secrets', createSecretsRoutes(requireAuth));

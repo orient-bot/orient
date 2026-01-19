@@ -1,10 +1,8 @@
-import React, { useState } from 'react';
-import { Button } from '../../_shared/ui/button';
-import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '../../_shared/ui/card';
-import { Input } from '../../_shared/ui/input';
+import React, { useState, useEffect, FormEvent, ChangeEvent, useCallback } from 'react';
+import { Button } from '../../_shared/ui/Button';
+import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '../../_shared/ui/Card';
+import { Input } from '../../_shared/ui/Input';
 import { useBridge } from '../../_shared/hooks/useBridge';
-import { required } from '../../_shared/utils/validation';
-import { createAction } from '../../_shared/actions';
 
 interface Todo {
   id: string;
@@ -12,58 +10,87 @@ interface Todo {
   completed: boolean;
 }
 
+const STORAGE_KEY = 'todos';
+
 export default function App() {
-  const { isReady } = useBridge();
+  const { bridge, isReady } = useBridge();
   const [todos, setTodos] = useState<Todo[]>([]);
   const [newTodoText, setNewTodoText] = useState('');
-  const [isAdding, setIsAdding] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const addTodo = createAction(
-    async () => {
-      if (!newTodoText.trim()) return;
-      
-      const newTodo: Todo = {
-        id: Date.now().toString(),
-        text: newTodoText.trim(),
-        completed: false
-      };
-      
-      setTodos(prev => [...prev, newTodo]);
-      setNewTodoText('');
+  // Load todos from backend storage on mount
+  useEffect(() => {
+    if (!isReady) return;
+
+    const loadTodos = async () => {
+      try {
+        const stored = await bridge.storage.get<Todo[]>(STORAGE_KEY);
+        if (stored) {
+          setTodos(stored);
+        }
+      } catch (error) {
+        console.error('Failed to load todos:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadTodos();
+  }, [isReady, bridge]);
+
+  // Save todos to backend storage
+  const saveTodos = useCallback(
+    async (newTodos: Todo[]) => {
+      try {
+        await bridge.storage.set(STORAGE_KEY, newTodos);
+      } catch (error) {
+        console.error('Failed to save todos:', error);
+      }
     },
-    {
-      loadingState: [isAdding, setIsAdding],
-      successMessage: 'Todo added successfully!'
-    }
+    [bridge]
   );
 
-  const toggleTodo = (id: string) => {
-    setTodos(prev => 
-      prev.map(todo => 
-        todo.id === id 
-          ? { ...todo, completed: !todo.completed }
-          : todo
-      )
-    );
+  const addTodo = async () => {
+    if (!newTodoText.trim()) return;
+
+    const newTodo: Todo = {
+      id: Date.now().toString(),
+      text: newTodoText.trim(),
+      completed: false,
+    };
+
+    const newTodos = [...todos, newTodo];
+    setTodos(newTodos);
+    setNewTodoText('');
+    await saveTodos(newTodos);
   };
 
-  const deleteTodo = createAction(
-    async (id: string) => {
-      setTodos(prev => prev.filter(todo => todo.id !== id));
-    },
-    {
-      successMessage: 'Todo deleted!'
-    }
-  );
+  const toggleTodo = async (id: string) => {
+    const newTodos = todos.map((todo) =>
+      todo.id === id ? { ...todo, completed: !todo.completed } : todo
+    );
+    setTodos(newTodos);
+    await saveTodos(newTodos);
+  };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const deleteTodo = async (id: string) => {
+    const newTodos = todos.filter((todo) => todo.id !== id);
+    setTodos(newTodos);
+    await saveTodos(newTodos);
+  };
+
+  const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
     addTodo();
   };
 
-  const remainingCount = todos.filter(todo => !todo.completed).length;
+  const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
+    setNewTodoText(e.target.value);
+  };
 
-  if (!isReady) {
+  const remainingCount = todos.filter((todo) => !todo.completed).length;
+
+  if (!isReady || isLoading) {
     return (
       <div className="min-h-screen bg-background p-4 flex items-center justify-center">
         <div className="text-muted-foreground font-mono">Loading...</div>
@@ -83,25 +110,17 @@ export default function App() {
         {/* Add Todo Form */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg font-sans">Add New Todo</CardTitle>
+            <CardTitle>Add New Todo</CardTitle>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
               <Input
                 label="Todo item"
                 value={newTodoText}
-                onChange={(e) => setNewTodoText(e.target.value)}
+                onChange={handleInputChange}
                 placeholder="Enter a new todo..."
-                checks={[required()]}
-                validateOn="submit"
               />
-              <Button 
-                type="submit" 
-                variant="primary" 
-                className="w-full"
-                loading={isAdding}
-                disabled={!newTodoText.trim()}
-              >
+              <Button type="submit" variant="primary" disabled={!newTodoText.trim()}>
                 Add Todo
               </Button>
             </form>
@@ -111,20 +130,19 @@ export default function App() {
         {/* Todo List */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg font-sans">Your Todos</CardTitle>
+            <CardTitle>Your Todos</CardTitle>
           </CardHeader>
           <CardContent>
             {todos.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
-                <div className="text-4xl mb-2">📝</div>
                 <p className="font-sans">No todos yet</p>
                 <p className="text-sm">Add your first todo above to get started!</p>
               </div>
             ) : (
               <div className="space-y-3">
                 {todos.map((todo) => (
-                  <div 
-                    key={todo.id} 
+                  <div
+                    key={todo.id}
                     className="flex items-center gap-3 p-3 rounded-lg bg-muted/50 border border-border"
                   >
                     <input
@@ -133,21 +151,14 @@ export default function App() {
                       onChange={() => toggleTodo(todo.id)}
                       className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
                     />
-                    <span 
+                    <span
                       className={`flex-1 font-sans text-sm ${
-                        todo.completed 
-                          ? 'text-muted-foreground line-through' 
-                          : 'text-foreground'
+                        todo.completed ? 'text-muted-foreground line-through' : 'text-foreground'
                       }`}
                     >
                       {todo.text}
                     </span>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => deleteTodo(todo.id)}
-                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                    >
+                    <Button variant="ghost" size="sm" onClick={() => deleteTodo(todo.id)}>
                       Delete
                     </Button>
                   </div>
