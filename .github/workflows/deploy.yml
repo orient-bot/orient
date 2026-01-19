@@ -479,9 +479,13 @@ jobs:
             # Ensure postgres is running (start just postgres if not already up)
             echo "Ensuring PostgreSQL is running..."
             cd "${DOCKER_DIR}"
-            if ! sudo docker ps | grep -q orienter-postgres; then
+            # Use exact container name match (not orienter-postgres-staging)
+            if ! sudo docker ps --format '{{.Names}}' | grep -qx "orienter-postgres"; then
               echo "  Starting postgres container..."
               sudo docker compose --env-file "${DEPLOY_DIR}/.env" ${COMPOSE_FILES} up -d postgres
+              sleep 5
+            else
+              echo "  PostgreSQL already running"
             fi
 
             # Wait for postgres to be ready
