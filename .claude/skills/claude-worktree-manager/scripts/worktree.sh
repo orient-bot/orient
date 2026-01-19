@@ -43,6 +43,57 @@ log_error() {
     echo -e "${RED}[ERROR]${NC} $1" >&2
 }
 
+# Set model in settings.local.json using sed (fallback method)
+set_model_with_sed() {
+    local settings_file="$1"
+    local model="$2"
+
+    # Try to update existing model key
+    if grep -q "\"model\"" "$settings_file"; then
+        # Model key exists, update its value
+        if [[ "$OSTYPE" == "darwin"* ]]; then
+            sed -i '' "s/\"model\": \"[^\"]*\"/\"model\": \"$model\"/g" "$settings_file"
+        else
+            sed -i "s/\"model\": \"[^\"]*\"/\"model\": \"$model\"/g" "$settings_file"
+        fi
+        return 0
+    else
+        # Model key doesn't exist, add it after the first opening brace
+        if [[ "$OSTYPE" == "darwin"* ]]; then
+            sed -i '' "1s/{/{\"model\": \"$model\",/" "$settings_file"
+        else
+            sed -i "1s/{/{\"model\": \"$model\",/" "$settings_file"
+        fi
+        return 0
+    fi
+}
+
+# Verify that the model was correctly set in settings.local.json
+verify_model_setting() {
+    local settings_file="$1"
+    local expected_model="$2"
+
+    if [[ ! -f "$settings_file" ]]; then
+        return 1
+    fi
+
+    # Try to extract model value using jq first
+    if command -v jq &> /dev/null; then
+        local model_value
+        model_value=$(jq -r '.model // empty' "$settings_file" 2>/dev/null)
+        if [[ "$model_value" == "$expected_model" ]]; then
+            return 0
+        fi
+    fi
+
+    # Fallback to grep
+    if grep -q "\"model\": \"$expected_model\"" "$settings_file"; then
+        return 0
+    fi
+
+    return 1
+}
+
 # Cleanup stale worktrees
 cleanup_stale_worktrees() {
     local max_age_days="${1:-$DEFAULT_MAX_AGE_DAYS}"
@@ -214,19 +265,35 @@ create_worktree() {
 
         # Update the JSON file with the model using jq if available, else use sed
         if command -v jq &> /dev/null; then
-            jq ".model = \"$model\"" "$worktree_path/.claude/settings.local.json" > "$worktree_path/.claude/settings.local.json.tmp"
-            mv "$worktree_path/.claude/settings.local.json.tmp" "$worktree_path/.claude/settings.local.json"
-        else
-            # Fallback: simple sed replacement (only works if model key already exists)
-            sed -i.bak "s/\"model\": \"[^\"]*\"/\"model\": \"$model\"/g" "$worktree_path/.claude/settings.local.json"
-            # If model key doesn't exist, add it
-            if ! grep -q "\"model\"" "$worktree_path/.claude/settings.local.json"; then
-                sed -i.bak 's/{/{ "model": "'$model'",/' "$worktree_path/.claude/settings.local.json"
+            # Use jq to safely update JSON (preferred method)
+            if jq ".model = \"$model\"" "$worktree_path/.claude/settings.local.json" > "$worktree_path/.claude/settings.local.json.tmp" 2>/dev/null; then
+                mv "$worktree_path/.claude/settings.local.json.tmp" "$worktree_path/.claude/settings.local.json"
+                log_success "Default model set to: $model (via jq)"
+            else
+                log_warn "jq update failed, falling back to sed"
+                rm -f "$worktree_path/.claude/settings.local.json.tmp"
+                # Fallback to sed if jq fails
+                set_model_with_sed "$worktree_path/.claude/settings.local.json" "$model" || {
+                    log_error "Failed to set model in settings.local.json"
+                    return 1
+                }
             fi
-            rm -f "$worktree_path/.claude/settings.local.json.bak"
+        else
+            # No jq available, use sed fallback
+            log_warn "jq not found, using sed for JSON update (may be less reliable)"
+            set_model_with_sed "$worktree_path/.claude/settings.local.json" "$model" || {
+                log_error "Failed to set model in settings.local.json"
+                return 1
+            }
         fi
 
-        log_success "Default model set to: $model"
+        # Verify the model was actually set
+        if verify_model_setting "$worktree_path/.claude/settings.local.json" "$model"; then
+            log_success "Model configuration verified: $model"
+        else
+            log_warn "Could not verify model setting, but configuration was attempted"
+            log_warn "You may need to manually add the model to .claude/settings.local.json"
+        fi
     fi
 
     # Start pnpm install in background

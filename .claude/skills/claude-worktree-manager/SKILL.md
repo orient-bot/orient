@@ -422,6 +422,218 @@ If you see errors like `command not found` when sourcing `.env`:
 - Check for unquoted channel names starting with `#`
 - Ensure no trailing spaces after values
 
+## Model Flag Configuration - Edge Cases & Troubleshooting
+
+The `--model` flag updates `.claude/settings.local.json` to set the default Claude model for your worktree. This section documents potential edge cases and how to handle them.
+
+### Requirements
+
+The script requires one of the following tools to update JSON:
+
+1. **jq** (preferred) - Safely parses and updates JSON
+2. **sed** (fallback) - Uses text substitution, less reliable but works when jq is unavailable
+
+Most systems have `sed` built-in. To install `jq`:
+
+```bash
+# macOS
+brew install jq
+
+# Ubuntu/Debian
+sudo apt-get install jq
+
+# Or use your system package manager
+```
+
+### How Model Configuration Works
+
+1. **With jq available** - The script uses jq to safely add/update the `"model"` key
+2. **Without jq** - Falls back to sed with pattern matching
+3. **Verification** - The script checks that the model was actually set
+
+### Troubleshooting: Model Not Applied
+
+If Claude doesn't use the configured model:
+
+**Step 1: Verify the model was set**
+
+```bash
+# Go to your worktree and verify
+cd /path/to/worktree
+.claude/skills/claude-worktree-manager/scripts/verify-worktree-model.sh
+
+# Or from anywhere (pass worktree path)
+.claude/skills/claude-worktree-manager/scripts/verify-worktree-model.sh /path/to/worktree
+```
+
+**Step 2: Check settings.local.json contents**
+
+```bash
+cat /path/to/worktree/.claude/settings.local.json | grep -i model
+```
+
+You should see:
+
+```json
+{
+  "model": "opus",
+  "permissions": { ... }
+}
+```
+
+**Step 3: If model is missing, add it manually**
+
+If the model key is missing, add it to the top level of `.claude/settings.local.json`:
+
+```bash
+# Edit the file manually
+nano /path/to/worktree/.claude/settings.local.json
+```
+
+The file should look like:
+
+```json
+{
+  "model": "opus",
+  "permissions": {
+    "allow": [ ... ]
+  }
+}
+```
+
+### Common Issues
+
+#### Issue: "jq not found" in logs but model was set
+
+**Why:** The script fell back to sed, which is less reliable. jq is recommended.
+
+**Fix:** Install jq and re-create the worktree with the `--model` flag
+
+```bash
+# Install jq
+brew install jq  # or sudo apt-get install jq
+
+# Re-create worktree with model flag
+.claude/skills/claude-worktree-manager/scripts/worktree.sh create my-feature --model opus
+```
+
+#### Issue: Model key added but not using that model
+
+**Why:** The model might be formatted incorrectly or Claude Code might not be reading it.
+
+**Fix:** Verify the JSON is valid and properly formatted:
+
+```bash
+# Verify JSON syntax is valid
+jq . /path/to/worktree/.claude/settings.local.json
+
+# Should output valid JSON without errors
+```
+
+If JSON is invalid, edit the file to fix syntax errors (missing quotes, commas, etc).
+
+#### Issue: sed failed silently, model not set
+
+**Why:** This can happen on systems with different sed versions or in edge cases.
+
+**Fix:** Use jq or manually edit the file
+
+```bash
+# Option 1: Install jq and re-create worktree
+brew install jq
+.claude/skills/claude-worktree-manager/scripts/worktree.sh create my-feature --model opus
+
+# Option 2: Manually add the model to the file
+nano /path/to/worktree/.claude/settings.local.json
+# Add "model": "opus", at the top level
+```
+
+#### Issue: Model works in worktree but not when using goal prompt
+
+**Why:** The Ghostty tab might be starting Claude in a different context or with different settings.
+
+**Fix:** Verify the model is set and start Claude from within the worktree:
+
+```bash
+# Navigate to worktree
+cd /path/to/worktree
+
+# Verify model
+.claude/skills/claude-worktree-manager/scripts/verify-worktree-model.sh
+
+# Start Claude directly
+claude 'Your goal prompt here'
+
+# Claude will load settings from the current worktree directory
+```
+
+### Validation Script
+
+Use the validation script to verify worktree model configuration:
+
+```bash
+# From the worktree directory
+cd /path/to/worktree
+.claude/skills/claude-worktree-manager/scripts/verify-worktree-model.sh
+
+# Or from anywhere
+.claude/skills/claude-worktree-manager/scripts/verify-worktree-model.sh /path/to/worktree
+```
+
+**Output examples:**
+
+✅ Correct:
+
+```
+[INFO] Verifying Claude model configuration in: /path/to/worktree
+[SUCCESS] .claude/settings.local.json found
+[SUCCESS] Model configuration found: opus
+[SUCCESS] Model is valid: opus
+```
+
+❌ Missing model:
+
+```
+[INFO] Verifying Claude model configuration in: /path/to/worktree
+[SUCCESS] .claude/settings.local.json found
+[WARN] No model configuration found in settings.local.json
+```
+
+### Manual Model Configuration
+
+If automatic configuration fails, manually edit `.claude/settings.local.json`:
+
+```bash
+# Navigate to worktree
+cd /path/to/worktree
+
+# Open settings file
+nano .claude/settings.local.json
+```
+
+**Add the model key at the top level:**
+
+```json
+{
+  "model": "opus",
+  "permissions": {
+    "allow": [ ... ]
+  }
+}
+```
+
+**Valid model values:**
+
+- `"opus"` - Claude Opus 4.5 (most capable)
+- `"sonnet"` - Claude Sonnet (balanced)
+- `"haiku"` - Claude Haiku (fastest/cheapest)
+
+**After saving, verify with the validation script:**
+
+```bash
+.claude/skills/claude-worktree-manager/scripts/verify-worktree-model.sh
+```
+
 ## Troubleshooting
 
 ### pnpm install failed
