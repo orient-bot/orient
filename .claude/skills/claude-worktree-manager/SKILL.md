@@ -136,26 +136,37 @@ Then run:
 9. If `--isolated`: Creates dedicated database and seeds it with test data
 10. Returns the worktree path immediately
 
-### Best Practice: Verify Model Configuration
+### Required: Verify Model Configuration Before Starting Claude
 
-When creating worktrees with the `--model` flag, **always verify the configuration was applied correctly**:
+When creating worktrees with the `--model` flag, **you MUST verify the configuration before starting Claude**:
 
 ```bash
 # 1. Create worktree with model
 WORKTREE_PATH=$(.claude/skills/claude-worktree-manager/scripts/worktree.sh create my-feature --model opus | tail -1)
 
-# 2. Verify the model was set (recommended)
+# 2. REQUIRED: Verify the model was set correctly
 .claude/skills/claude-worktree-manager/scripts/verify-worktree-model.sh "$WORKTREE_PATH"
+# Must show: [SUCCESS] Model is valid: opus
 
-# 3. Check pnpm install progress
+# 3. Check pnpm install progress (optional)
 tail -f "$WORKTREE_PATH/.pnpm-install.log"
 
-# 4. Start working once verified
+# 4. Only start Claude AFTER verification succeeds
 cd "$WORKTREE_PATH"
 claude 'Your goal here'
 ```
 
-**Why verify?** The model configuration relies on `jq` or `sed` to update JSON files, which can occasionally fail silently on some systems. Running the verification script ensures the model was correctly set before starting your Claude session.
+**Why is verification required?**
+
+1. **jq/sed fallback can fail silently:** The script uses `jq` (preferred) or `sed` (fallback) to update JSON. On some systems, `sed` may fail without error.
+
+2. **macOS vs Linux sed differences:** macOS uses BSD sed which requires `-i ''` while Linux uses GNU sed with `-i`. The script handles this, but edge cases exist.
+
+3. **JSON syntax can break:** Malformed JSON in `settings.local.json` can cause the update to fail.
+
+4. **Claude uses wrong model without verification:** If you start Claude before verifying, it will use the default model instead of your requested model, wasting time and potentially money.
+
+**If verification fails:** See the "Model Flag Configuration - Edge Cases & Troubleshooting" section below for manual fixes.
 
 ### When to Use --isolated
 
