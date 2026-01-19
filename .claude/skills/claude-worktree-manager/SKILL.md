@@ -59,6 +59,39 @@ To clarify the correct syntax for each invocation method:
 - **Skill tool:** All commands and flags are passed as a single string via the `args` parameter
 - **Direct script:** Commands and flags are bash arguments, requires absolute or relative path
 
+## Verifying Model Configuration
+
+After creating a worktree with `--model`, verify the configuration was set correctly:
+
+```bash
+# Navigate to your worktree
+cd /path/to/worktree
+
+# Run verification script
+.claude/skills/claude-worktree-manager/scripts/verify-worktree-model.sh
+
+# Or verify from anywhere by passing the path
+.claude/skills/claude-worktree-manager/scripts/verify-worktree-model.sh /path/to/worktree
+```
+
+**Expected output when successful:**
+
+```
+[INFO] Verifying Claude model configuration in: /path/to/worktree
+[SUCCESS] .claude/settings.local.json found
+[SUCCESS] Model configuration found: opus
+[SUCCESS] Model is valid: opus
+```
+
+The validation script will:
+
+1. Check that `.claude/settings.local.json` exists
+2. Extract the model value using jq or grep
+3. Validate the model is one of: opus, sonnet, haiku
+4. Provide instructions if configuration is missing or invalid
+
+See the **Model Flag Configuration - Edge Cases & Troubleshooting** section below for fixing common issues.
+
 ## Quick Start
 
 ### Create a Worktree
@@ -705,7 +738,11 @@ User: "Create a worktree for complex refactoring using Opus"
 # 1. Create the worktree with Opus model and capture path
 WORKTREE_PATH=$(.claude/skills/claude-worktree-manager/scripts/worktree.sh create complex-refactor --model opus | tail -1)
 
-# 2. If in Ghostty, open new tab with Claude
+# 2. Verify the model was set correctly
+.claude/skills/claude-worktree-manager/scripts/verify-worktree-model.sh "$WORKTREE_PATH"
+# Expected output: [SUCCESS] Model is valid: opus
+
+# 3. If in Ghostty, open new tab with Claude
 if [ "$TERM_PROGRAM" = "ghostty" ]; then
     ghostty-tab -d "$WORKTREE_PATH" --no-enter "claude 'Refactor the project to support multi-tenant architecture'"
 fi
@@ -716,6 +753,31 @@ User: "Create a worktree for quick bug fixes using Haiku"
 ```bash
 # 1. Create the worktree with Haiku model
 WORKTREE_PATH=$(.claude/skills/claude-worktree-manager/scripts/worktree.sh create quick-fixes --model haiku | tail -1)
+
+# 2. Verify the model was set correctly
+.claude/skills/claude-worktree-manager/scripts/verify-worktree-model.sh "$WORKTREE_PATH"
+
+# 3. Start working in the worktree
+cd "$WORKTREE_PATH"
+claude 'Fix critical bugs'
+```
+
+User: "Create an Opus worktree with isolated database for migration testing"
+
+```bash
+# 1. Create worktree with both flags
+WORKTREE_PATH=$(.claude/skills/claude-worktree-manager/scripts/worktree.sh create schema-testing --isolated --model opus | tail -1)
+
+# 2. Verify model configuration (database seeding runs in parallel)
+.claude/skills/claude-worktree-manager/scripts/verify-worktree-model.sh "$WORKTREE_PATH"
+# Output should show: [SUCCESS] Model is valid: opus
+
+# 3. Check database seeding progress (runs after pnpm install)
+tail -f "$WORKTREE_PATH/.db-seed.log"
+
+# 4. Once ready, navigate to worktree and start Claude
+cd "$WORKTREE_PATH"
+claude 'Test database migrations'
 ```
 
 ### Create worktree for bug fix
