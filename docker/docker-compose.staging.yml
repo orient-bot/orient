@@ -16,25 +16,12 @@
 
 services:
   # ===========================================================================
-  # Nginx - Reverse Proxy / Ingress (Staging)
+  # NOTE: Nginx is NOT overridden here - staging uses production nginx
   # ===========================================================================
-  nginx:
-    container_name: orienter-nginx-staging
-    # !override replaces volumes array to use staging-specific config
-    volumes: !override
-      - ./nginx-staging.conf:/etc/nginx/conf.d/default.conf:ro
-      - ./admin:/usr/share/nginx/html:ro
-      # Staging subdomain SSL certificates
-      - ../certbot/conf/live/${ORIENT_STAGING_DOMAIN}/fullchain.pem:/etc/nginx/ssl/${ORIENT_STAGING_DOMAIN}/fullchain.pem:ro
-      - ../certbot/conf/live/${ORIENT_STAGING_DOMAIN}/privkey.pem:/etc/nginx/ssl/${ORIENT_STAGING_DOMAIN}/privkey.pem:ro
-      # OpenCode staging subdomain SSL certificate
-      - ../certbot/conf/live/${ORIENT_CODE_STAGING_DOMAIN}/fullchain.pem:/etc/nginx/ssl/${ORIENT_CODE_STAGING_DOMAIN}/fullchain.pem:ro
-      - ../certbot/conf/live/${ORIENT_CODE_STAGING_DOMAIN}/privkey.pem:/etc/nginx/ssl/${ORIENT_CODE_STAGING_DOMAIN}/privkey.pem:ro
-      - ../certbot/conf/archive:/etc/letsencrypt/archive:ro
-    # !override replaces ports to use staging-specific ports (8080/8443)
-    ports: !override
-      - '8080:80'
-      - '8443:443'
+  # Production nginx (orienter-nginx) serves both production and staging via
+  # dynamic DNS resolution. Staging containers must be on the production network.
+  # See nginx-ssl.conf for routing configuration.
+  # ===========================================================================
 
   # ===========================================================================
   # PostgreSQL - Staging Database
@@ -256,3 +243,14 @@ volumes:
     driver: local
   opencode-storage-staging:
     driver: local
+
+# =============================================================================
+# Networks - Join production network for nginx routing
+# =============================================================================
+# Staging containers must be on the same network as production nginx.
+# Using external: true connects to the existing production network instead of
+# creating a new staging_orienter-network.
+networks:
+  orienter-network:
+    external: true
+    name: docker_orienter-network

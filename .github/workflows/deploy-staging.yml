@@ -460,11 +460,12 @@ jobs:
         run: |
           echo "Syncing staging configuration files..."
 
+          # Note: nginx config is NOT synced here - staging uses production nginx
+          # with dynamic DNS resolution (see nginx-ssl.conf)
           rsync -avzO --progress --timeout=60 \
             -e 'ssh -o StrictHostKeyChecking=no' \
             docker/docker-compose.v2.yml \
             docker/docker-compose.staging.yml \
-            docker/nginx-staging.conf \
             $OCI_USER@$OCI_HOST:~/orient/docker/
 
           echo "Staging configuration synced"
@@ -599,7 +600,8 @@ jobs:
             sudo docker compose ${COMPOSE_FILES} down --remove-orphans 2>/dev/null || true
 
             echo "Removing lingering staging containers..."
-            sudo docker rm -f orienter-postgres-staging orienter-nginx-staging orienter-bot-whatsapp-staging orienter-opencode-staging orienter-bot-slack-staging orienter-dashboard-staging 2>/dev/null || true
+            # Note: nginx is NOT included - staging uses production nginx with dynamic DNS
+            sudo docker rm -f orienter-postgres-staging orienter-bot-whatsapp-staging orienter-opencode-staging orienter-bot-slack-staging orienter-dashboard-staging 2>/dev/null || true
 
             echo "Cleaning up..."
             sudo docker container prune -f 2>/dev/null || true
@@ -629,28 +631,31 @@ jobs:
           OCI_USER: ${{ secrets.OCI_USER }}
         run: |
           echo "Verifying staging deployment health..."
+          echo "Note: Staging uses production nginx - checking containers directly"
 
           sleep 10
 
           HEALTHY=true
 
-          if curl -sf --max-time 10 "http://$OCI_HOST:8080/health" > /dev/null; then
-            echo "Nginx (staging): healthy"
-          else
-            echo "Nginx (staging): unhealthy"
-            HEALTHY=false
-          fi
-
+          # Check OpenCode staging container health
           if ssh $OCI_USER@$OCI_HOST "curl -sf --max-time 10 http://localhost:5099/global/health" > /dev/null; then
             echo "OpenCode (staging): healthy"
           else
             echo "OpenCode (staging): may still be starting"
           fi
 
+          # Check Dashboard staging container health
           if ssh $OCI_USER@$OCI_HOST "curl -sf --max-time 10 http://localhost:5098/health" > /dev/null; then
             echo "Dashboard (staging): healthy"
           else
             echo "Dashboard (staging): may still be starting"
+          fi
+
+          # Check WhatsApp Bot staging container health
+          if ssh $OCI_USER@$OCI_HOST "curl -sf --max-time 10 http://localhost:5097/health" > /dev/null; then
+            echo "WhatsApp Bot (staging): healthy"
+          else
+            echo "WhatsApp Bot (staging): may still be starting"
           fi
 
           echo "healthy=$HEALTHY" >> $GITHUB_OUTPUT
@@ -688,5 +693,7 @@ jobs:
           echo "    Dashboard:  $DASHBOARD_CHANGED"
           echo "    Slack:      $SLACK_CHANGED"
           echo "  -------------------------------------------------------------"
+          echo "  Note: Staging uses production nginx with dynamic DNS resolution"
           echo "  Access: https://staging.orient.bot"
+          echo "  Code:   https://code-staging.orient.bot"
           echo "==============================================================="
