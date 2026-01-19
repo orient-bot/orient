@@ -11,6 +11,7 @@ export type GlobalView =
   | 'agents'
   | 'apps'
   | 'monitoring'
+  | 'storage'
   | 'settings';
 export type IntegrationsView = 'catalog' | 'mcp-servers' | 'dual-mode' | 'secrets' | 'providers';
 export type AutomationView = 'schedules' | 'webhooks';
@@ -40,6 +41,7 @@ export const ROUTES = {
   AUTOMATION_WEBHOOKS: '/automation/webhooks',
   BILLING: '/billing',
   MONITORING: '/monitoring',
+  STORAGE: '/storage',
   SETTINGS: '/settings',
   SETTINGS_CONNECTIONS: '/settings/connections',
   SETTINGS_CONNECTIONS_CATALOG: '/settings/connections/catalog',
@@ -106,6 +108,9 @@ export function getRouteState(pathname: string): RouteState {
   }
   if (pathname.startsWith('/monitoring')) {
     return { ...defaultState, globalView: 'monitoring' };
+  }
+  if (pathname.startsWith('/storage')) {
+    return { ...defaultState, globalView: 'storage' };
   }
 
   // Settings routes
@@ -206,6 +211,8 @@ export function getRoutePath(
         return ROUTES.BILLING;
       case 'monitoring':
         return ROUTES.MONITORING;
+      case 'storage':
+        return ROUTES.STORAGE;
     }
   }
 

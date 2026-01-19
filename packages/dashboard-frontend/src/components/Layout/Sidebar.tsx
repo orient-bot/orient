@@ -10,6 +10,7 @@ type GlobalView =
   | 'agents'
   | 'apps'
   | 'monitoring'
+  | 'storage'
   | 'settings';
 
 interface SidebarProps {
@@ -318,6 +319,32 @@ export function Sidebar({
                 <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
               </svg>
               Monitoring
+            </Link>
+
+            <Link
+              to={ROUTES.STORAGE}
+              className={`w-full flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                isGlobalActive('storage')
+                  ? 'bg-primary text-primary-foreground'
+                  : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+              }`}
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <ellipse cx="12" cy="5" rx="9" ry="3" />
+                <path d="M3 5V19A9 3 0 0 0 21 19V5" />
+                <path d="M3 12A9 3 0 0 0 21 12" />
+              </svg>
+              Storage
             </Link>
           </div>
         </div>
