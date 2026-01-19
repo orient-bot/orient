@@ -1035,6 +1035,256 @@ export class StorageDatabase {
 }
 ```
 
+## Bridge API Endpoint Handler Patterns
+
+The bridge API (`/api/apps/bridge`) handles method invocations from mini-apps. This section documents the request/response format and handler patterns.
+
+### Request Format
+
+All bridge calls use POST with JSON body:
+
+```typescript
+// Frontend call (from useBridge.ts)
+const response = await fetch('/api/apps/bridge', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    appName: 'my-app', // Required: identifies the app
+    method: 'storage.get', // Required: the method to invoke
+    params: { key: 'todos' }, // Optional: method-specific parameters
+  }),
+});
+```
+
+### Response Format
+
+**Success response:**
+
+```json
+{
+  "data": {
+    /* method-specific result */
+  }
+}
+```
+
+**Error responses:**
+
+| Status | Error                                         | When                                |
+| ------ | --------------------------------------------- | ----------------------------------- |
+| 400    | `appName and method are required`             | Missing required fields             |
+| 400    | `key is required`                             | Missing method-specific parameter   |
+| 403    | `Storage capability not enabled for this app` | Capability not declared in APP.yaml |
+| 404    | `App "name" not found`                        | App doesn't exist                   |
+| 501    | `Method "x" not implemented`                  | Unknown method                      |
+| 503    | `Storage service not available`               | Backend service not initialized     |
+| 500    | `Bridge call failed`                          | Unexpected server error             |
+
+### Handler Structure
+
+The bridge endpoint uses a switch statement for method routing:
+
+```typescript
+router.post('/bridge', async (req: Request, res: Response) => {
+  try {
+    const { appName, method, params } = req.body;
+
+    // 1. Validate required fields
+    if (!appName || !method) {
+      return res.status(400).json({ error: 'appName and method are required' });
+    }
+
+    // 2. Get the app (validates it exists)
+    const app = appsService.getApp(appName);
+    if (!app) {
+      return res.status(404).json({ error: `App "${appName}" not found` });
+    }
+
+    logger.debug('Bridge call', { appName, method, params });
+
+    // 3. Route to method handler
+    switch (method) {
+      case 'storage.set': {
+        // Check service availability
+        if (!bridgeServices?.storageDb) {
+          return res.status(503).json({ error: 'Storage service not available' });
+        }
+        // Check capability
+        const cap = app.manifest.capabilities?.storage;
+        if (!cap?.enabled) {
+          return res.status(403).json({ error: 'Storage capability not enabled' });
+        }
+        // Validate params
+        const { key, value } = params || {};
+        if (!key || typeof key !== 'string') {
+          return res.status(400).json({ error: 'key is required' });
+        }
+        // Execute
+        await bridgeServices.storageDb.set(appName, key, value);
+        return res.json({ data: { success: true } });
+      }
+
+      // ... other methods
+
+      default:
+        logger.warn('Unknown bridge method', { appName, method });
+        return res.status(501).json({ error: `Method "${method}" not implemented` });
+    }
+  } catch (error) {
+    logger.error('Bridge call failed', {
+      error: error instanceof Error ? error.message : String(error),
+    });
+    res.status(500).json({ error: 'Bridge call failed' });
+  }
+});
+```
+
+### Method Handler Pattern
+
+Each method handler follows this pattern:
+
+```typescript
+case 'category.methodName': {
+  // 1. Check service availability (503 if not available)
+  if (!bridgeServices?.myService) {
+    return res.status(503).json({ error: 'MyService not available' });
+  }
+
+  // 2. Check capability (403 if not enabled)
+  const capability = app.manifest.capabilities?.myCapability;
+  if (!capability?.enabled) {
+    return res.status(403).json({ error: 'MyCapability not enabled for this app' });
+  }
+
+  // 3. Extract and validate parameters (400 if invalid)
+  const { requiredParam, optionalParam } = params || {};
+  if (!requiredParam || typeof requiredParam !== 'string') {
+    return res.status(400).json({ error: 'requiredParam is required' });
+  }
+
+  // 4. Execute the operation
+  const result = await bridgeServices.myService.doSomething(appName, requiredParam);
+
+  // 5. Return success with data wrapper
+  return res.json({ data: result });
+}
+```
+
+### Capability Checking Pattern
+
+Always check capability before processing:
+
+```typescript
+// For capabilities (scheduler, webhooks, storage)
+const cap = app.manifest.capabilities?.storage;
+if (!cap?.enabled) {
+  return res.status(403).json({ error: 'Storage capability not enabled for this app' });
+}
+
+// For permissions (calendar, slack, jira)
+const perm = app.manifest.permissions?.calendar;
+if (!perm?.write) {
+  return res.status(403).json({ error: 'Calendar write permission not granted' });
+}
+```
+
+### Parameter Validation Patterns
+
+```typescript
+// Required string parameter
+const { key } = params || {};
+if (!key || typeof key !== 'string') {
+  return res.status(400).json({ error: 'key is required' });
+}
+
+// Required number parameter
+const { id } = params || {};
+if (typeof id !== 'number') {
+  return res.status(400).json({ error: 'id must be a number' });
+}
+
+// Optional parameter with default
+const { limit = 100 } = params || {};
+
+// Array parameter
+const { items } = params || {};
+if (!Array.isArray(items)) {
+  return res.status(400).json({ error: 'items must be an array' });
+}
+```
+
+### Return Value Patterns
+
+```typescript
+// Simple success
+return res.json({ data: { success: true } });
+
+// Return single value
+return res.json({ data: value }); // value can be null
+
+// Return object
+return res.json({ data: { id: 1, name: 'test' } });
+
+// Return array
+return res.json({ data: ['key1', 'key2', 'key3'] });
+
+// Return with count
+return res.json({ data: { deleted: true } });
+return res.json({ data: { cleared: 5 } });
+```
+
+### Frontend Bridge Call Pattern
+
+The frontend `callBridge` function handles the request/response:
+
+```typescript
+async function callBridge<T>(method: string, params: Record<string, unknown>): Promise<T> {
+  // Check permissions before making request
+  checkPermissions(method, capabilities);
+
+  const response = await fetch('/api/apps/bridge', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ appName, method, params }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || 'Bridge call failed');
+  }
+
+  const result = await response.json();
+  return result.data as T;
+}
+```
+
+### Adding a New Method
+
+When adding a new bridge method:
+
+1. **Choose a method name**: Use `category.action` format (e.g., `storage.set`, `calendar.listEvents`)
+
+2. **Add the handler case** in the switch statement following the pattern above
+
+3. **Update frontend bridge**:
+
+   ```typescript
+   // In useBridge.ts AppBridge interface
+   myCategory: {
+     myMethod: (params) => callBridge('myCategory.myMethod', params),
+   },
+   ```
+
+4. **Add permission check** if needed:
+   ```typescript
+   // In checkPermissions function
+   if (method.startsWith('myCategory.')) {
+     if (!capabilities?.myCategory?.enabled) {
+       throw new Error('Capability denied: myCategory not enabled in APP.yaml');
+     }
+   }
+   ```
+
 ## Implementing New Bridge Capabilities
 
 This guide explains how to add a new capability to the mini-apps bridge (like storage, scheduler, webhooks). Follow these steps when implementing new backend services that mini-apps can access.
