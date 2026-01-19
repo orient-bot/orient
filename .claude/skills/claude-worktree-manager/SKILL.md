@@ -1,11 +1,39 @@
 ---
 name: claude-worktree-manager
-description: Create and manage Claude-specific worktrees with automated setup and cleanup. Use this skill when asked to "create a worktree", "new worktree", "worktree for feature/staging", "setup isolated environment", or "cleanup old worktrees". Handles smart naming, .env copying, background pnpm install, and automatic cleanup of stale worktrees.
+description: Create and manage Claude-specific worktrees with automated setup and cleanup. Use this skill (via Skill tool or direct script) when asked to "create a worktree", "new worktree", "worktree for feature/staging", "setup isolated environment", or "cleanup old worktrees". Script path is auto-detected when using Skill tool. Handles smart naming, .env copying, background pnpm install, and automatic cleanup of stale worktrees.
 ---
 
 # Claude Worktree Manager
 
 Automated worktree management for Claude Code development sessions with smart naming, auto-setup, and cleanup.
+
+## How to Use This Skill
+
+There are two ways to create worktrees:
+
+### 1. Via Claude Code Skill (Recommended)
+
+Use the `Skill` tool to invoke this skill - **the script path is detected automatically**:
+
+```
+Skill(claude-worktree-manager) create feature-name --model opus
+```
+
+The skill handles all path resolution using `git rev-parse --show-toplevel`, so you only need to provide the worktree name and optional flags.
+
+### 2. Via Direct Script Invocation
+
+If you're running the script manually, provide the full path from any directory:
+
+```bash
+.claude/skills/claude-worktree-manager/scripts/worktree.sh create feature-name --model opus
+```
+
+Or use the full absolute path:
+
+```bash
+/path/to/repo/.claude/skills/claude-worktree-manager/scripts/worktree.sh create feature-name --model opus
+```
 
 ## Quick Start
 
@@ -60,6 +88,24 @@ Use the `--isolated` flag when:
 - **Breaking changes:** Don't want to affect shared dev data
 
 For normal feature development, skip `--isolated` to use the shared database.
+
+### Automatic Script Location Detection
+
+When you invoke this skill using the Skill tool (e.g., `Skill(claude-worktree-manager)`), the skill automatically:
+
+1. Detects your current git repository using `git rev-parse --show-toplevel`
+2. Locates the worktree script at `.claude/skills/claude-worktree-manager/scripts/worktree.sh`
+3. Executes the script from the repository root
+
+**You don't need to specify absolute paths or worry about the script location.** The skill handles all path resolution automatically. Just use simple worktree names and optional flags:
+
+```bash
+# Via Skill tool - automatic path resolution
+Skill(claude-worktree-manager) create my-feature --model sonnet
+
+# Via direct script - requires full path from any directory
+/path/to/repo/.claude/skills/claude-worktree-manager/scripts/worktree.sh create my-feature --model sonnet
+```
 
 ### Model Selection
 
