@@ -44,5 +44,14 @@ export type { AgentSeedOptions, AgentSeedResult } from './agentSeedService.js';
 export { SecretsService, createSecretsService } from './secretsService.js';
 export type { SecretMetadata } from './secretsService.js';
 
+export {
+  VersionPreferencesService,
+  createVersionPreferencesService,
+} from './versionPreferencesService.js';
+export type {
+  UserVersionPreferences,
+  UpdatePreferencesInput,
+} from './versionPreferencesService.js';
+
 // Re-export all types
 export * from './types/index.js';

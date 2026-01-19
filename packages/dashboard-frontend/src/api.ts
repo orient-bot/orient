@@ -1922,6 +1922,106 @@ export async function connectIntegration(name: string): Promise<{
 }
 
 // ============================================
+// VERSION CHECK API
+// ============================================
+
+export interface VersionCheckResult {
+  currentVersion: string;
+  latestVersion: string | null;
+  updateAvailable: boolean;
+  changelogUrl: string;
+  updateInstructions: string | null;
+  lastChecked: Date | string;
+  error?: string;
+  shouldShowNotification?: boolean;
+}
+
+export interface VersionServiceStatus {
+  enabled: boolean;
+  polling: boolean;
+  endpoint: string | null;
+  intervalHours: number;
+  currentVersion: string;
+}
+
+export interface UserVersionPreferences {
+  userId: number;
+  notificationsEnabled: boolean;
+  dismissedVersions: string[];
+  remindLaterUntil: Date | string | null;
+  createdAt: Date | string;
+  updatedAt: Date | string;
+}
+
+/**
+ * Get current version status and check for updates
+ */
+export async function getVersionStatus(refresh = false): Promise<VersionCheckResult> {
+  const params = refresh ? '?refresh=true' : '';
+  return apiRequest(`/version/status${params}`);
+}
+
+/**
+ * Get version service configuration status
+ */
+export async function getVersionServiceStatus(): Promise<VersionServiceStatus> {
+  return apiRequest('/version/service-status');
+}
+
+/**
+ * Get user's version notification preferences
+ */
+export async function getVersionPreferences(): Promise<UserVersionPreferences> {
+  return apiRequest('/version/preferences');
+}
+
+/**
+ * Update user's version notification preferences
+ */
+export async function updateVersionPreferences(prefs: {
+  notificationsEnabled?: boolean;
+}): Promise<UserVersionPreferences> {
+  return apiRequest('/version/preferences', {
+    method: 'PUT',
+    body: JSON.stringify(prefs),
+  });
+}
+
+/**
+ * Dismiss a specific version notification permanently
+ */
+export async function dismissVersion(
+  version: string
+): Promise<{ success: boolean; message: string }> {
+  return apiRequest('/version/dismiss', {
+    method: 'POST',
+    body: JSON.stringify({ version }),
+  });
+}
+
+/**
+ * Set "remind me later" for version notifications
+ * @param hours - 1 (1 hour), 24 (1 day), or 168 (1 week)
+ */
+export async function remindLaterVersion(
+  hours: 1 | 24 | 168
+): Promise<{ success: boolean; message: string; remindLaterUntil: Date | string }> {
+  return apiRequest('/version/remind-later', {
+    method: 'POST',
+    body: JSON.stringify({ hours }),
+  });
+}
+
+/**
+ * Force an immediate version check (bypasses cache)
+ */
+export async function checkVersionNow(): Promise<VersionCheckResult> {
+  return apiRequest('/version/check-now', {
+    method: 'POST',
+  });
+}
+
+// ============================================
 // UI REFRESH EVENTS
 // ============================================
 

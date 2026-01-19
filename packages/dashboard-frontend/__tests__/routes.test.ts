@@ -40,6 +40,7 @@ describe('Frontend URL Routing', () => {
       expect(ROUTES.SETTINGS_PROVIDERS).toBe('/settings/providers');
       expect(ROUTES.SETTINGS_SECRETS).toBe('/settings/secrets');
       expect(ROUTES.SETTINGS_APPEARANCE).toBe('/settings/appearance');
+      expect(ROUTES.SETTINGS_UPDATES).toBe('/settings/updates');
     });
   });
 
@@ -235,6 +236,12 @@ describe('Frontend URL Routing', () => {
         expect(state.globalView).toBe('settings');
         expect(state.settingsView).toBe('appearance');
       });
+
+      it('should match /settings/updates path', () => {
+        const state = getRouteState('/settings/updates');
+        expect(state.globalView).toBe('settings');
+        expect(state.settingsView).toBe('updates');
+      });
     });
 
     describe('path prefix matching', () => {
@@ -339,6 +346,10 @@ describe('Frontend URL Routing', () => {
       it('should return connections modes path when specified', () => {
         expect(getRoutePath('settings', 'whatsapp', 'modes')).toBe('/settings/connections/modes');
       });
+
+      it('should return updates path when specified', () => {
+        expect(getRoutePath('settings', 'whatsapp', 'updates')).toBe('/settings/updates');
+      });
     });
 
     describe('service routes', () => {
@@ -413,6 +424,13 @@ describe('Frontend URL Routing', () => {
       expect(state.globalView).toBe('settings');
       expect(state.settingsView).toBe('connections');
       expect(state.connectionsSubView).toBe('mcp');
+    });
+
+    it('should have matching getRouteState and getRoutePath for settings/updates', () => {
+      const path = getRoutePath('settings', 'whatsapp', 'updates');
+      const state = getRouteState(path);
+      expect(state.globalView).toBe('settings');
+      expect(state.settingsView).toBe('updates');
     });
   });
 });

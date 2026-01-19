@@ -40,7 +40,9 @@ import ProvidersTab from './components/ProvidersTab';
 import IntegrationCatalog from './components/IntegrationCatalog';
 import OnboarderBubble from './components/OnboarderBubble';
 import OnboarderChat from './components/OnboarderChat';
-import { SettingsLayout, AppearancePage } from './components/Settings';
+import { SettingsLayout, AppearancePage, UpdatesPage } from './components/Settings';
+import { VersionBanner } from './components/VersionNotification/VersionBanner';
+import { useVersionCheck } from './hooks/useVersionCheck';
 import { ThemeProvider, useTheme } from './context/ThemeContext';
 import { AppLayout } from './components/Layout/AppLayout';
 import { CommandPalette, useCommandPalette, type Command } from './components/CommandPalette';
@@ -97,6 +99,7 @@ function AppContent() {
   const navigate = useNavigate();
   const location = useLocation();
   useOriActivation();
+  const versionCheck = useVersionCheck();
 
   const {
     globalView,
@@ -914,6 +917,15 @@ function AppContent() {
       onOpenCapabilities={() => setCapabilitiesSidebarOpen(true)}
       onOpenCommandPalette={commandPalette.open}
     >
+      {/* Version Update Banner */}
+      {versionCheck.shouldShowBanner && versionCheck.status && (
+        <VersionBanner
+          status={versionCheck.status}
+          onDismiss={versionCheck.dismissCurrentVersion}
+          onRemindLater={versionCheck.remindLater}
+        />
+      )}
+
       {showSetupIndicators && (
         <div className="card p-4 border-border bg-muted/40 mb-6">
           <div className="flex flex-col gap-3">
@@ -1253,6 +1265,7 @@ function AppContent() {
             {settingsView === 'providers' && <ProvidersTab />}
             {settingsView === 'secrets' && <SecretsTab />}
             {settingsView === 'appearance' && <AppearancePage />}
+            {settingsView === 'updates' && <UpdatesPage />}
           </SettingsLayout>
         )}
 

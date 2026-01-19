@@ -22,6 +22,7 @@ import {
   createProvidersRoutes,
   createOnboarderRoutes,
   createIntegrationsRoutes,
+  createVersionRoutes,
 } from './routes/index.js';
 // TODO: Re-enable with miniapp editor if needed
 
@@ -224,6 +225,9 @@ export function createDashboardRouter(services: DashboardServices): Router {
 
   // Integrations catalog routes (always available)
   router.use('/integrations', createIntegrationsRoutes(requireAuth));
+
+  // Version check routes (always available)
+  router.use('/version', createVersionRoutes(requireAuth));
 
   // Onboarder routes (always available - uses db for session persistence)
   router.use('/onboarder', createOnboarderRoutes(db, requireAuth));

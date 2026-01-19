@@ -43,6 +43,19 @@ vi.mock('@orient/database-services', () => ({
     getSecret: vi.fn().mockResolvedValue(null),
     setSecret: vi.fn().mockResolvedValue(undefined),
   }),
+  createVersionPreferencesService: vi.fn().mockReturnValue({
+    getPreferences: vi.fn().mockResolvedValue({
+      userId: 1,
+      notificationsEnabled: true,
+      dismissedVersions: [],
+      remindLaterUntil: null,
+    }),
+    updatePreferences: vi.fn().mockResolvedValue({}),
+    dismissVersion: vi.fn().mockResolvedValue(undefined),
+    remindLater: vi.fn().mockResolvedValue(undefined),
+    shouldShowNotification: vi.fn().mockResolvedValue(true),
+    close: vi.fn().mockResolvedValue(undefined),
+  }),
 }));
 
 vi.mock('@orient/integrations', () => ({
