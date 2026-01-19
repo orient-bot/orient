@@ -470,10 +470,14 @@ jobs:
             DEPLOY_DIR="${HOME}/orient"
             MIGRATIONS_DIR="${DEPLOY_DIR}/data/migrations"
 
+            # Get database credentials from server .env
+            DB_USER=$(grep '^POSTGRES_USER=' ~/orient/.env | cut -d= -f2 | tr -d '"' || echo "aibot")
+            DB_NAME=$(grep '^POSTGRES_DB=' ~/orient/.env | cut -d= -f2 | tr -d '"' || echo "whatsapp_bot")
+
             # Wait for postgres to be ready
             echo "Waiting for PostgreSQL..."
             for i in {1..30}; do
-              if sudo docker exec orienter-postgres psql -U orient -d whatsapp_bot -c "SELECT 1" > /dev/null 2>&1; then
+              if sudo docker exec orienter-postgres psql -U "$DB_USER" -d "$DB_NAME" -c "SELECT 1" > /dev/null 2>&1; then
                 echo "PostgreSQL is ready"
                 break
               fi
@@ -481,7 +485,7 @@ jobs:
             done
 
             # Create migrations tracking table if not exists
-            sudo docker exec orienter-postgres psql -U orient -d whatsapp_bot -c "
+            sudo docker exec orienter-postgres psql -U "$DB_USER" -d "$DB_NAME" -c "
               CREATE TABLE IF NOT EXISTS _migrations (
                 id SERIAL PRIMARY KEY,
                 name VARCHAR(255) UNIQUE NOT NULL,
@@ -495,13 +499,13 @@ jobs:
                 migration_name=$(basename "$migration_file")
 
                 # Check if already applied
-                applied=$(sudo docker exec orienter-postgres psql -U orient -d whatsapp_bot -t -c "SELECT 1 FROM _migrations WHERE name = '$migration_name'" 2>/dev/null | tr -d ' ')
+                applied=$(sudo docker exec orienter-postgres psql -U "$DB_USER" -d "$DB_NAME" -t -c "SELECT 1 FROM _migrations WHERE name = '$migration_name'" 2>/dev/null | tr -d ' ')
 
                 if [ "$applied" != "1" ]; then
                   echo "Applying migration: $migration_name"
                   sudo docker cp "$migration_file" orienter-postgres:/tmp/migration.sql
-                  sudo docker exec orienter-postgres psql -U orient -d whatsapp_bot -f /tmp/migration.sql
-                  sudo docker exec orienter-postgres psql -U orient -d whatsapp_bot -c "INSERT INTO _migrations (name) VALUES ('$migration_name') ON CONFLICT (name) DO NOTHING;"
+                  sudo docker exec orienter-postgres psql -U "$DB_USER" -d "$DB_NAME" -f /tmp/migration.sql
+                  sudo docker exec orienter-postgres psql -U "$DB_USER" -d "$DB_NAME" -c "INSERT INTO _migrations (name) VALUES ('$migration_name') ON CONFLICT (name) DO NOTHING;"
                   echo "  Applied: $migration_name"
                 else
                   echo "  Skipped (already applied): $migration_name"
