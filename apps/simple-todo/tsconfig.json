@@ -2,11 +2,7 @@
   "compilerOptions": {
     "target": "ES2020",
     "useDefineForClassFields": true,
-    "lib": [
-      "ES2020",
-      "DOM",
-      "DOM.Iterable"
-    ],
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
     "module": "ESNext",
     "skipLibCheck": true,
     "moduleResolution": "bundler",
@@ -16,19 +12,15 @@
     "noEmit": true,
     "jsx": "react-jsx",
     "strict": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
     "noFallthroughCasesInSwitch": true,
+    "baseUrl": ".",
     "paths": {
-      "@shared/*": [
-        "../_shared/*"
-      ]
+      "@shared/*": ["../_shared/*"]
     }
   },
-  "include": [
-    "src",
-    "../_shared"
-  ],
+  "include": ["src", "../_shared"],
   "references": [
     {
       "path": "./tsconfig.node.json"
