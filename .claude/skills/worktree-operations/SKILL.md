@@ -24,6 +24,113 @@ Worktrees are isolated checkouts used for skill development without affecting th
 
 See the `multi-instance-development` skill for complete details.
 
+### Slack Bot Instance Isolation (CRITICAL)
+
+**Only ONE Slack bot instance can be connected at a time.** Unlike WhatsApp which uses phone-based sessions, Slack uses Socket Mode which means all instances try to connect to the same workspace. Running multiple Slack bots simultaneously causes:
+
+- Connection conflicts and dropped messages
+- Duplicate responses
+- Session instability
+
+#### Before Testing Slack Features
+
+Always ensure only one Slack bot instance is running:
+
+```bash
+# 1. Kill ALL Slack bot processes across all worktrees
+pkill -f "tsx.*slack-bot" || true
+pkill -f "node.*bot-slack" || true
+
+# 2. Verify no orphaned processes
+ps aux | grep -E "slack.*tsx|tsx.*slack" | grep -v grep
+
+# 3. Stop other worktree dev environments
+# If you have other worktrees running ./run.sh dev, stop them first:
+cd ~/claude-worktrees/other-worktree
+./run.sh dev stop
+
+# 4. Start Slack bot in your target worktree only
+./run.sh dev
+```
+
+#### Checking for Running Slack Instances
+
+```bash
+# Quick check: Count Slack bot processes
+ps aux | grep -E "slack.*tsx|tsx.*slack|bot-slack" | grep -v grep | wc -l
+# Should be 0 before starting, 1-2 after (tsx watch spawns child process)
+
+# Detailed view: See all Slack-related processes
+ps aux | grep -E "slack.*tsx|tsx.*slack|bot-slack" | grep -v grep
+
+# Check which ports are in use (Slack doesn't use a port, but check related services)
+lsof -i :4099  # OpenCode server
+```
+
+#### Killing Orphaned Slack Processes
+
+```bash
+# If you see multiple Slack processes or stale processes:
+
+# Option 1: Kill by pattern (recommended)
+pkill -f "tsx.*slack-bot"
+pkill -f "tsx.*watch.*slack"
+
+# Option 2: Kill specific PIDs
+ps aux | grep "slack" | grep -v grep | awk '{print $2}' | xargs kill -9
+
+# Option 3: Use run.sh stop (cleans up properly)
+./run.sh dev stop
+```
+
+#### Best Practices for Multi-Worktree Development with Slack
+
+1. **Designate one worktree for Slack testing** - Don't run Slack in multiple worktrees
+2. **Stop Slack in main repo when testing in worktree** - Run `./run.sh dev stop` in main repo first
+3. **Use `--no-slack` flag** when you don't need Slack: `./run.sh dev --no-slack`
+4. **Check logs for connection issues**:
+   ```bash
+   tail -f logs/instance-0/slack-bot.log | grep -E "(connected|error|conflict)"
+   ```
+5. **Verify single connection** before testing:
+   ```bash
+   # Should see exactly one "Now connected to Slack" message
+   grep "Now connected to Slack" logs/instance-0/slack-bot.log | tail -1
+   ```
+
+#### Troubleshooting Slack Connection Issues
+
+**Symptom**: Bot doesn't respond to messages
+
+```bash
+# Check if bot is connected
+grep -E "(connected|error|disconnect)" logs/instance-0/slack-bot.log | tail -10
+
+# Kill all instances and restart fresh
+pkill -f "slack-bot"
+sleep 2
+./run.sh dev
+```
+
+**Symptom**: Duplicate responses or messages lost
+
+```bash
+# Multiple bots are likely running - kill all and restart one
+pkill -f "tsx.*slack"
+./run.sh dev stop  # In ALL worktrees
+./run.sh dev       # In ONLY the worktree you want to use
+```
+
+**Symptom**: "socket hang up" or connection errors
+
+```bash
+# OpenCode server might be down
+curl -s http://localhost:4099/global/health || echo "OpenCode not running"
+
+# Restart everything
+./run.sh dev stop && ./run.sh dev
+```
+
 ## Initial Setup (After Worktree Creation)
 
 When a worktree is first created, run these commands:
