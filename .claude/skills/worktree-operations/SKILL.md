@@ -24,6 +24,113 @@ Worktrees are isolated checkouts used for skill development without affecting th
 
 See the `multi-instance-development` skill for complete details.
 
+### Slack Bot Instance Isolation (CRITICAL)
+
+**Only ONE Slack bot instance can be connected at a time.** Unlike WhatsApp which uses phone-based sessions, Slack uses Socket Mode which means all instances try to connect to the same workspace. Running multiple Slack bots simultaneously causes:
+
+- Connection conflicts and dropped messages
+- Duplicate responses
+- Session instability
+
+#### Before Testing Slack Features
+
+Always ensure only one Slack bot instance is running:
+
+```bash
+# 1. Kill ALL Slack bot processes across all worktrees
+pkill -f "tsx.*slack-bot" || true
+pkill -f "node.*bot-slack" || true
+
+# 2. Verify no orphaned processes
+ps aux | grep -E "slack.*tsx|tsx.*slack" | grep -v grep
+
+# 3. Stop other worktree dev environments
+# If you have other worktrees running ./run.sh dev, stop them first:
+cd ~/claude-worktrees/other-worktree
+./run.sh dev stop
+
+# 4. Start Slack bot in your target worktree only
+./run.sh dev
+```
+
+#### Checking for Running Slack Instances
+
+```bash
+# Quick check: Count Slack bot processes
+ps aux | grep -E "slack.*tsx|tsx.*slack|bot-slack" | grep -v grep | wc -l
+# Should be 0 before starting, 1-2 after (tsx watch spawns child process)
+
+# Detailed view: See all Slack-related processes
+ps aux | grep -E "slack.*tsx|tsx.*slack|bot-slack" | grep -v grep
+
+# Check which ports are in use (Slack doesn't use a port, but check related services)
+lsof -i :4099  # OpenCode server
+```
+
+#### Killing Orphaned Slack Processes
+
+```bash
+# If you see multiple Slack processes or stale processes:
+
+# Option 1: Kill by pattern (recommended)
+pkill -f "tsx.*slack-bot"
+pkill -f "tsx.*watch.*slack"
+
+# Option 2: Kill specific PIDs
+ps aux | grep "slack" | grep -v grep | awk '{print $2}' | xargs kill -9
+
+# Option 3: Use run.sh stop (cleans up properly)
+./run.sh dev stop
+```
+
+#### Best Practices for Multi-Worktree Development with Slack
+
+1. **Designate one worktree for Slack testing** - Don't run Slack in multiple worktrees
+2. **Stop Slack in main repo when testing in worktree** - Run `./run.sh dev stop` in main repo first
+3. **Use `--no-slack` flag** when you don't need Slack: `./run.sh dev --no-slack`
+4. **Check logs for connection issues**:
+   ```bash
+   tail -f logs/instance-0/slack-bot.log | grep -E "(connected|error|conflict)"
+   ```
+5. **Verify single connection** before testing:
+   ```bash
+   # Should see exactly one "Now connected to Slack" message
+   grep "Now connected to Slack" logs/instance-0/slack-bot.log | tail -1
+   ```
+
+#### Troubleshooting Slack Connection Issues
+
+**Symptom**: Bot doesn't respond to messages
+
+```bash
+# Check if bot is connected
+grep -E "(connected|error|disconnect)" logs/instance-0/slack-bot.log | tail -10
+
+# Kill all instances and restart fresh
+pkill -f "slack-bot"
+sleep 2
+./run.sh dev
+```
+
+**Symptom**: Duplicate responses or messages lost
+
+```bash
+# Multiple bots are likely running - kill all and restart one
+pkill -f "tsx.*slack"
+./run.sh dev stop  # In ALL worktrees
+./run.sh dev       # In ONLY the worktree you want to use
+```
+
+**Symptom**: "socket hang up" or connection errors
+
+```bash
+# OpenCode server might be down
+curl -s http://localhost:4099/global/health || echo "OpenCode not running"
+
+# Restart everything
+./run.sh dev stop && ./run.sh dev
+```
+
 ## Initial Setup (After Worktree Creation)
 
 When a worktree is first created, run these commands:
@@ -2178,6 +2285,335 @@ curl -H "Authorization: Bearer $TOKEN" \
 9. **✅ Use factory functions** - Easier to mock for testing
 10. **✅ Follow dependency injection** - Pass dependencies to constructors
 
+### Database Service Integration for Bots
+
+**Critical Pattern**: When integrating services like PromptService into bot entry points, you must understand which database types implement which interfaces.
+
+#### Understanding Database Type Requirements
+
+**The Key Concept**: Different services require different database interfaces. Using the wrong database type will cause TypeScript compilation errors.
+
+**Common TypeScript Error**:
+
+```typescript
+// ❌ WRONG - TypeScript compilation error
+import { createSlackDatabase, createPromptService } from '@orient/database-services';
+
+const slackDatabase = createSlackDatabase();
+const promptService = createPromptService(slackDatabase); // ERROR!
+
+// Error: Argument of type 'SlackDatabase' is not assignable to parameter of type 'PromptDatabaseInterface'.
+// Type 'SlackDatabase' is missing properties: getSystemPromptText, getSystemPrompt, setSystemPrompt, deleteSystemPrompt, etc.
+```
+
+**Why This Fails**:
+
+- `PromptService` requires a database implementing `PromptDatabaseInterface`
+- `SlackDatabase` implements `SlackDatabaseInterface` (platform-specific operations)
+- `MessageDatabase` implements `PromptDatabaseInterface` (cross-platform operations including prompts)
+
+#### Correct Pattern: Using MessageDatabase
+
+**Bot Entry Point Pattern** (`packages/bot-slack/src/main.ts`):
+
+```typescript
+import { createSlackBotService } from './services/index.js';
+import { createServiceLogger, loadConfig, getConfig } from '@orient/core';
+import {
+  createSecretsService,
+  createSlackDatabase, // Platform-specific database
+  createMessageDatabase, // Cross-platform database (for prompts)
+  createPromptService,
+} from '@orient/database-services';
+
+const logger = createServiceLogger('slack-bot');
+
+async function main(): Promise<void> {
+  try {
+    // ... config loading ...
+
+    // Initialize BOTH databases
+    const slackDatabase = createSlackDatabase(); // For Slack-specific data
+    const messageDatabase = createMessageDatabase(); // For cross-platform data
+
+    // PromptService uses MessageDatabase (implements PromptDatabaseInterface)
+    const promptService = createPromptService(messageDatabase);
+    logger.info('Prompt service initialized');
+
+    // Create bot with platform-specific database
+    const slackBot = createSlackBotService(config, slackDatabase);
+
+    // Attach prompt service to bot
+    slackBot.setPromptService(promptService);
+    logger.info('Prompt service configured for Slack bot');
+
+    await slackBot.start();
+  } catch (error) {
+    logger.error('Failed to start Slack Bot', { error });
+    process.exit(1);
+  }
+}
+```
+
+#### Why Multiple Databases?
+
+**Database Separation by Concern**:
+
+```
+Platform-Specific Databases:
+├─ SlackDatabase
+│  ├─ slack_channels (Slack channel metadata)
+│  ├─ slack_messages (Slack-specific message fields)
+│  └─ slack_threads (thread tracking)
+│
+└─ WhatsAppDatabase
+   ├─ whatsapp_contacts (contact info)
+   ├─ whatsapp_groups (group metadata)
+   └─ whatsapp_media (media references)
+
+Cross-Platform Database:
+└─ MessageDatabase (implements PromptDatabaseInterface)
+   ├─ messages (normalized cross-platform messages)
+   ├─ system_prompts (shared prompts for all platforms)
+   └─ message_context (conversation context)
+```
+
+**Design Rationale**:
+
+- **Prompts are cross-platform**: Same prompt system works for Slack, WhatsApp, Discord, etc.
+- **Platform-specific data stays isolated**: Slack threads don't mix with WhatsApp groups
+- **Services use appropriate database**: PromptService → MessageDatabase, SlackService → SlackDatabase
+
+#### Verifying Service Initialization in Logs
+
+After starting a bot, verify services initialized correctly by checking logs:
+
+**Log File Location**:
+
+```bash
+# For Slack bot
+tail -f logs/instance-9/slack-dev.log
+
+# For WhatsApp bot
+tail -f logs/instance-9/whatsapp-dev.log
+```
+
+**Expected Log Sequence**:
+
+```
+2026-01-19 06:27:14.601 [INFO] [slack-db] Slack database pool created
+  → {
+    "connectionString": "postgresql://orient:****@localhost:14432/whatsapp_bot_9"
+  }
+
+2026-01-19 06:27:14.601 [INFO] [message-db] Database pool created
+  → {
+    "connectionString": "postgresql://orient:****@localhost:14432/whatsapp_bot_9"
+  }
+
+2026-01-19 06:27:14.602 [INFO] [prompt-service] Prompt service initialized
+  → {
+    "cacheEnabled": true
+  }
+
+2026-01-19 06:27:14.602 [INFO] [slack-bot] Prompt service initialized
+
+2026-01-19 06:27:14.621 [INFO] [slack-bot] Prompt service configured for Slack bot
+
+2026-01-19 06:27:15.327 [INFO] [slack-bot] Slack Bot is ready!
+```
+
+**Key Log Indicators**:
+
+1. ✅ `[slack-db] Slack database pool created` - Platform database initialized
+2. ✅ `[message-db] Database pool created` - Cross-platform database initialized
+3. ✅ `[prompt-service] Prompt service initialized` - Service created successfully
+4. ✅ `[slack-bot] Prompt service configured` - Service attached to bot
+5. ✅ `[slack-bot] Slack Bot is ready!` - Bot fully operational
+
+**Missing Log Indicators** (problems):
+
+```bash
+# If you see this but NOT the message-db/prompt-service logs:
+[INFO] [slack-bot] Starting Slack Bot...
+[INFO] [slack-db] Slack database pool created
+[ERROR] [slack-bot] Failed to handle message: Cannot read property 'getSystemPromptText' of undefined
+
+# Cause: PromptService was never initialized in main.ts
+```
+
+#### Common Mistakes and Fixes
+
+**Mistake 1: Using Platform Database Instead of MessageDatabase**
+
+```typescript
+// ❌ WRONG - TypeScript error
+const slackDatabase = createSlackDatabase();
+const promptService = createPromptService(slackDatabase);
+
+// Error: Type 'SlackDatabase' is not assignable to 'PromptDatabaseInterface'
+
+// ✅ CORRECT
+const slackDatabase = createSlackDatabase();
+const messageDatabase = createMessageDatabase();
+const promptService = createPromptService(messageDatabase);
+```
+
+**Mistake 2: Forgetting to Import MessageDatabase**
+
+```typescript
+// ❌ WRONG - Missing import
+import {
+  createSlackDatabase,
+  createPromptService, // No createMessageDatabase!
+} from '@orient/database-services';
+
+// ✅ CORRECT
+import {
+  createSlackDatabase,
+  createMessageDatabase, // Added
+  createPromptService,
+} from '@orient/database-services';
+```
+
+**Mistake 3: Forgetting to Attach Service to Bot**
+
+```typescript
+// ❌ WRONG - Service created but never used
+const promptService = createPromptService(messageDatabase);
+const slackBot = createSlackBotService(config, slackDatabase);
+// Missing: slackBot.setPromptService(promptService)
+
+await slackBot.start(); // Bot will crash when trying to use prompts
+
+// ✅ CORRECT
+const promptService = createPromptService(messageDatabase);
+logger.info('Prompt service initialized');
+
+const slackBot = createSlackBotService(config, slackDatabase);
+
+slackBot.setPromptService(promptService); // Attach it!
+logger.info('Prompt service configured for Slack bot');
+
+await slackBot.start();
+```
+
+**Mistake 4: Not Logging Initialization Steps**
+
+```typescript
+// ❌ BAD - Silent failures hard to debug
+const messageDatabase = createMessageDatabase();
+const promptService = createPromptService(messageDatabase);
+slackBot.setPromptService(promptService);
+
+// ✅ GOOD - Clear audit trail
+const messageDatabase = createMessageDatabase();
+logger.info('Message database initialized');
+
+const promptService = createPromptService(messageDatabase);
+logger.info('Prompt service initialized');
+
+slackBot.setPromptService(promptService);
+logger.info('Prompt service configured for Slack bot');
+```
+
+#### Troubleshooting Service Integration
+
+**Problem: Bot crashes on message handling**
+
+```bash
+# Symptom in logs:
+[ERROR] Cannot read property 'getSystemPromptText' of undefined
+
+# Debug steps:
+1. Check if PromptService was initialized:
+   grep "Prompt service initialized" logs/instance-9/slack-dev.log
+
+2. If missing, check main.ts for initialization code
+
+3. Verify MessageDatabase import and initialization
+
+4. Rebuild and restart:
+   pnpm --filter @orient/bot-slack run build
+   ./run.sh dev
+```
+
+**Problem: TypeScript compilation fails**
+
+```bash
+# Error:
+src/main.ts(121,47): error TS2345: Argument of type 'SlackDatabase' is not assignable to parameter of type 'PromptDatabaseInterface'.
+
+# Fix:
+1. Check which database you're passing to createPromptService()
+2. Replace with createMessageDatabase()
+3. Import createMessageDatabase from @orient/database-services
+```
+
+**Problem: Service initialized but prompts don't work**
+
+```bash
+# Logs show initialization but bot ignores custom prompts
+
+# Debug:
+1. Verify service was attached:
+   grep "Prompt service configured" logs/instance-9/slack-dev.log
+
+2. Check if setPromptService() was called after creating bot
+
+3. Test prompt API endpoint:
+   curl http://localhost:13098/api/prompts
+
+4. Verify custom prompt exists in database:
+   psql $DATABASE_URL -c "SELECT * FROM system_prompts WHERE platform='slack';"
+```
+
+#### When to Apply This Pattern
+
+Use this multiple-database pattern when:
+
+1. **Adding PromptService to any bot**: Slack, WhatsApp, Discord, Telegram, etc.
+2. **Integrating cross-platform services**: Any service that works across multiple messaging platforms
+3. **Creating new bot integrations**: Template for adding new messaging platform support
+4. **Debugging bot crashes**: If bot fails when handling messages, check service initialization
+
+#### Testing Database Service Integration
+
+**Unit Test Pattern**:
+
+```typescript
+// __tests__/main.test.ts
+import { createMessageDatabase, createPromptService } from '@orient/database-services';
+
+describe('Database Service Integration', () => {
+  it('should initialize PromptService with MessageDatabase', () => {
+    const messageDatabase = createMessageDatabase();
+    const promptService = createPromptService(messageDatabase);
+
+    expect(promptService).toBeDefined();
+    expect(typeof promptService.getSystemPromptText).toBe('function');
+  });
+
+  it('should throw TypeScript error if using wrong database', () => {
+    // This won't compile (that's the point!)
+    // const slackDatabase = createSlackDatabase();
+    // const promptService = createPromptService(slackDatabase); // TS Error
+  });
+});
+```
+
+**Integration Test Pattern**:
+
+```bash
+# Start bot and verify initialization
+./run.sh dev
+
+# Check logs for proper sequence
+tail -f logs/instance-9/slack-dev.log | grep -E "(message-db|prompt-service|configured)"
+
+# Expected output shows all three initialization steps
+```
+
 ## Worktree-Specific Considerations
 
 ### 1. Shared node_modules
@@ -2341,7 +2777,314 @@ docker ps | grep -E "orienter-.*-${AI_INSTANCE_ID}"  # Finds orienter-postgres-0
 4. Container names follow the pattern `orienter-<service>-<instance_id>`
 5. When scripting, match container names directly, not compose project names
 
-### 6. Verifying Instance Isolation
+### 6. Instance-Specific Environment Variable Configuration
+
+**Critical Setup**: When copying `.env` from the main repo to a worktree, you MUST update instance-specific values or services will connect to the wrong database and storage.
+
+#### The Problem
+
+**Symptom**: Services fail to start, or you accidentally connect to instance 0's database from instance 9.
+
+**Root Cause**: `.env` contains hard-coded values for instance 0:
+
+```bash
+DATABASE_URL=postgresql://orient:aibot123@localhost:5432/whatsapp_bot_0
+S3_ENDPOINT=http://localhost:9000
+```
+
+When you copy this to a worktree with instance ID 9, services try to connect to:
+
+- PostgreSQL on port **5432** (instance 0) instead of **14432** (instance 9)
+- MinIO on port **9000** (instance 0) instead of **18000** (instance 9)
+- Database **whatsapp_bot_0** instead of **whatsapp_bot_9**
+
+#### Auto-Detecting Instance ID
+
+The instance ID is calculated from the worktree path:
+
+```bash
+# Source instance environment variables
+source scripts/instance-env.sh
+
+# This sets:
+echo $AI_INSTANCE_ID      # e.g., 9
+echo $POSTGRES_PORT       # e.g., 14432 (5432 + 9×1000)
+echo $MINIO_API_PORT      # e.g., 18000 (9000 + 9×1000)
+echo $DASHBOARD_PORT      # e.g., 13098 (4098 + 9×1000)
+```
+
+**How Instance ID is Calculated**:
+
+```bash
+# From scripts/instance-env.sh (simplified)
+WORKTREE_PATH=$(pwd)
+WORKTREE_NAME=$(basename "$WORKTREE_PATH")
+
+# Hash worktree name to get instance ID (1-9)
+HASH=$(echo -n "$WORKTREE_NAME" | md5sum | cut -c1-8)
+INSTANCE_ID=$((16#$HASH % 9 + 1))
+
+# For main repo (no worktree)
+if [ "$IS_WORKTREE" = "false" ]; then
+  INSTANCE_ID=0
+fi
+```
+
+#### Fixing DATABASE_URL
+
+**Manual Fix**:
+
+```bash
+# 1. Source instance environment
+source scripts/instance-env.sh
+
+# 2. Extract credentials from current DATABASE_URL
+OLD_URL=$(grep "^DATABASE_URL=" .env | cut -d'=' -f2-)
+CREDS=$(echo "$OLD_URL" | grep -oE '//[^@]+@' | tr -d '/@')
+
+# 3. Build new URL with correct instance port and database
+NEW_URL="postgresql://${CREDS}@localhost:${POSTGRES_PORT}/whatsapp_bot_${AI_INSTANCE_ID}"
+
+# 4. Replace in .env
+sed -i '' "s|^DATABASE_URL=.*|DATABASE_URL=${NEW_URL}|" .env
+
+# 5. Verify
+echo "Updated DATABASE_URL:"
+grep DATABASE_URL .env
+```
+
+**Expected Result**:
+
+```bash
+# Before (instance 0):
+DATABASE_URL=postgresql://orient:aibot123@localhost:5432/whatsapp_bot_0
+
+# After (instance 9):
+DATABASE_URL=postgresql://orient:aibot123@localhost:14432/whatsapp_bot_9
+```
+
+#### Adding S3_ENDPOINT (MinIO)
+
+MinIO also needs instance-specific configuration:
+
+```bash
+# Source instance environment
+source scripts/instance-env.sh
+
+# Check if S3_ENDPOINT exists in .env
+if grep -q "^S3_ENDPOINT=" .env; then
+  # Update existing
+  sed -i '' "s|^S3_ENDPOINT=.*|S3_ENDPOINT=http://localhost:${MINIO_API_PORT}|" .env
+else
+  # Add new
+  echo "S3_ENDPOINT=http://localhost:${MINIO_API_PORT}" >> .env
+fi
+
+# Also add AI_INSTANCE_ID for clarity
+if ! grep -q "^AI_INSTANCE_ID=" .env; then
+  echo "AI_INSTANCE_ID=${AI_INSTANCE_ID}" >> .env
+fi
+
+echo "Updated MinIO configuration:"
+grep -E "(S3_ENDPOINT|AI_INSTANCE_ID)" .env
+```
+
+**Expected Result**:
+
+```bash
+S3_ENDPOINT=http://localhost:18000
+AI_INSTANCE_ID=9
+```
+
+#### Complete Worktree .env Setup Script
+
+**Automated setup** when creating a new worktree:
+
+```bash
+#!/bin/bash
+# setup-worktree-env.sh
+# Run after copying .env from main repo
+
+set -e
+
+echo "=== Configuring .env for Worktree Instance ==="
+
+# 1. Source instance environment
+source scripts/instance-env.sh
+
+echo "📋 Instance Configuration:"
+echo "   AI_INSTANCE_ID:    $AI_INSTANCE_ID"
+echo "   POSTGRES_PORT:     $POSTGRES_PORT"
+echo "   MINIO_API_PORT:    $MINIO_API_PORT"
+echo ""
+
+# 2. Fix DATABASE_URL
+echo "🔧 Fixing DATABASE_URL..."
+OLD_URL=$(grep "^DATABASE_URL=" .env | head -1 | cut -d'=' -f2-)
+if [ -z "$OLD_URL" ]; then
+  echo "❌ DATABASE_URL not found in .env"
+  exit 1
+fi
+
+# Extract credentials
+CREDS=$(echo "$OLD_URL" | grep -oE '//[^@]+@' | tr -d '/@')
+NEW_URL="postgresql://${CREDS}@localhost:${POSTGRES_PORT}/whatsapp_bot_${AI_INSTANCE_ID}"
+
+# Replace
+sed -i '' "s|^DATABASE_URL=.*|DATABASE_URL=${NEW_URL}|" .env
+echo "   ✅ DATABASE_URL: ...@localhost:${POSTGRES_PORT}/whatsapp_bot_${AI_INSTANCE_ID}"
+
+# 3. Fix/Add S3_ENDPOINT
+echo "🔧 Configuring MinIO endpoint..."
+if grep -q "^S3_ENDPOINT=" .env; then
+  sed -i '' "s|^S3_ENDPOINT=.*|S3_ENDPOINT=http://localhost:${MINIO_API_PORT}|" .env
+else
+  echo "S3_ENDPOINT=http://localhost:${MINIO_API_PORT}" >> .env
+fi
+echo "   ✅ S3_ENDPOINT: http://localhost:${MINIO_API_PORT}"
+
+# 4. Add AI_INSTANCE_ID
+if ! grep -q "^AI_INSTANCE_ID=" .env; then
+  echo "" >> .env
+  echo "# Instance-specific configuration (auto-generated)" >> .env
+  echo "AI_INSTANCE_ID=${AI_INSTANCE_ID}" >> .env
+  echo "   ✅ Added AI_INSTANCE_ID=${AI_INSTANCE_ID}"
+fi
+
+echo ""
+echo "✅ Environment configured for instance $AI_INSTANCE_ID"
+echo ""
+echo "Verify with:"
+echo "  grep -E '(DATABASE_URL|S3_ENDPOINT|AI_INSTANCE_ID)' .env"
+```
+
+**Usage**:
+
+```bash
+# After copying .env from main repo
+cp $ROOT_WORKTREE_PATH/.env .env
+
+# Run setup script
+./scripts/setup-worktree-env.sh
+
+# Or manually:
+source scripts/instance-env.sh
+# ... run the sed commands above ...
+```
+
+#### Migrating Secrets to Database
+
+After fixing `.env`, migrate secrets from `.env` to the database:
+
+```bash
+# Set master encryption key (from main repo's .env)
+export ORIENT_MASTER_KEY="your-master-key-from-main-env"
+
+# Run migration script
+npx tsx scripts/migrate-secrets-to-db.ts
+
+# Expected output:
+# ✅ Migrated 7 secrets:
+#    - SLACK_BOT_TOKEN
+#    - SLACK_APP_TOKEN
+#    - SLACK_SIGNING_SECRET
+#    - SLACK_USER_TOKEN
+#    - OPENAI_API_KEY
+#    - ANTHROPIC_API_KEY
+#    - WHATSAPP_PHONE_NUMBER_ID
+```
+
+**What This Does**:
+
+1. Reads secrets from `.env` (e.g., `SLACK_BOT_TOKEN=xoxb-...`)
+2. Encrypts them using `ORIENT_MASTER_KEY`
+3. Stores encrypted values in `secrets` table
+4. Services load secrets from database instead of `.env`
+
+**Important**: The migration script uses `DATABASE_URL` from `.env`, which is why fixing it first is critical!
+
+#### Verification Checklist
+
+After configuring `.env`, verify instance isolation:
+
+```bash
+# 1. Check environment variables
+source scripts/instance-env.sh
+echo "Instance ID: $AI_INSTANCE_ID"
+
+# 2. Verify DATABASE_URL port
+DB_PORT=$(grep DATABASE_URL .env | grep -oE 'localhost:[0-9]+' | cut -d':' -f2)
+echo "DATABASE_URL port: $DB_PORT (expected: $POSTGRES_PORT)"
+
+# 3. Verify database name
+DB_NAME=$(grep DATABASE_URL .env | grep -oE '/[^/]+$' | tr -d '/')
+echo "Database name: $DB_NAME (expected: whatsapp_bot_$AI_INSTANCE_ID)"
+
+# 4. Verify MinIO endpoint
+MINIO_PORT=$(grep S3_ENDPOINT .env | grep -oE ':[0-9]+' | tr -d ':')
+echo "MinIO port: $MINIO_PORT (expected: $MINIO_API_PORT)"
+
+# 5. Test database connection
+psql "$(grep DATABASE_URL .env | cut -d'=' -f2-)" -c "SELECT 1" >/dev/null && \
+  echo "✅ Database connection successful" || \
+  echo "❌ Database connection failed"
+```
+
+#### Common Issues
+
+**Issue 1: Database authentication failed**
+
+```bash
+# Error: password authentication failed for user "orient"
+# Cause: DATABASE_URL points to wrong port
+
+# Fix:
+source scripts/instance-env.sh
+sed -i '' "s|localhost:[0-9]\{4,5\}|localhost:${POSTGRES_PORT}|" .env
+```
+
+**Issue 2: Services connect to wrong instance**
+
+```bash
+# Symptom: Instance 9 sees data from instance 0
+# Cause: DATABASE_URL still points to whatsapp_bot_0
+
+# Fix database name:
+sed -i '' "s|/whatsapp_bot_[0-9]|/whatsapp_bot_${AI_INSTANCE_ID}|" .env
+```
+
+**Issue 3: MinIO bucket not found**
+
+```bash
+# Error: Bucket 'orient-data' not found
+# Cause: S3_ENDPOINT not set, defaults to instance 0
+
+# Fix:
+source scripts/instance-env.sh
+echo "S3_ENDPOINT=http://localhost:${MINIO_API_PORT}" >> .env
+```
+
+#### Environment Variable Reference
+
+**Instance-Specific Variables** (must be updated per instance):
+
+| Variable                  | Instance 0              | Instance 9               | Formula              |
+| ------------------------- | ----------------------- | ------------------------ | -------------------- |
+| `AI_INSTANCE_ID`          | `0`                     | `9`                      | Auto-detected        |
+| `DATABASE_URL` (port)     | `5432`                  | `14432`                  | 5432 + (ID × 1000)   |
+| `DATABASE_URL` (database) | `whatsapp_bot_0`        | `whatsapp_bot_9`         | `whatsapp_bot_${ID}` |
+| `S3_ENDPOINT`             | `http://localhost:9000` | `http://localhost:18000` | 9000 + (ID × 1000)   |
+| `DASHBOARD_PORT`          | `4098`                  | `13098`                  | 4098 + (ID × 1000)   |
+| `OPENCODE_PORT`           | `4099`                  | `13099`                  | 4099 + (ID × 1000)   |
+
+**Shared Variables** (same across all instances):
+
+- `ORIENT_MASTER_KEY` - Encryption key for secrets
+- `SLACK_BOT_TOKEN` - Stored in database, not `.env`
+- `OPENAI_API_KEY` - Stored in database, not `.env`
+- Most service credentials (migrate to database)
+
+### 7. Verifying Instance Isolation
 
 **CRITICAL**: When running multiple instances, you MUST verify that your `.env` file is properly configured for your instance. A common issue is copying `.env` from the main repo without updating instance-specific values.
 

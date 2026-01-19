@@ -8,10 +8,10 @@ export type GlobalView =
   | 'billing'
   | 'integrations'
   | 'automation'
-  | 'prompts'
   | 'agents'
   | 'apps'
   | 'monitoring'
+  | 'storage'
   | 'settings';
 export type IntegrationsView = 'catalog' | 'mcp-servers' | 'dual-mode' | 'secrets' | 'providers';
 export type AutomationView = 'schedules' | 'webhooks';
@@ -39,9 +39,9 @@ export const ROUTES = {
   AUTOMATION: '/automation',
   AUTOMATION_SCHEDULES: '/automation/schedules',
   AUTOMATION_WEBHOOKS: '/automation/webhooks',
-  PROMPTS: '/prompts',
   BILLING: '/billing',
   MONITORING: '/monitoring',
+  STORAGE: '/storage',
   SETTINGS: '/settings',
   SETTINGS_CONNECTIONS: '/settings/connections',
   SETTINGS_CONNECTIONS_CATALOG: '/settings/connections/catalog',
@@ -103,14 +103,14 @@ export function getRouteState(pathname: string): RouteState {
   if (pathname.startsWith('/automation')) {
     return { ...defaultState, globalView: 'automation', automationView: 'schedules' };
   }
-  if (pathname.startsWith('/prompts')) {
-    return { ...defaultState, globalView: 'prompts' };
-  }
   if (pathname.startsWith('/billing')) {
     return { ...defaultState, globalView: 'billing' };
   }
   if (pathname.startsWith('/monitoring')) {
     return { ...defaultState, globalView: 'monitoring' };
+  }
+  if (pathname.startsWith('/storage')) {
+    return { ...defaultState, globalView: 'storage' };
   }
 
   // Settings routes
@@ -207,12 +207,12 @@ export function getRoutePath(
         return ROUTES.AGENTS;
       case 'apps':
         return ROUTES.APPS;
-      case 'prompts':
-        return ROUTES.PROMPTS;
       case 'billing':
         return ROUTES.BILLING;
       case 'monitoring':
         return ROUTES.MONITORING;
+      case 'storage':
+        return ROUTES.STORAGE;
     }
   }
 

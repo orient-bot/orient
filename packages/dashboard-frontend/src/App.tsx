@@ -21,7 +21,7 @@ import {
 import LoginForm from './components/LoginForm';
 import SetupForm from './components/SetupForm';
 import SetupWizard from './components/SetupWizard';
-import ChatList from './components/ChatList';
+import WhatsAppService from './components/WhatsAppService';
 import SlackChannels from './components/SlackChannels';
 import AuditLog from './components/AuditLog';
 import BillingTab from './components/BillingTab';
@@ -30,10 +30,10 @@ import AgentCapabilitiesSidebar from './components/AgentCapabilitiesSidebar';
 import DualModeSettings from './components/DualModeSettings';
 import SchedulesTab from './components/SchedulesTab';
 import WebhooksTab from './components/WebhooksTab';
-import SystemPrompts from './components/SystemPrompts';
 import AgentsTab from './components/AgentsTab';
 import AppsTab from './components/AppsTab';
 import MonitoringTab from './components/MonitoringTab';
+import StorageTab from './components/StorageTab';
 import WorkspaceSetupPanel from './components/WorkspaceSetupPanel';
 import SecretsTab from './components/SecretsTab';
 import ProvidersTab from './components/ProvidersTab';
@@ -465,30 +465,6 @@ function AppContent() {
     }
 
     cmds.push({
-      id: 'nav-prompts',
-      label: 'System Prompts',
-      description: 'Configure AI system prompts',
-      category: 'navigation',
-      keywords: ['ai', 'instructions', 'behavior'],
-      icon: (
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="16"
-          height="16"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-        </svg>
-      ),
-      action: () => navigate(ROUTES.PROMPTS),
-    });
-
-    cmds.push({
       id: 'nav-agents',
       label: 'Agents',
       description: 'Agent registry and configuration',
@@ -591,6 +567,32 @@ function AppContent() {
         </svg>
       ),
       action: () => navigate(ROUTES.MONITORING),
+    });
+
+    cmds.push({
+      id: 'nav-storage',
+      label: 'Storage',
+      description: 'Database, media, and cloud storage',
+      category: 'navigation',
+      keywords: ['database', 'media', 'files', 'postgresql', 'session', 'cleanup'],
+      icon: (
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <ellipse cx="12" cy="5" rx="9" ry="3" />
+          <path d="M3 5V19A9 3 0 0 0 21 19V5" />
+          <path d="M3 12A9 3 0 0 0 21 12" />
+        </svg>
+      ),
+      action: () => navigate(ROUTES.STORAGE),
     });
 
     // Actions
@@ -1212,13 +1214,13 @@ function AppContent() {
           <WebhooksTab onRefresh={handleRefresh} />
         )}
 
-        {globalView === 'prompts' && <SystemPrompts onUpdate={handleRefresh} />}
-
         {globalView === 'agents' && <AgentsTab onUpdate={handleRefresh} />}
 
         {globalView === 'apps' && <AppsTab />}
 
         {globalView === 'monitoring' && <MonitoringTab />}
+
+        {globalView === 'storage' && <StorageTab />}
 
         {globalView === 'settings' && (
           <SettingsLayout currentView={settingsView}>
@@ -1259,10 +1261,10 @@ function AppContent() {
         {!globalView && activeService === 'whatsapp' && (
           <>
             {!needsWhatsAppPairingActive && whatsappView === 'chats' && (
-              <ChatList discover={false} onUpdate={handleRefresh} />
+              <WhatsAppService discover={false} onUpdate={handleRefresh} />
             )}
             {!needsWhatsAppPairingActive && whatsappView === 'discover' && (
-              <ChatList discover={true} onUpdate={handleRefresh} />
+              <WhatsAppService discover={true} onUpdate={handleRefresh} />
             )}
             {!needsWhatsAppPairingActive && whatsappView === 'audit' && <AuditLog />}
           </>

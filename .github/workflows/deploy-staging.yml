@@ -1,0 +1,627 @@
+# =============================================================================
+# Orient - Staging Deployment Pipeline
+# =============================================================================
+# This workflow builds ARM64 Docker images and deploys to staging environment.
+#
+# Features:
+# - Triggers on push to staging/develop branches
+# - Builds images with :staging tag
+# - Deploys to staging stack (separate database, ports, SSL cert)
+# - Smart change detection: only builds images for changed packages
+# - Test guard-rails: deployment blocked if tests fail
+# - Health verification after deployment
+# - Concurrency control: only one staging deployment at a time
+#
+# Trigger: Push to staging or develop branch
+# Registry: GitHub Container Registry (ghcr.io)
+# Target: Oracle Cloud ARM64 instance (staging subdomain)
+# =============================================================================
+
+name: Deploy Staging
+
+on:
+  push:
+    branches: [staging, develop]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - 'meetings/**'
+      - 'planning/**'
+  workflow_dispatch:
+    inputs:
+      force_build_all:
+        description: 'Force rebuild all images (bypass change detection)'
+        required: false
+        default: 'false'
+        type: boolean
+
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ghcr.io/${{ github.repository }}
+  IMAGE_TAG: staging
+
+jobs:
+  # ===========================================================================
+  # Detect Changes
+  # ===========================================================================
+  detect-changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      opencode: ${{ steps.changes.outputs.opencode }}
+      whatsapp: ${{ steps.changes.outputs.whatsapp }}
+      dashboard: ${{ steps.changes.outputs.dashboard }}
+      slack: ${{ steps.changes.outputs.slack }}
+      any_image: ${{ steps.changes.outputs.opencode == 'true' || steps.changes.outputs.whatsapp == 'true' || steps.changes.outputs.dashboard == 'true' || steps.changes.outputs.slack == 'true' }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Check for force build
+        id: force
+        run: |
+          if [[ "${{ github.event.inputs.force_build_all }}" == "true" ]]; then
+            echo "Force build requested - all images will be built"
+            echo "force=true" >> $GITHUB_OUTPUT
+          else
+            echo "force=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Detect file changes
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            opencode:
+              - 'src/**'
+              - 'packages/core/**'
+              - 'packages/mcp-tools/**'
+              - 'packages/mcp-servers/**'
+              - 'packages/agents/**'
+              - 'docker/Dockerfile.opencode*'
+              - 'package.json'
+              - 'pnpm-lock.yaml'
+              - 'tsconfig.json'
+            whatsapp:
+              - 'packages/bot-whatsapp/**'
+              - 'packages/core/**'
+              - 'packages/database/**'
+              - 'package.json'
+              - 'pnpm-lock.yaml'
+            dashboard:
+              - 'packages/dashboard/**'
+              - 'packages/dashboard-frontend/**'
+              - 'packages/core/**'
+              - 'package.json'
+              - 'pnpm-lock.yaml'
+            slack:
+              - 'packages/bot-slack/**'
+              - 'packages/core/**'
+              - 'package.json'
+              - 'pnpm-lock.yaml'
+
+      - name: Compute final change flags
+        id: changes
+        run: |
+          if [[ "${{ steps.force.outputs.force }}" == "true" ]]; then
+            echo "opencode=true" >> $GITHUB_OUTPUT
+            echo "whatsapp=true" >> $GITHUB_OUTPUT
+            echo "dashboard=true" >> $GITHUB_OUTPUT
+            echo "slack=true" >> $GITHUB_OUTPUT
+          else
+            echo "opencode=${{ steps.filter.outputs.opencode }}" >> $GITHUB_OUTPUT
+            echo "whatsapp=${{ steps.filter.outputs.whatsapp }}" >> $GITHUB_OUTPUT
+            echo "dashboard=${{ steps.filter.outputs.dashboard }}" >> $GITHUB_OUTPUT
+            echo "slack=${{ steps.filter.outputs.slack }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Change Detection Summary
+        run: |
+          echo ""
+          echo "==============================================================="
+          echo "  STAGING - CHANGE DETECTION SUMMARY"
+          echo "==============================================================="
+          echo "  Force build:        ${{ steps.force.outputs.force }}"
+          echo "  OpenCode changed:   ${{ steps.changes.outputs.opencode }}"
+          echo "  WhatsApp changed:   ${{ steps.changes.outputs.whatsapp }}"
+          echo "  Dashboard changed:  ${{ steps.changes.outputs.dashboard }}"
+          echo "  Slack changed:      ${{ steps.changes.outputs.slack }}"
+          echo "==============================================================="
+
+  # ===========================================================================
+  # Run Tests
+  # ===========================================================================
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build packages
+        run: NODE_OPTIONS="--max-old-space-size=4096" pnpm run build:packages
+
+      - name: Run tests
+        run: pnpm run test:ci
+
+      - name: Test Summary
+        if: always()
+        run: |
+          echo ""
+          echo "==============================================================="
+          echo "  STAGING - TEST SUMMARY"
+          echo "==============================================================="
+          echo "  Commit:    ${{ github.sha }}"
+          echo "  Branch:    ${{ github.ref_name }}"
+          echo "  Status:    ${{ job.status }}"
+          echo "==============================================================="
+
+  # ===========================================================================
+  # Build OpenCode Image (Staging)
+  # ===========================================================================
+  build-opencode:
+    needs: [test, detect-changes]
+    if: needs.detect-changes.outputs.opencode == 'true'
+    name: Build OpenCode Image (Staging)
+    runs-on: [self-hosted, linux, arm64]
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_PREFIX }}/opencode
+          tags: |
+            type=raw,value=staging
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: docker/Dockerfile.opencode.legacy
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ===========================================================================
+  # Build WhatsApp Bot Image (Staging)
+  # ===========================================================================
+  build-whatsapp:
+    needs: [test, detect-changes]
+    if: needs.detect-changes.outputs.whatsapp == 'true'
+    name: Build WhatsApp Bot Image (Staging)
+    runs-on: [self-hosted, linux, arm64]
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_PREFIX }}/whatsapp-bot
+          tags: |
+            type=raw,value=staging
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: packages/bot-whatsapp/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ===========================================================================
+  # Build Dashboard Image (Staging)
+  # ===========================================================================
+  build-dashboard:
+    needs: [test, detect-changes]
+    if: needs.detect-changes.outputs.dashboard == 'true'
+    name: Build Dashboard Image (Staging)
+    runs-on: [self-hosted, linux, arm64]
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_PREFIX }}/dashboard
+          tags: |
+            type=raw,value=staging
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: packages/dashboard/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ===========================================================================
+  # Build Slack Bot Image (Staging)
+  # ===========================================================================
+  build-slack:
+    needs: [test, detect-changes]
+    if: needs.detect-changes.outputs.slack == 'true'
+    name: Build Slack Bot Image (Staging)
+    runs-on: [self-hosted, linux, arm64]
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_PREFIX }}/slack-bot
+          tags: |
+            type=raw,value=staging
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: packages/bot-slack/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ===========================================================================
+  # Deploy to Staging Environment
+  # ===========================================================================
+  deploy:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: [test, detect-changes, build-opencode, build-whatsapp, build-dashboard, build-slack]
+    if: always() && needs.test.result == 'success' && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled')
+    environment: staging
+    concurrency:
+      group: deploy-staging-server
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      packages: read
+
+    steps:
+      - name: Check build results
+        run: |
+          echo "==============================================================="
+          echo "  STAGING - BUILD RESULTS"
+          echo "==============================================================="
+          echo "  OpenCode build:   ${{ needs.build-opencode.result || 'skipped' }}"
+          echo "  WhatsApp build:   ${{ needs.build-whatsapp.result || 'skipped' }}"
+          echo "  Dashboard build:  ${{ needs.build-dashboard.result || 'skipped' }}"
+          echo "  Slack build:      ${{ needs.build-slack.result || 'skipped' }}"
+          echo "==============================================================="
+
+          if [[ "${{ needs.build-opencode.result }}" == "failure" ]] || \
+             [[ "${{ needs.build-whatsapp.result }}" == "failure" ]] || \
+             [[ "${{ needs.build-dashboard.result }}" == "failure" ]] || \
+             [[ "${{ needs.build-slack.result }}" == "failure" ]]; then
+            echo "One or more builds failed!"
+            exit 1
+          fi
+          echo "All builds passed or were skipped (no changes)"
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.OCI_SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.OCI_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Pre-flight checks
+        env:
+          OCI_HOST: ${{ secrets.OCI_HOST }}
+          OCI_USER: ${{ secrets.OCI_USER }}
+        run: |
+          echo "Running pre-flight checks for staging..."
+
+          if ! ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 $OCI_USER@$OCI_HOST "echo 'SSH OK'"; then
+            echo "Cannot connect to server"
+            exit 1
+          fi
+          echo "SSH connectivity verified"
+
+          DISK_FREE=$(ssh $OCI_USER@$OCI_HOST "df -BG /home | tail -1 | awk '{print \$4}' | tr -d 'G'")
+          if [[ ${DISK_FREE} -lt 2 ]]; then
+            echo "Low disk space: ${DISK_FREE}GB free"
+            exit 1
+          fi
+          echo "Disk space OK: ${DISK_FREE}GB free"
+
+          if ! ssh $OCI_USER@$OCI_HOST "sudo docker info > /dev/null 2>&1"; then
+            echo "Docker is not running"
+            exit 1
+          fi
+          echo "Docker is running"
+
+          echo "Pre-flight checks passed!"
+
+      - name: Prepare staging directories
+        env:
+          OCI_HOST: ${{ secrets.OCI_HOST }}
+          OCI_USER: ${{ secrets.OCI_USER }}
+        run: |
+          echo "Preparing staging directories..."
+
+          ssh -o StrictHostKeyChecking=no $OCI_USER@$OCI_HOST << 'PREPARE_SCRIPT'
+            set -e
+
+            DEPLOY_DIR="${HOME}/orient"
+            DOCKER_DIR="${DEPLOY_DIR}/docker"
+            DATA_DIR="${DEPLOY_DIR}/data"
+
+            sudo mkdir -p "${DATA_DIR}/staging/whatsapp-auth" "${DATA_DIR}/staging/media"
+            sudo mkdir -p "${DEPLOY_DIR}/logs/staging"
+
+            sudo chown -R $(whoami):$(whoami) "${DEPLOY_DIR}" 2>/dev/null || true
+
+            sudo chown -R 1001:1001 "${DATA_DIR}/staging" 2>/dev/null || true
+            sudo chown -R 1001:1001 "${DEPLOY_DIR}/logs/staging" 2>/dev/null || true
+            sudo chmod -R 755 "${DATA_DIR}/staging" 2>/dev/null || true
+            sudo chmod -R 755 "${DEPLOY_DIR}/logs/staging" 2>/dev/null || true
+
+            echo "Staging directories prepared successfully"
+          PREPARE_SCRIPT
+
+      - name: Sync staging configuration files
+        env:
+          OCI_HOST: ${{ secrets.OCI_HOST }}
+          OCI_USER: ${{ secrets.OCI_USER }}
+        run: |
+          echo "Syncing staging configuration files..."
+
+          rsync -avzO --progress --timeout=60 \
+            -e 'ssh -o StrictHostKeyChecking=no' \
+            docker/docker-compose.v2.yml \
+            docker/docker-compose.staging.yml \
+            docker/nginx-staging.conf \
+            $OCI_USER@$OCI_HOST:~/orient/docker/
+
+          echo "Staging configuration synced"
+
+      - name: Update staging environment secrets
+        env:
+          OCI_HOST: ${{ secrets.OCI_HOST }}
+          OCI_USER: ${{ secrets.OCI_USER }}
+          DASHBOARD_JWT_SECRET: ${{ secrets.DASHBOARD_JWT_SECRET }}
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_SIGNING_SECRET: ${{ secrets.SLACK_SIGNING_SECRET }}
+          SLACK_APP_TOKEN: ${{ secrets.SLACK_APP_TOKEN }}
+          SLACK_STANDUP_CHANNEL: ${{ secrets.SLACK_STANDUP_CHANNEL }}
+          WHATSAPP_CLOUD_API_ENABLED: ${{ secrets.WHATSAPP_CLOUD_API_ENABLED }}
+          WHATSAPP_CLOUD_API_PHONE_NUMBER_ID: ${{ secrets.WHATSAPP_CLOUD_API_PHONE_NUMBER_ID }}
+          WHATSAPP_CLOUD_API_ACCESS_TOKEN: ${{ secrets.WHATSAPP_CLOUD_API_ACCESS_TOKEN }}
+          WHATSAPP_CLOUD_API_BUSINESS_ACCOUNT_ID: ${{ secrets.WHATSAPP_CLOUD_API_BUSINESS_ACCOUNT_ID }}
+          WHATSAPP_CLOUD_API_WEBHOOK_VERIFY_TOKEN: ${{ secrets.WHATSAPP_CLOUD_API_WEBHOOK_VERIFY_TOKEN }}
+          WHATSAPP_CLOUD_API_APP_SECRET: ${{ secrets.WHATSAPP_CLOUD_API_APP_SECRET }}
+          S3_BUCKET: ${{ secrets.S3_BUCKET }}
+          HEALTH_MONITOR_ENABLED: ${{ secrets.HEALTH_MONITOR_ENABLED }}
+          HEALTH_MONITOR_SLACK_USER_ID: ${{ secrets.HEALTH_MONITOR_SLACK_USER_ID }}
+        run: |
+          echo "Updating staging environment secrets..."
+
+          ssh -o StrictHostKeyChecking=no $OCI_USER@$OCI_HOST "touch ~/orient/.env"
+
+          [[ -n "$DASHBOARD_JWT_SECRET" ]] && ssh $OCI_USER@$OCI_HOST "grep -q '^DASHBOARD_JWT_SECRET=' ~/orient/.env 2>/dev/null && sed -i 's|^DASHBOARD_JWT_SECRET=.*|DASHBOARD_JWT_SECRET=$DASHBOARD_JWT_SECRET|' ~/orient/.env || echo 'DASHBOARD_JWT_SECRET=$DASHBOARD_JWT_SECRET' >> ~/orient/.env" && echo "  DASHBOARD_JWT_SECRET"
+          [[ -n "$SLACK_BOT_TOKEN" ]] && ssh $OCI_USER@$OCI_HOST "grep -q '^SLACK_BOT_TOKEN=' ~/orient/.env 2>/dev/null && sed -i 's|^SLACK_BOT_TOKEN=.*|SLACK_BOT_TOKEN=$SLACK_BOT_TOKEN|' ~/orient/.env || echo 'SLACK_BOT_TOKEN=$SLACK_BOT_TOKEN' >> ~/orient/.env" && echo "  SLACK_BOT_TOKEN"
+          [[ -n "$SLACK_SIGNING_SECRET" ]] && ssh $OCI_USER@$OCI_HOST "grep -q '^SLACK_SIGNING_SECRET=' ~/orient/.env 2>/dev/null && sed -i 's|^SLACK_SIGNING_SECRET=.*|SLACK_SIGNING_SECRET=$SLACK_SIGNING_SECRET|' ~/orient/.env || echo 'SLACK_SIGNING_SECRET=$SLACK_SIGNING_SECRET' >> ~/orient/.env" && echo "  SLACK_SIGNING_SECRET"
+          [[ -n "$SLACK_APP_TOKEN" ]] && ssh $OCI_USER@$OCI_HOST "grep -q '^SLACK_APP_TOKEN=' ~/orient/.env 2>/dev/null && sed -i 's|^SLACK_APP_TOKEN=.*|SLACK_APP_TOKEN=$SLACK_APP_TOKEN|' ~/orient/.env || echo 'SLACK_APP_TOKEN=$SLACK_APP_TOKEN' >> ~/orient/.env" && echo "  SLACK_APP_TOKEN"
+
+          echo "Staging environment secrets updated"
+
+      - name: Authenticate to container registry
+        env:
+          OCI_HOST: ${{ secrets.OCI_HOST }}
+          OCI_USER: ${{ secrets.OCI_USER }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Authenticating to container registry..."
+          ssh -o StrictHostKeyChecking=no $OCI_USER@$OCI_HOST \
+            "echo '$GITHUB_TOKEN' | sudo docker login ghcr.io -u ${{ github.actor }} --password-stdin"
+          echo "Registry authentication successful"
+
+      - name: Deploy staging services
+        env:
+          OCI_HOST: ${{ secrets.OCI_HOST }}
+          OCI_USER: ${{ secrets.OCI_USER }}
+        run: |
+          echo "Deploying staging services..."
+
+          ssh -o StrictHostKeyChecking=no $OCI_USER@$OCI_HOST << 'DEPLOY_SCRIPT'
+            set -e
+
+            DEPLOY_DIR="${HOME}/orient"
+            DOCKER_DIR="${DEPLOY_DIR}/docker"
+            COMPOSE_FILES="-f docker-compose.v2.yml -f docker-compose.staging.yml"
+
+            cd "${DOCKER_DIR}"
+
+            echo "=== Staging Deployment Started ==="
+            echo "Time: $(date)"
+            echo "Commit: ${{ github.sha }}"
+
+            echo "Stopping staging services..."
+            sudo docker compose ${COMPOSE_FILES} down --remove-orphans 2>/dev/null || true
+
+            echo "Removing lingering staging containers..."
+            sudo docker rm -f orienter-postgres-staging orienter-nginx-staging orienter-bot-whatsapp-staging orienter-opencode-staging orienter-bot-slack-staging orienter-dashboard-staging 2>/dev/null || true
+
+            echo "Cleaning up..."
+            sudo docker container prune -f 2>/dev/null || true
+
+            echo "Pulling staging images..."
+            sudo docker compose ${COMPOSE_FILES} pull
+
+            echo "Starting staging services..."
+            sudo docker compose --env-file "${DEPLOY_DIR}/.env" ${COMPOSE_FILES} up -d
+
+            echo "Waiting for services to initialize..."
+            sleep 15
+
+            echo "=== Staging Service Status ==="
+            sudo docker compose ${COMPOSE_FILES} ps
+
+            echo "Cleaning old images..."
+            sudo docker image prune -f
+
+            echo "=== Staging Deployment Complete ==="
+          DEPLOY_SCRIPT
+
+      - name: Verify staging deployment
+        id: health_check
+        env:
+          OCI_HOST: ${{ secrets.OCI_HOST }}
+          OCI_USER: ${{ secrets.OCI_USER }}
+        run: |
+          echo "Verifying staging deployment health..."
+
+          sleep 10
+
+          HEALTHY=true
+
+          if curl -sf --max-time 10 "http://$OCI_HOST:8080/health" > /dev/null; then
+            echo "Nginx (staging): healthy"
+          else
+            echo "Nginx (staging): unhealthy"
+            HEALTHY=false
+          fi
+
+          if ssh $OCI_USER@$OCI_HOST "curl -sf --max-time 10 http://localhost:5099/global/health" > /dev/null; then
+            echo "OpenCode (staging): healthy"
+          else
+            echo "OpenCode (staging): may still be starting"
+          fi
+
+          if ssh $OCI_USER@$OCI_HOST "curl -sf --max-time 10 http://localhost:5098/health" > /dev/null; then
+            echo "Dashboard (staging): healthy"
+          else
+            echo "Dashboard (staging): may still be starting"
+          fi
+
+          echo "healthy=$HEALTHY" >> $GITHUB_OUTPUT
+
+          if [[ "$HEALTHY" == "true" ]]; then
+            echo ""
+            echo "Staging deployment verified successfully!"
+          else
+            echo ""
+            echo "Staging deployment verification failed!"
+          fi
+
+      - name: Deployment summary
+        if: always()
+        env:
+          OPENCODE_CHANGED: ${{ needs.detect-changes.outputs.opencode }}
+          WHATSAPP_CHANGED: ${{ needs.detect-changes.outputs.whatsapp }}
+          DASHBOARD_CHANGED: ${{ needs.detect-changes.outputs.dashboard }}
+          SLACK_CHANGED: ${{ needs.detect-changes.outputs.slack }}
+        run: |
+          echo ""
+          echo "==============================================================="
+          echo "  STAGING DEPLOYMENT SUMMARY"
+          echo "==============================================================="
+          echo "  Environment: STAGING"
+          echo "  Commit:      ${{ github.sha }}"
+          echo "  Branch:      ${{ github.ref_name }}"
+          echo "  Triggered:   ${{ github.event_name }}"
+          echo "  Actor:       ${{ github.actor }}"
+          echo "  Time:        $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+          echo "  -------------------------------------------------------------"
+          echo "  Images rebuilt:"
+          echo "    OpenCode:   $OPENCODE_CHANGED"
+          echo "    WhatsApp:   $WHATSAPP_CHANGED"
+          echo "    Dashboard:  $DASHBOARD_CHANGED"
+          echo "    Slack:      $SLACK_CHANGED"
+          echo "  -------------------------------------------------------------"
+          echo "  Access: https://staging.orient.bot"
+          echo "==============================================================="
