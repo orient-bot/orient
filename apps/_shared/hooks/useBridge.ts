@@ -84,6 +84,15 @@ export interface AppBridge {
     onWebhookReceived(endpointName: string, callback: (data: unknown) => void): () => void;
   };
 
+  // Storage operations (backend persistence)
+  storage: {
+    set(key: string, value: unknown): Promise<void>;
+    get<T = unknown>(key: string): Promise<T | null>;
+    delete(key: string): Promise<boolean>;
+    list(): Promise<string[]>;
+    clear(): Promise<number>;
+  };
+
   // Messaging
   slack: {
     sendDM(params: SendMessageParams): Promise<void>;
@@ -102,7 +111,10 @@ export interface AppBridge {
 // ============================================
 
 let requestId = 0;
-const pendingRequests = new Map<number, { resolve: (value: unknown) => void; reject: (error: Error) => void }>();
+const pendingRequests = new Map<
+  number,
+  { resolve: (value: unknown) => void; reject: (error: Error) => void }
+>();
 const webhookListeners = new Map<string, Set<(data: unknown) => void>>();
 
 // Detect if running in standalone mode (not in iframe with bridge)
@@ -154,6 +166,7 @@ interface Permissions {
 interface Capabilities {
   scheduler?: { enabled?: boolean; max_jobs?: number };
   webhooks?: { enabled?: boolean };
+  storage?: { enabled?: boolean };
 }
 
 function checkPermission(method: string): void {
@@ -194,6 +207,13 @@ function checkPermission(method: string): void {
   if (method.startsWith('webhooks.')) {
     if (!capabilities?.webhooks?.enabled) {
       throw new Error('Capability denied: webhooks not enabled in APP.yaml');
+    }
+  }
+
+  // Storage capability
+  if (method.startsWith('storage.')) {
+    if (!capabilities?.storage?.enabled) {
+      throw new Error('Capability denied: storage not enabled in APP.yaml');
     }
   }
 }
@@ -262,7 +282,10 @@ function callBridge<T>(method: string, params: Record<string, unknown>): Promise
 const bridge: AppBridge = {
   calendar: {
     listEvents: (startDate, endDate) =>
-      callBridge('calendar.listEvents', { startDate: startDate.toISOString(), endDate: endDate.toISOString() }),
+      callBridge('calendar.listEvents', {
+        startDate: startDate.toISOString(),
+        endDate: endDate.toISOString(),
+      }),
     createEvent: (params) =>
       callBridge('calendar.createEvent', { ...params, start: params.start.toISOString() }),
     updateEvent: (eventId, params) =>
@@ -285,8 +308,7 @@ const bridge: AppBridge = {
   },
 
   webhooks: {
-    getEndpointUrl: (endpointName) =>
-      callBridge('webhooks.getEndpointUrl', { endpointName }),
+    getEndpointUrl: (endpointName) => callBridge('webhooks.getEndpointUrl', { endpointName }),
     onWebhookReceived: (endpointName, callback) => {
       if (!webhookListeners.has(endpointName)) {
         webhookListeners.set(endpointName, new Set());
@@ -297,6 +319,24 @@ const bridge: AppBridge = {
       return () => {
         webhookListeners.get(endpointName)?.delete(callback);
       };
+    },
+  },
+
+  storage: {
+    set: async (key: string, value: unknown): Promise<void> => {
+      await callBridge('storage.set', { key, value });
+    },
+    get: async <T = unknown>(key: string): Promise<T | null> => {
+      return callBridge<T | null>('storage.get', { key });
+    },
+    delete: async (key: string): Promise<boolean> => {
+      const result = await callBridge<{ deleted: boolean }>('storage.delete', { key });
+      return result.deleted;
+    },
+    list: (): Promise<string[]> => callBridge('storage.list', {}),
+    clear: async (): Promise<number> => {
+      const result = await callBridge<{ cleared: number }>('storage.clear', {});
+      return result.cleared;
     },
   },
 
@@ -421,10 +461,7 @@ export function useBridge(): UseBridgeResult {
  * }
  * ```
  */
-export function useWebhookListener(
-  endpointName: string,
-  callback: (data: unknown) => void
-): void {
+export function useWebhookListener(endpointName: string, callback: (data: unknown) => void): void {
   const { bridge } = useBridge();
 
   useEffect(() => {
