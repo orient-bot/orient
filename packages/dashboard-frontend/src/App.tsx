@@ -91,6 +91,7 @@ function AppContent() {
   const [setupSkips, setSetupSkips] = useState<SetupSkipState>({ whatsapp: false, slack: false });
   const [servicesReady, setServicesReady] = useState(false);
   const [onboarderOpen, setOnboarderOpen] = useState(false);
+  const [showSlackOnboarding, setShowSlackOnboarding] = useState(false);
 
   const { setTheme } = useTheme();
   const commandPalette = useCommandPalette();
@@ -206,6 +207,22 @@ function AppContent() {
       setSetupSkips({ whatsapp: false, slack: false });
     }
   }, []);
+
+  // Check for pending Slack onboarding notification
+  useEffect(() => {
+    if (slackAvailable && !needsSetup) {
+      fetch('/onboarder/pending')
+        .then((res) => res.json())
+        .then((result) => {
+          if (result.hasPending && result.type === 'slack') {
+            setShowSlackOnboarding(true);
+            // Auto-open onboarder after 500ms
+            setTimeout(() => setOnboarderOpen(true), 500);
+          }
+        })
+        .catch((err) => console.error('Failed to check pending onboarding', err));
+    }
+  }, [slackAvailable, needsSetup]);
 
   const updateSetupSkips = (next: SetupSkipState) => {
     setSetupSkips(next);
@@ -1024,6 +1041,38 @@ function AppContent() {
               onClick={() => updateSetupSkips({ whatsapp: false, slack: false })}
             >
               Show reminders
+            </button>
+          </div>
+        </div>
+      )}
+
+      {showSlackOnboarding && (
+        <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-4 mb-4">
+          <div className="flex items-start gap-3">
+            <div className="text-2xl">🎉</div>
+            <div className="flex-1">
+              <h3 className="font-semibold text-foreground mb-1">Slack Connected Successfully!</h3>
+              <p className="text-sm text-muted-foreground mb-3">
+                Your Slack bot is configured and ready to use. Check your Slack DMs for a quick
+                start guide.
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowSlackOnboarding(false);
+                  setOnboarderOpen(true);
+                }}
+                className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-sm"
+              >
+                Learn More
+              </button>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowSlackOnboarding(false)}
+              className="text-muted-foreground hover:text-foreground text-xl leading-none"
+            >
+              ×
             </button>
           </div>
         </div>
