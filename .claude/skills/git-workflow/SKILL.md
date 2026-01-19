@@ -309,6 +309,104 @@ The hook only runs Prettier. If failing:
 7. **Use branches** - Never commit directly to main/dev
 8. **Keep commits small** - Easier to review, understand, and revert if needed
 
+## Commit Consolidation Strategy
+
+### When to Use `--amend` vs Creating New Commits
+
+Understanding when to consolidate commits vs keeping them separate improves both PR clarity and repository history.
+
+#### Prefer Creating New Commits When:
+
+1. **Each commit represents a distinct logical change** (e.g., feature implementation, bug fix, test addition)
+   - Example: First commit adds component, second adds tests, third refactors colors
+   - Reviewers can understand each change independently
+   - Easier to bisect if issues arise
+   - Better for understanding code evolution
+
+2. **Before pushing to remote or opening a PR**
+   - Keep the iteration history visible
+   - Shows problem-solving approach
+   - Demonstrates thorough testing at each step
+   - Useful for code review comments ("see commit 3 for details")
+
+3. **Multiple attempts at the same fix**
+   - Document what was tried and why it changed
+   - Example: "First attempt used `jq -s`, second attempt used `jq -cs` for compact output"
+
+#### Use `--amend` When:
+
+1. **Fixing typos or formatting in the last commit** (before pushing)
+   - Small corrections that don't warrant a separate commit
+   - Example: Missing semicolon, variable name typo
+
+2. **Adding forgotten changes to related work** (before pushing)
+   - Ensures logical grouping when pushed
+   - Only if you haven't pushed yet (never amend public history!)
+
+3. **The commit hasn't been pushed to remote**
+   - Use `git push --force-with-lease` if amending after pushing, but this is discouraged for shared branches
+
+#### Best Practices for PR Review Workflows
+
+**Multiple commits are often better for PRs because they:**
+
+- Show the development process and iteration
+- Allow reviewers to follow the reasoning
+- Make it easier to discuss specific changes
+- Help identify exactly when a bug was introduced (with `git bisect`)
+
+**Example PR workflow (3 commits):**
+
+```
+6a7fcf1 fix(ci): fix JSON array formatting in detect-changes workflow
+23d6d78 fix(ci): fix JSON array formatting in detect-changes workflow
+fe35c9a fix(ci): fix JSON array formatting in detect-changes workflow
+```
+
+This shows three separate attempts to fix the same issue - the first attempt used `xargs`, the second added `grep -v`, and the third added `jq -c`. The progression helps reviewers understand:
+
+- Why the first approaches didn't work
+- What the final solution was
+- How to avoid similar issues in the future
+
+**Consolidate commits with `git rebase -i` only when:**
+
+- Requested by project maintainers
+- You're preparing for production release
+- The PR is squash-merged anyway (then it doesn't matter)
+- You want a completely clean history for a stable branch
+
+### Local Testing of Workflow Changes
+
+**Important:** Test GitHub Actions workflow changes locally before pushing to CI, especially for JSON output formatting:
+
+```bash
+# Install act: https://github.com/nektos/act
+brew install act
+
+# Test a specific workflow job
+act -j detect-changes
+
+# Test with specific event
+act pull_request
+
+# Verbose output for debugging
+act -j detect-changes -v
+```
+
+**Why this matters:** We encountered `##[error]Invalid format '  "app-name"'` errors three times in CI because JSON formatting wasn't caught locally. Using `act` would have caught these issues immediately:
+
+```bash
+# This would have revealed the formatting issue:
+act -j detect-changes
+
+# Output would show:
+# ##[error]Unable to process file command 'output' successfully.
+# ##[error]Invalid format '  "simple-todo"'
+```
+
+Then fix locally and test again with `act` before pushing.
+
 ## GitHub Actions Workflow Debugging
 
 ### Multi-Job Dependency Troubleshooting
