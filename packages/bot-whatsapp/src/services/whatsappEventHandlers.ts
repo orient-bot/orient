@@ -181,6 +181,8 @@ async function handleReady(deps: EventHandlerDependencies): Promise<void> {
       });
       console.log(`🔄 Fetching names for ${groupsWithoutNames.length} group(s)...`);
 
+      const failedGroups: string[] = [];
+
       for (const groupId of groupsWithoutNames) {
         try {
           const metadata = await whatsappService.getGroupMetadata(groupId);
@@ -197,10 +199,47 @@ async function handleReady(deps: EventHandlerDependencies): Promise<void> {
             });
           }
         } catch (error) {
-          logger.debug('Failed to fetch group metadata', {
+          logger.warn('Failed to fetch group metadata', {
             groupId,
             error: error instanceof Error ? error.message : String(error),
           });
+          failedGroups.push(groupId);
+        }
+      }
+
+      // Retry failed groups once more with a delay (WhatsApp API rate limiting)
+      if (failedGroups.length > 0) {
+        logger.info('Retrying failed group metadata fetches', {
+          count: failedGroups.length,
+        });
+        console.log(`🔄 Retrying ${failedGroups.length} failed group(s)...`);
+
+        // Small delay before retry to avoid rate limiting
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+
+        for (const groupId of failedGroups) {
+          try {
+            const metadata = await whatsappService.getGroupMetadata(groupId);
+            if (metadata) {
+              await messageDb.upsertGroup(
+                metadata.id,
+                metadata.subject,
+                metadata.subject,
+                metadata.participants
+              );
+              logger.info('Fetched group metadata on retry', {
+                groupId,
+                name: metadata.subject,
+              });
+            }
+          } catch (error) {
+            logger.warn('Failed to fetch group metadata on retry', {
+              groupId,
+              error: error instanceof Error ? error.message : String(error),
+            });
+          }
+          // Small delay between retries
+          await new Promise((resolve) => setTimeout(resolve, 500));
         }
       }
 
@@ -232,24 +271,25 @@ async function handleReady(deps: EventHandlerDependencies): Promise<void> {
         adminJid,
         '🤖 *Bot Started! (OpenCode Mode)*\n\n' +
           'I am now online and ready to help.\n' +
-          'All AI processing is handled by OpenCode server.\n' +
           voiceStatus +
           '\n' +
           '🤖 Default AI: *Grok Code Fast 1*\n\n' +
-          '*How to interact:*\n' +
-          '• Send text messages\n' +
-          '• Send voice messages (Hebrew/English)\n' +
-          '• Send images for analysis\n\n' +
+          '📱 *Getting Started (First Time Setup):*\n' +
+          '1. Create a WhatsApp group with just yourself\n' +
+          '   • Name it "Orient" or whatever you like\n' +
+          '   • Tip: Add someone, then remove them to create a solo group\n' +
+          '2. Send any message to that group\n' +
+          '3. Open the Dashboard → Chats tab\n' +
+          '4. Find your group and change permission to "Read + Write"\n' +
+          "5. Send another message - I'll respond!\n\n" +
+          '🔒 *About Permissions:*\n' +
+          "• *Read Only* - I store messages but don't respond\n" +
+          '• *Read + Write* - I can respond to you in this chat\n\n' +
           '*Switch AI models:*\n' +
           '• "switch to grok" _(default)_\n' +
           '• "switch to gpt" _(GPT 5.2)_\n' +
           '• "switch to opus" _(Claude Opus 4.5)_\n' +
-          '• "switch to sonnet" _(Claude Sonnet 4.5)_\n\n' +
-          '*Try asking:*\n' +
-          '• Whats in progress?\n' +
-          '• Any blockers?\n' +
-          '• Weekly summary\n' +
-          '• Show me issue PROJ-123'
+          '• "switch to sonnet" _(Claude Sonnet 4.5)_'
       );
       logger.info('Sent startup message to admin');
     } catch (error) {
