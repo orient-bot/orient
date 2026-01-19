@@ -660,11 +660,45 @@ jobs:
               sleep 2
             done
 
-            echo "Starting services..."
-            sudo docker compose --env-file "${DEPLOY_DIR}/.env" ${COMPOSE_FILES} up -d
+            # Start services in stages to avoid health check race conditions
+            # Stage 1: Start backend services (depends on postgres being ready)
+            echo "Starting backend services (dashboard, opencode)..."
+            sudo docker compose --env-file "${DEPLOY_DIR}/.env" ${COMPOSE_FILES} up -d dashboard opencode
+
+            # Wait for backend services to be healthy
+            echo "Waiting for backend services..."
+            for i in {1..30}; do
+              dashboard_health=$(sudo docker inspect --format='{{.State.Health.Status}}' orienter-dashboard 2>/dev/null || echo "starting")
+              opencode_health=$(sudo docker inspect --format='{{.State.Health.Status}}' orienter-opencode 2>/dev/null || echo "starting")
+              if [[ "$dashboard_health" == "healthy" ]] && [[ "$opencode_health" == "healthy" ]]; then
+                echo "  Backend services healthy"
+                break
+              fi
+              echo "  Waiting... dashboard=$dashboard_health, opencode=$opencode_health"
+              sleep 3
+            done
+
+            # Stage 2: Start bot services
+            echo "Starting bot services..."
+            sudo docker compose --env-file "${DEPLOY_DIR}/.env" ${COMPOSE_FILES} up -d bot-whatsapp
+
+            # Wait for bot service
+            echo "Waiting for bot services..."
+            for i in {1..20}; do
+              bot_health=$(sudo docker inspect --format='{{.State.Health.Status}}' orienter-bot-whatsapp 2>/dev/null || echo "starting")
+              if [[ "$bot_health" == "healthy" ]]; then
+                echo "  Bot services healthy"
+                break
+              fi
+              sleep 3
+            done
+
+            # Stage 3: Start nginx (depends on all other services)
+            echo "Starting nginx..."
+            sudo docker compose --env-file "${DEPLOY_DIR}/.env" ${COMPOSE_FILES} up -d nginx
 
             echo "Waiting for services to initialize..."
-            sleep 15
+            sleep 10
 
             echo "=== Service Status ==="
             sudo docker compose ${COMPOSE_FILES} ps
