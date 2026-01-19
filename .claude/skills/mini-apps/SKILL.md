@@ -1285,6 +1285,270 @@ When adding a new bridge method:
    }
    ```
 
+## Frontend Bridge Implementation Patterns
+
+This section covers how to implement bridge methods in the frontend (`apps/_shared/hooks/useBridge.ts`).
+
+### The callBridge Utility Function
+
+The `callBridge` function is the core utility for making bridge API calls:
+
+```typescript
+/**
+ * Make a bridge API call with type safety
+ * @template T - The expected return type
+ * @param method - The method name (e.g., 'storage.get')
+ * @param params - Method-specific parameters
+ * @returns Promise resolving to the typed result
+ */
+async function callBridge<T>(method: string, params: Record<string, unknown>): Promise<T> {
+  // 1. Check permissions before making the network request
+  checkPermissions(method, capabilities);
+
+  // 2. Make the API call
+  const response = await fetch('/api/apps/bridge', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ appName, method, params }),
+  });
+
+  // 3. Handle errors
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || 'Bridge call failed');
+  }
+
+  // 4. Return typed result
+  const result = await response.json();
+  return result.data as T;
+}
+```
+
+### Type-Safe Bridge Method Implementations
+
+Define typed methods in the `AppBridge` interface:
+
+```typescript
+export interface AppBridge {
+  storage: {
+    set(key: string, value: unknown): Promise<void>;
+    get<T = unknown>(key: string): Promise<T | null>;
+    delete(key: string): Promise<boolean>;
+    list(): Promise<string[]>;
+    clear(): Promise<number>;
+  };
+}
+```
+
+Implement methods with proper typing:
+
+```typescript
+const bridge: AppBridge = {
+  storage: {
+    // Simple void return
+    set: async (key: string, value: unknown): Promise<void> => {
+      await callBridge('storage.set', { key, value });
+    },
+
+    // Generic return type
+    get: async <T = unknown>(key: string): Promise<T | null> => {
+      return callBridge<T | null>('storage.get', { key });
+    },
+
+    // Extract nested result
+    delete: async (key: string): Promise<boolean> => {
+      const result = await callBridge<{ deleted: boolean }>('storage.delete', { key });
+      return result.deleted;
+    },
+
+    // Direct array return
+    list: (): Promise<string[]> => callBridge('storage.list', {}),
+
+    // Extract count from result
+    clear: async (): Promise<number> => {
+      const result = await callBridge<{ cleared: number }>('storage.clear', {});
+      return result.cleared;
+    },
+  },
+};
+```
+
+### Permission Checking Pattern
+
+Check capabilities before making API calls:
+
+```typescript
+interface Capabilities {
+  scheduler?: { enabled?: boolean; max_jobs?: number };
+  webhooks?: { enabled?: boolean };
+  storage?: { enabled?: boolean };
+}
+
+function checkPermissions(method: string, capabilities: Capabilities | undefined): void {
+  // Scheduler capability
+  if (method.startsWith('scheduler.')) {
+    if (!capabilities?.scheduler?.enabled) {
+      throw new Error('Capability denied: scheduler not enabled in APP.yaml');
+    }
+  }
+
+  // Webhooks capability
+  if (method.startsWith('webhooks.')) {
+    if (!capabilities?.webhooks?.enabled) {
+      throw new Error('Capability denied: webhooks not enabled in APP.yaml');
+    }
+  }
+
+  // Storage capability
+  if (method.startsWith('storage.')) {
+    if (!capabilities?.storage?.enabled) {
+      throw new Error('Capability denied: storage not enabled in APP.yaml');
+    }
+  }
+}
+```
+
+### Error Handling Patterns
+
+Handle bridge errors in your app:
+
+```typescript
+// Pattern 1: Try-catch with user feedback
+const loadData = async () => {
+  try {
+    const data = await bridge.storage.get<MyData>('key');
+    setData(data);
+  } catch (error) {
+    console.error('Failed to load data:', error);
+    setError('Could not load data. Please try again.');
+  }
+};
+
+// Pattern 2: Silent failure with fallback
+const loadWithFallback = async () => {
+  try {
+    const data = await bridge.storage.get<MyData>('key');
+    return data ?? defaultData;
+  } catch {
+    return defaultData;
+  }
+};
+
+// Pattern 3: Optimistic update with rollback
+const saveData = async (newData: MyData) => {
+  const oldData = data;
+  setData(newData); // Optimistic update
+
+  try {
+    await bridge.storage.set('key', newData);
+  } catch (error) {
+    setData(oldData); // Rollback on failure
+    console.error('Failed to save:', error);
+  }
+};
+```
+
+### Async/Await Best Practices
+
+```typescript
+// Good: Separate loading state from ready state
+const [isLoading, setIsLoading] = useState(true);
+
+useEffect(() => {
+  if (!isReady) return;
+
+  const loadData = async () => {
+    try {
+      const stored = await bridge.storage.get<Data>('key');
+      if (stored) setData(stored);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  loadData();
+}, [isReady, bridge]);
+
+// Good: Save after state update
+const updateData = async (newData: Data) => {
+  setData(newData);
+  await bridge.storage.set('key', newData);
+};
+
+// Good: Memoize save function to avoid dependency issues
+const saveData = useCallback(
+  async (data: Data) => {
+    try {
+      await bridge.storage.set('key', data);
+    } catch (error) {
+      console.error('Save failed:', error);
+    }
+  },
+  [bridge]
+);
+```
+
+### Adding a New Frontend Bridge Method
+
+1. **Update the interface** in `AppBridge`:
+
+   ```typescript
+   export interface AppBridge {
+     myCategory: {
+       myMethod(param: string): Promise<Result>;
+     };
+   }
+   ```
+
+2. **Update the Capabilities interface**:
+
+   ```typescript
+   interface Capabilities {
+     myCategory?: { enabled?: boolean };
+   }
+   ```
+
+3. **Add permission check**:
+
+   ```typescript
+   if (method.startsWith('myCategory.')) {
+     if (!capabilities?.myCategory?.enabled) {
+       throw new Error('Capability denied: myCategory not enabled');
+     }
+   }
+   ```
+
+4. **Implement the method**:
+   ```typescript
+   myCategory: {
+     myMethod: async (param: string): Promise<Result> => {
+       return callBridge<Result>('myCategory.myMethod', { param });
+     },
+   },
+   ```
+
+### Testing Bridge Methods
+
+Mock the bridge in tests:
+
+```typescript
+const mockBridge = {
+  storage: {
+    set: vi.fn().mockResolvedValue(undefined),
+    get: vi.fn().mockResolvedValue(null),
+    delete: vi.fn().mockResolvedValue(true),
+    list: vi.fn().mockResolvedValue([]),
+    clear: vi.fn().mockResolvedValue(0),
+  },
+};
+
+// Test usage
+it('should save data', async () => {
+  await mockBridge.storage.set('key', { foo: 'bar' });
+  expect(mockBridge.storage.set).toHaveBeenCalledWith('key', { foo: 'bar' });
+});
+```
+
 ## Implementing New Bridge Capabilities
 
 This guide explains how to add a new capability to the mini-apps bridge (like storage, scheduler, webhooks). Follow these steps when implementing new backend services that mini-apps can access.
