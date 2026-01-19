@@ -121,6 +121,7 @@ cleanup_stale_worktrees() {
 create_worktree() {
     local name="$1"
     local isolated="${2:-false}"
+    local model="${3:-}"
     local repo_root
     local project_name
 
@@ -199,6 +200,33 @@ create_worktree() {
         log_success "Claude settings copied"
     else
         log_warn "No .claude/settings.local.json found in main repo"
+    fi
+
+    # Set default model if specified
+    if [[ -n "$model" ]]; then
+        log_info "Setting default model to: $model"
+        mkdir -p "$worktree_path/.claude"
+
+        # Create or update settings.local.json with the model
+        if [[ ! -f "$worktree_path/.claude/settings.local.json" ]]; then
+            echo "{}" > "$worktree_path/.claude/settings.local.json"
+        fi
+
+        # Update the JSON file with the model using jq if available, else use sed
+        if command -v jq &> /dev/null; then
+            jq ".model = \"$model\"" "$worktree_path/.claude/settings.local.json" > "$worktree_path/.claude/settings.local.json.tmp"
+            mv "$worktree_path/.claude/settings.local.json.tmp" "$worktree_path/.claude/settings.local.json"
+        else
+            # Fallback: simple sed replacement (only works if model key already exists)
+            sed -i.bak "s/\"model\": \"[^\"]*\"/\"model\": \"$model\"/g" "$worktree_path/.claude/settings.local.json"
+            # If model key doesn't exist, add it
+            if ! grep -q "\"model\"" "$worktree_path/.claude/settings.local.json"; then
+                sed -i.bak 's/{/{ "model": "'$model'",/' "$worktree_path/.claude/settings.local.json"
+            fi
+            rm -f "$worktree_path/.claude/settings.local.json.bak"
+        fi
+
+        log_success "Default model set to: $model"
     fi
 
     # Start pnpm install in background
@@ -291,7 +319,7 @@ usage() {
 Claude Worktree Manager
 
 Usage:
-    $0 create <name> [--isolated]  Create a new worktree with auto-setup
+    $0 create <name> [OPTIONS]     Create a new worktree with auto-setup
     $0 list                        List all worktrees for the current project
     $0 cleanup [--days N]          Cleanup worktrees older than N days (default: 7)
     $0 help                        Show this help message
@@ -299,11 +327,15 @@ Usage:
 Options:
     --isolated    Create a dedicated database for this worktree and seed it with test data.
                   Use this for schema changes, migration testing, or isolated experiments.
+    --model       Set the default Claude model for this worktree (opus, sonnet, haiku).
+                  Configures .claude/settings.local.json with the selected model.
 
 Examples:
-    $0 create staging-env              # Uses shared dev database
-    $0 create dark-mode-feature        # Uses shared dev database
-    $0 create schema-changes --isolated # Creates dedicated database with seeding
+    $0 create staging-env                    # Uses shared dev database
+    $0 create dark-mode-feature              # Uses shared dev database
+    $0 create schema-changes --isolated      # Creates dedicated database with seeding
+    $0 create feature-x --model opus         # Sets Opus as default model
+    $0 create complex-task --model opus --isolated # Opus + isolated DB
     $0 list
     $0 cleanup
     $0 cleanup --days 14
@@ -325,11 +357,43 @@ main() {
             fi
             local name="$2"
             local isolated="false"
-            # Check for --isolated flag
-            if [[ $# -ge 3 ]] && [[ "$3" == "--isolated" ]]; then
-                isolated="true"
-            fi
-            create_worktree "$name" "$isolated"
+            local model=""
+
+            # Parse optional flags
+            shift 2
+            while [[ $# -gt 0 ]]; do
+                case "$1" in
+                    --isolated)
+                        isolated="true"
+                        shift
+                        ;;
+                    --model)
+                        if [[ $# -lt 2 ]]; then
+                            log_error "Missing model name for --model flag"
+                            exit 1
+                        fi
+                        model="$2"
+                        # Validate model
+                        case "$model" in
+                            opus|sonnet|haiku)
+                                shift 2
+                                ;;
+                            *)
+                                log_error "Invalid model: $model. Must be one of: opus, sonnet, haiku"
+                                exit 1
+                                ;;
+                        esac
+                        ;;
+                    *)
+                        log_error "Unknown option: $1"
+                        echo ""
+                        usage
+                        exit 1
+                        ;;
+                esac
+            done
+
+            create_worktree "$name" "$isolated" "$model"
             ;;
         list)
             list_worktrees

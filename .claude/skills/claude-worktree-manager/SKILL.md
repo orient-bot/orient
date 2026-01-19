@@ -24,10 +24,16 @@ Then run:
 
 ```bash
 # Standard (uses shared dev database)
-.claude/skills/core/claude-worktree-manager/scripts/worktree.sh create <derived-name>
+.claude/skills/claude-worktree-manager/scripts/worktree.sh create <derived-name>
+
+# With specific model (e.g., opus, sonnet, haiku)
+.claude/skills/claude-worktree-manager/scripts/worktree.sh create <derived-name> --model opus
 
 # Isolated (creates dedicated database with seeding)
-.claude/skills/core/claude-worktree-manager/scripts/worktree.sh create <derived-name> --isolated
+.claude/skills/claude-worktree-manager/scripts/worktree.sh create <derived-name> --isolated
+
+# Isolated with model
+.claude/skills/claude-worktree-manager/scripts/worktree.sh create <derived-name> --isolated --model sonnet
 ```
 
 **What happens:**
@@ -55,6 +61,22 @@ Use the `--isolated` flag when:
 
 For normal feature development, skip `--isolated` to use the shared database.
 
+### Model Selection
+
+Use the `--model` flag to set the default Claude model for the worktree:
+
+```bash
+.claude/skills/claude-worktree-manager/scripts/worktree.sh create <name> --model <model-name>
+```
+
+**Available models:** `opus`, `sonnet`, `haiku`
+
+When specified, the model is configured in the worktree's `.claude/settings.local.json` so that all Claude Code sessions in that worktree use the selected model by default. This is useful for:
+
+- **Testing with specific models:** Quickly test a feature with Opus for complex work or Haiku for speed
+- **Cost optimization:** Use Haiku for routine tasks, Opus for complex reasoning
+- **Consistency:** Ensure all team members working in a specific worktree use the same model
+
 **Important:** Return the worktree path to the user so they can open a new Claude Code session in that directory.
 
 ### Ghostty Integration (Automatic)
@@ -63,7 +85,7 @@ After creating a worktree, check if running in Ghostty terminal and automaticall
 
 ```bash
 # The worktree script outputs the path on its last line
-WORKTREE_PATH=$(.claude/skills/core/claude-worktree-manager/scripts/worktree.sh create <name> | tail -1)
+WORKTREE_PATH=$(.claude/skills/claude-worktree-manager/scripts/worktree.sh create <name> | tail -1)
 
 # If in Ghostty, open new tab with Claude (--no-enter types but doesn't execute)
 if [ "$TERM_PROGRAM" = "ghostty" ]; then
@@ -96,7 +118,7 @@ This automatically opens a new Ghostty tab, navigates to the worktree, and start
 ### List Worktrees
 
 ```bash
-.claude/skills/core/claude-worktree-manager/scripts/worktree.sh list
+.claude/skills/claude-worktree-manager/scripts/worktree.sh list
 ```
 
 Shows all active worktrees for the current project with their branches.
@@ -105,10 +127,10 @@ Shows all active worktrees for the current project with their branches.
 
 ```bash
 # Cleanup worktrees older than 7 days (default)
-.claude/skills/core/claude-worktree-manager/scripts/worktree.sh cleanup
+.claude/skills/claude-worktree-manager/scripts/worktree.sh cleanup
 
 # Custom age threshold
-.claude/skills/core/claude-worktree-manager/scripts/worktree.sh cleanup --days 14
+.claude/skills/claude-worktree-manager/scripts/worktree.sh cleanup --days 14
 ```
 
 ## Origin Branch Handling
@@ -118,7 +140,7 @@ The script intelligently checks if a branch with your name already exists on ori
 **Scenario 1: Branch exists on origin**
 
 ```bash
-.claude/skills/core/claude-worktree-manager/scripts/worktree.sh create my-feature
+.claude/skills/claude-worktree-manager/scripts/worktree.sh create my-feature
 ```
 
 If `origin/my-feature` exists, the script will:
@@ -131,7 +153,7 @@ If `origin/my-feature` exists, the script will:
 **Scenario 2: Branch doesn't exist on origin**
 
 ```bash
-.claude/skills/core/claude-worktree-manager/scripts/worktree.sh create my-feature
+.claude/skills/claude-worktree-manager/scripts/worktree.sh create my-feature
 ```
 
 If `origin/my-feature` doesn't exist, the script will:
@@ -158,7 +180,7 @@ Analyze the request and derive a concise kebab-case name:
 
 ```bash
 # Run the script and capture the worktree path (last line of output)
-WORKTREE_PATH=$(.claude/skills/core/claude-worktree-manager/scripts/worktree.sh create staging-env | tail -1)
+WORKTREE_PATH=$(.claude/skills/claude-worktree-manager/scripts/worktree.sh create staging-env | tail -1)
 echo "Created: $WORKTREE_PATH"
 ```
 
@@ -385,12 +407,33 @@ User: "Create a worktree for adding OAuth support"
 
 ```bash
 # 1. Create the worktree and capture path
-WORKTREE_PATH=$(.claude/skills/core/claude-worktree-manager/scripts/worktree.sh create oauth-support | tail -1)
+WORKTREE_PATH=$(.claude/skills/claude-worktree-manager/scripts/worktree.sh create oauth-support | tail -1)
 
 # 2. If in Ghostty, open new tab with Claude
 if [ "$TERM_PROGRAM" = "ghostty" ]; then
     ghostty-tab -d "$WORKTREE_PATH" --no-enter "claude 'Add OAuth support with Google and GitHub providers'"
 fi
+```
+
+### Create worktree with specific model
+
+User: "Create a worktree for complex refactoring using Opus"
+
+```bash
+# 1. Create the worktree with Opus model and capture path
+WORKTREE_PATH=$(.claude/skills/claude-worktree-manager/scripts/worktree.sh create complex-refactor --model opus | tail -1)
+
+# 2. If in Ghostty, open new tab with Claude
+if [ "$TERM_PROGRAM" = "ghostty" ]; then
+    ghostty-tab -d "$WORKTREE_PATH" --no-enter "claude 'Refactor the project to support multi-tenant architecture'"
+fi
+```
+
+User: "Create a worktree for quick bug fixes using Haiku"
+
+```bash
+# 1. Create the worktree with Haiku model
+WORKTREE_PATH=$(.claude/skills/claude-worktree-manager/scripts/worktree.sh create quick-fixes --model haiku | tail -1)
 ```
 
 ### Create worktree for bug fix
@@ -399,7 +442,7 @@ User: "I need a worktree to fix the login redirect issue"
 
 ```bash
 # 1. Create the worktree and capture path
-WORKTREE_PATH=$(.claude/skills/core/claude-worktree-manager/scripts/worktree.sh create fix-login-redirect | tail -1)
+WORKTREE_PATH=$(.claude/skills/claude-worktree-manager/scripts/worktree.sh create fix-login-redirect | tail -1)
 
 # 2. If in Ghostty, open new tab with Claude
 if [ "$TERM_PROGRAM" = "ghostty" ]; then
@@ -413,7 +456,7 @@ User: "Create a new worktree for refactoring the project to make it multi-tenant
 
 ```bash
 # 1. Create the worktree and capture path
-WORKTREE_PATH=$(.claude/skills/core/claude-worktree-manager/scripts/worktree.sh create multi-tenant-refactor | tail -1)
+WORKTREE_PATH=$(.claude/skills/claude-worktree-manager/scripts/worktree.sh create multi-tenant-refactor | tail -1)
 
 # 2. If in Ghostty, open new tab with Claude
 if [ "$TERM_PROGRAM" = "ghostty" ]; then
@@ -427,7 +470,7 @@ User: "I need a worktree to test new database migrations"
 
 ```bash
 # 1. Create the worktree with isolated DB and capture path
-WORKTREE_PATH=$(.claude/skills/core/claude-worktree-manager/scripts/worktree.sh create test-migrations --isolated | tail -1)
+WORKTREE_PATH=$(.claude/skills/claude-worktree-manager/scripts/worktree.sh create test-migrations --isolated | tail -1)
 
 # 2. If in Ghostty, open new tab with Claude
 if [ "$TERM_PROGRAM" = "ghostty" ]; then
@@ -441,7 +484,7 @@ User: "Create a worktree for adding new agent tables"
 
 ```bash
 # 1. Create the worktree with isolated DB and capture path
-WORKTREE_PATH=$(.claude/skills/core/claude-worktree-manager/scripts/worktree.sh create add-agent-tables --isolated | tail -1)
+WORKTREE_PATH=$(.claude/skills/claude-worktree-manager/scripts/worktree.sh create add-agent-tables --isolated | tail -1)
 
 # 2. If in Ghostty, open new tab with Claude
 if [ "$TERM_PROGRAM" = "ghostty" ]; then
@@ -454,7 +497,7 @@ fi
 User: "Show me all my worktrees"
 
 ```bash
-.claude/skills/core/claude-worktree-manager/scripts/worktree.sh list
+.claude/skills/claude-worktree-manager/scripts/worktree.sh list
 ```
 
 ### Cleanup old worktrees
@@ -462,5 +505,5 @@ User: "Show me all my worktrees"
 User: "Clean up worktrees older than 3 days"
 
 ```bash
-.claude/skills/core/claude-worktree-manager/scripts/worktree.sh cleanup --days 3
+.claude/skills/claude-worktree-manager/scripts/worktree.sh cleanup --days 3
 ```
