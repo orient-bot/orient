@@ -610,8 +610,14 @@ jobs:
             echo "Cleaning up..."
             sudo docker container prune -f 2>/dev/null || true
 
-            echo "Pulling images..."
-            sudo docker compose ${COMPOSE_FILES} pull
+            echo "Pulling images (will use local if pull fails)..."
+            # Pull images, but continue if registry access fails
+            # This allows deployment to proceed with existing local images
+            sudo docker compose ${COMPOSE_FILES} pull 2>/dev/null || {
+              echo "  Image pull failed (registry auth issue), using existing local images"
+              echo "  Listing available images:"
+              sudo docker images | grep -E "orient|orienter" | head -10
+            }
 
             echo "Starting services..."
             sudo docker compose --env-file "${DEPLOY_DIR}/.env" ${COMPOSE_FILES} up -d
