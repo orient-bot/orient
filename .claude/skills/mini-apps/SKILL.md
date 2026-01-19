@@ -316,7 +316,89 @@ useEffect(() => {
 }, [bridge]);
 ```
 
-### 4. Slack Messaging
+### 4. Storage (Backend Persistence)
+
+Persist data to the backend database. Unlike localStorage (browser-only), storage data persists across devices and sessions.
+
+**Permission required in APP.yaml:**
+
+```yaml
+capabilities:
+  storage:
+    enabled: true
+```
+
+**Available methods:**
+
+| Method                           | Description           | Parameters                    | Returns              |
+| -------------------------------- | --------------------- | ----------------------------- | -------------------- |
+| `bridge.storage.set(key, value)` | Store a value         | `key: string, value: unknown` | `Promise<void>`      |
+| `bridge.storage.get(key)`        | Retrieve a value      | `key: string`                 | `Promise<T \| null>` |
+| `bridge.storage.delete(key)`     | Delete a key          | `key: string`                 | `Promise<boolean>`   |
+| `bridge.storage.list()`          | List all keys for app | None                          | `Promise<string[]>`  |
+| `bridge.storage.clear()`         | Delete all app data   | None                          | `Promise<number>`    |
+
+**Example - Persist todo list:**
+
+```typescript
+// Save todos
+await bridge.storage.set('todos', [
+  { id: '1', text: 'Buy milk', completed: false },
+  { id: '2', text: 'Walk dog', completed: true },
+]);
+
+// Load todos
+const todos = await bridge.storage.get<Todo[]>('todos');
+if (todos) {
+  setTodos(todos);
+}
+
+// Delete a specific key
+await bridge.storage.delete('todos');
+
+// List all keys
+const keys = await bridge.storage.list();
+console.log('Stored keys:', keys);
+
+// Clear all app data
+const deletedCount = await bridge.storage.clear();
+```
+
+**Example - User preferences:**
+
+```typescript
+interface UserPrefs {
+  theme: 'light' | 'dark';
+  notifications: boolean;
+}
+
+// Save preferences
+await bridge.storage.set('prefs', { theme: 'dark', notifications: true });
+
+// Load with type safety
+const prefs = await bridge.storage.get<UserPrefs>('prefs');
+if (prefs) {
+  setTheme(prefs.theme);
+}
+```
+
+**localStorage vs bridge.storage:**
+
+| Feature             | localStorage | bridge.storage        |
+| ------------------- | ------------ | --------------------- |
+| Persistence         | Browser only | Backend database      |
+| Cross-device        | No           | Yes                   |
+| Storage limit       | ~5MB         | Unlimited (practical) |
+| Data format         | String only  | Any JSON-serializable |
+| Survives clear data | No           | Yes                   |
+| Requires capability | No           | Yes (in APP.yaml)     |
+
+**When to use each:**
+
+- **localStorage**: Quick, temporary data; draft content; UI state
+- **bridge.storage**: User data that must persist; shared state; production data
+
+### 5. Slack Messaging
 
 Send messages to Slack channels or users.
 
@@ -354,7 +436,7 @@ await bridge.slack.sendDM({
 });
 ```
 
-### 5. App Metadata
+### 6. App Metadata
 
 Access app configuration and sharing info.
 
@@ -398,6 +480,8 @@ capabilities:
     enabled: true
     max_jobs: 5
   webhooks:
+    enabled: true
+  storage:
     enabled: true
 
 # Sharing configuration
@@ -513,6 +597,103 @@ Apps are viewable in the Dashboard:
 3. Click **Preview** to test a built app
 4. Click **Copy Link** to share the preview URL
 
+## Serving Mini-Apps (Static Files)
+
+Mini-apps are served as static files from the dashboard server at `/apps/:appName/`. This section covers the architecture and configuration required.
+
+### Dashboard Server Architecture
+
+The dashboard server (`packages/dashboard/src/server/index.ts`) serves mini-apps via Express static file serving:
+
+```typescript
+// In createDashboardServer()
+if (services.appsService) {
+  app.use('/apps/:appName', (req, res, next) => {
+    const app = appsService.getApp(req.params.appName);
+    if (!app || !app.isBuilt) {
+      return res.status(404).json({ error: 'App not found or not built' });
+    }
+
+    // Serve static files from app's dist directory
+    express.static(app.distPath)(req, res, () => {
+      // Fallback to index.html for SPA routing
+      const indexPath = path.join(app.distPath, 'index.html');
+      if (fs.existsSync(indexPath)) {
+        res.sendFile(indexPath);
+      } else {
+        next();
+      }
+    });
+  });
+}
+```
+
+Nginx routes `/apps/` to the dashboard server:
+
+```nginx
+location /apps/ {
+    proxy_pass http://dashboard_api_local/apps/;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+}
+```
+
+### Vite Base Path Configuration
+
+**CRITICAL**: Mini-apps must use relative asset paths to work correctly when served at `/apps/:appName/`.
+
+Every mini-app's `vite.config.ts` must include:
+
+```typescript
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import path from 'path';
+
+export default defineConfig({
+  plugins: [react()],
+  base: './', // REQUIRED: Use relative paths for assets
+  resolve: {
+    alias: {
+      '@shared': path.resolve(__dirname, '../_shared'),
+    },
+  },
+  build: {
+    outDir: 'dist',
+    emptyOutDir: true,
+  },
+});
+```
+
+**Why `base: './'` is required:**
+
+Without this setting, Vite generates absolute paths like `/assets/index.js`. When the app is served at `/apps/my-app/`, the browser tries to load `/assets/index.js` from the root, which fails.
+
+With `base: './'`, paths become `./assets/index.js`, which resolves correctly relative to the app's URL.
+
+### Troubleshooting Asset Loading Issues
+
+| Symptom                    | Cause                                                    | Solution                                                         |
+| -------------------------- | -------------------------------------------------------- | ---------------------------------------------------------------- |
+| JS/CSS returns HTML        | Absolute paths (`/assets/...`) routed to Vite dev server | Add `base: './'` to vite.config.ts and rebuild                   |
+| 404 on assets              | Missing base path config                                 | Ensure `base: './'` in vite.config.ts                            |
+| App loads but shows blank  | JS execution error                                       | Check browser console; rebuild with correct base                 |
+| Preview button returns 404 | App not built or routes not configured                   | Run `npm run build`, ensure dashboard has `/apps/:appName` route |
+
+### Verifying App Serving
+
+After building an app, verify it's accessible:
+
+```bash
+# Check HTML is served
+curl http://localhost:3080/apps/my-app/
+
+# Check assets use relative paths (should see ./assets/...)
+curl http://localhost:3080/apps/my-app/ | grep -o 'src="[^"]*"'
+
+# Check assets are served correctly (should return JS, not HTML)
+curl http://localhost:3080/apps/my-app/assets/index-xxxxx.js | head -c 100
+```
+
 ## Troubleshooting
 
 | Issue                                      | Solution                                        |
@@ -521,3 +702,632 @@ Apps are viewable in the Dashboard:
 | Preview returns 404                        | Ensure the app has a `dist/` folder after build |
 | API shows 503 "Apps service not available" | Restart the dev server                          |
 | Shared components not found                | Check `tsconfig.json` paths and includes        |
+| Assets return HTML instead of JS/CSS       | Add `base: './'` to vite.config.ts and rebuild  |
+
+## Database Schema Design Patterns
+
+When adding persistent storage capabilities to mini-apps, follow these patterns for PostgreSQL database services.
+
+### Connection Pooling
+
+Always use connection pooling to manage database connections efficiently:
+
+```typescript
+import pg from 'pg';
+const { Pool } = pg;
+
+export class MyDatabase {
+  private pool: pg.Pool;
+
+  constructor(connectionString?: string) {
+    const dbUrl = connectionString || process.env.DATABASE_URL;
+
+    this.pool = new Pool({
+      connectionString: dbUrl,
+      max: 10, // Maximum connections in pool
+      idleTimeoutMillis: 30000, // Close idle connections after 30s
+      connectionTimeoutMillis: 5000, // Fail if can't connect in 5s
+    });
+
+    // Handle unexpected errors on idle clients
+    this.pool.on('error', (err: Error) => {
+      logger.error('Unexpected database pool error', { error: err.message });
+    });
+  }
+
+  // Always close the pool when shutting down
+  async close(): Promise<void> {
+    await this.pool.end();
+  }
+}
+```
+
+**Key points:**
+
+- Use `pg.Pool` not individual clients for connection reuse
+- Set reasonable `max` connections (10 is a good default)
+- Handle pool errors to prevent crashes
+- Always implement `close()` for graceful shutdown
+
+### Table Schema Design
+
+Follow these conventions for mini-app database tables:
+
+```sql
+CREATE TABLE IF NOT EXISTS app_feature (
+  -- Primary key
+  id SERIAL PRIMARY KEY,
+
+  -- App identification (always required for multi-tenant isolation)
+  app_name VARCHAR(255) NOT NULL,
+
+  -- Your feature-specific columns
+  key VARCHAR(255) NOT NULL,
+  value JSONB NOT NULL,           -- Use JSONB for flexible data storage
+
+  -- Timestamps (always include these)
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+
+  -- Unique constraints for app-scoped uniqueness
+  UNIQUE(app_name, key)
+);
+```
+
+**Best practices:**
+
+- Always include `app_name` for multi-tenant isolation
+- Use `SERIAL` for auto-incrementing IDs
+- Use `TIMESTAMPTZ` (with timezone) not `TIMESTAMP`
+- Use `JSONB` for flexible nested data (better than `JSON` for indexing)
+- Add `UNIQUE` constraints for natural keys within an app scope
+
+### Index Design
+
+Create indexes for common query patterns:
+
+```sql
+-- Composite index for app-scoped lookups (most common pattern)
+CREATE INDEX IF NOT EXISTS idx_app_feature_app_key
+  ON app_feature(app_name, key);
+
+-- Single column index if you query by app_name alone
+CREATE INDEX IF NOT EXISTS idx_app_feature_app_name
+  ON app_feature(app_name);
+
+-- Partial index for enabled/active records
+CREATE INDEX IF NOT EXISTS idx_app_feature_active
+  ON app_feature(app_name) WHERE enabled = TRUE;
+
+-- JSONB index for querying inside JSON data
+CREATE INDEX IF NOT EXISTS idx_app_feature_value_gin
+  ON app_feature USING gin(value);
+```
+
+**Index guidelines:**
+
+- Create indexes for columns used in `WHERE` clauses
+- Composite indexes should match query column order
+- Use partial indexes for frequently filtered conditions
+- Use GIN indexes for JSONB containment queries
+
+### Transaction Handling
+
+Use transactions for multi-statement operations:
+
+```typescript
+async initialize(): Promise<void> {
+  const client = await this.pool.connect();
+
+  try {
+    await client.query('BEGIN');
+
+    // Multiple statements that should succeed or fail together
+    await client.query(`CREATE TABLE IF NOT EXISTS ...`);
+    await client.query(`CREATE INDEX IF NOT EXISTS ...`);
+
+    await client.query('COMMIT');
+    logger.info('Database initialized successfully');
+  } catch (error) {
+    await client.query('ROLLBACK');
+    logger.error('Database initialization failed', { error });
+    throw error;
+  } finally {
+    // CRITICAL: Always release the client back to the pool
+    client.release();
+  }
+}
+```
+
+**Transaction rules:**
+
+- Use `BEGIN`/`COMMIT`/`ROLLBACK` for multi-statement operations
+- Always `release()` the client in a `finally` block
+- Log both success and failure for debugging
+- Re-throw errors after rollback so callers know it failed
+
+### Query Patterns
+
+**Simple queries (use pool directly):**
+
+```typescript
+async get(appName: string, key: string): Promise<unknown | null> {
+  const result = await this.pool.query(
+    'SELECT value FROM app_storage WHERE app_name = $1 AND key = $2',
+    [appName, key]
+  );
+  return result.rows.length > 0 ? result.rows[0].value : null;
+}
+```
+
+**Upsert pattern (INSERT ... ON CONFLICT):**
+
+```typescript
+async set(appName: string, key: string, value: unknown): Promise<void> {
+  await this.pool.query(`
+    INSERT INTO app_storage (app_name, key, value)
+    VALUES ($1, $2, $3)
+    ON CONFLICT (app_name, key)
+    DO UPDATE SET value = $3, updated_at = NOW()
+  `, [appName, key, JSON.stringify(value)]);
+}
+```
+
+**Returning results after modification:**
+
+```typescript
+async create(data: CreateInput): Promise<Record> {
+  const result = await this.pool.query(`
+    INSERT INTO my_table (name, value)
+    VALUES ($1, $2)
+    RETURNING *
+  `, [data.name, data.value]);
+
+  return this.rowToRecord(result.rows[0]);
+}
+```
+
+### Row Mapping
+
+Convert database rows to TypeScript types:
+
+```typescript
+interface StorageEntry {
+  appName: string;
+  key: string;
+  value: unknown;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+private rowToEntry(row: Record<string, unknown>): StorageEntry {
+  return {
+    appName: row.app_name as string,      // snake_case to camelCase
+    key: row.key as string,
+    value: row.value,                      // JSONB auto-parses
+    createdAt: new Date(row.created_at as string),
+    updatedAt: new Date(row.updated_at as string),
+  };
+}
+```
+
+### Initialization Pattern
+
+Use an `initialized` flag to prevent duplicate setup:
+
+```typescript
+export class MyDatabase {
+  private initialized: boolean = false;
+
+  async initialize(): Promise<void> {
+    if (this.initialized) return; // Idempotent - safe to call multiple times
+
+    // ... create tables and indexes ...
+
+    this.initialized = true;
+  }
+}
+```
+
+### Complete Example: StorageDatabase
+
+Here's the full pattern used by the storage capability:
+
+```typescript
+import pg from 'pg';
+import { createServiceLogger } from '@orient/core';
+
+const { Pool } = pg;
+const logger = createServiceLogger('storage-db');
+
+export class StorageDatabase {
+  private pool: pg.Pool;
+  private initialized: boolean = false;
+
+  constructor(connectionString?: string) {
+    const dbUrl = connectionString || process.env.DATABASE_URL;
+    this.pool = new Pool({
+      connectionString: dbUrl,
+      max: 10,
+      idleTimeoutMillis: 30000,
+      connectionTimeoutMillis: 5000,
+    });
+    this.pool.on('error', (err) => {
+      logger.error('Pool error', { error: err.message });
+    });
+  }
+
+  async initialize(): Promise<void> {
+    if (this.initialized) return;
+
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS app_storage (
+          id SERIAL PRIMARY KEY,
+          app_name VARCHAR(255) NOT NULL,
+          key VARCHAR(255) NOT NULL,
+          value JSONB NOT NULL,
+          created_at TIMESTAMPTZ DEFAULT NOW(),
+          updated_at TIMESTAMPTZ DEFAULT NOW(),
+          UNIQUE(app_name, key)
+        )
+      `);
+      await client.query(`
+        CREATE INDEX IF NOT EXISTS idx_app_storage_app_key
+          ON app_storage(app_name, key);
+      `);
+      await client.query('COMMIT');
+      this.initialized = true;
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  async set(appName: string, key: string, value: unknown): Promise<void> {
+    await this.pool.query(
+      `
+      INSERT INTO app_storage (app_name, key, value)
+      VALUES ($1, $2, $3)
+      ON CONFLICT (app_name, key)
+      DO UPDATE SET value = $3, updated_at = NOW()
+    `,
+      [appName, key, JSON.stringify(value)]
+    );
+  }
+
+  async get(appName: string, key: string): Promise<unknown | null> {
+    const result = await this.pool.query(
+      'SELECT value FROM app_storage WHERE app_name = $1 AND key = $2',
+      [appName, key]
+    );
+    return result.rows.length > 0 ? result.rows[0].value : null;
+  }
+
+  async delete(appName: string, key: string): Promise<boolean> {
+    const result = await this.pool.query(
+      'DELETE FROM app_storage WHERE app_name = $1 AND key = $2',
+      [appName, key]
+    );
+    return (result.rowCount || 0) > 0;
+  }
+
+  async list(appName: string): Promise<string[]> {
+    const result = await this.pool.query(
+      'SELECT key FROM app_storage WHERE app_name = $1 ORDER BY key',
+      [appName]
+    );
+    return result.rows.map((row) => row.key);
+  }
+
+  async clear(appName: string): Promise<number> {
+    const result = await this.pool.query('DELETE FROM app_storage WHERE app_name = $1', [appName]);
+    return result.rowCount || 0;
+  }
+
+  async close(): Promise<void> {
+    await this.pool.end();
+  }
+}
+```
+
+## Implementing New Bridge Capabilities
+
+This guide explains how to add a new capability to the mini-apps bridge (like storage, scheduler, webhooks). Follow these steps when implementing new backend services that mini-apps can access.
+
+### Architecture Overview
+
+Bridge capabilities flow through these layers:
+
+```
+Frontend (useBridge.ts) → Bridge API (/api/apps/bridge) → Database Service → PostgreSQL
+     ↓                           ↓                              ↓
+ Permission check           Route handler               SQL operations
+```
+
+### Step 1: Define Types (packages/apps/src/types.ts)
+
+Add a Zod schema and TypeScript type for the new capability:
+
+```typescript
+/**
+ * MyFeature capability configuration
+ */
+export const MyFeatureCapabilitySchema = z.object({
+  enabled: z.boolean().default(false),
+  // Add any configuration options here
+  max_items: z.number().int().positive().optional(),
+});
+
+export type MyFeatureCapability = z.infer<typeof MyFeatureCapabilitySchema>;
+```
+
+Add to `AppCapabilitiesSchema`:
+
+```typescript
+export const AppCapabilitiesSchema = z.object({
+  scheduler: SchedulerCapabilitySchema.optional(),
+  webhooks: WebhookCapabilitySchema.optional(),
+  storage: StorageCapabilitySchema.optional(),
+  myFeature: MyFeatureCapabilitySchema.optional(), // Add new capability
+});
+```
+
+Update `generateAppManifestTemplate()` and `serializeManifestToYaml()` to include the new capability.
+
+### Step 2: Create Database Service (packages/dashboard/src/services/)
+
+Create a new file `myFeatureDatabase.ts`:
+
+```typescript
+import pg from 'pg';
+import { createServiceLogger } from '@orient/core';
+
+const { Pool } = pg;
+const logger = createServiceLogger('myfeature-db');
+
+export class MyFeatureDatabase {
+  private pool: pg.Pool;
+  private initialized: boolean = false;
+
+  constructor(connectionString?: string) {
+    const dbUrl = connectionString || process.env.DATABASE_URL || 'postgresql://...';
+    this.pool = new Pool({
+      connectionString: dbUrl,
+      max: 10,
+      idleTimeoutMillis: 30000,
+      connectionTimeoutMillis: 5000,
+    });
+
+    this.pool.on('error', (err: Error) => {
+      logger.error('Unexpected database pool error', { error: err.message });
+    });
+  }
+
+  async initialize(): Promise<void> {
+    if (this.initialized) return;
+
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      // Create your table
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS my_feature (
+          id SERIAL PRIMARY KEY,
+          app_name VARCHAR(255) NOT NULL,
+          -- your columns here
+          created_at TIMESTAMPTZ DEFAULT NOW(),
+          updated_at TIMESTAMPTZ DEFAULT NOW()
+        )
+      `);
+
+      // Create indexes
+      await client.query(`
+        CREATE INDEX IF NOT EXISTS idx_my_feature_app ON my_feature(app_name);
+      `);
+
+      await client.query('COMMIT');
+      this.initialized = true;
+      logger.info('MyFeature database tables initialized');
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  // Implement your CRUD methods
+  async create(appName: string, data: unknown): Promise<void> { ... }
+  async get(appName: string, id: string): Promise<unknown> { ... }
+  async list(appName: string): Promise<unknown[]> { ... }
+  async delete(appName: string, id: string): Promise<boolean> { ... }
+
+  async close(): Promise<void> {
+    await this.pool.end();
+  }
+}
+```
+
+### Step 3: Register Service (packages/dashboard/src/server/index.ts)
+
+Import and add to `DashboardServices` interface:
+
+```typescript
+import { MyFeatureDatabase } from '../services/myFeatureDatabase.js';
+
+export interface DashboardServices {
+  // ... existing services
+  myFeatureDb?: MyFeatureDatabase;
+}
+```
+
+Initialize in `initializeServices()`:
+
+```typescript
+// Initialize myFeature database
+const myFeatureDb = new MyFeatureDatabase(databaseUrl);
+await myFeatureDb.initialize();
+logger.info('MyFeature database initialized');
+```
+
+Add to the return object:
+
+```typescript
+return {
+  // ... existing services
+  myFeatureDb,
+};
+```
+
+### Step 4: Add Bridge Handler (packages/dashboard/src/server/routes/apps.routes.ts)
+
+Update the `BridgeServices` interface:
+
+```typescript
+interface BridgeServices {
+  storageDb?: StorageDatabase;
+  myFeatureDb?: MyFeatureDatabase;
+}
+```
+
+Add method handlers in the bridge endpoint switch statement:
+
+```typescript
+case 'myFeature.create': {
+  if (!bridgeServices?.myFeatureDb) {
+    return res.status(503).json({ error: 'MyFeature service not available' });
+  }
+  // Check capability
+  const cap = app.manifest.capabilities?.myFeature;
+  if (!cap?.enabled) {
+    return res.status(403).json({ error: 'MyFeature capability not enabled' });
+  }
+  // Validate and process
+  const { data } = params || {};
+  await bridgeServices.myFeatureDb.create(appName, data);
+  return res.json({ data: { success: true } });
+}
+```
+
+### Step 5: Update Route Registration (packages/dashboard/src/server/routes.ts)
+
+Pass the new service to apps routes:
+
+```typescript
+if (appsService) {
+  router.use(
+    '/apps',
+    createAppsRoutes(appsService, requireAuth, {
+      storageDb,
+      myFeatureDb, // Add new service
+    })
+  );
+}
+```
+
+### Step 6: Add Frontend Bridge Methods (apps/\_shared/hooks/useBridge.ts)
+
+Update the `AppBridge` interface:
+
+```typescript
+export interface AppBridge {
+  // ... existing capabilities
+
+  myFeature: {
+    create(data: unknown): Promise<void>;
+    get(id: string): Promise<unknown | null>;
+    list(): Promise<unknown[]>;
+    delete(id: string): Promise<boolean>;
+  };
+}
+```
+
+Update the `Capabilities` interface:
+
+```typescript
+interface Capabilities {
+  scheduler?: { enabled?: boolean; max_jobs?: number };
+  webhooks?: { enabled?: boolean };
+  storage?: { enabled?: boolean };
+  myFeature?: { enabled?: boolean };
+}
+```
+
+Add permission check:
+
+```typescript
+if (method.startsWith('myFeature.')) {
+  if (!capabilities?.myFeature?.enabled) {
+    throw new Error('Capability denied: myFeature not enabled in APP.yaml');
+  }
+}
+```
+
+Add the bridge implementation:
+
+```typescript
+const bridge: AppBridge = {
+  // ... existing capabilities
+
+  myFeature: {
+    create: (data) => callBridge('myFeature.create', { data }),
+    get: (id) => callBridge('myFeature.get', { id }),
+    list: () => callBridge('myFeature.list', {}),
+    delete: async (id) => {
+      const result = await callBridge<{ deleted: boolean }>('myFeature.delete', { id });
+      return result.deleted;
+    },
+  },
+};
+```
+
+### Step 7: Write Tests
+
+Create `tests/dashboard/myFeature.test.ts`:
+
+```typescript
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import express from 'express';
+import request from 'supertest';
+
+// Test database service methods
+describe('MyFeatureDatabase Service', () => {
+  // Test initialize, create, get, list, delete
+});
+
+// Test bridge API endpoints
+describe('Bridge API MyFeature Endpoints', () => {
+  // Test permission checks
+  // Test CRUD operations
+});
+```
+
+### Step 8: Update Documentation
+
+Add a section to this skill document describing the new capability, including:
+
+- APP.yaml configuration
+- Available methods
+- Example usage code
+- When to use this capability
+
+### Checklist
+
+When adding a new bridge capability, ensure you have:
+
+- [ ] Added Zod schema and TypeScript type in `packages/apps/src/types.ts`
+- [ ] Created database service in `packages/dashboard/src/services/`
+- [ ] Added to `DashboardServices` interface and initialization
+- [ ] Added bridge method handlers in `apps.routes.ts`
+- [ ] Passed service to routes in `routes.ts`
+- [ ] Added frontend bridge interface and implementation in `useBridge.ts`
+- [ ] Added permission checking for the new capability
+- [ ] Written tests for database service and bridge API
+- [ ] Updated skill documentation with usage examples
+- [ ] Rebuilt the `@orient/apps` package (`pnpm --filter @orient/apps exec tsc`)

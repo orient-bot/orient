@@ -74,11 +74,21 @@ export const WebhookCapabilitySchema = z.object({
 export type WebhookCapability = z.infer<typeof WebhookCapabilitySchema>;
 
 /**
+ * Storage capability configuration
+ */
+export const StorageCapabilitySchema = z.object({
+  enabled: z.boolean().default(false),
+});
+
+export type StorageCapability = z.infer<typeof StorageCapabilitySchema>;
+
+/**
  * All app capabilities
  */
 export const AppCapabilitiesSchema = z.object({
   scheduler: SchedulerCapabilitySchema.optional(),
   webhooks: WebhookCapabilitySchema.optional(),
+  storage: StorageCapabilitySchema.optional(),
 });
 
 export type AppCapabilities = z.infer<typeof AppCapabilitiesSchema>;
@@ -263,6 +273,7 @@ export function generateAppManifestTemplate(
     capabilities: {
       scheduler: { enabled: false, max_jobs: 10 },
       webhooks: { enabled: false, max_endpoints: 3 },
+      storage: { enabled: false },
     },
     sharing: {
       mode: 'secret_link',
@@ -317,6 +328,10 @@ export function serializeManifestToYaml(manifest: AppManifest): string {
       lines.push('  webhooks:');
       lines.push(`    enabled: ${manifest.capabilities.webhooks.enabled}`);
       lines.push(`    max_endpoints: ${manifest.capabilities.webhooks.max_endpoints}`);
+    }
+    if (manifest.capabilities.storage) {
+      lines.push('  storage:');
+      lines.push(`    enabled: ${manifest.capabilities.storage.enabled}`);
     }
   }
 
