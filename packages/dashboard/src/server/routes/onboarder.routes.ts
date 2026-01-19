@@ -8,10 +8,12 @@
 
 import { Router, Request, Response as ExpressResponse } from 'express';
 import { createServiceLogger } from '@orient/core';
+import { createSecretsService } from '@orient/database-services';
 import type { AuthenticatedRequest } from '../../auth.js';
 import type { MessageDatabase, OnboarderSessionRecord } from '../../services/messageDatabase.js';
 
 const logger = createServiceLogger('onboarder-routes');
+const secretsService = createSecretsService();
 
 const ACTION_REGEX = /\[action:([^|\]]+)\|([^\]]+)\]/g;
 
@@ -437,5 +439,36 @@ export function createOnboarderRoutes(
     }
   });
 
+  // Check for pending onboarding notifications
+  router.get('/pending', requireAuth, async (req: AuthenticatedRequest, res: ExpressResponse) => {
+    try {
+      const slackOnboarded = await db.checkOnboardingCompleted('slack');
+
+      // Check if Slack configured but onboarding not yet acknowledged in dashboard
+      const slackConfigured = await hasSlackSecrets();
+
+      if (slackConfigured && !slackOnboarded) {
+        res.json({ hasPending: true, type: 'slack' });
+        return;
+      }
+
+      res.json({ hasPending: false });
+    } catch (error) {
+      logger.error('Failed to check pending onboarding', { error: String(error) });
+      res.status(500).json({ error: 'Failed to check onboarding status' });
+    }
+  });
+
   return router;
+}
+
+async function hasSlackSecrets(): Promise<boolean> {
+  try {
+    const secrets = await secretsService.listSecrets();
+    const slackKeys = ['SLACK_BOT_TOKEN', 'SLACK_SIGNING_SECRET', 'SLACK_APP_TOKEN'];
+    return slackKeys.every((key) => secrets.some((s) => s.key === key));
+  } catch (error) {
+    logger.error('Failed to check Slack secrets', { error: String(error) });
+    return false;
+  }
 }
