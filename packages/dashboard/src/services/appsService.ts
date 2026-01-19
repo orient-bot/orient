@@ -37,6 +37,12 @@ export interface AppSummary {
   status: AppStatus;
   isBuilt: boolean;
   author?: string;
+  permissions?: Record<string, { read: boolean; write: boolean }>;
+  capabilities?: {
+    scheduler?: { enabled: boolean };
+    webhooks?: { enabled: boolean };
+    storage?: { enabled: boolean };
+  };
 }
 
 // ============================================
@@ -236,15 +242,47 @@ export class AppsService {
       return [];
     }
 
-    return Array.from(this.appsCache.values()).map((app) => ({
-      name: app.manifest.name,
-      title: app.manifest.title,
-      description: app.manifest.description,
-      version: app.manifest.version,
-      status: app.status,
-      isBuilt: app.isBuilt,
-      author: app.manifest.author,
-    }));
+    return Array.from(this.appsCache.values()).map((app) => {
+      // Build permissions object
+      const permissions: Record<string, { read: boolean; write: boolean }> = {};
+      if (app.manifest.permissions) {
+        for (const [key, value] of Object.entries(app.manifest.permissions)) {
+          if (key !== 'tools' && value && typeof value === 'object' && !Array.isArray(value)) {
+            const perm = value as { read: boolean; write: boolean };
+            permissions[key] = { read: perm.read, write: perm.write };
+          }
+        }
+      }
+
+      // Build capabilities object
+      const capabilities: {
+        scheduler?: { enabled: boolean };
+        webhooks?: { enabled: boolean };
+        storage?: { enabled: boolean };
+      } = {};
+
+      if (app.manifest.capabilities?.scheduler) {
+        capabilities.scheduler = { enabled: app.manifest.capabilities.scheduler.enabled };
+      }
+      if (app.manifest.capabilities?.webhooks) {
+        capabilities.webhooks = { enabled: app.manifest.capabilities.webhooks.enabled };
+      }
+      if (app.manifest.capabilities?.storage) {
+        capabilities.storage = { enabled: app.manifest.capabilities.storage.enabled };
+      }
+
+      return {
+        name: app.manifest.name,
+        title: app.manifest.title,
+        description: app.manifest.description,
+        version: app.manifest.version,
+        status: app.status,
+        isBuilt: app.isBuilt,
+        author: app.manifest.author,
+        permissions: Object.keys(permissions).length > 0 ? permissions : undefined,
+        capabilities: Object.keys(capabilities).length > 0 ? capabilities : undefined,
+      };
+    });
   }
 
   /**
