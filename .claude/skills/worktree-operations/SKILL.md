@@ -2178,6 +2178,335 @@ curl -H "Authorization: Bearer $TOKEN" \
 9. **✅ Use factory functions** - Easier to mock for testing
 10. **✅ Follow dependency injection** - Pass dependencies to constructors
 
+### Database Service Integration for Bots
+
+**Critical Pattern**: When integrating services like PromptService into bot entry points, you must understand which database types implement which interfaces.
+
+#### Understanding Database Type Requirements
+
+**The Key Concept**: Different services require different database interfaces. Using the wrong database type will cause TypeScript compilation errors.
+
+**Common TypeScript Error**:
+
+```typescript
+// ❌ WRONG - TypeScript compilation error
+import { createSlackDatabase, createPromptService } from '@orient/database-services';
+
+const slackDatabase = createSlackDatabase();
+const promptService = createPromptService(slackDatabase); // ERROR!
+
+// Error: Argument of type 'SlackDatabase' is not assignable to parameter of type 'PromptDatabaseInterface'.
+// Type 'SlackDatabase' is missing properties: getSystemPromptText, getSystemPrompt, setSystemPrompt, deleteSystemPrompt, etc.
+```
+
+**Why This Fails**:
+
+- `PromptService` requires a database implementing `PromptDatabaseInterface`
+- `SlackDatabase` implements `SlackDatabaseInterface` (platform-specific operations)
+- `MessageDatabase` implements `PromptDatabaseInterface` (cross-platform operations including prompts)
+
+#### Correct Pattern: Using MessageDatabase
+
+**Bot Entry Point Pattern** (`packages/bot-slack/src/main.ts`):
+
+```typescript
+import { createSlackBotService } from './services/index.js';
+import { createServiceLogger, loadConfig, getConfig } from '@orient/core';
+import {
+  createSecretsService,
+  createSlackDatabase, // Platform-specific database
+  createMessageDatabase, // Cross-platform database (for prompts)
+  createPromptService,
+} from '@orient/database-services';
+
+const logger = createServiceLogger('slack-bot');
+
+async function main(): Promise<void> {
+  try {
+    // ... config loading ...
+
+    // Initialize BOTH databases
+    const slackDatabase = createSlackDatabase(); // For Slack-specific data
+    const messageDatabase = createMessageDatabase(); // For cross-platform data
+
+    // PromptService uses MessageDatabase (implements PromptDatabaseInterface)
+    const promptService = createPromptService(messageDatabase);
+    logger.info('Prompt service initialized');
+
+    // Create bot with platform-specific database
+    const slackBot = createSlackBotService(config, slackDatabase);
+
+    // Attach prompt service to bot
+    slackBot.setPromptService(promptService);
+    logger.info('Prompt service configured for Slack bot');
+
+    await slackBot.start();
+  } catch (error) {
+    logger.error('Failed to start Slack Bot', { error });
+    process.exit(1);
+  }
+}
+```
+
+#### Why Multiple Databases?
+
+**Database Separation by Concern**:
+
+```
+Platform-Specific Databases:
+├─ SlackDatabase
+│  ├─ slack_channels (Slack channel metadata)
+│  ├─ slack_messages (Slack-specific message fields)
+│  └─ slack_threads (thread tracking)
+│
+└─ WhatsAppDatabase
+   ├─ whatsapp_contacts (contact info)
+   ├─ whatsapp_groups (group metadata)
+   └─ whatsapp_media (media references)
+
+Cross-Platform Database:
+└─ MessageDatabase (implements PromptDatabaseInterface)
+   ├─ messages (normalized cross-platform messages)
+   ├─ system_prompts (shared prompts for all platforms)
+   └─ message_context (conversation context)
+```
+
+**Design Rationale**:
+
+- **Prompts are cross-platform**: Same prompt system works for Slack, WhatsApp, Discord, etc.
+- **Platform-specific data stays isolated**: Slack threads don't mix with WhatsApp groups
+- **Services use appropriate database**: PromptService → MessageDatabase, SlackService → SlackDatabase
+
+#### Verifying Service Initialization in Logs
+
+After starting a bot, verify services initialized correctly by checking logs:
+
+**Log File Location**:
+
+```bash
+# For Slack bot
+tail -f logs/instance-9/slack-dev.log
+
+# For WhatsApp bot
+tail -f logs/instance-9/whatsapp-dev.log
+```
+
+**Expected Log Sequence**:
+
+```
+2026-01-19 06:27:14.601 [INFO] [slack-db] Slack database pool created
+  → {
+    "connectionString": "postgresql://orient:****@localhost:14432/whatsapp_bot_9"
+  }
+
+2026-01-19 06:27:14.601 [INFO] [message-db] Database pool created
+  → {
+    "connectionString": "postgresql://orient:****@localhost:14432/whatsapp_bot_9"
+  }
+
+2026-01-19 06:27:14.602 [INFO] [prompt-service] Prompt service initialized
+  → {
+    "cacheEnabled": true
+  }
+
+2026-01-19 06:27:14.602 [INFO] [slack-bot] Prompt service initialized
+
+2026-01-19 06:27:14.621 [INFO] [slack-bot] Prompt service configured for Slack bot
+
+2026-01-19 06:27:15.327 [INFO] [slack-bot] Slack Bot is ready!
+```
+
+**Key Log Indicators**:
+
+1. ✅ `[slack-db] Slack database pool created` - Platform database initialized
+2. ✅ `[message-db] Database pool created` - Cross-platform database initialized
+3. ✅ `[prompt-service] Prompt service initialized` - Service created successfully
+4. ✅ `[slack-bot] Prompt service configured` - Service attached to bot
+5. ✅ `[slack-bot] Slack Bot is ready!` - Bot fully operational
+
+**Missing Log Indicators** (problems):
+
+```bash
+# If you see this but NOT the message-db/prompt-service logs:
+[INFO] [slack-bot] Starting Slack Bot...
+[INFO] [slack-db] Slack database pool created
+[ERROR] [slack-bot] Failed to handle message: Cannot read property 'getSystemPromptText' of undefined
+
+# Cause: PromptService was never initialized in main.ts
+```
+
+#### Common Mistakes and Fixes
+
+**Mistake 1: Using Platform Database Instead of MessageDatabase**
+
+```typescript
+// ❌ WRONG - TypeScript error
+const slackDatabase = createSlackDatabase();
+const promptService = createPromptService(slackDatabase);
+
+// Error: Type 'SlackDatabase' is not assignable to 'PromptDatabaseInterface'
+
+// ✅ CORRECT
+const slackDatabase = createSlackDatabase();
+const messageDatabase = createMessageDatabase();
+const promptService = createPromptService(messageDatabase);
+```
+
+**Mistake 2: Forgetting to Import MessageDatabase**
+
+```typescript
+// ❌ WRONG - Missing import
+import {
+  createSlackDatabase,
+  createPromptService, // No createMessageDatabase!
+} from '@orient/database-services';
+
+// ✅ CORRECT
+import {
+  createSlackDatabase,
+  createMessageDatabase, // Added
+  createPromptService,
+} from '@orient/database-services';
+```
+
+**Mistake 3: Forgetting to Attach Service to Bot**
+
+```typescript
+// ❌ WRONG - Service created but never used
+const promptService = createPromptService(messageDatabase);
+const slackBot = createSlackBotService(config, slackDatabase);
+// Missing: slackBot.setPromptService(promptService)
+
+await slackBot.start(); // Bot will crash when trying to use prompts
+
+// ✅ CORRECT
+const promptService = createPromptService(messageDatabase);
+logger.info('Prompt service initialized');
+
+const slackBot = createSlackBotService(config, slackDatabase);
+
+slackBot.setPromptService(promptService); // Attach it!
+logger.info('Prompt service configured for Slack bot');
+
+await slackBot.start();
+```
+
+**Mistake 4: Not Logging Initialization Steps**
+
+```typescript
+// ❌ BAD - Silent failures hard to debug
+const messageDatabase = createMessageDatabase();
+const promptService = createPromptService(messageDatabase);
+slackBot.setPromptService(promptService);
+
+// ✅ GOOD - Clear audit trail
+const messageDatabase = createMessageDatabase();
+logger.info('Message database initialized');
+
+const promptService = createPromptService(messageDatabase);
+logger.info('Prompt service initialized');
+
+slackBot.setPromptService(promptService);
+logger.info('Prompt service configured for Slack bot');
+```
+
+#### Troubleshooting Service Integration
+
+**Problem: Bot crashes on message handling**
+
+```bash
+# Symptom in logs:
+[ERROR] Cannot read property 'getSystemPromptText' of undefined
+
+# Debug steps:
+1. Check if PromptService was initialized:
+   grep "Prompt service initialized" logs/instance-9/slack-dev.log
+
+2. If missing, check main.ts for initialization code
+
+3. Verify MessageDatabase import and initialization
+
+4. Rebuild and restart:
+   pnpm --filter @orient/bot-slack run build
+   ./run.sh dev
+```
+
+**Problem: TypeScript compilation fails**
+
+```bash
+# Error:
+src/main.ts(121,47): error TS2345: Argument of type 'SlackDatabase' is not assignable to parameter of type 'PromptDatabaseInterface'.
+
+# Fix:
+1. Check which database you're passing to createPromptService()
+2. Replace with createMessageDatabase()
+3. Import createMessageDatabase from @orient/database-services
+```
+
+**Problem: Service initialized but prompts don't work**
+
+```bash
+# Logs show initialization but bot ignores custom prompts
+
+# Debug:
+1. Verify service was attached:
+   grep "Prompt service configured" logs/instance-9/slack-dev.log
+
+2. Check if setPromptService() was called after creating bot
+
+3. Test prompt API endpoint:
+   curl http://localhost:13098/api/prompts
+
+4. Verify custom prompt exists in database:
+   psql $DATABASE_URL -c "SELECT * FROM system_prompts WHERE platform='slack';"
+```
+
+#### When to Apply This Pattern
+
+Use this multiple-database pattern when:
+
+1. **Adding PromptService to any bot**: Slack, WhatsApp, Discord, Telegram, etc.
+2. **Integrating cross-platform services**: Any service that works across multiple messaging platforms
+3. **Creating new bot integrations**: Template for adding new messaging platform support
+4. **Debugging bot crashes**: If bot fails when handling messages, check service initialization
+
+#### Testing Database Service Integration
+
+**Unit Test Pattern**:
+
+```typescript
+// __tests__/main.test.ts
+import { createMessageDatabase, createPromptService } from '@orient/database-services';
+
+describe('Database Service Integration', () => {
+  it('should initialize PromptService with MessageDatabase', () => {
+    const messageDatabase = createMessageDatabase();
+    const promptService = createPromptService(messageDatabase);
+
+    expect(promptService).toBeDefined();
+    expect(typeof promptService.getSystemPromptText).toBe('function');
+  });
+
+  it('should throw TypeScript error if using wrong database', () => {
+    // This won't compile (that's the point!)
+    // const slackDatabase = createSlackDatabase();
+    // const promptService = createPromptService(slackDatabase); // TS Error
+  });
+});
+```
+
+**Integration Test Pattern**:
+
+```bash
+# Start bot and verify initialization
+./run.sh dev
+
+# Check logs for proper sequence
+tail -f logs/instance-9/slack-dev.log | grep -E "(message-db|prompt-service|configured)"
+
+# Expected output shows all three initialization steps
+```
+
 ## Worktree-Specific Considerations
 
 ### 1. Shared node_modules
