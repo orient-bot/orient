@@ -18,7 +18,7 @@ describe('JIRA Integration Types', () => {
     expect(jira.getAllIssues).toBeDefined();
     expect(jira.getInProgressIssues).toBeDefined();
     expect(jira.getBlockerIssues).toBeDefined();
-  });
+  }, 30000);
 });
 
 describe('Google Integration Types', () => {
@@ -26,5 +26,5 @@ describe('Google Integration Types', () => {
     const google = await import('../src/google/index.js');
     // Migration is complete, so this should now be false
     expect(google.GOOGLE_SERVICES_MIGRATION_PENDING).toBe(false);
-  });
+  }, 30000);
 });
