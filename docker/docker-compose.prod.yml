@@ -10,7 +10,7 @@
 # Docker Compose will use the image if it exists, otherwise build it.
 # Since we're pulling images before 'up', the pre-built images are used.
 #
-# Registry: ghcr.io/orient-core/orient (personal fork for deployment)
+# Registry: ghcr.io/orient-bot/orient (personal fork for deployment)
 # Container prefix: orienter-* (distinguishes from local dev containers)
 # =============================================================================
 
@@ -19,7 +19,7 @@ services:
   # OpenCode Server - Use pre-built image from ghcr.io
   # ===========================================================================
   opencode:
-    image: ghcr.io/orient-core/orient/opencode:latest
+    image: ghcr.io/orient-bot/orient/opencode:latest
     container_name: orienter-opencode
     environment:
       # OAuth callback URL for Atlassian MCP (REQUIRED for production)
@@ -31,7 +31,7 @@ services:
   # V2 service name: bot-whatsapp (was: whatsapp-bot)
   # ===========================================================================
   bot-whatsapp:
-    image: ghcr.io/orient-core/orient/whatsapp-bot:latest
+    image: ghcr.io/orient-bot/orient/whatsapp-bot:latest
     container_name: orienter-bot-whatsapp
     environment:
       # OAuth callback URL for Atlassian MCP (REQUIRED for production)
@@ -46,14 +46,14 @@ services:
   # V2 service name: bot-slack (was: slack-bot)
   # ===========================================================================
   bot-slack:
-    image: ghcr.io/orient-core/orient/slack-bot:latest
+    image: ghcr.io/orient-bot/orient/slack-bot:latest
     container_name: orienter-bot-slack
 
   # ===========================================================================
   # Dashboard - Use pre-built image from ghcr.io
   # ===========================================================================
   dashboard:
-    image: ghcr.io/orient-core/orient/dashboard:latest
+    image: ghcr.io/orient-bot/orient/dashboard:latest
     container_name: orienter-dashboard
 
   # ===========================================================================
