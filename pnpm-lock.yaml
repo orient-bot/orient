@@ -707,6 +707,9 @@ importers:
       jira.js:
         specifier: ^4.1.3
         version: 4.1.3
+      js-yaml:
+        specifier: ^4.1.0
+        version: 4.1.1
       openai:
         specifier: ^4.104.0
         version: 4.104.0(ws@8.19.0)(zod@4.3.5)
@@ -714,6 +717,9 @@ importers:
         specifier: ^0.34.5
         version: 0.34.5
     devDependencies:
+      '@types/js-yaml':
+        specifier: ^4.0.9
+        version: 4.0.9
       '@types/node':
         specifier: ^20.19.27
         version: 20.19.27

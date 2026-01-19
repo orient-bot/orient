@@ -1,0 +1,165 @@
+name: google
+title: Google Workspace
+description: >-
+  Complete Google Workspace integration for Gmail, Calendar, Drive, Tasks,
+  Sheets, and Slides. Manage emails, schedule events, access files, track tasks,
+  and create documents and presentations.
+version: 1.0.0
+author: Orient
+icon: /icons/google.svg
+status: stable
+
+oauth:
+  type: oauth2-pkce
+  authorizationUrl: https://accounts.google.com/o/oauth2/v2/auth
+  tokenUrl: https://oauth2.googleapis.com/token
+  revocationUrl: https://oauth2.googleapis.com/revoke
+  userInfoUrl: https://www.googleapis.com/oauth2/v2/userinfo
+  scopes:
+    - https://www.googleapis.com/auth/userinfo.email
+    - https://www.googleapis.com/auth/userinfo.profile
+    - https://www.googleapis.com/auth/gmail.modify
+    - https://www.googleapis.com/auth/gmail.send
+    - https://www.googleapis.com/auth/calendar
+    - https://www.googleapis.com/auth/tasks
+    - https://www.googleapis.com/auth/spreadsheets
+    - https://www.googleapis.com/auth/presentations
+    - https://www.googleapis.com/auth/drive.file
+  scopeDescriptions:
+    https://www.googleapis.com/auth/userinfo.email: Access email address
+    https://www.googleapis.com/auth/userinfo.profile: Access basic profile info
+    https://www.googleapis.com/auth/gmail.modify: Read, compose, send, and modify emails
+    https://www.googleapis.com/auth/gmail.send: Send emails on your behalf
+    https://www.googleapis.com/auth/calendar: Full access to Google Calendar
+    https://www.googleapis.com/auth/tasks: Full access to Google Tasks
+    https://www.googleapis.com/auth/spreadsheets: Full access to Google Sheets
+    https://www.googleapis.com/auth/presentations: Full access to Google Slides
+    https://www.googleapis.com/auth/drive.file: Access to files created by this app
+
+requiredSecrets:
+  - name: GOOGLE_OAUTH_CLIENT_ID
+    description: OAuth 2.0 Client ID from Google Cloud Console
+    category: oauth
+    required: true
+  - name: GOOGLE_OAUTH_CLIENT_SECRET
+    description: OAuth 2.0 Client Secret from Google Cloud Console
+    category: oauth
+    required: true
+
+tools:
+  # Gmail
+  - name: gmail.send
+    description: Send an email via Gmail
+    category: gmail
+    requiredScopes:
+      - https://www.googleapis.com/auth/gmail.send
+  - name: gmail.search
+    description: Search emails in Gmail
+    category: gmail
+    requiredScopes:
+      - https://www.googleapis.com/auth/gmail.modify
+  - name: gmail.read
+    description: Read email contents
+    category: gmail
+    requiredScopes:
+      - https://www.googleapis.com/auth/gmail.modify
+  - name: gmail.labels
+    description: Manage email labels
+    category: gmail
+    requiredScopes:
+      - https://www.googleapis.com/auth/gmail.modify
+
+  # Calendar
+  - name: calendar.list
+    description: List calendar events
+    category: calendar
+    requiredScopes:
+      - https://www.googleapis.com/auth/calendar
+  - name: calendar.create
+    description: Create calendar events
+    category: calendar
+    requiredScopes:
+      - https://www.googleapis.com/auth/calendar
+  - name: calendar.update
+    description: Update calendar events
+    category: calendar
+    requiredScopes:
+      - https://www.googleapis.com/auth/calendar
+  - name: calendar.delete
+    description: Delete calendar events
+    category: calendar
+    requiredScopes:
+      - https://www.googleapis.com/auth/calendar
+
+  # Tasks
+  - name: tasks.list
+    description: List task lists and tasks
+    category: tasks
+    requiredScopes:
+      - https://www.googleapis.com/auth/tasks
+  - name: tasks.create
+    description: Create new tasks
+    category: tasks
+    requiredScopes:
+      - https://www.googleapis.com/auth/tasks
+  - name: tasks.update
+    description: Update existing tasks
+    category: tasks
+    requiredScopes:
+      - https://www.googleapis.com/auth/tasks
+  - name: tasks.complete
+    description: Mark tasks as complete
+    category: tasks
+    requiredScopes:
+      - https://www.googleapis.com/auth/tasks
+
+  # Sheets
+  - name: sheets.read
+    description: Read spreadsheet data
+    category: sheets
+    requiredScopes:
+      - https://www.googleapis.com/auth/spreadsheets
+  - name: sheets.write
+    description: Write data to spreadsheets
+    category: sheets
+    requiredScopes:
+      - https://www.googleapis.com/auth/spreadsheets
+  - name: sheets.create
+    description: Create new spreadsheets
+    category: sheets
+    requiredScopes:
+      - https://www.googleapis.com/auth/spreadsheets
+      - https://www.googleapis.com/auth/drive.file
+
+  # Slides
+  - name: slides.read
+    description: Read presentation content
+    category: slides
+    requiredScopes:
+      - https://www.googleapis.com/auth/presentations
+  - name: slides.create
+    description: Create presentations
+    category: slides
+    requiredScopes:
+      - https://www.googleapis.com/auth/presentations
+      - https://www.googleapis.com/auth/drive.file
+  - name: slides.update
+    description: Update presentation content
+    category: slides
+    requiredScopes:
+      - https://www.googleapis.com/auth/presentations
+
+  # Drive
+  - name: drive.list
+    description: List files in Drive
+    category: drive
+    requiredScopes:
+      - https://www.googleapis.com/auth/drive.file
+  - name: drive.upload
+    description: Upload files to Drive
+    category: drive
+    requiredScopes:
+      - https://www.googleapis.com/auth/drive.file
+
+docsUrl: https://developers.google.com/workspace
+apiBaseUrl: https://www.googleapis.com
