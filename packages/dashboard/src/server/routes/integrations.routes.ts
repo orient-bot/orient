@@ -455,7 +455,10 @@ export function createIntegrationsRoutes(
       // Save each credential as a secret
       for (const [key, value] of Object.entries(credentials)) {
         if (value && typeof value === 'string') {
-          await secretsService.setSecret(key, value, 'oauth', `${name} OAuth credential`);
+          await secretsService.setSecret(key, value, {
+            category: 'oauth',
+            description: `${name} OAuth credential`,
+          });
           // Also set in environment for immediate use
           process.env[key] = value;
         }

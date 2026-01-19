@@ -24,6 +24,7 @@ describe('JIRA Integration Types', () => {
 describe('Google Integration Types', () => {
   it('should export Google types', async () => {
     const google = await import('../src/google/index.js');
-    expect(google.GOOGLE_SERVICES_MIGRATION_PENDING).toBe(true);
+    // Migration is complete, so this should now be false
+    expect(google.GOOGLE_SERVICES_MIGRATION_PENDING).toBe(false);
   });
 });

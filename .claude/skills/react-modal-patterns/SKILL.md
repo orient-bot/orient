@@ -240,10 +240,124 @@ Always use lucide-react for icons:
 import { X, Eye, EyeOff, Loader2, Check, AlertCircle } from 'lucide-react';
 ```
 
+## Form Validation Patterns
+
+### Required Fields Tracking
+
+Track form completion state using derived values:
+
+```tsx
+// Track whether all required fields are filled
+const isFormComplete = useMemo(() => {
+  return requiredFields.every((field) => {
+    const value = formValues[field.name];
+    return value && value.trim().length > 0;
+  });
+}, [formValues, requiredFields]);
+```
+
+### Disabled Submit Button
+
+Disable submit when form is incomplete or submitting:
+
+```tsx
+<button
+  type="submit"
+  disabled={!isFormComplete || isSubmitting}
+  className="btn btn-primary flex items-center gap-2"
+>
+  {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
+  {isSubmitting ? 'Saving...' : 'Save & Connect'}
+</button>
+```
+
+### Field-Level Error Display
+
+Show errors inline below inputs:
+
+```tsx
+<div className="space-y-2">
+  <label className="block text-sm font-medium text-gray-900 dark:text-white">
+    Email <span className="text-red-500">*</span>
+  </label>
+  <input
+    type="email"
+    className={`input w-full ${errors.email ? 'border-red-500' : ''}`}
+    value={email}
+    onChange={(e) => setEmail(e.target.value)}
+  />
+  {errors.email && <p className="text-xs text-red-500">{errors.email}</p>}
+</div>
+```
+
+### Password Field Visibility Toggle
+
+Pattern for toggling password visibility with state per field:
+
+```tsx
+const [showPasswords, setShowPasswords] = useState<Record<string, boolean>>({});
+
+const togglePasswordVisibility = (fieldName: string) => {
+  setShowPasswords((prev) => ({ ...prev, [fieldName]: !prev[fieldName] }));
+};
+
+// In render
+<div className="relative">
+  <input
+    type={showPasswords[field.name] ? 'text' : 'password'}
+    className="input w-full pr-10"
+    value={formValues[field.name] || ''}
+    onChange={(e) => handleChange(field.name, e.target.value)}
+  />
+  <button
+    type="button"
+    onClick={() => togglePasswordVisibility(field.name)}
+    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+  >
+    {showPasswords[field.name] ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+  </button>
+</div>;
+```
+
+### Auto-Dismiss Notifications
+
+Notifications auto-dismiss after 5 seconds with cleanup on unmount:
+
+```tsx
+function NotificationBanner({
+  notification,
+  onDismiss,
+}: {
+  notification: Notification;
+  onDismiss: () => void;
+}) {
+  useEffect(() => {
+    const timer = setTimeout(onDismiss, 5000); // Auto-dismiss after 5s
+    return () => clearTimeout(timer); // Cleanup on unmount
+  }, [onDismiss]);
+
+  // ... render
+}
+
+// Usage with optional callbacks
+const handleSave = async () => {
+  try {
+    await saveData();
+    onSuccess?.('Changes saved successfully'); // Optional callback
+    setNotification({ type: 'success', message: 'Saved!' });
+    onOpenChange(false); // Close modal
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Save failed';
+    onError?.(message); // Optional callback
+    setError(message); // Show inline error
+  }
+};
+```
+
 ## Reference Components
 
 See these files for complete examples:
 
 - `packages/dashboard-frontend/src/components/MiniAppEditor/MiniAppEditorModal.tsx` - Full modal with form
 - `packages/dashboard-frontend/src/components/ScheduleForm.tsx` - Complex form with validation
-- `packages/dashboard-frontend/src/components/IntegrationCredentialModal.tsx` - Modal with tabs and password fields
+- `packages/dashboard-frontend/src/components/IntegrationCredentialModal.tsx` - Modal with tabs, password fields, and form validation
