@@ -5,16 +5,15 @@
 export type Service = 'whatsapp' | 'slack';
 export type WhatsAppView = 'chats' | 'discover' | 'audit';
 export type GlobalView =
-  | 'billing'
   | 'integrations'
   | 'automation'
   | 'agents'
   | 'apps'
-  | 'monitoring'
-  | 'storage'
+  | 'operations'
   | 'settings';
 export type IntegrationsView = 'catalog' | 'mcp-servers' | 'dual-mode' | 'secrets' | 'providers';
 export type AutomationView = 'schedules' | 'webhooks';
+export type OperationsView = 'billing' | 'monitoring' | 'storage';
 export type SettingsView = 'connections' | 'providers' | 'secrets' | 'appearance';
 export type ConnectionsSubView = 'catalog' | 'mcp' | 'modes';
 
@@ -39,6 +38,11 @@ export const ROUTES = {
   AUTOMATION: '/automation',
   AUTOMATION_SCHEDULES: '/automation/schedules',
   AUTOMATION_WEBHOOKS: '/automation/webhooks',
+  OPERATIONS: '/operations',
+  OPERATIONS_BILLING: '/operations/billing',
+  OPERATIONS_MONITORING: '/operations/monitoring',
+  OPERATIONS_STORAGE: '/operations/storage',
+  // Legacy routes (for redirects)
   BILLING: '/billing',
   MONITORING: '/monitoring',
   STORAGE: '/storage',
@@ -58,6 +62,7 @@ export interface RouteState {
   whatsappView: WhatsAppView;
   integrationsView: IntegrationsView;
   automationView: AutomationView;
+  operationsView: OperationsView;
   settingsView: SettingsView;
   connectionsSubView: ConnectionsSubView;
 }
@@ -69,6 +74,7 @@ export function getRouteState(pathname: string): RouteState {
     whatsappView: 'chats',
     integrationsView: 'mcp-servers',
     automationView: 'schedules',
+    operationsView: 'billing',
     settingsView: 'connections',
     connectionsSubView: 'catalog',
   };
@@ -103,14 +109,25 @@ export function getRouteState(pathname: string): RouteState {
   if (pathname.startsWith('/automation')) {
     return { ...defaultState, globalView: 'automation', automationView: 'schedules' };
   }
+  // Operations sub-routes
+  if (pathname.startsWith('/operations/monitoring')) {
+    return { ...defaultState, globalView: 'operations', operationsView: 'monitoring' };
+  }
+  if (pathname.startsWith('/operations/storage')) {
+    return { ...defaultState, globalView: 'operations', operationsView: 'storage' };
+  }
+  if (pathname.startsWith('/operations')) {
+    return { ...defaultState, globalView: 'operations', operationsView: 'billing' };
+  }
+  // Legacy routes (still need to parse for redirects)
   if (pathname.startsWith('/billing')) {
-    return { ...defaultState, globalView: 'billing' };
+    return { ...defaultState, globalView: 'operations', operationsView: 'billing' };
   }
   if (pathname.startsWith('/monitoring')) {
-    return { ...defaultState, globalView: 'monitoring' };
+    return { ...defaultState, globalView: 'operations', operationsView: 'monitoring' };
   }
   if (pathname.startsWith('/storage')) {
-    return { ...defaultState, globalView: 'storage' };
+    return { ...defaultState, globalView: 'operations', operationsView: 'storage' };
   }
 
   // Settings routes
@@ -180,7 +197,13 @@ export function getRouteState(pathname: string): RouteState {
 export function getRoutePath(
   globalView: GlobalView | null,
   service: Service = 'whatsapp',
-  subView?: WhatsAppView | IntegrationsView | AutomationView | SettingsView | ConnectionsSubView
+  subView?:
+    | WhatsAppView
+    | IntegrationsView
+    | AutomationView
+    | OperationsView
+    | SettingsView
+    | ConnectionsSubView
 ): string {
   if (globalView) {
     switch (globalView) {
@@ -193,6 +216,10 @@ export function getRoutePath(
       case 'automation':
         if (subView === 'webhooks') return ROUTES.AUTOMATION_WEBHOOKS;
         return ROUTES.AUTOMATION_SCHEDULES;
+      case 'operations':
+        if (subView === 'monitoring') return ROUTES.OPERATIONS_MONITORING;
+        if (subView === 'storage') return ROUTES.OPERATIONS_STORAGE;
+        return ROUTES.OPERATIONS_BILLING;
       case 'settings':
         // Handle settings sub-views
         if (subView === 'providers') return ROUTES.SETTINGS_PROVIDERS;
@@ -207,12 +234,6 @@ export function getRoutePath(
         return ROUTES.AGENTS;
       case 'apps':
         return ROUTES.APPS;
-      case 'billing':
-        return ROUTES.BILLING;
-      case 'monitoring':
-        return ROUTES.MONITORING;
-      case 'storage':
-        return ROUTES.STORAGE;
     }
   }
 
