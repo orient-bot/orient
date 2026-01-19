@@ -132,8 +132,30 @@ Then run:
 5. Copies `.env` from main repo
 6. Copies `.claude/settings.local.json` from main repo (API keys, preferences)
 7. Starts `pnpm install` in background
-8. If `--isolated`: Creates dedicated database and seeds it with test data
-9. Returns the worktree path immediately
+8. If `--model`: Sets default Claude model in `.claude/settings.local.json`
+9. If `--isolated`: Creates dedicated database and seeds it with test data
+10. Returns the worktree path immediately
+
+### Best Practice: Verify Model Configuration
+
+When creating worktrees with the `--model` flag, **always verify the configuration was applied correctly**:
+
+```bash
+# 1. Create worktree with model
+WORKTREE_PATH=$(.claude/skills/claude-worktree-manager/scripts/worktree.sh create my-feature --model opus | tail -1)
+
+# 2. Verify the model was set (recommended)
+.claude/skills/claude-worktree-manager/scripts/verify-worktree-model.sh "$WORKTREE_PATH"
+
+# 3. Check pnpm install progress
+tail -f "$WORKTREE_PATH/.pnpm-install.log"
+
+# 4. Start working once verified
+cd "$WORKTREE_PATH"
+claude 'Your goal here'
+```
+
+**Why verify?** The model configuration relies on `jq` or `sed` to update JSON files, which can occasionally fail silently on some systems. Running the verification script ensures the model was correctly set before starting your Claude session.
 
 ### When to Use --isolated
 
