@@ -49,8 +49,8 @@ jobs:
             echo "apps_list=" >> $GITHUB_OUTPUT
           else
             echo "apps=true" >> $GITHUB_OUTPUT
-            # Convert to JSON array
-            APPS_JSON=$(echo "$CHANGED_APPS" | xargs | tr ' ' '\n' | jq -R . | jq -s .)
+            # Convert to JSON array - properly handle whitespace
+            APPS_JSON=$(echo "$CHANGED_APPS" | tr ' ' '\n' | grep -v '^$' | jq -R . | jq -s .)
             echo "apps_list=$APPS_JSON" >> $GITHUB_OUTPUT
           fi
 
