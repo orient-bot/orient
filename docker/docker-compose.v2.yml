@@ -166,7 +166,7 @@ services:
       - OPENCODE_HOSTNAME=0.0.0.0
       - DATA_DIR=/app/data
       - LOG_DIR=/app/logs
-      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-whatsapp_bot_0}
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@orienter-postgres:5432/${POSTGRES_DB:-whatsapp_bot_0}
       - S3_BUCKET=${S3_BUCKET:-orienter-data}
       - S3_SYNC_INTERVAL=${S3_SYNC_INTERVAL:-60}
       - AWS_ACCESS_KEY_ID=${MINIO_ROOT_USER}
@@ -225,7 +225,7 @@ services:
     environment:
       - NODE_ENV=production
       - TZ=Asia/Jerusalem
-      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-whatsapp_bot_0}
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@orienter-postgres:5432/${POSTGRES_DB:-whatsapp_bot_0}
       - OPENCODE_SERVER_URL=http://opencode:${OPENCODE_PORT:-4099}
       - OPENCODE_URL=http://opencode:${OPENCODE_PORT:-4099}
       - OPENCODE_ENABLED=true
@@ -288,7 +288,7 @@ services:
     environment:
       - NODE_ENV=production
       - TZ=Asia/Jerusalem
-      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-whatsapp_bot_0}
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@orienter-postgres:5432/${POSTGRES_DB:-whatsapp_bot_0}
       - OPENCODE_SERVER_URL=http://opencode:${OPENCODE_PORT:-4099}
       - OPENCODE_URL=http://opencode:${OPENCODE_PORT:-4099}
       - OPENCODE_ENABLED=true
@@ -343,7 +343,7 @@ services:
     environment:
       - NODE_ENV=production
       - TZ=Asia/Jerusalem
-      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-whatsapp_bot_0}
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@orienter-postgres:5432/${POSTGRES_DB:-whatsapp_bot_0}
       - API_GATEWAY_PORT=4100
     volumes:
       - ../logs:/app/logs
@@ -383,7 +383,7 @@ services:
       - NODE_ENV=production
       - TZ=Asia/Jerusalem
       - DASHBOARD_PORT=4098
-      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-whatsapp_bot_0}
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@orienter-postgres:5432/${POSTGRES_DB:-whatsapp_bot_0}
       - DASHBOARD_JWT_SECRET=${DASHBOARD_JWT_SECRET}
       - ORIENT_MASTER_KEY=${ORIENT_MASTER_KEY}
       # Path to .env file for setup wizard to write non-sensitive values
