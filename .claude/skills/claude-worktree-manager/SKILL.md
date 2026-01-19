@@ -116,6 +116,51 @@ The script has a **default model** configured: `sonnet`
 - To change the default, edit `DEFAULT_MODEL` in the script
 - Override for specific worktrees: `--model opus` or `--model haiku`
 
+**⚠️ Important: Setting DEFAULT_MODEL does NOT make verification optional!**
+
+Even with a default model configured, you MUST still run `verify-worktree-model.sh` after creating a worktree. The default model goes through the same jq/sed configuration process that can fail silently.
+
+### Complete Workflow: Create → Verify → Start
+
+**Scenario 1: Using default model (sonnet)**
+
+```bash
+# 1. Create worktree (automatically uses DEFAULT_MODEL=sonnet)
+WORKTREE_PATH=$(.claude/skills/claude-worktree-manager/scripts/worktree.sh create my-feature | tail -1)
+# Output: [INFO] Using default model: sonnet
+
+# 2. REQUIRED: Verify the default model was set correctly
+.claude/skills/claude-worktree-manager/scripts/verify-worktree-model.sh "$WORKTREE_PATH"
+# Expected: [SUCCESS] Model is valid: sonnet
+
+# 3. Only start Claude AFTER verification succeeds
+cd "$WORKTREE_PATH" && claude 'Your goal'
+```
+
+**Scenario 2: Using custom model (opus)**
+
+```bash
+# 1. Create worktree with explicit model (overrides DEFAULT_MODEL)
+WORKTREE_PATH=$(.claude/skills/claude-worktree-manager/scripts/worktree.sh create complex-task --model opus | tail -1)
+# Output: [INFO] Setting default model to: opus
+
+# 2. REQUIRED: Verify the custom model was set correctly
+.claude/skills/claude-worktree-manager/scripts/verify-worktree-model.sh "$WORKTREE_PATH"
+# Expected: [SUCCESS] Model is valid: opus
+
+# 3. Only start Claude AFTER verification succeeds
+cd "$WORKTREE_PATH" && claude 'Your complex goal'
+```
+
+**Verification output for default model worktrees:**
+
+```
+[INFO] Verifying Claude model configuration in: /path/to/worktree
+[SUCCESS] .claude/settings.local.json found
+[SUCCESS] Model configuration found: sonnet
+[SUCCESS] Model is valid: sonnet
+```
+
 ## Quick Start
 
 ### Create a Worktree
