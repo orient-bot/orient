@@ -94,6 +94,40 @@ export function createAppsRoutes(
     res.json({ tokens: [] });
   });
 
+  // Generate a share link for an app
+  router.post('/:name/share', (req: Request, res: Response) => {
+    try {
+      const app = appsService.getApp(req.params.name);
+      if (!app) {
+        return res.status(404).json({ error: `App "${req.params.name}" not found` });
+      }
+
+      // For local development, use the dashboard URL directly
+      // In production, this would use APPS_BASE_URL env var
+      const baseUrl = process.env.APPS_BASE_URL || `http://localhost:${process.env.PORT || 3080}`;
+      const shareUrl = `${baseUrl}/apps/${app.manifest.name}/`;
+
+      logger.info('Generated share link', {
+        appName: app.manifest.name,
+        shareUrl,
+        isBuilt: app.isBuilt,
+      });
+
+      res.json({
+        success: true,
+        shareUrl,
+        expiryDays: req.body.expiryDays || 30,
+        maxUses: req.body.maxUses,
+      });
+    } catch (error) {
+      logger.error('Failed to generate share link', {
+        name: req.params.name,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      res.status(500).json({ error: 'Failed to generate share link' });
+    }
+  });
+
   // Reload apps from filesystem
   router.post('/reload', async (_req: Request, res: Response) => {
     try {
