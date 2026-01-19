@@ -153,12 +153,12 @@ export default function MiniAppEditorModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-2xl w-full max-w-6xl max-h-[90vh] flex flex-col">
+    <div className="fixed inset-0 bg-black/20 flex items-center justify-center z-50 p-4">
+      <div className="bg-card rounded-lg shadow-2xl w-full max-w-6xl max-h-[90vh] flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
+        <div className="flex items-center justify-between p-6 border-b border-border">
           <div className="flex items-center gap-3">
-            <Sparkles className="h-6 w-6 text-purple-500" />
+            <Sparkles className="h-6 w-6 text-primary" />
             <div>
               <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
                 {createNew ? 'Create New App' : `Edit ${appName}`}
@@ -168,10 +168,7 @@ export default function MiniAppEditorModal({
               </p>
             </div>
           </div>
-          <button
-            onClick={handleDiscard}
-            className="text-gray-400 hover:text-gray-500 dark:hover:text-gray-300"
-          >
+          <button onClick={handleDiscard} className="text-muted-foreground hover:text-foreground">
             <X className="h-6 w-6" />
           </button>
         </div>
@@ -179,7 +176,7 @@ export default function MiniAppEditorModal({
         {/* Content */}
         <div className="flex-1 overflow-hidden flex flex-col md:flex-row">
           {/* Left Panel: Form & Progress */}
-          <div className="w-full md:w-1/2 p-6 border-r border-gray-200 dark:border-gray-700 overflow-y-auto">
+          <div className="w-full md:w-1/2 p-6 border-r border-border overflow-y-auto">
             <AppEditorForm
               onSubmit={handleSubmitPrompt}
               disabled={isGenerating}
@@ -220,10 +217,10 @@ export default function MiniAppEditorModal({
             )}
 
             {session && (
-              <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+              <div className="mt-6 pt-6 border-t border-border">
                 <button
                   onClick={handleOpenInOpenCode}
-                  className="flex items-center gap-2 text-sm text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300"
+                  className="flex items-center gap-2 text-sm text-primary hover:text-primary/90"
                 >
                   <ExternalLink className="h-4 w-4" />
                   Continue editing in OpenCode
@@ -254,25 +251,23 @@ export default function MiniAppEditorModal({
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between p-6 border-t border-gray-200 dark:border-gray-700">
-          <div className="text-sm text-gray-500 dark:text-gray-400">
+        <div className="flex items-center justify-between p-6 border-t border-border">
+          <div className="text-sm text-muted-foreground">
             {session && (
               <>
-                Session: <span className="font-mono text-xs">{session.sessionId.slice(0, 16)}...</span>
+                Session:{' '}
+                <span className="font-mono text-xs">{session.sessionId.slice(0, 16)}...</span>
               </>
             )}
           </div>
           <div className="flex gap-3">
-            <button
-              onClick={handleDiscard}
-              className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-            >
+            <button onClick={handleDiscard} className="btn btn-ghost">
               Discard
             </button>
             <button
               onClick={handleAcceptAndClose}
               disabled={!session || isGenerating}
-              className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="btn btn-primary flex items-center gap-2"
             >
               <Check className="h-4 w-4" />
               Accept & Close
