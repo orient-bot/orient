@@ -214,6 +214,17 @@ export class MessageDatabase {
         )
       `);
 
+      // Workspace onboarding tracking
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS workspace_onboarding (
+          id SERIAL PRIMARY KEY,
+          onboarding_type TEXT NOT NULL UNIQUE,
+          completed_at TIMESTAMPTZ DEFAULT NOW(),
+          triggered_by TEXT,
+          metadata JSONB
+        )
+      `);
+
       // Create indexes
       await client.query(`
         CREATE INDEX IF NOT EXISTS idx_messages_phone ON messages(phone);
@@ -230,6 +241,7 @@ export class MessageDatabase {
         CREATE INDEX IF NOT EXISTS idx_permission_audit_time ON permission_audit_log(changed_at);
         CREATE INDEX IF NOT EXISTS idx_system_prompts_lookup ON system_prompts(platform, chat_id);
         CREATE INDEX IF NOT EXISTS idx_system_prompts_platform ON system_prompts(platform);
+        CREATE INDEX IF NOT EXISTS idx_onboarding_type ON workspace_onboarding(onboarding_type);
       `);
 
       // Create full-text search index on messages (PostgreSQL native)
@@ -1525,6 +1537,38 @@ Always provide concise, actionable summaries when reporting on project status.`;
       state[row.key] = row.value;
     }
     return state;
+  }
+
+  // ============================================
+  // ONBOARDING TRACKING
+  // ============================================
+
+  /**
+   * Check if onboarding has been completed for a given type
+   */
+  async checkOnboardingCompleted(type: string): Promise<boolean> {
+    const result = await this.pool.query(
+      'SELECT 1 FROM workspace_onboarding WHERE onboarding_type = $1',
+      [type]
+    );
+    return result.rows.length > 0;
+  }
+
+  /**
+   * Mark onboarding as completed for a given type
+   */
+  async markOnboardingCompleted(
+    type: string,
+    triggeredBy: string,
+    metadata: Record<string, any>
+  ): Promise<void> {
+    await this.pool.query(
+      `INSERT INTO workspace_onboarding (onboarding_type, triggered_by, metadata)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (onboarding_type) DO NOTHING`,
+      [type, triggeredBy, JSON.stringify(metadata)]
+    );
+    logger.info('Onboarding completed', { type, triggeredBy });
   }
 
   /**
