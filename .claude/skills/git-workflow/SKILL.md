@@ -1,0 +1,316 @@
+---
+name: git-workflow
+description: Orient repository git workflow conventions. Use when creating branches, writing commits, or opening PRs. Covers branch naming (feat/*, fix/*, etc.), conventional commit messages with co-author footers, multi-commit PR workflow, and gh pr create templates.
+---
+
+# Orient Repository Git Workflow
+
+## Overview
+
+The Orient monorepo follows conventional commit practices with specific conventions for branching, commit messages, and pull requests. This guide ensures consistency across the codebase and streamlines the development process.
+
+## Branch Naming
+
+All feature and fix branches follow this pattern:
+
+```
+{type}/{feature-name}
+```
+
+### Branch Types
+
+| Type        | Purpose                              | Example                  |
+| ----------- | ------------------------------------ | ------------------------ |
+| `feat/`     | New features                         | `feat/add-dark-mode`     |
+| `fix/`      | Bug fixes                            | `fix/auth-token-expiry`  |
+| `docs/`     | Documentation updates                | `docs/update-readme`     |
+| `refactor/` | Code refactoring (no feature change) | `refactor/extract-utils` |
+| `test/`     | Test additions/updates               | `test/add-e2e-coverage`  |
+| `perf/`     | Performance improvements             | `perf/optimize-queries`  |
+| `ci/`       | CI/CD configuration                  | `ci/update-workflows`    |
+
+### Branch Naming Best Practices
+
+- Use lowercase with hyphens: `feat/user-authentication` ✅ not `feat/UserAuthentication`
+- Keep names concise: `feat/dashboard-cards` ✅ not `feat/add-new-dashboard-card-components-with-hover`
+- Reference issue when applicable: `feat/add-api-caching-#123`
+
+## Conventional Commits
+
+All commits follow the conventional commit format:
+
+```
+{type}({scope}): {subject}
+
+{body}
+
+Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
+```
+
+### Commit Types
+
+| Type       | Description                              |
+| ---------- | ---------------------------------------- |
+| `feat`     | New feature                              |
+| `fix`      | Bug fix                                  |
+| `docs`     | Documentation                            |
+| `style`    | Code style (formatting, semicolons, etc) |
+| `refactor` | Code change without feature/bug fix      |
+| `perf`     | Performance improvement                  |
+| `test`     | Adding or updating tests                 |
+| `chore`    | Build process, dependency updates        |
+| `ci`       | CI/CD configuration                      |
+
+### Commit Scope
+
+The scope indicates which part of the codebase was modified:
+
+```
+feat(dashboard): add dark mode toggle
+fix(api): resolve token refresh timeout
+test(dashboard): improve component coverage
+```
+
+Common scopes in Orient:
+
+- `dashboard` / `dashboard-frontend`
+- `api` / `api-gateway`
+- `auth`
+- `integrations`
+- `apps` / `mini-apps`
+- `bot-slack` / `bot-whatsapp`
+- `database` / `schemas`
+
+### Subject Line
+
+- Imperative mood: "add" not "added" or "adds"
+- Don't capitalize first letter: `fix(api): resolve` ✅ not `Fix(api): Resolve`
+- No period at end: `feat: add feature` ✅ not `feat: add feature.`
+- Limit to 50 characters when possible
+- Clear, descriptive: `feat: add integration-active endpoint` ✅ not `feat: update`
+
+### Body (Optional but Recommended)
+
+For complex changes, add a body explaining:
+
+- Why this change is needed
+- What problem it solves
+- Any relevant implementation details
+
+```
+feat(dashboard): add missing integrations display
+
+Display missing integration requirements prominently in the apps list.
+Helps new users understand what setup is needed before using an app.
+
+- New MissingIntegrationsBadge component
+- Integrations column in apps table
+- Hover tooltip with missing requirements
+```
+
+### Co-Author Footer
+
+Always include the co-author footer (automated by pre-commit hooks when using Claude Code):
+
+```
+Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
+```
+
+Or with multiple authors:
+
+```
+Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
+Co-Authored-By: User Name <user.email@company.com>
+```
+
+## Multi-Commit PR Workflow
+
+### Creating Commits with Co-Author Footer
+
+Using git directly (manually add footer):
+
+```bash
+git commit -m "$(cat <<'EOF'
+feat(dashboard): add feature
+
+Detailed explanation of what and why.
+
+Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
+EOF
+)"
+```
+
+Or using a template file:
+
+```bash
+# Create commit with heredoc
+git commit -m "feat: add feature body"
+```
+
+### Typical Multi-Commit PR
+
+A well-structured PR often contains 2-4 related commits:
+
+```
+feat(dashboard): refactor colors to design system
+  └─ Updates MiniAppEditor components
+
+feat(dashboard): add missing integrations display
+  └─ New component + AppsTab changes
+
+test(dashboard): add comprehensive test coverage
+  └─ Component tests + integration tests
+```
+
+### Creating Pull Requests
+
+Use `gh pr create` with proper title and body:
+
+```bash
+gh pr create --base dev --title "feat: improve miniapp UX" \
+  --body "$(cat <<'EOF'
+## Summary
+
+Concise 1-3 sentence summary of changes.
+
+## Changes
+
+- Point 1
+- Point 2
+- Point 3
+
+## Test Coverage
+
+- ✅ All tests passing
+- ✅ No regressions
+- ✅ New test coverage added
+
+🤖 Generated with Claude Code
+EOF
+)"
+```
+
+### PR Title Format
+
+Follow the same conventional commit format for PR titles:
+
+```
+feat(scope): description
+fix(scope): description
+test(scope): description
+```
+
+## Pre-Commit Hooks
+
+The repository uses pre-commit hooks that automatically:
+
+1. Run Prettier for code formatting (~1-2 seconds)
+2. Fix formatting issues automatically
+3. Skip ESLint/TypeScript checks (run in CI)
+
+**Note:** Commits run through hooks automatically. The `Co-Authored-By` footer is preserved.
+
+## Workflow Example
+
+### Step 1: Create Feature Branch
+
+```bash
+git checkout -b feat/improve-miniapp-ux
+```
+
+### Step 2: Make Changes and Commit
+
+```bash
+# Make changes
+git add packages/dashboard-frontend/src/components/AppsTab.tsx
+
+# Commit with footer
+git commit -m "$(cat <<'EOF'
+feat(dashboard): add missing integrations display
+
+Display missing integration requirements in the apps list.
+
+Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
+EOF
+)"
+```
+
+### Step 3: Push Branch
+
+```bash
+git push -u origin feat/improve-miniapp-ux
+```
+
+### Step 4: Create PR
+
+```bash
+gh pr create --base dev \
+  --title "feat: improve miniapp UX for new users" \
+  --body "## Summary
+Improve experience for new users by displaying missing integrations.
+
+## Changes
+- Add MissingIntegrationsBadge component
+- Display integrations column in apps table
+- Update Edit with AI styling
+
+🤖 Generated with Claude Code"
+```
+
+## Common Issues & Solutions
+
+### Issue: Commit message without co-author
+
+**Solution:** Use heredoc format with `EOF` delimiter:
+
+```bash
+git commit -m "$(cat <<'EOF'
+feat: add feature
+
+Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
+EOF
+)"
+```
+
+### Issue: Need to amend last commit
+
+**Create a new commit instead** (avoid `--amend` unless explicitly requested by user):
+
+```bash
+git commit -m "feat: updated feature"
+```
+
+### Issue: Commit stuck in detached HEAD state
+
+```bash
+# Create branch from current commit
+git checkout -b feat/branch-name
+
+# Or checkout dev and try again
+git checkout dev
+```
+
+### Issue: Pre-commit hook failing
+
+The hook only runs Prettier. If failing:
+
+- Check file formatting issues
+- Let the hook auto-fix them
+- Stage and commit again
+
+## Best Practices
+
+1. **One logical change per commit** - Each commit should be independently meaningful
+2. **Write clear commit messages** - Future developers (including you!) will thank you
+3. **Keep PRs focused** - Don't mix unrelated features in one PR
+4. **Include tests with features** - Use `test()` commit type
+5. **Reference issues** - Include issue numbers in commit messages or PR description
+6. **Review before pushing** - Run `git diff` to check your changes
+7. **Use branches** - Never commit directly to main/dev
+8. **Keep commits small** - Easier to review, understand, and revert if needed
+
+## References
+
+- [Conventional Commits](https://www.conventionalcommits.org/)
+- [Orient Monorepo Structure](/project-architecture)
+- [Git Hooks Documentation](git-hooks)
