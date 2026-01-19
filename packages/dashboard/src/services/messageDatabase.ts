@@ -1877,6 +1877,41 @@ Always provide concise, actionable summaries when reporting on project status.`;
     return result.rowCount || 0;
   }
 
+  // =========================================================================
+  // Onboarding Methods
+  // =========================================================================
+
+  /**
+   * Check if onboarding has been completed for a given type
+   */
+  async checkOnboardingCompleted(type: string): Promise<boolean> {
+    const result = await this.pool.query(
+      'SELECT 1 FROM workspace_onboarding WHERE onboarding_type = $1',
+      [type]
+    );
+    return result.rows.length > 0;
+  }
+
+  /**
+   * Mark onboarding as completed for a given type
+   */
+  async markOnboardingCompleted(
+    type: string,
+    triggeredBy: string,
+    metadata: Record<string, unknown>
+  ): Promise<void> {
+    await this.pool.query(
+      `INSERT INTO workspace_onboarding (onboarding_type, triggered_by, metadata)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (onboarding_type) DO UPDATE SET
+         triggered_by = EXCLUDED.triggered_by,
+         metadata = EXCLUDED.metadata,
+         created_at = CURRENT_TIMESTAMP`,
+      [type, triggeredBy, JSON.stringify(metadata)]
+    );
+    logger.info('Onboarding marked as completed', { type, triggeredBy });
+  }
+
   /**
    * Close the database connection pool
    */

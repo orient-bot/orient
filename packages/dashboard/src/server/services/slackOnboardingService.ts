@@ -83,7 +83,7 @@ export class SlackOnboardingService {
       }
 
       // Fall back to first admin/owner
-      const usersResult = await this.client.users.list();
+      const usersResult = await this.client.users.list({});
       if (!usersResult.members) {
         return null;
       }
