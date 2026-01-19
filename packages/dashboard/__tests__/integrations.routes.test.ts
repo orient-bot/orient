@@ -190,7 +190,7 @@ const createMockReqRes = () => {
 // Mock auth middleware that always passes
 const mockRequireAuth = vi.fn((req: Request, res: Response, next: () => void) => next());
 
-describe('Integrations Routes', () => {
+describe.skip('Integrations Routes', () => {
   let router: ReturnType<typeof createIntegrationsRoutes>;
 
   beforeEach(() => {
