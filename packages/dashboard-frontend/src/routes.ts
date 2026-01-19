@@ -8,7 +8,6 @@ export type GlobalView =
   | 'billing'
   | 'integrations'
   | 'automation'
-  | 'prompts'
   | 'agents'
   | 'apps'
   | 'monitoring'
@@ -39,7 +38,6 @@ export const ROUTES = {
   AUTOMATION: '/automation',
   AUTOMATION_SCHEDULES: '/automation/schedules',
   AUTOMATION_WEBHOOKS: '/automation/webhooks',
-  PROMPTS: '/prompts',
   BILLING: '/billing',
   MONITORING: '/monitoring',
   SETTINGS: '/settings',
@@ -102,9 +100,6 @@ export function getRouteState(pathname: string): RouteState {
   }
   if (pathname.startsWith('/automation')) {
     return { ...defaultState, globalView: 'automation', automationView: 'schedules' };
-  }
-  if (pathname.startsWith('/prompts')) {
-    return { ...defaultState, globalView: 'prompts' };
   }
   if (pathname.startsWith('/billing')) {
     return { ...defaultState, globalView: 'billing' };
@@ -207,8 +202,6 @@ export function getRoutePath(
         return ROUTES.AGENTS;
       case 'apps':
         return ROUTES.APPS;
-      case 'prompts':
-        return ROUTES.PROMPTS;
       case 'billing':
         return ROUTES.BILLING;
       case 'monitoring':

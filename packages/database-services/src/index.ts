@@ -44,5 +44,16 @@ export type { AgentSeedOptions, AgentSeedResult } from './agentSeedService.js';
 export { SecretsService, createSecretsService } from './secretsService.js';
 export type { SecretMetadata } from './secretsService.js';
 
+// Prompt service (single source of truth for all packages)
+export {
+  PromptService,
+  createPromptService,
+  getPromptService,
+  initializePromptService,
+  isPromptServiceInitialized,
+} from './promptService.js';
+export type { PromptServiceConfig, PromptDatabaseInterface } from './promptService.js';
+export { EMBEDDED_DEFAULT_PROMPTS, getEmbeddedDefaultPrompt } from './embeddedDefaultPrompts.js';
+
 // Re-export all types
 export * from './types/index.js';

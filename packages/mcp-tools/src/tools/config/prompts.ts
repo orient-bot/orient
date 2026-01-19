@@ -15,6 +15,7 @@ import { z } from 'zod';
 import { createTool, MCPTool } from '../base.js';
 import type { ToolContext } from '../../types.js';
 import { getPendingActionsStore } from './pending-store.js';
+import { EMBEDDED_DEFAULT_PROMPTS } from '@orient/database-services';
 
 // Register the executor when the module loads
 import { registerPromptExecutor } from './executors/prompt-executor.js';
@@ -25,44 +26,6 @@ const platformSchema = z.enum(['whatsapp', 'slack']);
 function resolvePromptPlatform(targetId: string): 'whatsapp' | 'slack' {
   return targetId.includes('@') ? 'whatsapp' : 'slack';
 }
-
-/**
- * Embedded default prompts (fallback when database is empty)
- * Keep in sync with @orient/agents/src/services/promptService.ts
- */
-const EMBEDDED_DEFAULT_PROMPTS: Record<'whatsapp' | 'slack', string> = {
-  whatsapp: `You are an Orient Project Management assistant. You have access to JIRA, Slack, WhatsApp, Google Slides, and Mini-Apps tools through the orienter MCP server. Focus on:
-
-- Querying and managing JIRA issues for the YOUR_COMPONENT component
-- Checking blockers, SLA breaches, and sprint progress
-- Sending Slack messages and looking up users
-- Searching WhatsApp messages and conversations
-- Updating weekly presentations
-- Creating Mini-Apps (Calendly-like schedulers, forms, polls, dashboards)
-
-Always provide concise, actionable summaries when reporting on project status.`,
-
-  slack: `You are an Orient Project Management assistant. You have access to JIRA, Slack, WhatsApp, Google Slides, and Mini-Apps tools through the orienter MCP server. Focus on:
-
-- Querying and managing JIRA issues for the YOUR_COMPONENT component
-- Checking blockers, SLA breaches, and sprint progress
-- Sending Slack messages and looking up users
-- Searching WhatsApp messages and conversations
-- Updating weekly presentations
-- Creating Mini-Apps (Calendly-like schedulers, forms, polls, dashboards)
-
-CRITICAL FORMATTING RULES FOR SLACK:
-You are responding in Slack, so use Slack's mrkdwn format, NOT standard markdown:
-- Bold text: Use *single asterisks* (not **double**)
-- Italic text: Use _underscores_ (not *asterisks*)
-- Code/monospace: Use \`backticks\`
-- DO NOT use markdown headers like ## or ###. Instead, use bold text
-- Lists: Use bullet points with • or -
-- Links: Use <url|text> format
-- Emoji: Use Slack emoji codes like :white_check_mark: :warning: :rocket:
-
-Always provide concise, actionable summaries when reporting on project status.`,
-};
 
 /**
  * Set custom prompt for a chat or platform (creates pending action)

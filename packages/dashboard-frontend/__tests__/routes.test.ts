@@ -26,7 +26,6 @@ describe('Frontend URL Routing', () => {
       expect(ROUTES.AUTOMATION).toBe('/automation');
       expect(ROUTES.AUTOMATION_SCHEDULES).toBe('/automation/schedules');
       expect(ROUTES.AUTOMATION_WEBHOOKS).toBe('/automation/webhooks');
-      expect(ROUTES.PROMPTS).toBe('/prompts');
       expect(ROUTES.BILLING).toBe('/billing');
       expect(ROUTES.MONITORING).toBe('/monitoring');
     });
@@ -136,11 +135,6 @@ describe('Frontend URL Routing', () => {
         const state = getRouteState('/automation/webhooks');
         expect(state.globalView).toBe('automation');
         expect(state.automationView).toBe('webhooks');
-      });
-
-      it('should match /prompts path', () => {
-        const state = getRouteState('/prompts');
-        expect(state.globalView).toBe('prompts');
       });
     });
 
@@ -274,10 +268,6 @@ describe('Frontend URL Routing', () => {
 
       it('should return correct path for webhooks', () => {
         expect(getRoutePath('automation', 'whatsapp', 'webhooks')).toBe('/automation/webhooks');
-      });
-
-      it('should return correct path for prompts', () => {
-        expect(getRoutePath('prompts')).toBe('/prompts');
       });
     });
 

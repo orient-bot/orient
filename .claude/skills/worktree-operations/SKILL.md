@@ -2341,7 +2341,314 @@ docker ps | grep -E "orienter-.*-${AI_INSTANCE_ID}"  # Finds orienter-postgres-0
 4. Container names follow the pattern `orienter-<service>-<instance_id>`
 5. When scripting, match container names directly, not compose project names
 
-### 6. Verifying Instance Isolation
+### 6. Instance-Specific Environment Variable Configuration
+
+**Critical Setup**: When copying `.env` from the main repo to a worktree, you MUST update instance-specific values or services will connect to the wrong database and storage.
+
+#### The Problem
+
+**Symptom**: Services fail to start, or you accidentally connect to instance 0's database from instance 9.
+
+**Root Cause**: `.env` contains hard-coded values for instance 0:
+
+```bash
+DATABASE_URL=postgresql://orient:aibot123@localhost:5432/whatsapp_bot_0
+S3_ENDPOINT=http://localhost:9000
+```
+
+When you copy this to a worktree with instance ID 9, services try to connect to:
+
+- PostgreSQL on port **5432** (instance 0) instead of **14432** (instance 9)
+- MinIO on port **9000** (instance 0) instead of **18000** (instance 9)
+- Database **whatsapp_bot_0** instead of **whatsapp_bot_9**
+
+#### Auto-Detecting Instance ID
+
+The instance ID is calculated from the worktree path:
+
+```bash
+# Source instance environment variables
+source scripts/instance-env.sh
+
+# This sets:
+echo $AI_INSTANCE_ID      # e.g., 9
+echo $POSTGRES_PORT       # e.g., 14432 (5432 + 9×1000)
+echo $MINIO_API_PORT      # e.g., 18000 (9000 + 9×1000)
+echo $DASHBOARD_PORT      # e.g., 13098 (4098 + 9×1000)
+```
+
+**How Instance ID is Calculated**:
+
+```bash
+# From scripts/instance-env.sh (simplified)
+WORKTREE_PATH=$(pwd)
+WORKTREE_NAME=$(basename "$WORKTREE_PATH")
+
+# Hash worktree name to get instance ID (1-9)
+HASH=$(echo -n "$WORKTREE_NAME" | md5sum | cut -c1-8)
+INSTANCE_ID=$((16#$HASH % 9 + 1))
+
+# For main repo (no worktree)
+if [ "$IS_WORKTREE" = "false" ]; then
+  INSTANCE_ID=0
+fi
+```
+
+#### Fixing DATABASE_URL
+
+**Manual Fix**:
+
+```bash
+# 1. Source instance environment
+source scripts/instance-env.sh
+
+# 2. Extract credentials from current DATABASE_URL
+OLD_URL=$(grep "^DATABASE_URL=" .env | cut -d'=' -f2-)
+CREDS=$(echo "$OLD_URL" | grep -oE '//[^@]+@' | tr -d '/@')
+
+# 3. Build new URL with correct instance port and database
+NEW_URL="postgresql://${CREDS}@localhost:${POSTGRES_PORT}/whatsapp_bot_${AI_INSTANCE_ID}"
+
+# 4. Replace in .env
+sed -i '' "s|^DATABASE_URL=.*|DATABASE_URL=${NEW_URL}|" .env
+
+# 5. Verify
+echo "Updated DATABASE_URL:"
+grep DATABASE_URL .env
+```
+
+**Expected Result**:
+
+```bash
+# Before (instance 0):
+DATABASE_URL=postgresql://orient:aibot123@localhost:5432/whatsapp_bot_0
+
+# After (instance 9):
+DATABASE_URL=postgresql://orient:aibot123@localhost:14432/whatsapp_bot_9
+```
+
+#### Adding S3_ENDPOINT (MinIO)
+
+MinIO also needs instance-specific configuration:
+
+```bash
+# Source instance environment
+source scripts/instance-env.sh
+
+# Check if S3_ENDPOINT exists in .env
+if grep -q "^S3_ENDPOINT=" .env; then
+  # Update existing
+  sed -i '' "s|^S3_ENDPOINT=.*|S3_ENDPOINT=http://localhost:${MINIO_API_PORT}|" .env
+else
+  # Add new
+  echo "S3_ENDPOINT=http://localhost:${MINIO_API_PORT}" >> .env
+fi
+
+# Also add AI_INSTANCE_ID for clarity
+if ! grep -q "^AI_INSTANCE_ID=" .env; then
+  echo "AI_INSTANCE_ID=${AI_INSTANCE_ID}" >> .env
+fi
+
+echo "Updated MinIO configuration:"
+grep -E "(S3_ENDPOINT|AI_INSTANCE_ID)" .env
+```
+
+**Expected Result**:
+
+```bash
+S3_ENDPOINT=http://localhost:18000
+AI_INSTANCE_ID=9
+```
+
+#### Complete Worktree .env Setup Script
+
+**Automated setup** when creating a new worktree:
+
+```bash
+#!/bin/bash
+# setup-worktree-env.sh
+# Run after copying .env from main repo
+
+set -e
+
+echo "=== Configuring .env for Worktree Instance ==="
+
+# 1. Source instance environment
+source scripts/instance-env.sh
+
+echo "📋 Instance Configuration:"
+echo "   AI_INSTANCE_ID:    $AI_INSTANCE_ID"
+echo "   POSTGRES_PORT:     $POSTGRES_PORT"
+echo "   MINIO_API_PORT:    $MINIO_API_PORT"
+echo ""
+
+# 2. Fix DATABASE_URL
+echo "🔧 Fixing DATABASE_URL..."
+OLD_URL=$(grep "^DATABASE_URL=" .env | head -1 | cut -d'=' -f2-)
+if [ -z "$OLD_URL" ]; then
+  echo "❌ DATABASE_URL not found in .env"
+  exit 1
+fi
+
+# Extract credentials
+CREDS=$(echo "$OLD_URL" | grep -oE '//[^@]+@' | tr -d '/@')
+NEW_URL="postgresql://${CREDS}@localhost:${POSTGRES_PORT}/whatsapp_bot_${AI_INSTANCE_ID}"
+
+# Replace
+sed -i '' "s|^DATABASE_URL=.*|DATABASE_URL=${NEW_URL}|" .env
+echo "   ✅ DATABASE_URL: ...@localhost:${POSTGRES_PORT}/whatsapp_bot_${AI_INSTANCE_ID}"
+
+# 3. Fix/Add S3_ENDPOINT
+echo "🔧 Configuring MinIO endpoint..."
+if grep -q "^S3_ENDPOINT=" .env; then
+  sed -i '' "s|^S3_ENDPOINT=.*|S3_ENDPOINT=http://localhost:${MINIO_API_PORT}|" .env
+else
+  echo "S3_ENDPOINT=http://localhost:${MINIO_API_PORT}" >> .env
+fi
+echo "   ✅ S3_ENDPOINT: http://localhost:${MINIO_API_PORT}"
+
+# 4. Add AI_INSTANCE_ID
+if ! grep -q "^AI_INSTANCE_ID=" .env; then
+  echo "" >> .env
+  echo "# Instance-specific configuration (auto-generated)" >> .env
+  echo "AI_INSTANCE_ID=${AI_INSTANCE_ID}" >> .env
+  echo "   ✅ Added AI_INSTANCE_ID=${AI_INSTANCE_ID}"
+fi
+
+echo ""
+echo "✅ Environment configured for instance $AI_INSTANCE_ID"
+echo ""
+echo "Verify with:"
+echo "  grep -E '(DATABASE_URL|S3_ENDPOINT|AI_INSTANCE_ID)' .env"
+```
+
+**Usage**:
+
+```bash
+# After copying .env from main repo
+cp $ROOT_WORKTREE_PATH/.env .env
+
+# Run setup script
+./scripts/setup-worktree-env.sh
+
+# Or manually:
+source scripts/instance-env.sh
+# ... run the sed commands above ...
+```
+
+#### Migrating Secrets to Database
+
+After fixing `.env`, migrate secrets from `.env` to the database:
+
+```bash
+# Set master encryption key (from main repo's .env)
+export ORIENT_MASTER_KEY="your-master-key-from-main-env"
+
+# Run migration script
+npx tsx scripts/migrate-secrets-to-db.ts
+
+# Expected output:
+# ✅ Migrated 7 secrets:
+#    - SLACK_BOT_TOKEN
+#    - SLACK_APP_TOKEN
+#    - SLACK_SIGNING_SECRET
+#    - SLACK_USER_TOKEN
+#    - OPENAI_API_KEY
+#    - ANTHROPIC_API_KEY
+#    - WHATSAPP_PHONE_NUMBER_ID
+```
+
+**What This Does**:
+
+1. Reads secrets from `.env` (e.g., `SLACK_BOT_TOKEN=xoxb-...`)
+2. Encrypts them using `ORIENT_MASTER_KEY`
+3. Stores encrypted values in `secrets` table
+4. Services load secrets from database instead of `.env`
+
+**Important**: The migration script uses `DATABASE_URL` from `.env`, which is why fixing it first is critical!
+
+#### Verification Checklist
+
+After configuring `.env`, verify instance isolation:
+
+```bash
+# 1. Check environment variables
+source scripts/instance-env.sh
+echo "Instance ID: $AI_INSTANCE_ID"
+
+# 2. Verify DATABASE_URL port
+DB_PORT=$(grep DATABASE_URL .env | grep -oE 'localhost:[0-9]+' | cut -d':' -f2)
+echo "DATABASE_URL port: $DB_PORT (expected: $POSTGRES_PORT)"
+
+# 3. Verify database name
+DB_NAME=$(grep DATABASE_URL .env | grep -oE '/[^/]+$' | tr -d '/')
+echo "Database name: $DB_NAME (expected: whatsapp_bot_$AI_INSTANCE_ID)"
+
+# 4. Verify MinIO endpoint
+MINIO_PORT=$(grep S3_ENDPOINT .env | grep -oE ':[0-9]+' | tr -d ':')
+echo "MinIO port: $MINIO_PORT (expected: $MINIO_API_PORT)"
+
+# 5. Test database connection
+psql "$(grep DATABASE_URL .env | cut -d'=' -f2-)" -c "SELECT 1" >/dev/null && \
+  echo "✅ Database connection successful" || \
+  echo "❌ Database connection failed"
+```
+
+#### Common Issues
+
+**Issue 1: Database authentication failed**
+
+```bash
+# Error: password authentication failed for user "orient"
+# Cause: DATABASE_URL points to wrong port
+
+# Fix:
+source scripts/instance-env.sh
+sed -i '' "s|localhost:[0-9]\{4,5\}|localhost:${POSTGRES_PORT}|" .env
+```
+
+**Issue 2: Services connect to wrong instance**
+
+```bash
+# Symptom: Instance 9 sees data from instance 0
+# Cause: DATABASE_URL still points to whatsapp_bot_0
+
+# Fix database name:
+sed -i '' "s|/whatsapp_bot_[0-9]|/whatsapp_bot_${AI_INSTANCE_ID}|" .env
+```
+
+**Issue 3: MinIO bucket not found**
+
+```bash
+# Error: Bucket 'orient-data' not found
+# Cause: S3_ENDPOINT not set, defaults to instance 0
+
+# Fix:
+source scripts/instance-env.sh
+echo "S3_ENDPOINT=http://localhost:${MINIO_API_PORT}" >> .env
+```
+
+#### Environment Variable Reference
+
+**Instance-Specific Variables** (must be updated per instance):
+
+| Variable                  | Instance 0              | Instance 9               | Formula              |
+| ------------------------- | ----------------------- | ------------------------ | -------------------- |
+| `AI_INSTANCE_ID`          | `0`                     | `9`                      | Auto-detected        |
+| `DATABASE_URL` (port)     | `5432`                  | `14432`                  | 5432 + (ID × 1000)   |
+| `DATABASE_URL` (database) | `whatsapp_bot_0`        | `whatsapp_bot_9`         | `whatsapp_bot_${ID}` |
+| `S3_ENDPOINT`             | `http://localhost:9000` | `http://localhost:18000` | 9000 + (ID × 1000)   |
+| `DASHBOARD_PORT`          | `4098`                  | `13098`                  | 4098 + (ID × 1000)   |
+| `OPENCODE_PORT`           | `4099`                  | `13099`                  | 4099 + (ID × 1000)   |
+
+**Shared Variables** (same across all instances):
+
+- `ORIENT_MASTER_KEY` - Encryption key for secrets
+- `SLACK_BOT_TOKEN` - Stored in database, not `.env`
+- `OPENAI_API_KEY` - Stored in database, not `.env`
+- Most service credentials (migrate to database)
+
+### 7. Verifying Instance Isolation
 
 **CRITICAL**: When running multiple instances, you MUST verify that your `.env` file is properly configured for your instance. A common issue is copying `.env` from the main repo without updating instance-specific values.
 

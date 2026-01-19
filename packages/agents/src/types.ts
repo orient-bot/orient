@@ -159,63 +159,13 @@ export interface ProgressiveUpdate {
 export type { MessageParam, Tool, ContentBlock };
 
 // ============================================
-// PROMPT TYPES
+// PROMPT TYPES (re-exported from database-services)
 // ============================================
 
-/**
- * Platform for system prompts
- */
-export type PromptPlatform = 'whatsapp' | 'slack';
+export type {
+  PromptPlatform,
+  SystemPromptRecord,
+  SystemPromptWithInfo,
+} from '@orient/database-services';
 
-/**
- * System prompt record stored in the database
- * chat_id = '*' means platform default
- */
-export interface SystemPromptRecord {
-  id: number;
-  chatId: string; // JID/channel ID or '*' for default
-  platform: PromptPlatform;
-  promptText: string;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
-
-/**
- * System prompt with display info for dashboard
- */
-export interface SystemPromptWithInfo extends SystemPromptRecord {
-  displayName?: string; // Human-readable name of chat/channel
-  isDefault: boolean; // True if this is the platform default (chatId = '*')
-}
-
-/**
- * Prompt service configuration
- */
-export interface PromptServiceConfig {
-  cacheEnabled?: boolean;
-  cacheTtlMs?: number;
-}
-
-/**
- * Prompt database interface
- * This is what the PromptService needs from the database
- */
-export interface PromptDatabaseInterface {
-  getSystemPromptText(platform: PromptPlatform, chatId: string): Promise<string | undefined>;
-  getSystemPrompt(
-    platform: PromptPlatform,
-    chatId: string
-  ): Promise<SystemPromptRecord | undefined>;
-  setSystemPrompt(
-    platform: PromptPlatform,
-    chatId: string,
-    promptText: string
-  ): Promise<SystemPromptRecord>;
-  deleteSystemPrompt(platform: PromptPlatform, chatId: string): Promise<boolean>;
-  getDefaultPrompt(platform: PromptPlatform): Promise<SystemPromptRecord | undefined>;
-  // Note: Returns null for missing prompts (compatible with MessageDatabase)
-  getDefaultPrompts(): Promise<Partial<Record<PromptPlatform, SystemPromptRecord | null>>>;
-  listSystemPrompts(platform?: PromptPlatform): Promise<SystemPromptWithInfo[]>;
-  seedDefaultPrompts(): Promise<void>;
-}
+// PromptServiceConfig and PromptDatabaseInterface are exported from the promptService.ts file
