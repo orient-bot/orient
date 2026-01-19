@@ -277,6 +277,104 @@ sudo docker compose ${COMPOSE_FILES} up -d
 
 ## Troubleshooting
 
+### GitHub Actions SSH Authentication
+
+#### OCI_SSH_PRIVATE_KEY Secret
+
+**Error**: `Load key "/home/runner/.ssh/id_rsa": error in libcrypto` or `Permission denied (publickey)`
+
+**Cause**: The `OCI_SSH_PRIVATE_KEY` secret is missing or malformed.
+
+**Fix**: Add your SSH private key to GitHub Secrets:
+
+```bash
+# Add via gh CLI (recommended)
+gh secret set OCI_SSH_PRIVATE_KEY --repo orient-bot/orient < ~/.ssh/id_rsa
+
+# Or copy the key content and add via GitHub UI
+cat ~/.ssh/id_rsa | pbcopy
+# Then: Settings → Secrets → Actions → New repository secret
+```
+
+**Required format**: The full private key including headers:
+
+```
+-----BEGIN OPENSSH PRIVATE KEY-----
+... key content ...
+-----END OPENSSH PRIVATE KEY-----
+```
+
+**Note**: The key must match what's authorized on the Oracle server (`~/.ssh/authorized_keys`).
+
+### GHCR Package Access (403 Forbidden)
+
+**Error**: `failed to resolve reference "ghcr.io/orient-bot/orient/dashboard:latest": 403 Forbidden`
+
+**Cause**: GitHub Container Registry packages are private by default, even in public repos.
+
+**Fixes**:
+
+1. **Make packages public** (recommended for open source):
+   - Go to https://github.com/orgs/orient-bot/packages
+   - Click each package → Settings → Danger Zone → Change visibility → Public
+
+2. **Or use a PAT with `read:packages` scope**:
+
+   ```bash
+   # Create a PAT at https://github.com/settings/tokens with read:packages scope
+   # Add to GitHub Secrets as GHCR_PAT
+
+   # In workflow, authenticate before pulling:
+   echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io -u USERNAME --password-stdin
+   ```
+
+3. **Or authenticate the server permanently**:
+   ```bash
+   # On the Oracle server
+   gh auth token | sudo docker login ghcr.io -u orient-bot --password-stdin
+   ```
+
+### Database Migration Failures
+
+#### Role/User Not Found
+
+**Error**: `FATAL: role "orient" does not exist`
+
+**Cause**: Migration script uses hardcoded database user instead of actual configured user.
+
+**Fix**: The workflow now dynamically reads credentials from server `.env`:
+
+```bash
+DB_USER=$(grep '^POSTGRES_USER=' ~/orient/.env | cut -d= -f2 | tr -d '"')
+DB_NAME=$(grep '^POSTGRES_DB=' ~/orient/.env | cut -d= -f2 | tr -d '"')
+```
+
+If migrations still fail, verify server `.env` has correct values:
+
+```bash
+ssh opc@152.70.172.33 "grep POSTGRES ~/orient/.env"
+# Expected:
+# POSTGRES_USER=aibot
+# POSTGRES_DB=whatsapp_bot
+```
+
+#### Production Down After Failed Deploy
+
+If deployment fails partway through, production containers may be stopped:
+
+```bash
+# Check what's running
+ssh opc@152.70.172.33 "docker ps --format 'table {{.Names}}\t{{.Status}}'"
+
+# Restart production manually
+ssh opc@152.70.172.33 "cd ~/orient/docker && \
+  sudo docker compose --env-file ../.env \
+    -f docker-compose.v2.yml \
+    -f docker-compose.prod.yml \
+    -f docker-compose.r2.yml \
+    up -d"
+```
+
 ### Docker Build Failures
 
 #### Missing Directories in Dockerfile
