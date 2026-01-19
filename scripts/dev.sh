@@ -102,6 +102,156 @@ ensure_dirs() {
     mkdir -p "$PID_DIR" "$LOG_DIR" "$DATA_DIR" "$DATA_DIR/whatsapp-auth" "$DATA_DIR/media"
 }
 
+# =============================================================================
+# Mini-Apps Setup and Build
+# =============================================================================
+
+setup_miniapps_shared() {
+    local apps_dir="$PROJECT_ROOT/apps"
+    local shared_dir="$apps_dir/_shared"
+
+    # Skip if no apps directory
+    if [ ! -d "$apps_dir" ]; then
+        return 0
+    fi
+
+    # Ensure _shared has package.json (required for TypeScript module resolution)
+    if [ ! -f "$shared_dir/package.json" ]; then
+        log_step "Creating apps/_shared/package.json for TypeScript resolution..."
+        cat > "$shared_dir/package.json" << 'SHAREDJSON'
+{
+  "name": "@orient/mini-apps-shared",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "zod": "^4.1.13"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.43",
+    "@types/react-dom": "^18.2.17",
+    "typescript": "^5.3.3"
+  }
+}
+SHAREDJSON
+        log_info "Created apps/_shared/package.json"
+    fi
+
+    # Install _shared dependencies if node_modules is missing
+    if [ ! -d "$shared_dir/node_modules" ]; then
+        log_step "Installing apps/_shared dependencies..."
+        (cd "$shared_dir" && npm install --silent) || {
+            log_warn "Failed to install _shared dependencies (mini-apps may not build)"
+            return 1
+        }
+        log_info "Installed apps/_shared dependencies"
+    fi
+
+    return 0
+}
+
+build_miniapps() {
+    local apps_dir="$PROJECT_ROOT/apps"
+
+    # Skip if no apps directory
+    if [ ! -d "$apps_dir" ]; then
+        return 0
+    fi
+
+    # Ensure _shared is set up first
+    setup_miniapps_shared || return 1
+
+    log_step "Checking mini-apps for build..."
+
+    local apps_built=0
+    local apps_skipped=0
+    local apps_failed=0
+
+    # Find all app directories (exclude _shared and hidden dirs)
+    for app_dir in "$apps_dir"/*/; do
+        local app_name=$(basename "$app_dir")
+
+        # Skip _shared and hidden directories
+        [[ "$app_name" == "_shared" || "$app_name" == .* ]] && continue
+
+        # Skip if no APP.yaml (not a valid mini-app)
+        [ ! -f "$app_dir/APP.yaml" ] && continue
+
+        local dist_dir="$app_dir/dist"
+        local src_dir="$app_dir/src"
+        local package_json="$app_dir/package.json"
+
+        # Skip if no package.json
+        [ ! -f "$package_json" ] && continue
+
+        # Check if build is needed:
+        # 1. No dist folder
+        # 2. Source files newer than dist
+        local needs_build=false
+
+        if [ ! -d "$dist_dir" ] || [ ! -f "$dist_dir/index.html" ]; then
+            needs_build=true
+            log_info "  $app_name: needs build (no dist)"
+        elif [ -d "$src_dir" ]; then
+            # Check if any source file is newer than dist/index.html
+            local newest_src=$(find "$src_dir" -type f \( -name "*.ts" -o -name "*.tsx" -o -name "*.css" \) -newer "$dist_dir/index.html" 2>/dev/null | head -1)
+            if [ -n "$newest_src" ]; then
+                needs_build=true
+                log_info "  $app_name: needs build (source changed)"
+            fi
+            # Also check _shared for changes
+            local newest_shared=$(find "$apps_dir/_shared" -type f \( -name "*.ts" -o -name "*.tsx" \) -newer "$dist_dir/index.html" 2>/dev/null | head -1)
+            if [ -n "$newest_shared" ]; then
+                needs_build=true
+                log_info "  $app_name: needs build (_shared changed)"
+            fi
+        fi
+
+        if [ "$needs_build" = true ]; then
+            log_step "  Building $app_name..."
+
+            # Install dependencies if needed
+            if [ ! -d "$app_dir/node_modules" ]; then
+                (cd "$app_dir" && npm install --silent) || {
+                    log_warn "  $app_name: failed to install dependencies"
+                    apps_failed=$((apps_failed + 1))
+                    continue
+                }
+            fi
+
+            # Ensure tsconfig has baseUrl for proper module resolution
+            if [ -f "$app_dir/tsconfig.json" ]; then
+                if ! grep -q '"baseUrl"' "$app_dir/tsconfig.json"; then
+                    log_info "  $app_name: adding baseUrl to tsconfig.json"
+                    # Add baseUrl after the first { in compilerOptions
+                    sed -i '' 's/"compilerOptions": {/"compilerOptions": {\n    "baseUrl": ".",/' "$app_dir/tsconfig.json" 2>/dev/null || true
+                fi
+            fi
+
+            # Build the app
+            if (cd "$app_dir" && npm run build > "$LOG_DIR/miniapp-$app_name-build.log" 2>&1); then
+                log_info "  $app_name: built successfully"
+                apps_built=$((apps_built + 1))
+            else
+                log_warn "  $app_name: build failed (see $LOG_DIR/miniapp-$app_name-build.log)"
+                apps_failed=$((apps_failed + 1))
+            fi
+        else
+            apps_skipped=$((apps_skipped + 1))
+        fi
+    done
+
+    if [ $apps_built -gt 0 ] || [ $apps_failed -gt 0 ]; then
+        log_info "Mini-apps: $apps_built built, $apps_skipped up-to-date, $apps_failed failed"
+    elif [ $apps_skipped -gt 0 ]; then
+        log_info "Mini-apps: $apps_skipped up-to-date (no rebuild needed)"
+    fi
+
+    return 0
+}
+
 is_process_running() {
     local pid_file="$1"
     if [ -f "$pid_file" ]; then
@@ -385,6 +535,11 @@ start_dev() {
     # We use tsx for JIT TypeScript execution - saves 30-60+ seconds
     log_info "Skipping TypeScript build (using tsx for instant dev mode)"
 
+    # Step 2c: Build mini-apps if needed
+    build_miniapps || {
+        log_warn "Mini-app build had issues (continuing anyway)"
+    }
+
     # Step 3: Start frontend dev server with hot-reload
     log_step "Starting frontend dev server (Vite)..."
     cd "$PROJECT_ROOT"
@@ -413,7 +568,16 @@ start_dev() {
             return 1
         }
     fi
-    
+
+    # Ensure apps package is built (required for storage capabilities in mini-apps)
+    if [ ! -f "packages/apps/dist/types.js" ]; then
+        log_warn "Apps package not built, building now..."
+        pnpm --filter @orient/apps build || {
+            log_error "Failed to build apps package"
+            return 1
+        }
+    fi
+
     # Start dashboard using pnpm (handles workspace resolution better than direct tsx)
     # Run from project root to ensure proper workspace resolution
     pnpm --filter @orient/dashboard dev > "$LOG_DIR/dashboard-dev.log" 2>&1 &
@@ -428,6 +592,11 @@ start_dev() {
         log_error "  2. Module resolution issues - try: pnpm install"
         log_error "  3. Port already in use - check: lsof -i :${DASHBOARD_PORT}"
         return 1
+    fi
+
+    # Reload apps cache to pick up any newly built mini-apps
+    if curl -sf -X POST "http://localhost:${DASHBOARD_PORT}/api/apps/reload" >/dev/null 2>&1; then
+        log_info "Mini-apps cache refreshed"
     fi
 
     # Step 4: Start OpenCode server (dashboard must be ready first)

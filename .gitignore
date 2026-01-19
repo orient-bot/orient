@@ -459,6 +459,9 @@ docker-compose.override.yml
 docker-compose.*.local.yml
 *.dockerignore.local
 
+# Generated nginx config (created from template during ./run.sh dev)
+docker/nginx-local.conf
+
 # ============================================================================
 # CI/CD & DEPLOYMENT
 # ============================================================================
