@@ -16,3 +16,4 @@ export { createSecretsRoutes } from './secrets.routes.js';
 export { createProvidersRoutes } from './providers.routes.js';
 export { createOnboarderRoutes } from './onboarder.routes.js';
 export { createIntegrationsRoutes } from './integrations.routes.js';
+export { createStorageRoutes } from './storage.routes.js';
