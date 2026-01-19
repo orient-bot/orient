@@ -469,10 +469,20 @@ jobs:
 
             DEPLOY_DIR="${HOME}/orient"
             MIGRATIONS_DIR="${DEPLOY_DIR}/data/migrations"
+            DOCKER_DIR="${DEPLOY_DIR}/docker"
+            COMPOSE_FILES="-f docker-compose.v2.yml -f docker-compose.prod.yml -f docker-compose.r2.yml"
 
             # Get database credentials from server .env
             DB_USER=$(grep '^POSTGRES_USER=' ~/orient/.env | cut -d= -f2 | tr -d '"' || echo "aibot")
             DB_NAME=$(grep '^POSTGRES_DB=' ~/orient/.env | cut -d= -f2 | tr -d '"' || echo "whatsapp_bot")
+
+            # Ensure postgres is running (start just postgres if not already up)
+            echo "Ensuring PostgreSQL is running..."
+            cd "${DOCKER_DIR}"
+            if ! sudo docker ps | grep -q orienter-postgres; then
+              echo "  Starting postgres container..."
+              sudo docker compose --env-file "${DEPLOY_DIR}/.env" ${COMPOSE_FILES} up -d postgres
+            fi
 
             # Wait for postgres to be ready
             echo "Waiting for PostgreSQL..."
