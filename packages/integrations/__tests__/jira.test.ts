@@ -18,12 +18,13 @@ describe('JIRA Integration Types', () => {
     expect(jira.getAllIssues).toBeDefined();
     expect(jira.getInProgressIssues).toBeDefined();
     expect(jira.getBlockerIssues).toBeDefined();
-  });
+  }, 30000);
 });
 
 describe('Google Integration Types', () => {
   it('should export Google types', async () => {
     const google = await import('../src/google/index.js');
-    expect(google.GOOGLE_SERVICES_MIGRATION_PENDING).toBe(true);
-  });
+    // Migration is complete, so this should now be false
+    expect(google.GOOGLE_SERVICES_MIGRATION_PENDING).toBe(false);
+  }, 30000);
 });

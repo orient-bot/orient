@@ -59,6 +59,24 @@
       "import": "./dist/catalog/github/index.js",
       "require": "./dist/catalog/github/index.js",
       "default": "./dist/catalog/github/index.js"
+    },
+    "./catalog/google": {
+      "types": "./dist/catalog/google/index.d.ts",
+      "import": "./dist/catalog/google/index.js",
+      "require": "./dist/catalog/google/index.js",
+      "default": "./dist/catalog/google/index.js"
+    },
+    "./catalog/jira": {
+      "types": "./dist/catalog/jira/index.d.ts",
+      "import": "./dist/catalog/jira/index.js",
+      "require": "./dist/catalog/jira/index.js",
+      "default": "./dist/catalog/jira/index.js"
+    },
+    "./catalog/loader": {
+      "types": "./dist/catalog/loader.d.ts",
+      "import": "./dist/catalog/loader.js",
+      "require": "./dist/catalog/loader.js",
+      "default": "./dist/catalog/loader.js"
     }
   },
   "scripts": {
@@ -74,10 +92,12 @@
     "google-auth-library": "^10.5.0",
     "googleapis": "^144.0.0",
     "jira.js": "^4.1.3",
+    "js-yaml": "^4.1.0",
     "openai": "^4.104.0",
     "sharp": "^0.34.5"
   },
   "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
     "@types/node": "^20.19.27",
     "typescript": "^5.9.3",
     "vitest": "^4.0.16"

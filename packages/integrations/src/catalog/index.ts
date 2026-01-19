@@ -1,12 +1,20 @@
 /**
  * Integration Catalog
  *
- * Re-exports all integrations from the catalog.
- * Note: Google and Atlassian are available via MCP Servers (existing implementation).
+ * Re-exports all integrations from the catalog and the manifest loader.
  */
 
-// GitHub integration (new catalog-based)
+// Manifest loader for dynamic INTEGRATION.yaml loading
+export * from './loader.js';
+
+// GitHub integration (catalog-based)
 export * as github from './github/index.js';
 
-// Linear integration (new catalog-based)
+// Linear integration (catalog-based)
 export * as linear from './linear/index.js';
+
+// Google integration (catalog-based)
+export * as google from './google/index.js';
+
+// JIRA integration (catalog-based, supports API token + OAuth)
+export * as jira from './jira/index.js';

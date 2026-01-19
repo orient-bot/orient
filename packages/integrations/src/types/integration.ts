@@ -26,6 +26,20 @@ export interface IntegrationOAuthConfig {
 }
 
 /**
+ * Authentication method for integrations that support multiple auth options
+ */
+export interface AuthMethod {
+  /** Type of authentication */
+  type: 'api_token' | 'oauth2' | 'oauth2-pkce';
+  /** Human-readable name for this method */
+  name: string;
+  /** Description of when to use this method */
+  description: string;
+  /** Required fields/secrets for this auth method */
+  requiredFields: string[];
+}
+
+/**
  * Required secret configuration
  */
 export interface IntegrationSecret {
@@ -37,6 +51,8 @@ export interface IntegrationSecret {
   category: 'oauth' | 'api_key' | 'webhook';
   /** Whether this secret is required (default: true) */
   required?: boolean;
+  /** Which auth method this secret belongs to (for integrations with multiple auth methods) */
+  authMethod?: string;
 }
 
 /**
@@ -84,6 +100,9 @@ export interface IntegrationManifest {
 
   /** OAuth configuration */
   oauth: IntegrationOAuthConfig;
+
+  /** Multiple authentication methods (for integrations like JIRA that support both API token and OAuth) */
+  authMethods?: AuthMethod[];
 
   /** Required secrets for this integration */
   requiredSecrets: IntegrationSecret[];
