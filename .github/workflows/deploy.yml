@@ -615,13 +615,14 @@ jobs:
               echo "${{ github.sha }}" > "${BACKUP_DIR}/${TIMESTAMP}/commit.txt"
             fi
 
-            echo "Stopping services..."
-            sudo docker compose ${COMPOSE_FILES} down --remove-orphans 2>/dev/null || true
+            # Stop non-database services (keep postgres running to avoid startup delays)
+            echo "Stopping non-database services..."
+            sudo docker compose ${COMPOSE_FILES} stop nginx bot-whatsapp opencode dashboard bot-slack 2>/dev/null || true
 
-            echo "Removing lingering containers..."
-            sudo docker rm -f orienter-postgres orienter-nginx orienter-bot-whatsapp orienter-opencode orienter-bot-slack orienter-dashboard 2>/dev/null || true
+            echo "Removing application containers (preserving postgres)..."
+            sudo docker rm -f orienter-nginx orienter-bot-whatsapp orienter-opencode orienter-bot-slack orienter-dashboard 2>/dev/null || true
 
-            echo "Cleaning up..."
+            echo "Cleaning up orphaned containers..."
             sudo docker container prune -f 2>/dev/null || true
 
             echo "Pulling images (will use local if pull fails)..."
@@ -632,6 +633,23 @@ jobs:
               echo "  Listing available images:"
               sudo docker images | grep -E "orient|orienter" | head -10
             }
+
+            # Ensure postgres is running before starting other services
+            echo "Ensuring PostgreSQL is running..."
+            if ! sudo docker ps --format '{{.Names}}' | grep -qx "orienter-postgres"; then
+              echo "  Starting postgres..."
+              sudo docker compose --env-file "${DEPLOY_DIR}/.env" ${COMPOSE_FILES} up -d postgres
+              echo "  Waiting for postgres to be ready..."
+              for i in {1..30}; do
+                if sudo docker exec orienter-postgres pg_isready -U aibot > /dev/null 2>&1; then
+                  echo "  PostgreSQL ready"
+                  break
+                fi
+                sleep 2
+              done
+            else
+              echo "  PostgreSQL already running"
+            fi
 
             echo "Starting services..."
             sudo docker compose --env-file "${DEPLOY_DIR}/.env" ${COMPOSE_FILES} up -d
