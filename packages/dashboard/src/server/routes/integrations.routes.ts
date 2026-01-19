@@ -8,13 +8,23 @@
 import { Router, Request, Response } from 'express';
 import { createServiceLogger } from '@orient/core';
 import { createSecretsService } from '@orient/database-services';
-import {
-  loadIntegrationManifests,
-  loadIntegrationManifest,
-} from '@orient/integrations/catalog/loader';
 import type { IntegrationManifest } from '@orient/integrations/types';
 
 const logger = createServiceLogger('integrations-routes');
+
+// Lazy-loaded manifest loader module
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let loaderModule: any = null;
+
+async function getLoaderModule(): Promise<{
+  loadIntegrationManifests: () => Promise<IntegrationManifest[]>;
+  loadIntegrationManifest: (name: string) => Promise<IntegrationManifest | null>;
+}> {
+  if (!loaderModule) {
+    loaderModule = await import('@orient/integrations/catalog/loader');
+  }
+  return loaderModule;
+}
 
 // Lazy-loaded OAuth modules - using 'any' type because these are dynamically imported
 // and TypeScript can't verify the module structure at compile time
@@ -217,7 +227,8 @@ async function buildCatalogEntries(): Promise<
   }> = [];
 
   // Load manifests from YAML files
-  const manifests = await loadIntegrationManifests();
+  const loader = await getLoaderModule();
+  const manifests = await loader.loadIntegrationManifests();
 
   for (const manifest of manifests) {
     // Check if required secrets are configured
