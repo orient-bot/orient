@@ -287,6 +287,57 @@ export function createIntegrationsRoutes(
 ): Router {
   const router = Router();
 
+  // Get active integrations (connected integrations)
+  router.get('/active', requireAuth, async (_req: Request, res: Response) => {
+    try {
+      const activeIntegrations: string[] = [];
+
+      // Check Google
+      try {
+        const oauthModule = await getGoogleOAuthModule();
+        const googleOAuthService = oauthModule.getGoogleOAuthService();
+        const accounts = googleOAuthService.getConnectedAccounts();
+        if (accounts.length > 0) {
+          activeIntegrations.push('google');
+        }
+      } catch {
+        // Google not available
+      }
+
+      // Check Atlassian
+      try {
+        const atlassianModule = await getAtlassianOAuthModule();
+        const atlassianUrl = 'https://mcp.atlassian.com/v1/sse';
+        const provider = atlassianModule.createOAuthProvider(atlassianUrl, 'atlassian');
+        const tokens = await provider.tokens();
+        if (tokens?.access_token) {
+          activeIntegrations.push('jira');
+        }
+      } catch {
+        // Atlassian not available
+      }
+
+      // Check GitHub
+      try {
+        const oauthModule = await getGitHubOAuthModule();
+        const gitHubOAuthService = oauthModule.getGitHubOAuthService();
+        const accounts = gitHubOAuthService.getConnectedAccounts();
+        if (accounts.length > 0) {
+          activeIntegrations.push('github');
+        }
+      } catch {
+        // GitHub not available
+      }
+
+      res.json({ integrations: activeIntegrations });
+    } catch (error) {
+      logger.error('Failed to get active integrations', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      res.status(500).json({ error: 'Failed to get active integrations' });
+    }
+  });
+
   // Get integration catalog
   router.get('/catalog', requireAuth, async (_req: Request, res: Response) => {
     try {
