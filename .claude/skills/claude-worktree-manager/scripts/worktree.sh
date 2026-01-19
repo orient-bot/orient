@@ -14,6 +14,9 @@ NC='\033[0m' # No Color
 # Configuration
 DEFAULT_MAX_AGE_DAYS=7
 WORKTREE_BASE="$HOME/claude-worktrees"
+# Default model for new worktrees (opus, sonnet, haiku, or empty for no default)
+# Set this to automatically configure a model for all new worktrees
+DEFAULT_MODEL="sonnet"
 
 # Get the repository root (works from anywhere in the repo)
 get_repo_root() {
@@ -396,6 +399,11 @@ Options:
                   Use this for schema changes, migration testing, or isolated experiments.
     --model       Set the default Claude model for this worktree (opus, sonnet, haiku).
                   Configures .claude/settings.local.json with the selected model.
+                  Default: $DEFAULT_MODEL (configured in script)
+
+Configuration:
+    DEFAULT_MODEL is set to "$DEFAULT_MODEL" - all new worktrees will use this model
+    unless overridden with --model flag. Edit the script to change the default.
 
 Examples:
     $0 create staging-env                    # Uses shared dev database
@@ -459,6 +467,12 @@ main() {
                         ;;
                 esac
             done
+
+            # Use default model if not specified and DEFAULT_MODEL is set
+            if [[ -z "$model" ]] && [[ -n "$DEFAULT_MODEL" ]]; then
+                log_info "Using default model: $DEFAULT_MODEL"
+                model="$DEFAULT_MODEL"
+            fi
 
             create_worktree "$name" "$isolated" "$model"
             ;;

@@ -92,6 +92,30 @@ The validation script will:
 
 See the **Model Flag Configuration - Edge Cases & Troubleshooting** section below for fixing common issues.
 
+## ⚠️ Critical: Model Configuration Warning
+
+**Before starting Claude in a worktree with `--model` flag, you MUST run the verification script.**
+
+The model configuration uses `jq` (preferred) or `sed` (fallback) to update JSON files. These tools can **fail silently** on some systems, resulting in Claude using the wrong model.
+
+### Quick Reference: Model Configuration Troubleshooting
+
+| Symptom                                | Likely Cause         | Quick Fix                                                           |
+| -------------------------------------- | -------------------- | ------------------------------------------------------------------- |
+| Claude uses wrong model                | Verification skipped | Run `verify-worktree-model.sh` before starting Claude               |
+| `[WARN] jq not found` in output        | jq not installed     | Install jq: `brew install jq` (macOS) or `apt install jq` (Linux)   |
+| Model key missing in JSON              | sed fallback failed  | Manually add `"model": "opus"` to settings.local.json               |
+| JSON file is corrupted                 | sed pattern mismatch | Delete settings.local.json, copy from main repo, add model manually |
+| `[SUCCESS]` shown but wrong model used | Multiple model keys  | Check for duplicate `"model"` entries in JSON                       |
+
+### Default Model Configuration
+
+The script has a **default model** configured: `sonnet`
+
+- All new worktrees automatically use this model unless overridden with `--model`
+- To change the default, edit `DEFAULT_MODEL` in the script
+- Override for specific worktrees: `--model opus` or `--model haiku`
+
 ## Quick Start
 
 ### Create a Worktree
@@ -513,9 +537,96 @@ sudo apt-get install jq
 
 ### How Model Configuration Works
 
-1. **With jq available** - The script uses jq to safely add/update the `"model"` key
-2. **Without jq** - Falls back to sed with pattern matching
-3. **Verification** - The script checks that the model was actually set
+The script attempts to update `.claude/settings.local.json` with your selected model:
+
+**Step 1: Check for jq**
+
+```bash
+if command -v jq &> /dev/null; then
+    # Use jq (preferred, safe JSON manipulation)
+else
+    # Fall back to sed (text substitution, can fail silently)
+fi
+```
+
+**Step 2a: With jq (preferred)**
+
+```bash
+jq ".model = \"opus\"" settings.local.json > settings.local.json.tmp
+mv settings.local.json.tmp settings.local.json
+```
+
+- ✅ Safely parses JSON
+- ✅ Preserves formatting and other keys
+- ✅ Creates valid JSON output
+- ✅ Handles edge cases (nested objects, arrays)
+
+**Step 2b: With sed (fallback)**
+
+```bash
+# macOS (BSD sed)
+sed -i '' "s/\"model\": \"[^\"]*\"/\"model\": \"opus\"/g" file.json
+
+# Linux (GNU sed)
+sed -i "s/\"model\": \"[^\"]*\"/\"model\": \"opus\"/g" file.json
+```
+
+- ⚠️ Text-based replacement, not JSON-aware
+- ⚠️ May fail silently if pattern doesn't match
+- ⚠️ macOS and Linux have different sed flags
+
+### macOS vs Linux sed Differences
+
+| Aspect         | macOS (BSD sed) | Linux (GNU sed)           |
+| -------------- | --------------- | ------------------------- |
+| In-place edit  | `sed -i ''`     | `sed -i`                  |
+| Extended regex | `sed -E`        | `sed -r` or `sed -E`      |
+| Backup suffix  | `sed -i '.bak'` | `sed -i'.bak'` (no space) |
+
+The script handles these differences automatically, but edge cases can still occur.
+
+### JSON File States: Valid vs Broken
+
+**✅ Valid JSON after successful configuration:**
+
+```json
+{
+  "model": "opus",
+  "permissions": {
+    "allow": ["Bash(git:*)"]
+  }
+}
+```
+
+**❌ Broken JSON - sed added model incorrectly:**
+
+```json
+{{"model": "opus",
+  "permissions": {
+    "allow": ["Bash(git:*)"]
+  }
+}
+```
+
+**❌ Broken JSON - duplicate model keys:**
+
+```json
+{
+  "model": "opus",
+  "model": "sonnet",
+  "permissions": { ... }
+}
+```
+
+**❌ Missing model - sed pattern didn't match:**
+
+```json
+{
+  "permissions": {
+    "allow": ["Bash(git:*)"]
+  }
+}
+```
 
 ### Troubleshooting: Model Not Applied
 
