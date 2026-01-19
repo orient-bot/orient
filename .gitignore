@@ -25,6 +25,7 @@
 !.env.example
 !.env.template
 !.env.sample
+!.env.production.example
 
 # Configuration files that may contain secrets
 config.json

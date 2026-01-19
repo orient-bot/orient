@@ -9,6 +9,9 @@
 # Note: When 'image' is specified alongside 'build' in merged compose files,
 # Docker Compose will use the image if it exists, otherwise build it.
 # Since we're pulling images before 'up', the pre-built images are used.
+#
+# Registry: ghcr.io/orient-core/orient (personal fork for deployment)
+# Container prefix: orienter-* (distinguishes from local dev containers)
 # =============================================================================
 
 services:
@@ -16,7 +19,8 @@ services:
   # OpenCode Server - Use pre-built image from ghcr.io
   # ===========================================================================
   opencode:
-    image: ghcr.io/orient-code/orient/opencode:latest
+    image: ghcr.io/orient-core/orient/opencode:latest
+    container_name: orienter-opencode
     environment:
       # OAuth callback URL for Atlassian MCP (REQUIRED for production)
       # This URL must be registered with Atlassian at https://developer.atlassian.com
@@ -27,7 +31,8 @@ services:
   # V2 service name: bot-whatsapp (was: whatsapp-bot)
   # ===========================================================================
   bot-whatsapp:
-    image: ghcr.io/orient-code/orient/whatsapp-bot:latest
+    image: ghcr.io/orient-core/orient/whatsapp-bot:latest
+    container_name: orienter-bot-whatsapp
     environment:
       # OAuth callback URL for Atlassian MCP (REQUIRED for production)
       # The dashboard runs in this container, so it needs the callback URL
@@ -41,18 +46,27 @@ services:
   # V2 service name: bot-slack (was: slack-bot)
   # ===========================================================================
   bot-slack:
-    image: ghcr.io/orient-code/orient/slack-bot:latest
+    image: ghcr.io/orient-core/orient/slack-bot:latest
+    container_name: orienter-bot-slack
 
   # ===========================================================================
   # Dashboard - Use pre-built image from ghcr.io
   # ===========================================================================
   dashboard:
-    image: ghcr.io/orient-code/orient/dashboard:latest
+    image: ghcr.io/orient-core/orient/dashboard:latest
+    container_name: orienter-dashboard
+
+  # ===========================================================================
+  # Postgres - Production container name
+  # ===========================================================================
+  postgres:
+    container_name: orienter-postgres
 
   # ===========================================================================
   # Nginx - Add staging SSL certificates for proxying staging traffic
   # ===========================================================================
   nginx:
+    container_name: orienter-nginx
     # Extend base volumes to include staging SSL certificates
     volumes:
       - ./nginx-ssl.conf:/etc/nginx/conf.d/default.conf:ro
