@@ -22,6 +22,9 @@ import type {
   SlackCommandMiddlewareArgs,
   SlackEventMiddlewareArgs,
   AllMiddlewareArgs,
+  KnownBlock,
+  SectionBlock,
+  ActionsBlock,
 } from '@slack/bolt';
 const { App, LogLevel } = pkg;
 import { EventEmitter } from 'events';
@@ -395,6 +398,88 @@ export class SlackBotService extends EventEmitter {
         await this.handleMessage(msg, say);
       }
     );
+
+    // Handle action buttons (for pending config actions)
+    this.app.action(/^config_(approve|reject)_.+$/, async ({ body, ack, client }) => {
+      await ack();
+
+      const actionId = (body as any).actions?.[0]?.action_id as string;
+      const userId = (body as any).user?.id;
+      const channelId = (body as any).channel?.id;
+      const messageTs = (body as any).message?.ts;
+
+      logger.info('Received config action', { actionId, userId, channelId });
+
+      if (!actionId) {
+        logger.warn('No action_id in button payload');
+        return;
+      }
+
+      // Extract action type and pending action ID from action_id
+      // Format: config_approve_cfg_xxx or config_reject_cfg_xxx
+      const match = actionId.match(/^config_(approve|reject)_(cfg_.+)$/);
+      if (!match) {
+        logger.warn('Invalid action_id format', { actionId });
+        return;
+      }
+
+      const [, actionType, pendingActionId] = match;
+      const isApprove = actionType === 'approve';
+
+      try {
+        // Build a minimal context for OpenCode processing
+        const context: SlackInternalContext = {
+          channelId,
+          channelType: 'im' as SlackChannelType,
+          userId: userId || 'button_action',
+          threadTs: undefined,
+        };
+
+        // Use OpenCode to confirm/cancel the action via MCP tools
+        const toolName = isApprove ? 'config_confirm_action' : 'config_cancel_action';
+        const message = `Use the ${toolName} tool with action_id="${pendingActionId}"`;
+
+        const response = await this.opencodeHandler.processMessage(message, context);
+
+        // Update the original message to show result
+        const resultEmoji = isApprove ? ':white_check_mark:' : ':x:';
+        const resultText = `${resultEmoji} ${response.text}`;
+
+        const resultBlocks: KnownBlock[] = [
+          {
+            type: 'section',
+            text: {
+              type: 'mrkdwn',
+              text: resultText,
+            },
+          } as SectionBlock,
+        ];
+
+        await client.chat.update({
+          channel: channelId,
+          ts: messageTs,
+          text: resultText,
+          blocks: resultBlocks,
+        });
+
+        logger.info('Config action processed', {
+          actionId,
+          pendingActionId,
+          isApprove,
+          success: true,
+        });
+      } catch (error) {
+        logger.error('Failed to process config action', {
+          actionId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+
+        await client.chat.postMessage({
+          channel: channelId,
+          text: `Failed to process action: ${error instanceof Error ? error.message : String(error)}`,
+        });
+      }
+    });
   }
 
   /**
@@ -657,8 +742,23 @@ export class SlackBotService extends EventEmitter {
         preview: formattedResponse.substring(0, 100),
       });
 
-      // Send the response
-      const sayResult = await say(formattedResponse);
+      // Detect pending actions for interactive buttons
+      const pendingActions = this.detectPendingActions(formattedResponse);
+
+      // Send the response (with buttons if pending actions detected)
+      let sayResult;
+      if (pendingActions.length > 0) {
+        const actionId = pendingActions[0];
+        logger.info('Detected pending action, sending with buttons', { channelId, actionId });
+        sayResult = await this.app.client.chat.postMessage({
+          channel: channelId,
+          text: formattedResponse,
+          thread_ts: threadTs,
+          blocks: this.createPendingActionBlocks(formattedResponse, actionId),
+        });
+      } else {
+        sayResult = await say(formattedResponse);
+      }
       logger.info('Slack mention say() result', {
         channelId,
         result: JSON.stringify(sayResult).substring(0, 200),
@@ -824,8 +924,23 @@ export class SlackBotService extends EventEmitter {
         preview: formattedResponse.substring(0, 100),
       });
 
-      // Send the response
-      const sayResult = await say(formattedResponse);
+      // Detect pending actions for interactive buttons
+      const pendingActions = this.detectPendingActions(formattedResponse);
+
+      // Send the response (with buttons if pending actions detected)
+      let sayResult;
+      if (pendingActions.length > 0) {
+        const actionId = pendingActions[0];
+        logger.info('Detected pending action, sending with buttons', { channelId, actionId });
+        sayResult = await this.app.client.chat.postMessage({
+          channel: channelId,
+          text: formattedResponse,
+          thread_ts: threadTs,
+          blocks: this.createPendingActionBlocks(formattedResponse, actionId),
+        });
+      } else {
+        sayResult = await say(formattedResponse);
+      }
       logger.info('Slack say() result', {
         channelId,
         result: JSON.stringify(sayResult).substring(0, 200),
@@ -1056,6 +1171,88 @@ export class SlackBotService extends EventEmitter {
    */
   getOpenCodeHandler(): OpenCodeSlackHandler {
     return this.opencodeHandler;
+  }
+
+  /**
+   * Detect pending action IDs in text
+   * Returns array of action IDs found (format: cfg_xxx_yyy)
+   */
+  private detectPendingActions(text: string): string[] {
+    const regex = /cfg_[a-z0-9]+_[a-z0-9]+/gi;
+    const matches = text.match(regex);
+    return matches || [];
+  }
+
+  /**
+   * Create Block Kit with interactive buttons for pending actions
+   */
+  private createPendingActionBlocks(text: string, actionId: string): KnownBlock[] {
+    const sectionBlock: SectionBlock = {
+      type: 'section',
+      text: {
+        type: 'mrkdwn',
+        text: text,
+      },
+    };
+
+    const actionsBlock: ActionsBlock = {
+      type: 'actions',
+      elements: [
+        {
+          type: 'button',
+          text: {
+            type: 'plain_text',
+            text: 'Approve',
+            emoji: true,
+          },
+          style: 'primary',
+          action_id: `config_approve_${actionId}`,
+        },
+        {
+          type: 'button',
+          text: {
+            type: 'plain_text',
+            text: 'Reject',
+            emoji: true,
+          },
+          style: 'danger',
+          action_id: `config_reject_${actionId}`,
+        },
+      ],
+    };
+
+    return [sectionBlock, actionsBlock];
+  }
+
+  /**
+   * Send a message with Block Kit if pending actions are detected, otherwise plain text
+   */
+  async sendFormattedResponse(channelId: string, text: string, threadTs?: string): Promise<void> {
+    const pendingActions = this.detectPendingActions(text);
+
+    if (pendingActions.length > 0) {
+      // Use the first pending action for buttons
+      const actionId = pendingActions[0];
+
+      logger.info('Detected pending action, sending with buttons', {
+        channelId,
+        actionId,
+      });
+
+      await this.app.client.chat.postMessage({
+        channel: channelId,
+        text: text, // Fallback for notifications
+        thread_ts: threadTs,
+        blocks: this.createPendingActionBlocks(text, actionId),
+      });
+    } else {
+      // No pending actions, send plain text
+      await this.app.client.chat.postMessage({
+        channel: channelId,
+        text: text,
+        thread_ts: threadTs,
+      });
+    }
   }
 }
 

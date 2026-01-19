@@ -120,16 +120,47 @@ export class OpenCodeClient {
   /**
    * Get or create a session for a specific conversation context
    * Useful for maintaining conversation continuity per user/channel
+   *
+   * On startup or cache miss, queries OpenCode for existing sessions with matching
+   * title to resume conversations across bot restarts.
    */
   async getOrCreateSession(contextKey: string, title?: string): Promise<OpenCodeSession> {
-    // Check cache first
+    // Check in-memory cache first (fast path)
     const cached = this.sessionCache.get(contextKey);
     if (cached) {
       return cached;
     }
 
+    const sessionTitle = title || `Session: ${contextKey}`;
+
+    // Query OpenCode for existing sessions with matching title
+    try {
+      const sessions = await this.listSessions();
+
+      // Find session with matching title, preferring most recently updated
+      const matchingSession = sessions
+        .filter((s) => s.title === sessionTitle)
+        .sort((a, b) => b.time.updated - a.time.updated)[0];
+
+      if (matchingSession) {
+        logger.info('Found existing session', {
+          contextKey,
+          sessionId: matchingSession.id,
+          title: matchingSession.title,
+        });
+        this.sessionCache.set(contextKey, matchingSession);
+        return matchingSession;
+      }
+    } catch (error) {
+      logger.warn('Failed to query existing sessions', {
+        contextKey,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      // Continue to create new session on failure
+    }
+
     // Create new session and cache with context key
-    const session = await this.createSession(title || `Session: ${contextKey}`);
+    const session = await this.createSession(sessionTitle);
     this.sessionCache.set(contextKey, session);
     return session;
   }

@@ -1851,6 +1851,16 @@ export async function sendOnboarderMessage(payload: {
 // INTEGRATIONS CATALOG
 // ============================================
 
+/**
+ * Authentication method for integrations that support multiple auth options
+ */
+export interface AuthMethod {
+  type: 'api_token' | 'oauth2' | 'oauth2-pkce';
+  name: string;
+  description: string;
+  requiredFields: string[];
+}
+
 export interface IntegrationManifest {
   name: string;
   title: string;
@@ -1863,6 +1873,7 @@ export interface IntegrationManifest {
     type?: string;
     scopes: string[];
   };
+  authMethods?: AuthMethod[];
   tools: Array<{
     name: string;
     description: string;
@@ -1873,6 +1884,7 @@ export interface IntegrationManifest {
     description: string;
     category: string;
     required?: boolean;
+    authMethod?: string;
   }>;
 }
 
@@ -1897,9 +1909,32 @@ export async function getIntegration(name: string): Promise<CatalogIntegration> 
 }
 
 /**
+ * Save credentials for an integration (inline credential entry)
+ */
+export interface SaveCredentialsResponse {
+  success: boolean;
+  secretsConfigured: boolean;
+  message?: string;
+}
+
+export async function saveIntegrationCredentials(
+  name: string,
+  credentials: Record<string, string>,
+  authMethod?: string
+): Promise<SaveCredentialsResponse> {
+  return apiRequest(`/integrations/connect/${encodeURIComponent(name)}/credentials`, {
+    method: 'POST',
+    body: JSON.stringify({ credentials, authMethod }),
+  });
+}
+
+/**
  * Initiate OAuth connection for an integration
  */
-export async function connectIntegration(name: string): Promise<{
+export async function connectIntegration(
+  name: string,
+  authMethod?: string
+): Promise<{
   success: boolean;
   message: string;
   authUrl?: string;
@@ -1914,10 +1949,117 @@ export async function connectIntegration(name: string): Promise<{
     description: string;
     category: string;
     required?: boolean;
+    authMethod?: string;
   }>;
 }> {
   return apiRequest(`/integrations/connect/${encodeURIComponent(name)}`, {
     method: 'POST',
+    body: JSON.stringify({ authMethod }),
+  });
+}
+
+// ============================================
+// STORAGE API
+// ============================================
+
+export interface TableStats {
+  tableName: string;
+  rowCount: number;
+  estimatedSize?: string;
+}
+
+export interface DatabaseStorageStats {
+  tables: TableStats[];
+  totalRows: number;
+  connectionStatus: 'connected' | 'error';
+  error?: string;
+}
+
+export interface MediaStorageStats {
+  totalFiles: number;
+  byType: {
+    image: number;
+    audio: number;
+    video: number;
+    document: number;
+  };
+  oldestMedia?: string;
+  newestMedia?: string;
+}
+
+export interface SessionStorageStats {
+  status: 'connected' | 'disconnected' | 'unknown';
+  path: string;
+  sizeMB: number;
+  exists: boolean;
+  lastModified?: string;
+}
+
+export interface CloudStorageStats {
+  cloudflare: {
+    available: boolean;
+    storageGB?: number;
+    error?: string;
+  };
+  google: {
+    available: boolean;
+    storageGB?: number;
+    error?: string;
+  };
+}
+
+export interface StorageSummary {
+  database: DatabaseStorageStats;
+  media: MediaStorageStats;
+  session: SessionStorageStats;
+  cloud: CloudStorageStats;
+  fetchedAt: string;
+}
+
+export interface CleanupPreview {
+  messagesCount: number;
+  oldestMessage?: string;
+  newestAffected?: string;
+}
+
+export interface CleanupResult {
+  success: boolean;
+  deletedCount: number;
+  message?: string;
+  error?: string;
+}
+
+export async function getStorageSummary(): Promise<StorageSummary> {
+  return apiRequest('/storage/summary');
+}
+
+export async function getDatabaseStorageStats(): Promise<DatabaseStorageStats> {
+  return apiRequest('/storage/database');
+}
+
+export async function getMediaStorageStats(): Promise<MediaStorageStats> {
+  return apiRequest('/storage/media');
+}
+
+export async function getSessionStorageStats(): Promise<SessionStorageStats> {
+  return apiRequest('/storage/session');
+}
+
+export async function getCloudStorageStats(): Promise<CloudStorageStats> {
+  return apiRequest('/storage/cloud');
+}
+
+export async function previewStorageCleanup(beforeDate: string): Promise<CleanupPreview> {
+  return apiRequest('/storage/cleanup/preview', {
+    method: 'POST',
+    body: JSON.stringify({ beforeDate }),
+  });
+}
+
+export async function cleanupOldMessages(beforeDate: string): Promise<CleanupResult> {
+  return apiRequest('/storage/cleanup/messages', {
+    method: 'POST',
+    body: JSON.stringify({ beforeDate }),
   });
 }
 

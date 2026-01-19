@@ -15,7 +15,12 @@ import {
   setSecretOverrides,
   startConfigPoller,
 } from '@orient/core';
-import { createSecretsService, createSlackDatabase } from '@orient/database-services';
+import {
+  createSecretsService,
+  createSlackDatabase,
+  createMessageDatabase,
+  createPromptService,
+} from '@orient/database-services';
 import type { SlackBotServiceConfig } from './types.js';
 
 const logger = createServiceLogger('slack-bot');
@@ -110,11 +115,20 @@ async function main(): Promise<void> {
 
     logger.info('Configuration loaded');
 
-    // Initialize database
+    // Initialize databases
     const slackDatabase = createSlackDatabase();
+    const messageDatabase = createMessageDatabase(); // For prompt service
+
+    // Initialize prompt service
+    const promptService = createPromptService(messageDatabase);
+    logger.info('Prompt service initialized');
 
     // Create and start the Slack bot service with full message handling
     const slackBot = createSlackBotService(slackBotServiceConfig, slackDatabase);
+
+    // Set prompt service on the bot
+    slackBot.setPromptService(promptService);
+    logger.info('Prompt service configured for Slack bot');
 
     // Setup graceful shutdown
     setupGracefulShutdown(slackBot);

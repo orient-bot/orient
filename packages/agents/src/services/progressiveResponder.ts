@@ -138,8 +138,17 @@ export class ProgressiveResponder {
       }
     };
 
-    // Set up initial delay timer
+    // Set up initial delay timer - first send reaction, then progress message
     const initialTimer = setTimeout(async () => {
+      // Send reaction first (quick acknowledgment)
+      if (callbacks.sendReaction && !processorComplete) {
+        try {
+          await callbacks.sendReaction('🐕');
+        } catch (error) {
+          logger.warn('Failed to send reaction', { error: String(error) });
+        }
+      }
+      // Then send progress message
       await sendProgress(getInitialMessage);
     }, this.config.initialDelayMs);
 

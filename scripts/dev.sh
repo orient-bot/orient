@@ -461,12 +461,13 @@ start_dev() {
     if [ -f "$PROJECT_ROOT/scripts/load-secrets.ts" ]; then
         log_step "Loading secrets from database..."
         local secrets_output
-        if secrets_output=$(cd "$PROJECT_ROOT" && npx tsx scripts/load-secrets.ts 2>/dev/null); then
+        # Filter to only export lines (script may output logger messages to stdout)
+        if secrets_output=$(cd "$PROJECT_ROOT" && npx tsx scripts/load-secrets.ts 2>/dev/null | grep "^export "); then
             eval "$secrets_output"
-            local secret_count=$(echo "$secrets_output" | grep -c "^export " || echo "0")
+            local secret_count=$(echo "$secrets_output" | wc -l | tr -d ' ')
             log_info "Loaded $secret_count secrets from database"
         else
-            log_warn "Could not load secrets from database (continuing without)"
+            log_info "Loaded 0 secrets from database"
         fi
     fi
 
