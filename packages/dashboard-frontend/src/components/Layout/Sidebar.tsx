@@ -7,7 +7,6 @@ type GlobalView =
   | 'billing'
   | 'integrations'
   | 'automation'
-  | 'prompts'
   | 'agents'
   | 'apps'
   | 'monitoring'
@@ -214,30 +213,6 @@ export function Sidebar({
                   {(stats.scheduler?.enabledJobs || 0) + (stats.webhook?.enabledWebhooks || 0)}
                 </span>
               )}
-            </Link>
-
-            <Link
-              to={ROUTES.PROMPTS}
-              className={`w-full flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-                isGlobalActive('prompts')
-                  ? 'bg-primary text-primary-foreground'
-                  : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
-              }`}
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-              </svg>
-              System Prompts
             </Link>
 
             <Link

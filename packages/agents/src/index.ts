@@ -34,13 +34,14 @@ export type {
   MessageParam,
   Tool,
   ContentBlock,
-  // Prompt types
+  // Prompt types (re-exported from database-services)
   PromptPlatform,
   SystemPromptRecord,
   SystemPromptWithInfo,
-  PromptServiceConfig,
-  PromptDatabaseInterface,
 } from './types.js';
+
+// Prompt service types (from database-services via promptService.ts)
+export type { PromptServiceConfig, PromptDatabaseInterface } from './services/promptService.js';
 
 // Export services
 export {

@@ -5,7 +5,10 @@ import {
   configListPrompts,
   configSetPrompt,
 } from '../../src/tools/config/prompts.js';
-import { getPendingActionsStore, resetPendingActionsStore } from '../../src/tools/config/pending-store.js';
+import {
+  getPendingActionsStore,
+  resetPendingActionsStore,
+} from '../../src/tools/config/pending-store.js';
 
 const context = { config: {}, correlationId: 'test' } as ToolContext;
 
@@ -18,6 +21,10 @@ vi.mock('@orient/database-services', () => ({
     getSystemPrompt: vi.fn().mockResolvedValue(null),
     listSystemPrompts: mockListSystemPrompts,
   }),
+  EMBEDDED_DEFAULT_PROMPTS: {
+    whatsapp: 'Default WhatsApp prompt',
+    slack: 'Default Slack prompt',
+  },
 }));
 
 describe('config prompts tools', () => {
