@@ -16,24 +16,12 @@
     "orient-coding": {
       "type": "local",
       "command": ["node", "./dist/mcp-servers/coding-server.js"],
-      "enabled": true,
-      "environment": {
-        "NODE_ENV": "production",
-        "DATABASE_URL": "${DATABASE_URL}",
-        "GOOGLE_OAUTH_CLIENT_ID": "${GOOGLE_OAUTH_CLIENT_ID}",
-        "GOOGLE_OAUTH_CLIENT_SECRET": "${GOOGLE_OAUTH_CLIENT_SECRET}"
-      }
+      "enabled": true
     },
     "orient-assistant": {
       "type": "local",
       "command": ["node", "./dist/mcp-servers/assistant-server.js"],
-      "enabled": true,
-      "environment": {
-        "NODE_ENV": "production",
-        "DATABASE_URL": "${DATABASE_URL}",
-        "GOOGLE_OAUTH_CLIENT_ID": "${GOOGLE_OAUTH_CLIENT_ID}",
-        "GOOGLE_OAUTH_CLIENT_SECRET": "${GOOGLE_OAUTH_CLIENT_SECRET}"
-      }
+      "enabled": true
     },
     "atlassian": {
       "type": "remote",
