@@ -309,8 +309,109 @@ The hook only runs Prettier. If failing:
 7. **Use branches** - Never commit directly to main/dev
 8. **Keep commits small** - Easier to review, understand, and revert if needed
 
+## GitHub Actions Workflow Debugging
+
+### Multi-Job Dependency Troubleshooting
+
+When using matrix builds with job outputs in GitHub Actions, ensure proper JSON formatting:
+
+#### Output Variable Format Requirements
+
+GitHub Actions workflow output variables must be single-line JSON. Use `jq -c` (compact) flag, not just `jq`:
+
+```bash
+# ❌ WRONG - produces pretty-printed JSON with newlines
+APPS_JSON=$(echo "$CHANGED_APPS" | tr ' ' '\n' | jq -R . | jq -s .)
+echo "apps_list=$APPS_JSON" >> $GITHUB_OUTPUT  # Error: "Invalid format '  "app"'"
+
+# ✓ CORRECT - produces compact single-line JSON
+APPS_JSON=$(echo "$CHANGED_APPS" | tr ' ' '\n' | grep -v '^$' | jq -R . | jq -cs .)
+echo "apps_list=$APPS_JSON" >> $GITHUB_OUTPUT  # Works: ["app1","app2"]
+```
+
+#### Detect-Changes Pattern for Monorepos
+
+For monorepos with selective builds based on changed files:
+
+```bash
+# Compare base SHA with current commit
+if [ "${{ github.event_name }}" == "pull_request" ]; then
+  BASE_SHA=${{ github.event.pull_request.base.sha }}
+else
+  BASE_SHA=${{ github.event.before }}
+fi
+
+# Get changed app directories
+CHANGED_APPS=$(git diff --name-only $BASE_SHA ${{ github.sha }} | \
+  grep '^apps/' | \
+  grep -v '^apps/README.md' | \
+  grep -v '^apps/_shared/' | \
+  cut -d'/' -f2 | \
+  sort -u | \
+  tr '\n' ' ')
+
+# Output as JSON array (use jq -cs for compact output)
+if [ -z "$CHANGED_APPS" ]; then
+  echo "apps=false" >> $GITHUB_OUTPUT
+  echo "apps_list=" >> $GITHUB_OUTPUT
+else
+  echo "apps=true" >> $GITHUB_OUTPUT
+  APPS_JSON=$(echo "$CHANGED_APPS" | tr ' ' '\n' | grep -v '^$' | jq -R . | jq -cs .)
+  echo "apps_list=$APPS_JSON" >> $GITHUB_OUTPUT
+fi
+```
+
+#### Conditional Matrix Build
+
+Use the output from detect-changes to conditionally run matrix builds:
+
+```yaml
+detect-changes:
+  runs-on: ubuntu-latest
+  outputs:
+    apps: ${{ steps.changes.outputs.apps }}
+    apps_list: ${{ steps.changes.outputs.apps_list }}
+  steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    - name: Detect Changed Apps
+      id: changes
+      run: |
+        # Script above...
+        echo "apps=true" >> $GITHUB_OUTPUT
+        echo "apps_list=[\"app1\",\"app2\"]" >> $GITHUB_OUTPUT
+
+build-apps:
+  needs: detect-changes
+  if: needs.detect-changes.outputs.apps == 'true'
+  runs-on: ubuntu-latest
+  strategy:
+    matrix:
+      app: ${{ fromJson(needs.detect-changes.outputs.apps_list) }}
+    fail-fast: false
+  steps:
+    - uses: actions/checkout@v4
+    # Build steps...
+```
+
+### Common Issues & Solutions
+
+**Issue**: `##[error]Invalid format '  "app-name"'` in workflow output
+
+**Cause**: JSON output has whitespace/formatting. GitHub Actions requires compact single-line format.
+
+**Solution**: Use `jq -cs .` instead of `jq -s .` to produce compact output.
+
+**Issue**: Matrix build not running even though files changed
+
+**Cause**: `if: needs.detect-changes.outputs.apps == 'true'` string comparison fails if output has extra whitespace.
+
+**Solution**: Ensure output variable is exactly the string `true` or `false` with no extra formatting.
+
 ## References
 
 - [Conventional Commits](https://www.conventionalcommits.org/)
 - [Orient Monorepo Structure](/project-architecture)
 - [Git Hooks Documentation](git-hooks)
+- [GitHub Actions Workflow Syntax](https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions)
