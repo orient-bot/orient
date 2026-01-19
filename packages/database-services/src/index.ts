@@ -44,6 +44,15 @@ export type { AgentSeedOptions, AgentSeedResult } from './agentSeedService.js';
 export { SecretsService, createSecretsService } from './secretsService.js';
 export type { SecretMetadata } from './secretsService.js';
 
+export {
+  VersionPreferencesService,
+  createVersionPreferencesService,
+} from './versionPreferencesService.js';
+export type {
+  UserVersionPreferences,
+  UpdatePreferencesInput,
+} from './versionPreferencesService.js';
+
 // Prompt service (single source of truth for all packages)
 export {
   PromptService,

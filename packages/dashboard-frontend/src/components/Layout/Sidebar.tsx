@@ -3,13 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { ROUTES } from '../../routes';
 import { getOpenCodeUrl, assetUrl, type OpenCodeConfig } from '../../api';
 
-type GlobalView =
-  | 'integrations'
-  | 'automation'
-  | 'agents'
-  | 'apps'
-  | 'operations'
-  | 'settings';
+type GlobalView = 'integrations' | 'automation' | 'agents' | 'apps' | 'operations' | 'settings';
 
 interface SidebarProps {
   slackAvailable: boolean;

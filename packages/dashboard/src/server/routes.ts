@@ -23,6 +23,7 @@ import {
   createOnboarderRoutes,
   createIntegrationsRoutes,
   createStorageRoutes,
+  createVersionRoutes,
 } from './routes/index.js';
 import { initStorageService } from '../services/storageService.js';
 // TODO: Re-enable with miniapp editor if needed
@@ -230,6 +231,9 @@ export function createDashboardRouter(services: DashboardServices): Router {
   // Storage routes (always available)
   initStorageService(db, slackDb);
   router.use('/storage', createStorageRoutes(requireAuth));
+
+  // Version check routes (always available)
+  router.use('/version', createVersionRoutes(requireAuth));
 
   // Onboarder routes (always available - uses db for session persistence)
   router.use('/onboarder', createOnboarderRoutes(db, requireAuth));

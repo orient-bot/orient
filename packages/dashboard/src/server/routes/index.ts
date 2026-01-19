@@ -17,3 +17,4 @@ export { createProvidersRoutes } from './providers.routes.js';
 export { createOnboarderRoutes } from './onboarder.routes.js';
 export { createIntegrationsRoutes } from './integrations.routes.js';
 export { createStorageRoutes } from './storage.routes.js';
+export { createVersionRoutes } from './version.routes.js';

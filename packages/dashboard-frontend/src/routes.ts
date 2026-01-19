@@ -14,7 +14,7 @@ export type GlobalView =
 export type IntegrationsView = 'catalog' | 'mcp-servers' | 'dual-mode' | 'secrets' | 'providers';
 export type AutomationView = 'schedules' | 'webhooks';
 export type OperationsView = 'billing' | 'monitoring' | 'storage';
-export type SettingsView = 'connections' | 'providers' | 'secrets' | 'appearance';
+export type SettingsView = 'connections' | 'providers' | 'secrets' | 'appearance' | 'updates';
 export type ConnectionsSubView = 'catalog' | 'mcp' | 'modes';
 
 /**
@@ -54,6 +54,7 @@ export const ROUTES = {
   SETTINGS_PROVIDERS: '/settings/providers',
   SETTINGS_SECRETS: '/settings/secrets',
   SETTINGS_APPEARANCE: '/settings/appearance',
+  SETTINGS_UPDATES: '/settings/updates',
 } as const;
 
 export interface RouteState {
@@ -172,6 +173,9 @@ export function getRouteState(pathname: string): RouteState {
   if (pathname.startsWith('/settings/appearance')) {
     return { ...defaultState, globalView: 'settings', settingsView: 'appearance' };
   }
+  if (pathname.startsWith('/settings/updates')) {
+    return { ...defaultState, globalView: 'settings', settingsView: 'updates' };
+  }
   if (pathname.startsWith('/settings')) {
     return {
       ...defaultState,
@@ -225,6 +229,7 @@ export function getRoutePath(
         if (subView === 'providers') return ROUTES.SETTINGS_PROVIDERS;
         if (subView === 'secrets') return ROUTES.SETTINGS_SECRETS;
         if (subView === 'appearance') return ROUTES.SETTINGS_APPEARANCE;
+        if (subView === 'updates') return ROUTES.SETTINGS_UPDATES;
         // Handle connections sub-views
         if (subView === 'mcp') return ROUTES.SETTINGS_CONNECTIONS_MCP;
         if (subView === 'modes') return ROUTES.SETTINGS_CONNECTIONS_MODES;
