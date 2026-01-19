@@ -277,6 +277,104 @@ sudo docker compose ${COMPOSE_FILES} up -d
 
 ## Troubleshooting
 
+### GitHub Actions SSH Authentication
+
+#### OCI_SSH_PRIVATE_KEY Secret
+
+**Error**: `Load key "/home/runner/.ssh/id_rsa": error in libcrypto` or `Permission denied (publickey)`
+
+**Cause**: The `OCI_SSH_PRIVATE_KEY` secret is missing or malformed.
+
+**Fix**: Add your SSH private key to GitHub Secrets:
+
+```bash
+# Add via gh CLI (recommended)
+gh secret set OCI_SSH_PRIVATE_KEY --repo orient-bot/orient < ~/.ssh/id_rsa
+
+# Or copy the key content and add via GitHub UI
+cat ~/.ssh/id_rsa | pbcopy
+# Then: Settings → Secrets → Actions → New repository secret
+```
+
+**Required format**: The full private key including headers:
+
+```
+-----BEGIN OPENSSH PRIVATE KEY-----
+... key content ...
+-----END OPENSSH PRIVATE KEY-----
+```
+
+**Note**: The key must match what's authorized on the Oracle server (`~/.ssh/authorized_keys`).
+
+### GHCR Package Access (403 Forbidden)
+
+**Error**: `failed to resolve reference "ghcr.io/orient-bot/orient/dashboard:latest": 403 Forbidden`
+
+**Cause**: GitHub Container Registry packages are private by default, even in public repos.
+
+**Fixes**:
+
+1. **Make packages public** (recommended for open source):
+   - Go to https://github.com/orgs/orient-bot/packages
+   - Click each package → Settings → Danger Zone → Change visibility → Public
+
+2. **Or use a PAT with `read:packages` scope**:
+
+   ```bash
+   # Create a PAT at https://github.com/settings/tokens with read:packages scope
+   # Add to GitHub Secrets as GHCR_PAT
+
+   # In workflow, authenticate before pulling:
+   echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io -u USERNAME --password-stdin
+   ```
+
+3. **Or authenticate the server permanently**:
+   ```bash
+   # On the Oracle server
+   gh auth token | sudo docker login ghcr.io -u orient-bot --password-stdin
+   ```
+
+### Database Migration Failures
+
+#### Role/User Not Found
+
+**Error**: `FATAL: role "orient" does not exist`
+
+**Cause**: Migration script uses hardcoded database user instead of actual configured user.
+
+**Fix**: The workflow now dynamically reads credentials from server `.env`:
+
+```bash
+DB_USER=$(grep '^POSTGRES_USER=' ~/orient/.env | cut -d= -f2 | tr -d '"')
+DB_NAME=$(grep '^POSTGRES_DB=' ~/orient/.env | cut -d= -f2 | tr -d '"')
+```
+
+If migrations still fail, verify server `.env` has correct values:
+
+```bash
+ssh opc@152.70.172.33 "grep POSTGRES ~/orient/.env"
+# Expected:
+# POSTGRES_USER=aibot
+# POSTGRES_DB=whatsapp_bot
+```
+
+#### Production Down After Failed Deploy
+
+If deployment fails partway through, production containers may be stopped:
+
+```bash
+# Check what's running
+ssh opc@152.70.172.33 "docker ps --format 'table {{.Names}}\t{{.Status}}'"
+
+# Restart production manually
+ssh opc@152.70.172.33 "cd ~/orient/docker && \
+  sudo docker compose --env-file ../.env \
+    -f docker-compose.v2.yml \
+    -f docker-compose.prod.yml \
+    -f docker-compose.r2.yml \
+    up -d"
+```
+
 ### Docker Build Failures
 
 #### Missing Directories in Dockerfile
@@ -327,7 +425,8 @@ ORIENT_CODE_STAGING_DOMAIN=code-staging.orient.bot
 POSTGRES_USER=aibot
 POSTGRES_PASSWORD=<secure-password>
 POSTGRES_DB=whatsapp_bot
-DATABASE_URL=postgresql://aibot:<password>@postgres:5432/whatsapp_bot
+# IMPORTANT: Use container name 'orienter-postgres' not 'postgres' to avoid DNS conflicts with staging
+DATABASE_URL=postgresql://aibot:<password>@orienter-postgres:5432/whatsapp_bot
 
 # REQUIRED - Dashboard Security (crash loop if missing)
 DASHBOARD_JWT_SECRET=<openssl rand -hex 32>
@@ -426,6 +525,85 @@ docker exec orienter-postgres pg_isready -U aibot -d whatsapp_bot
 
 # Check DATABASE_URL in container
 docker exec orienter-dashboard env | grep DATABASE_URL
+```
+
+### DNS Conflict: Database Does Not Exist
+
+**Error**: `error: database "whatsapp_bot" does not exist` even though the database clearly exists
+
+**Cause**: When production and staging share the same Docker network, both postgres containers have the DNS alias `postgres`. Docker DNS may resolve to the wrong container.
+
+**Diagnosis**:
+
+```bash
+# Check both postgres containers have the same alias
+docker inspect orienter-postgres --format '{{json .NetworkSettings.Networks}}' | jq '.[] | .DNSNames'
+docker inspect orienter-postgres-staging --format '{{json .NetworkSettings.Networks}}' | jq '.[] | .DNSNames'
+
+# If both show "postgres" as an alias, that's the conflict
+```
+
+**Fix**: Use container names instead of service aliases in DATABASE_URL:
+
+```bash
+# In docker-compose.v2.yml, change:
+DATABASE_URL=postgresql://user:pass@postgres:5432/db
+
+# To:
+DATABASE_URL=postgresql://user:pass@orienter-postgres:5432/db
+```
+
+The compose file (`docker-compose.v2.yml`) should already use `orienter-postgres` (container name) instead of `postgres` (service alias).
+
+### Health Check Race Conditions
+
+**Error**: `dependency failed to start: container orienter-dashboard is unhealthy` during CI/CD deployment
+
+**Cause**: Docker Compose health checks can fail transiently when containers are first created, especially if the database connection takes a moment to establish.
+
+**Solution**: The CI/CD pipeline uses staged deployment:
+
+1. **Stage 1**: Start backend services (dashboard, opencode) and wait for healthy
+2. **Stage 2**: Start bot services and wait for healthy
+3. **Stage 3**: Start nginx
+
+This is implemented in `.github/workflows/deploy.yml`:
+
+```bash
+# Stage 1: Start backend services
+docker compose up -d dashboard opencode
+# Wait for healthy status before proceeding
+
+# Stage 2: Start bot services
+docker compose up -d bot-whatsapp
+# Wait for healthy status
+
+# Stage 3: Start nginx
+docker compose up -d nginx
+```
+
+**Manual Recovery**: If deployment fails mid-way:
+
+```bash
+ssh opc@152.70.172.33
+cd ~/orient/docker
+
+# Start services in stages manually
+COMPOSE="docker compose --env-file ../.env -f docker-compose.v2.yml -f docker-compose.prod.yml -f docker-compose.r2.yml"
+
+# 1. Ensure postgres is running
+sudo $COMPOSE up -d postgres
+sleep 5
+
+# 2. Start dashboard and opencode
+sudo $COMPOSE up -d dashboard opencode
+sleep 15
+
+# 3. Check health
+docker ps --format 'table {{.Names}}\t{{.Status}}' | grep -E 'dashboard|opencode'
+
+# 4. If healthy, start remaining services
+sudo $COMPOSE up -d
 ```
 
 ### WhatsApp Pairing Issues After Deploy

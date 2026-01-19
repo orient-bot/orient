@@ -86,7 +86,3 @@ jobs:
               // This is expected if branch protection requires reviews
               // The user will need to set up AUTO_MERGE_PAT secret
             }
-
-      - name: Log result
-        if: always()
-        run: echo "Auto-merge workflow completed"
