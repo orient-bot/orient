@@ -134,9 +134,12 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
   });
 
   if (response.status === 401) {
-    // Token expired or invalid
+    // Token expired or invalid; avoid reload loops when unauthenticated.
+    const hadToken = Boolean(token);
     clearAuthToken();
-    window.location.reload();
+    if (hadToken) {
+      window.location.reload();
+    }
     throw new Error('Authentication expired');
   }
 
