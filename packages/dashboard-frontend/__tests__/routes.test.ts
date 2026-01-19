@@ -26,9 +26,14 @@ describe('Frontend URL Routing', () => {
       expect(ROUTES.AUTOMATION).toBe('/automation');
       expect(ROUTES.AUTOMATION_SCHEDULES).toBe('/automation/schedules');
       expect(ROUTES.AUTOMATION_WEBHOOKS).toBe('/automation/webhooks');
-      expect(ROUTES.PROMPTS).toBe('/prompts');
+      expect(ROUTES.OPERATIONS).toBe('/operations');
+      expect(ROUTES.OPERATIONS_BILLING).toBe('/operations/billing');
+      expect(ROUTES.OPERATIONS_MONITORING).toBe('/operations/monitoring');
+      expect(ROUTES.OPERATIONS_STORAGE).toBe('/operations/storage');
+      // Legacy routes (for redirects)
       expect(ROUTES.BILLING).toBe('/billing');
       expect(ROUTES.MONITORING).toBe('/monitoring');
+      expect(ROUTES.STORAGE).toBe('/storage');
     });
 
     it('should have all expected settings route paths', () => {
@@ -40,6 +45,7 @@ describe('Frontend URL Routing', () => {
       expect(ROUTES.SETTINGS_PROVIDERS).toBe('/settings/providers');
       expect(ROUTES.SETTINGS_SECRETS).toBe('/settings/secrets');
       expect(ROUTES.SETTINGS_APPEARANCE).toBe('/settings/appearance');
+      expect(ROUTES.SETTINGS_UPDATES).toBe('/settings/updates');
     });
   });
 
@@ -116,14 +122,46 @@ describe('Frontend URL Routing', () => {
         expect(state.globalView).toBe('apps');
       });
 
-      it('should match /billing path', () => {
-        const state = getRouteState('/billing');
-        expect(state.globalView).toBe('billing');
+      it('should match /operations path', () => {
+        const state = getRouteState('/operations');
+        expect(state.globalView).toBe('operations');
+        expect(state.operationsView).toBe('billing');
       });
 
-      it('should match /monitoring path', () => {
+      it('should match /operations/billing path', () => {
+        const state = getRouteState('/operations/billing');
+        expect(state.globalView).toBe('operations');
+        expect(state.operationsView).toBe('billing');
+      });
+
+      it('should match /operations/monitoring path', () => {
+        const state = getRouteState('/operations/monitoring');
+        expect(state.globalView).toBe('operations');
+        expect(state.operationsView).toBe('monitoring');
+      });
+
+      it('should match /operations/storage path', () => {
+        const state = getRouteState('/operations/storage');
+        expect(state.globalView).toBe('operations');
+        expect(state.operationsView).toBe('storage');
+      });
+
+      it('should match legacy /billing path', () => {
+        const state = getRouteState('/billing');
+        expect(state.globalView).toBe('operations');
+        expect(state.operationsView).toBe('billing');
+      });
+
+      it('should match legacy /monitoring path', () => {
         const state = getRouteState('/monitoring');
-        expect(state.globalView).toBe('monitoring');
+        expect(state.globalView).toBe('operations');
+        expect(state.operationsView).toBe('monitoring');
+      });
+
+      it('should match legacy /storage path', () => {
+        const state = getRouteState('/storage');
+        expect(state.globalView).toBe('operations');
+        expect(state.operationsView).toBe('storage');
       });
 
       it('should match /automation path', () => {
@@ -136,11 +174,6 @@ describe('Frontend URL Routing', () => {
         const state = getRouteState('/automation/webhooks');
         expect(state.globalView).toBe('automation');
         expect(state.automationView).toBe('webhooks');
-      });
-
-      it('should match /prompts path', () => {
-        const state = getRouteState('/prompts');
-        expect(state.globalView).toBe('prompts');
       });
     });
 
@@ -235,6 +268,12 @@ describe('Frontend URL Routing', () => {
         expect(state.globalView).toBe('settings');
         expect(state.settingsView).toBe('appearance');
       });
+
+      it('should match /settings/updates path', () => {
+        const state = getRouteState('/settings/updates');
+        expect(state.globalView).toBe('settings');
+        expect(state.settingsView).toBe('updates');
+      });
     });
 
     describe('path prefix matching', () => {
@@ -244,8 +283,9 @@ describe('Frontend URL Routing', () => {
       });
 
       it('should match paths with query strings conceptually', () => {
-        const state = getRouteState('/billing');
-        expect(state.globalView).toBe('billing');
+        const state = getRouteState('/operations/billing');
+        expect(state.globalView).toBe('operations');
+        expect(state.operationsView).toBe('billing');
       });
     });
   });
@@ -260,12 +300,20 @@ describe('Frontend URL Routing', () => {
         expect(getRoutePath('apps')).toBe('/apps');
       });
 
-      it('should return correct path for billing', () => {
-        expect(getRoutePath('billing')).toBe('/billing');
+      it('should return correct path for operations (billing default)', () => {
+        expect(getRoutePath('operations')).toBe('/operations/billing');
       });
 
-      it('should return correct path for monitoring', () => {
-        expect(getRoutePath('monitoring')).toBe('/monitoring');
+      it('should return correct path for operations/billing', () => {
+        expect(getRoutePath('operations', 'whatsapp', 'billing')).toBe('/operations/billing');
+      });
+
+      it('should return correct path for operations/monitoring', () => {
+        expect(getRoutePath('operations', 'whatsapp', 'monitoring')).toBe('/operations/monitoring');
+      });
+
+      it('should return correct path for operations/storage', () => {
+        expect(getRoutePath('operations', 'whatsapp', 'storage')).toBe('/operations/storage');
       });
 
       it('should return correct path for automation', () => {
@@ -274,10 +322,6 @@ describe('Frontend URL Routing', () => {
 
       it('should return correct path for webhooks', () => {
         expect(getRoutePath('automation', 'whatsapp', 'webhooks')).toBe('/automation/webhooks');
-      });
-
-      it('should return correct path for prompts', () => {
-        expect(getRoutePath('prompts')).toBe('/prompts');
       });
     });
 
@@ -338,6 +382,10 @@ describe('Frontend URL Routing', () => {
 
       it('should return connections modes path when specified', () => {
         expect(getRoutePath('settings', 'whatsapp', 'modes')).toBe('/settings/connections/modes');
+      });
+
+      it('should return updates path when specified', () => {
+        expect(getRoutePath('settings', 'whatsapp', 'updates')).toBe('/settings/updates');
       });
     });
 
@@ -413,6 +461,13 @@ describe('Frontend URL Routing', () => {
       expect(state.globalView).toBe('settings');
       expect(state.settingsView).toBe('connections');
       expect(state.connectionsSubView).toBe('mcp');
+    });
+
+    it('should have matching getRouteState and getRoutePath for settings/updates', () => {
+      const path = getRoutePath('settings', 'whatsapp', 'updates');
+      const state = getRouteState(path);
+      expect(state.globalView).toBe('settings');
+      expect(state.settingsView).toBe('updates');
     });
   });
 });

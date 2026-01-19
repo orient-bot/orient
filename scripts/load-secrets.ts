@@ -1,13 +1,13 @@
 #!/usr/bin/env tsx
 /**
  * Load Secrets from Database
- * 
+ *
  * This script loads encrypted secrets from the database and outputs them
  * in a format that can be sourced by shell scripts to set environment variables.
- * 
+ *
  * Usage:
  *   eval "$(npx tsx scripts/load-secrets.ts)"
- *   
+ *
  * Or for specific categories:
  *   eval "$(npx tsx scripts/load-secrets.ts --category slack)"
  */
@@ -18,10 +18,10 @@ import { decryptSecret } from '@orient/core';
 const { Pool } = pg;
 
 async function loadSecrets() {
-  const dbUrl = process.env.DATABASE_URL || 
-    'postgresql://aibot:aibot123@localhost:5432/whatsapp_bot_0';
+  const dbUrl =
+    process.env.DATABASE_URL || 'postgresql://aibot:aibot123@localhost:5432/whatsapp_bot_0';
 
-  const category = process.argv.includes('--category') 
+  const category = process.argv.includes('--category')
     ? process.argv[process.argv.indexOf('--category') + 1]
     : null;
 
@@ -31,19 +31,19 @@ async function loadSecrets() {
   });
 
   try {
-    const query = category 
+    const query = category
       ? {
           text: 'SELECT key, encrypted_value, iv, auth_tag FROM secrets WHERE category = $1',
-          values: [category]
+          values: [category],
         }
       : {
           text: 'SELECT key, encrypted_value, iv, auth_tag FROM secrets',
-          values: []
+          values: [],
         };
 
     const result = await pool.query(query.text, query.values);
 
-    // Output as shell export statements
+    // Output as shell export statements (only export lines - no comments or logs)
     for (const row of result.rows) {
       try {
         const value = decryptSecret(row.encrypted_value, row.iv, row.auth_tag);
@@ -51,13 +51,10 @@ async function loadSecrets() {
         const escapedValue = value.replace(/'/g, "'\\''");
         console.log(`export ${row.key}='${escapedValue}'`);
       } catch (err) {
-        console.error(`# Failed to decrypt ${row.key}`, err);
+        // Output errors to stderr so they don't pollute the export output
+        console.error(`Failed to decrypt ${row.key}: ${err}`);
       }
     }
-
-    // Output count as comment
-    console.log(`# Loaded ${result.rows.length} secrets from database`);
-
   } finally {
     await pool.end();
   }

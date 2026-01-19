@@ -39,40 +39,47 @@ Add this override to `.prettierrc`:
 
 This ensures Prettier preserves `{/* TODO */}` syntax in documentation files.
 
-## Screenshot Capture with html2canvas
+## Screenshot Capture with dom-to-image
 
-Load html2canvas dynamically and capture screenshots:
+Use dom-to-image library (preferred over html2canvas for better content capture):
 
 ```javascript
 (async () => {
-  // Load html2canvas if not already loaded
-  if (typeof html2canvas === 'undefined') {
+  // Load dom-to-image if not already loaded
+  if (typeof domtoimage === 'undefined') {
     await new Promise((resolve, reject) => {
       const script = document.createElement('script');
-      script.src = 'https://html2canvas.hertzen.com/dist/html2canvas.min.js';
+      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/dom-to-image/2.6.0/dom-to-image.min.js';
       script.onload = resolve;
       script.onerror = reject;
       document.head.appendChild(script);
     });
   }
 
+  // Wait for content to fully render
+  await new Promise((r) => setTimeout(r, 500));
+
   // Capture and download
-  const canvas = await html2canvas(document.body, {
-    useCORS: true,
-    allowTaint: true,
-    scale: 2, // Higher quality
+  const dataUrl = await domtoimage.toPng(document.body, {
+    quality: 1,
+    bgcolor: '#ffffff',
   });
 
   const link = document.createElement('a');
   link.download = 'screenshot-name.png';
-  link.href = canvas.toDataURL('image/png');
+  link.href = dataUrl;
   link.click();
 
   return 'Downloaded screenshot-name.png';
 })();
 ```
 
-**Important**: html2canvas must be reloaded after each page navigation.
+**Important notes**:
+
+- dom-to-image must be reloaded after each page navigation
+- Wait for page content to fully load before capturing (use delay or check for elements)
+- **Always verify screenshots** on the actual docs site (localhost:3000) before committing
+- html2canvas may fail to capture dynamic content - use dom-to-image instead
 
 ## Workflow
 

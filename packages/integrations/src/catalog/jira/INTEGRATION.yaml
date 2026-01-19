@@ -1,0 +1,170 @@
+name: jira
+title: JIRA
+description: >-
+  Atlassian JIRA integration for issue tracking and project management.
+  Create, update, and search issues. Manage sprints, boards, and workflows.
+  Supports both API token and OAuth authentication methods.
+version: 1.0.0
+author: Orient
+icon: /icons/jira.svg
+status: stable
+
+# Primary OAuth configuration (Atlassian Cloud)
+oauth:
+  type: oauth2
+  authorizationUrl: https://auth.atlassian.com/authorize
+  tokenUrl: https://auth.atlassian.com/oauth/token
+  scopes:
+    - read:jira-work
+    - write:jira-work
+    - read:jira-user
+    - manage:jira-project
+    - manage:jira-configuration
+  scopeDescriptions:
+    read:jira-work: Read JIRA issues, projects, and boards
+    write:jira-work: Create and update JIRA issues
+    read:jira-user: Read user information
+    manage:jira-project: Manage project settings
+    manage:jira-configuration: Manage JIRA configuration
+
+# Multiple authentication methods
+authMethods:
+  - type: api_token
+    name: API Token
+    description: >-
+      Use a JIRA API token for authentication. Best for server/datacenter
+      instances or when OAuth is not available. Requires your JIRA host,
+      email address, and an API token generated from your Atlassian account.
+    requiredFields:
+      - JIRA_HOST
+      - JIRA_EMAIL
+      - JIRA_API_TOKEN
+
+  - type: oauth2
+    name: OAuth 2.0
+    description: >-
+      Use Atlassian OAuth 2.0 for authentication. Recommended for cloud
+      instances. Provides secure, token-based access with automatic refresh.
+    requiredFields:
+      - JIRA_OAUTH_CLIENT_ID
+      - JIRA_OAUTH_CLIENT_SECRET
+
+# Required secrets vary by auth method
+requiredSecrets:
+  # API Token authentication
+  - name: JIRA_HOST
+    description: Your JIRA instance hostname (e.g., company.atlassian.net)
+    category: api_key
+    required: false
+    authMethod: api_token
+  - name: JIRA_EMAIL
+    description: Your Atlassian account email address
+    category: api_key
+    required: false
+    authMethod: api_token
+  - name: JIRA_API_TOKEN
+    description: API token from your Atlassian account settings
+    category: api_key
+    required: false
+    authMethod: api_token
+
+  # OAuth authentication
+  - name: JIRA_OAUTH_CLIENT_ID
+    description: OAuth 2.0 Client ID from Atlassian Developer Console
+    category: oauth
+    required: false
+    authMethod: oauth2
+  - name: JIRA_OAUTH_CLIENT_SECRET
+    description: OAuth 2.0 Client Secret from Atlassian Developer Console
+    category: oauth
+    required: false
+    authMethod: oauth2
+
+tools:
+  # Issue operations
+  - name: issues.list
+    description: List issues using JQL queries
+    category: issues
+    requiredScopes:
+      - read:jira-work
+  - name: issues.get
+    description: Get details of a specific issue
+    category: issues
+    requiredScopes:
+      - read:jira-work
+  - name: issues.create
+    description: Create a new issue
+    category: issues
+    requiredScopes:
+      - write:jira-work
+  - name: issues.update
+    description: Update an existing issue
+    category: issues
+    requiredScopes:
+      - write:jira-work
+  - name: issues.transition
+    description: Transition an issue to a different status
+    category: issues
+    requiredScopes:
+      - write:jira-work
+  - name: issues.assign
+    description: Assign an issue to a user
+    category: issues
+    requiredScopes:
+      - write:jira-work
+  - name: issues.comment
+    description: Add comments to issues
+    category: issues
+    requiredScopes:
+      - write:jira-work
+
+  # Project operations
+  - name: projects.list
+    description: List all accessible projects
+    category: projects
+    requiredScopes:
+      - read:jira-work
+  - name: projects.get
+    description: Get project details
+    category: projects
+    requiredScopes:
+      - read:jira-work
+
+  # Sprint/Board operations
+  - name: sprints.list
+    description: List sprints for a board
+    category: agile
+    requiredScopes:
+      - read:jira-work
+  - name: sprints.issues
+    description: Get issues in a sprint
+    category: agile
+    requiredScopes:
+      - read:jira-work
+  - name: boards.list
+    description: List all boards
+    category: agile
+    requiredScopes:
+      - read:jira-work
+
+  # Search
+  - name: search.jql
+    description: Search issues using JQL
+    category: search
+    requiredScopes:
+      - read:jira-work
+
+  # Users
+  - name: users.search
+    description: Search for users
+    category: users
+    requiredScopes:
+      - read:jira-user
+  - name: users.current
+    description: Get current user information
+    category: users
+    requiredScopes:
+      - read:jira-user
+
+docsUrl: https://developer.atlassian.com/cloud/jira/platform/rest/v3/
+apiBaseUrl: https://api.atlassian.com

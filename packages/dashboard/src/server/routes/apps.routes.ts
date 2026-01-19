@@ -148,9 +148,10 @@ export function createAppsRoutes(
             },
           });
 
-        case 'app.getShareUrl':
+        case 'app.getShareUrl': {
           const baseUrl = process.env.APPS_BASE_URL || 'http://localhost:3080';
           return res.json({ data: `${baseUrl}/apps/${app.manifest.name}` });
+        }
 
         // Storage methods
         case 'storage.set': {

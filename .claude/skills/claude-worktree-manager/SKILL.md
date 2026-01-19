@@ -1,11 +1,96 @@
 ---
 name: claude-worktree-manager
-description: Create and manage Claude-specific worktrees with automated setup and cleanup. Use this skill when asked to "create a worktree", "new worktree", "worktree for feature/staging", "setup isolated environment", or "cleanup old worktrees". Handles smart naming, .env copying, background pnpm install, and automatic cleanup of stale worktrees.
+description: Create and manage Claude-specific worktrees with automated setup and cleanup. Use this skill (via Skill tool or direct script) when asked to "create a worktree", "new worktree", "worktree for feature/staging", "setup isolated environment", or "cleanup old worktrees". Script path is auto-detected when using Skill tool. Handles smart naming, .env copying, background pnpm install, and automatic cleanup of stale worktrees.
 ---
 
 # Claude Worktree Manager
 
 Automated worktree management for Claude Code development sessions with smart naming, auto-setup, and cleanup.
+
+## How to Use This Skill
+
+There are two ways to create worktrees:
+
+### 1. Via Claude Code Skill (Recommended)
+
+Use the `Skill` tool to invoke this skill - **the script path is detected automatically**:
+
+```javascript
+// Using Skill tool with args parameter (Recommended)
+Skill(skill: 'claude-worktree-manager', args: 'create feature-name --model opus')
+Skill(skill: 'claude-worktree-manager', args: 'create feature-name --isolated --model sonnet')
+
+// All bash script flags work the same via args
+Skill(skill: 'claude-worktree-manager', args: 'list')
+Skill(skill: 'claude-worktree-manager', args: 'cleanup --days 14')
+```
+
+The skill handles all path resolution using `git rev-parse --show-toplevel`, so you only need to provide the worktree name and optional flags. All bash script flags (`--model`, `--isolated`, `--days`) work exactly the same when passed via the `args` parameter.
+
+### 2. Via Direct Script Invocation
+
+If you're running the script manually, provide the full path from any directory:
+
+```bash
+.claude/skills/claude-worktree-manager/scripts/worktree.sh create feature-name --model opus
+```
+
+Or use the full absolute path:
+
+```bash
+/path/to/repo/.claude/skills/claude-worktree-manager/scripts/worktree.sh create feature-name --model opus
+```
+
+## Invocation Method Comparison
+
+To clarify the correct syntax for each invocation method:
+
+| Task                     | Skill Tool                                                                                | Direct Script                                                                                       |
+| ------------------------ | ----------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| Create standard worktree | `Skill(skill: 'claude-worktree-manager', args: 'create my-feature')`                      | `.claude/skills/claude-worktree-manager/scripts/worktree.sh create my-feature`                      |
+| With model flag          | `Skill(skill: 'claude-worktree-manager', args: 'create my-feature --model opus')`         | `.claude/skills/claude-worktree-manager/scripts/worktree.sh create my-feature --model opus`         |
+| With isolated database   | `Skill(skill: 'claude-worktree-manager', args: 'create schema-test --isolated')`          | `.claude/skills/claude-worktree-manager/scripts/worktree.sh create schema-test --isolated`          |
+| Both flags combined      | `Skill(skill: 'claude-worktree-manager', args: 'create complex --isolated --model opus')` | `.claude/skills/claude-worktree-manager/scripts/worktree.sh create complex --isolated --model opus` |
+| List worktrees           | `Skill(skill: 'claude-worktree-manager', args: 'list')`                                   | `.claude/skills/claude-worktree-manager/scripts/worktree.sh list`                                   |
+| Cleanup old worktrees    | `Skill(skill: 'claude-worktree-manager', args: 'cleanup --days 7')`                       | `.claude/skills/claude-worktree-manager/scripts/worktree.sh cleanup --days 7`                       |
+
+**Key Differences:**
+
+- **Skill tool:** All commands and flags are passed as a single string via the `args` parameter
+- **Direct script:** Commands and flags are bash arguments, requires absolute or relative path
+
+## Verifying Model Configuration
+
+After creating a worktree with `--model`, verify the configuration was set correctly:
+
+```bash
+# Navigate to your worktree
+cd /path/to/worktree
+
+# Run verification script
+.claude/skills/claude-worktree-manager/scripts/verify-worktree-model.sh
+
+# Or verify from anywhere by passing the path
+.claude/skills/claude-worktree-manager/scripts/verify-worktree-model.sh /path/to/worktree
+```
+
+**Expected output when successful:**
+
+```
+[INFO] Verifying Claude model configuration in: /path/to/worktree
+[SUCCESS] .claude/settings.local.json found
+[SUCCESS] Model configuration found: opus
+[SUCCESS] Model is valid: opus
+```
+
+The validation script will:
+
+1. Check that `.claude/settings.local.json` exists
+2. Extract the model value using jq or grep
+3. Validate the model is one of: opus, sonnet, haiku
+4. Provide instructions if configuration is missing or invalid
+
+See the **Model Flag Configuration - Edge Cases & Troubleshooting** section below for fixing common issues.
 
 ## Quick Start
 
@@ -24,10 +109,16 @@ Then run:
 
 ```bash
 # Standard (uses shared dev database)
-.claude/skills/core/claude-worktree-manager/scripts/worktree.sh create <derived-name>
+.claude/skills/claude-worktree-manager/scripts/worktree.sh create <derived-name>
+
+# With specific model (e.g., opus, sonnet, haiku)
+.claude/skills/claude-worktree-manager/scripts/worktree.sh create <derived-name> --model opus
 
 # Isolated (creates dedicated database with seeding)
-.claude/skills/core/claude-worktree-manager/scripts/worktree.sh create <derived-name> --isolated
+.claude/skills/claude-worktree-manager/scripts/worktree.sh create <derived-name> --isolated
+
+# Isolated with model
+.claude/skills/claude-worktree-manager/scripts/worktree.sh create <derived-name> --isolated --model sonnet
 ```
 
 **What happens:**
@@ -55,6 +146,40 @@ Use the `--isolated` flag when:
 
 For normal feature development, skip `--isolated` to use the shared database.
 
+### Automatic Script Location Detection
+
+When you invoke this skill using the Skill tool (e.g., `Skill(claude-worktree-manager)`), the skill automatically:
+
+1. Detects your current git repository using `git rev-parse --show-toplevel`
+2. Locates the worktree script at `.claude/skills/claude-worktree-manager/scripts/worktree.sh`
+3. Executes the script from the repository root
+
+**You don't need to specify absolute paths or worry about the script location.** The skill handles all path resolution automatically. Just use simple worktree names and optional flags:
+
+```bash
+# Via Skill tool - automatic path resolution
+Skill(claude-worktree-manager) create my-feature --model sonnet
+
+# Via direct script - requires full path from any directory
+/path/to/repo/.claude/skills/claude-worktree-manager/scripts/worktree.sh create my-feature --model sonnet
+```
+
+### Model Selection
+
+Use the `--model` flag to set the default Claude model for the worktree:
+
+```bash
+.claude/skills/claude-worktree-manager/scripts/worktree.sh create <name> --model <model-name>
+```
+
+**Available models:** `opus`, `sonnet`, `haiku`
+
+When specified, the model is configured in the worktree's `.claude/settings.local.json` so that all Claude Code sessions in that worktree use the selected model by default. This is useful for:
+
+- **Testing with specific models:** Quickly test a feature with Opus for complex work or Haiku for speed
+- **Cost optimization:** Use Haiku for routine tasks, Opus for complex reasoning
+- **Consistency:** Ensure all team members working in a specific worktree use the same model
+
 **Important:** Return the worktree path to the user so they can open a new Claude Code session in that directory.
 
 ### Ghostty Integration (Automatic)
@@ -63,7 +188,7 @@ After creating a worktree, check if running in Ghostty terminal and automaticall
 
 ```bash
 # The worktree script outputs the path on its last line
-WORKTREE_PATH=$(.claude/skills/core/claude-worktree-manager/scripts/worktree.sh create <name> | tail -1)
+WORKTREE_PATH=$(.claude/skills/claude-worktree-manager/scripts/worktree.sh create <name> | tail -1)
 
 # If in Ghostty, open new tab with Claude (--no-enter types but doesn't execute)
 if [ "$TERM_PROGRAM" = "ghostty" ]; then
@@ -96,7 +221,7 @@ This automatically opens a new Ghostty tab, navigates to the worktree, and start
 ### List Worktrees
 
 ```bash
-.claude/skills/core/claude-worktree-manager/scripts/worktree.sh list
+.claude/skills/claude-worktree-manager/scripts/worktree.sh list
 ```
 
 Shows all active worktrees for the current project with their branches.
@@ -105,10 +230,10 @@ Shows all active worktrees for the current project with their branches.
 
 ```bash
 # Cleanup worktrees older than 7 days (default)
-.claude/skills/core/claude-worktree-manager/scripts/worktree.sh cleanup
+.claude/skills/claude-worktree-manager/scripts/worktree.sh cleanup
 
 # Custom age threshold
-.claude/skills/core/claude-worktree-manager/scripts/worktree.sh cleanup --days 14
+.claude/skills/claude-worktree-manager/scripts/worktree.sh cleanup --days 14
 ```
 
 ## Origin Branch Handling
@@ -118,7 +243,7 @@ The script intelligently checks if a branch with your name already exists on ori
 **Scenario 1: Branch exists on origin**
 
 ```bash
-.claude/skills/core/claude-worktree-manager/scripts/worktree.sh create my-feature
+.claude/skills/claude-worktree-manager/scripts/worktree.sh create my-feature
 ```
 
 If `origin/my-feature` exists, the script will:
@@ -131,7 +256,7 @@ If `origin/my-feature` exists, the script will:
 **Scenario 2: Branch doesn't exist on origin**
 
 ```bash
-.claude/skills/core/claude-worktree-manager/scripts/worktree.sh create my-feature
+.claude/skills/claude-worktree-manager/scripts/worktree.sh create my-feature
 ```
 
 If `origin/my-feature` doesn't exist, the script will:
@@ -158,7 +283,7 @@ Analyze the request and derive a concise kebab-case name:
 
 ```bash
 # Run the script and capture the worktree path (last line of output)
-WORKTREE_PATH=$(.claude/skills/core/claude-worktree-manager/scripts/worktree.sh create staging-env | tail -1)
+WORKTREE_PATH=$(.claude/skills/claude-worktree-manager/scripts/worktree.sh create staging-env | tail -1)
 echo "Created: $WORKTREE_PATH"
 ```
 
@@ -330,6 +455,218 @@ If you see errors like `command not found` when sourcing `.env`:
 - Check for unquoted channel names starting with `#`
 - Ensure no trailing spaces after values
 
+## Model Flag Configuration - Edge Cases & Troubleshooting
+
+The `--model` flag updates `.claude/settings.local.json` to set the default Claude model for your worktree. This section documents potential edge cases and how to handle them.
+
+### Requirements
+
+The script requires one of the following tools to update JSON:
+
+1. **jq** (preferred) - Safely parses and updates JSON
+2. **sed** (fallback) - Uses text substitution, less reliable but works when jq is unavailable
+
+Most systems have `sed` built-in. To install `jq`:
+
+```bash
+# macOS
+brew install jq
+
+# Ubuntu/Debian
+sudo apt-get install jq
+
+# Or use your system package manager
+```
+
+### How Model Configuration Works
+
+1. **With jq available** - The script uses jq to safely add/update the `"model"` key
+2. **Without jq** - Falls back to sed with pattern matching
+3. **Verification** - The script checks that the model was actually set
+
+### Troubleshooting: Model Not Applied
+
+If Claude doesn't use the configured model:
+
+**Step 1: Verify the model was set**
+
+```bash
+# Go to your worktree and verify
+cd /path/to/worktree
+.claude/skills/claude-worktree-manager/scripts/verify-worktree-model.sh
+
+# Or from anywhere (pass worktree path)
+.claude/skills/claude-worktree-manager/scripts/verify-worktree-model.sh /path/to/worktree
+```
+
+**Step 2: Check settings.local.json contents**
+
+```bash
+cat /path/to/worktree/.claude/settings.local.json | grep -i model
+```
+
+You should see:
+
+```json
+{
+  "model": "opus",
+  "permissions": { ... }
+}
+```
+
+**Step 3: If model is missing, add it manually**
+
+If the model key is missing, add it to the top level of `.claude/settings.local.json`:
+
+```bash
+# Edit the file manually
+nano /path/to/worktree/.claude/settings.local.json
+```
+
+The file should look like:
+
+```json
+{
+  "model": "opus",
+  "permissions": {
+    "allow": [ ... ]
+  }
+}
+```
+
+### Common Issues
+
+#### Issue: "jq not found" in logs but model was set
+
+**Why:** The script fell back to sed, which is less reliable. jq is recommended.
+
+**Fix:** Install jq and re-create the worktree with the `--model` flag
+
+```bash
+# Install jq
+brew install jq  # or sudo apt-get install jq
+
+# Re-create worktree with model flag
+.claude/skills/claude-worktree-manager/scripts/worktree.sh create my-feature --model opus
+```
+
+#### Issue: Model key added but not using that model
+
+**Why:** The model might be formatted incorrectly or Claude Code might not be reading it.
+
+**Fix:** Verify the JSON is valid and properly formatted:
+
+```bash
+# Verify JSON syntax is valid
+jq . /path/to/worktree/.claude/settings.local.json
+
+# Should output valid JSON without errors
+```
+
+If JSON is invalid, edit the file to fix syntax errors (missing quotes, commas, etc).
+
+#### Issue: sed failed silently, model not set
+
+**Why:** This can happen on systems with different sed versions or in edge cases.
+
+**Fix:** Use jq or manually edit the file
+
+```bash
+# Option 1: Install jq and re-create worktree
+brew install jq
+.claude/skills/claude-worktree-manager/scripts/worktree.sh create my-feature --model opus
+
+# Option 2: Manually add the model to the file
+nano /path/to/worktree/.claude/settings.local.json
+# Add "model": "opus", at the top level
+```
+
+#### Issue: Model works in worktree but not when using goal prompt
+
+**Why:** The Ghostty tab might be starting Claude in a different context or with different settings.
+
+**Fix:** Verify the model is set and start Claude from within the worktree:
+
+```bash
+# Navigate to worktree
+cd /path/to/worktree
+
+# Verify model
+.claude/skills/claude-worktree-manager/scripts/verify-worktree-model.sh
+
+# Start Claude directly
+claude 'Your goal prompt here'
+
+# Claude will load settings from the current worktree directory
+```
+
+### Validation Script
+
+Use the validation script to verify worktree model configuration:
+
+```bash
+# From the worktree directory
+cd /path/to/worktree
+.claude/skills/claude-worktree-manager/scripts/verify-worktree-model.sh
+
+# Or from anywhere
+.claude/skills/claude-worktree-manager/scripts/verify-worktree-model.sh /path/to/worktree
+```
+
+**Output examples:**
+
+✅ Correct:
+
+```
+[INFO] Verifying Claude model configuration in: /path/to/worktree
+[SUCCESS] .claude/settings.local.json found
+[SUCCESS] Model configuration found: opus
+[SUCCESS] Model is valid: opus
+```
+
+❌ Missing model:
+
+```
+[INFO] Verifying Claude model configuration in: /path/to/worktree
+[SUCCESS] .claude/settings.local.json found
+[WARN] No model configuration found in settings.local.json
+```
+
+### Manual Model Configuration
+
+If automatic configuration fails, manually edit `.claude/settings.local.json`:
+
+```bash
+# Navigate to worktree
+cd /path/to/worktree
+
+# Open settings file
+nano .claude/settings.local.json
+```
+
+**Add the model key at the top level:**
+
+```json
+{
+  "model": "opus",
+  "permissions": {
+    "allow": [ ... ]
+  }
+}
+```
+
+**Valid model values:**
+
+- `"opus"` - Claude Opus 4.5 (most capable)
+- `"sonnet"` - Claude Sonnet (balanced)
+- `"haiku"` - Claude Haiku (fastest/cheapest)
+
+**After saving, verify with the validation script:**
+
+```bash
+.claude/skills/claude-worktree-manager/scripts/verify-worktree-model.sh
+```
+
 ## Troubleshooting
 
 ### pnpm install failed
@@ -385,12 +722,62 @@ User: "Create a worktree for adding OAuth support"
 
 ```bash
 # 1. Create the worktree and capture path
-WORKTREE_PATH=$(.claude/skills/core/claude-worktree-manager/scripts/worktree.sh create oauth-support | tail -1)
+WORKTREE_PATH=$(.claude/skills/claude-worktree-manager/scripts/worktree.sh create oauth-support | tail -1)
 
 # 2. If in Ghostty, open new tab with Claude
 if [ "$TERM_PROGRAM" = "ghostty" ]; then
     ghostty-tab -d "$WORKTREE_PATH" --no-enter "claude 'Add OAuth support with Google and GitHub providers'"
 fi
+```
+
+### Create worktree with specific model
+
+User: "Create a worktree for complex refactoring using Opus"
+
+```bash
+# 1. Create the worktree with Opus model and capture path
+WORKTREE_PATH=$(.claude/skills/claude-worktree-manager/scripts/worktree.sh create complex-refactor --model opus | tail -1)
+
+# 2. Verify the model was set correctly
+.claude/skills/claude-worktree-manager/scripts/verify-worktree-model.sh "$WORKTREE_PATH"
+# Expected output: [SUCCESS] Model is valid: opus
+
+# 3. If in Ghostty, open new tab with Claude
+if [ "$TERM_PROGRAM" = "ghostty" ]; then
+    ghostty-tab -d "$WORKTREE_PATH" --no-enter "claude 'Refactor the project to support multi-tenant architecture'"
+fi
+```
+
+User: "Create a worktree for quick bug fixes using Haiku"
+
+```bash
+# 1. Create the worktree with Haiku model
+WORKTREE_PATH=$(.claude/skills/claude-worktree-manager/scripts/worktree.sh create quick-fixes --model haiku | tail -1)
+
+# 2. Verify the model was set correctly
+.claude/skills/claude-worktree-manager/scripts/verify-worktree-model.sh "$WORKTREE_PATH"
+
+# 3. Start working in the worktree
+cd "$WORKTREE_PATH"
+claude 'Fix critical bugs'
+```
+
+User: "Create an Opus worktree with isolated database for migration testing"
+
+```bash
+# 1. Create worktree with both flags
+WORKTREE_PATH=$(.claude/skills/claude-worktree-manager/scripts/worktree.sh create schema-testing --isolated --model opus | tail -1)
+
+# 2. Verify model configuration (database seeding runs in parallel)
+.claude/skills/claude-worktree-manager/scripts/verify-worktree-model.sh "$WORKTREE_PATH"
+# Output should show: [SUCCESS] Model is valid: opus
+
+# 3. Check database seeding progress (runs after pnpm install)
+tail -f "$WORKTREE_PATH/.db-seed.log"
+
+# 4. Once ready, navigate to worktree and start Claude
+cd "$WORKTREE_PATH"
+claude 'Test database migrations'
 ```
 
 ### Create worktree for bug fix
@@ -399,7 +786,7 @@ User: "I need a worktree to fix the login redirect issue"
 
 ```bash
 # 1. Create the worktree and capture path
-WORKTREE_PATH=$(.claude/skills/core/claude-worktree-manager/scripts/worktree.sh create fix-login-redirect | tail -1)
+WORKTREE_PATH=$(.claude/skills/claude-worktree-manager/scripts/worktree.sh create fix-login-redirect | tail -1)
 
 # 2. If in Ghostty, open new tab with Claude
 if [ "$TERM_PROGRAM" = "ghostty" ]; then
@@ -413,7 +800,7 @@ User: "Create a new worktree for refactoring the project to make it multi-tenant
 
 ```bash
 # 1. Create the worktree and capture path
-WORKTREE_PATH=$(.claude/skills/core/claude-worktree-manager/scripts/worktree.sh create multi-tenant-refactor | tail -1)
+WORKTREE_PATH=$(.claude/skills/claude-worktree-manager/scripts/worktree.sh create multi-tenant-refactor | tail -1)
 
 # 2. If in Ghostty, open new tab with Claude
 if [ "$TERM_PROGRAM" = "ghostty" ]; then
@@ -427,7 +814,7 @@ User: "I need a worktree to test new database migrations"
 
 ```bash
 # 1. Create the worktree with isolated DB and capture path
-WORKTREE_PATH=$(.claude/skills/core/claude-worktree-manager/scripts/worktree.sh create test-migrations --isolated | tail -1)
+WORKTREE_PATH=$(.claude/skills/claude-worktree-manager/scripts/worktree.sh create test-migrations --isolated | tail -1)
 
 # 2. If in Ghostty, open new tab with Claude
 if [ "$TERM_PROGRAM" = "ghostty" ]; then
@@ -441,7 +828,7 @@ User: "Create a worktree for adding new agent tables"
 
 ```bash
 # 1. Create the worktree with isolated DB and capture path
-WORKTREE_PATH=$(.claude/skills/core/claude-worktree-manager/scripts/worktree.sh create add-agent-tables --isolated | tail -1)
+WORKTREE_PATH=$(.claude/skills/claude-worktree-manager/scripts/worktree.sh create add-agent-tables --isolated | tail -1)
 
 # 2. If in Ghostty, open new tab with Claude
 if [ "$TERM_PROGRAM" = "ghostty" ]; then
@@ -454,7 +841,7 @@ fi
 User: "Show me all my worktrees"
 
 ```bash
-.claude/skills/core/claude-worktree-manager/scripts/worktree.sh list
+.claude/skills/claude-worktree-manager/scripts/worktree.sh list
 ```
 
 ### Cleanup old worktrees
@@ -462,5 +849,5 @@ User: "Show me all my worktrees"
 User: "Clean up worktrees older than 3 days"
 
 ```bash
-.claude/skills/core/claude-worktree-manager/scripts/worktree.sh cleanup --days 3
+.claude/skills/claude-worktree-manager/scripts/worktree.sh cleanup --days 3
 ```

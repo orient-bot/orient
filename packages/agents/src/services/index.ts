@@ -10,6 +10,8 @@ export {
   getPromptService,
   initializePromptService,
   isPromptServiceInitialized,
+  EMBEDDED_DEFAULT_PROMPTS,
+  getEmbeddedDefaultPrompt,
 } from './promptService.js';
 
 export {

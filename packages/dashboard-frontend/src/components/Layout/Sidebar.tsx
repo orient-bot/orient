@@ -3,15 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { ROUTES } from '../../routes';
 import { getOpenCodeUrl, assetUrl, type OpenCodeConfig } from '../../api';
 
-type GlobalView =
-  | 'billing'
-  | 'integrations'
-  | 'automation'
-  | 'prompts'
-  | 'agents'
-  | 'apps'
-  | 'monitoring'
-  | 'settings';
+type GlobalView = 'integrations' | 'automation' | 'agents' | 'apps' | 'operations' | 'settings';
 
 interface SidebarProps {
   slackAvailable: boolean;
@@ -217,30 +209,6 @@ export function Sidebar({
             </Link>
 
             <Link
-              to={ROUTES.PROMPTS}
-              className={`w-full flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-                isGlobalActive('prompts')
-                  ? 'bg-primary text-primary-foreground'
-                  : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
-              }`}
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-              </svg>
-              System Prompts
-            </Link>
-
-            <Link
               to={ROUTES.AGENTS}
               className={`w-full flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
                 isGlobalActive('agents')
@@ -297,34 +265,9 @@ export function Sidebar({
             </Link>
 
             <Link
-              to={ROUTES.BILLING}
+              to={ROUTES.OPERATIONS}
               className={`w-full flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-                isGlobalActive('billing')
-                  ? 'bg-primary text-primary-foreground'
-                  : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
-              }`}
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <rect width="20" height="14" x="2" y="5" rx="2" />
-                <line x1="2" x2="22" y1="10" y2="10" />
-              </svg>
-              Billing
-            </Link>
-
-            <Link
-              to={ROUTES.MONITORING}
-              className={`w-full flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-                isGlobalActive('monitoring')
+                isGlobalActive('operations')
                   ? 'bg-primary text-primary-foreground'
                   : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
               }`}
@@ -342,7 +285,7 @@ export function Sidebar({
               >
                 <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
               </svg>
-              Monitoring
+              Operations
             </Link>
           </div>
         </div>
