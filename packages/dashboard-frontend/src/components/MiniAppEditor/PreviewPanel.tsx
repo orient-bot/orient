@@ -58,10 +58,7 @@ export default function PreviewPanel({
       {/* Controls */}
       <div className="mb-4 space-y-3">
         <div className="flex items-center gap-2">
-          <button
-            onClick={onRebuild}
-            className="flex items-center gap-2 px-3 py-2 text-sm bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-          >
+          <button onClick={onRebuild} className="btn btn-secondary flex items-center gap-2 text-sm">
             <RefreshCw className="h-4 w-4" />
             Rebuild
           </button>
@@ -70,7 +67,7 @@ export default function PreviewPanel({
             href={previewUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-2 px-3 py-2 text-sm bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+            className="btn btn-secondary flex items-center gap-2 text-sm"
           >
             <ExternalLink className="h-4 w-4" />
             Open in New Tab
@@ -82,60 +79,61 @@ export default function PreviewPanel({
           <div className="relative">
             <button
               onClick={() => setShowCommits(!showCommits)}
-              className="w-full flex items-center justify-between px-3 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+              className="w-full btn btn-secondary flex items-center justify-between"
             >
               <div className="flex items-center gap-2">
-                <GitCommit className="h-4 w-4 text-gray-600 dark:text-gray-400" />
-                <span className="text-sm text-gray-700 dark:text-gray-300">
+                <GitCommit className="h-4 w-4" />
+                <span className="text-sm">
                   {commits.length} commit{commits.length !== 1 ? 's' : ''}
                 </span>
               </div>
-              <RotateCcw className="h-4 w-4 text-gray-600 dark:text-gray-400" />
+              <RotateCcw className="h-4 w-4" />
             </button>
 
             {showCommits && (
-              <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg max-h-64 overflow-y-auto z-10">
+              <div className="absolute top-full left-0 right-0 mt-1 bg-card border border-border rounded-lg shadow-lg max-h-64 overflow-y-auto z-10">
                 {commits.map((commit) => (
                   <button
                     key={commit.hash}
                     onClick={() => setSelectedCommit(commit.hash)}
-                    className={`w-full px-3 py-2 text-left hover:bg-gray-50 dark:hover:bg-gray-700 border-b border-gray-100 dark:border-gray-700 last:border-b-0 ${
-                      selectedCommit === commit.hash ? 'bg-purple-50 dark:bg-purple-900/20' : ''
+                    className={`w-full px-3 py-2 text-left hover:bg-accent border-b border-border last:border-b-0 ${
+                      selectedCommit === commit.hash ? 'bg-accent' : ''
                     }`}
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                        <p className="text-sm font-medium text-card-foreground truncate">
                           {commit.message}
                         </p>
                         <div className="flex items-center gap-2 mt-1">
-                          <p className="text-xs text-gray-500 dark:text-gray-400">
+                          <p className="text-xs text-muted-foreground">
                             {formatDate(commit.timestamp)}
                           </p>
                           {commit.buildSuccess ? (
-                            <CheckCircle className="h-3 w-3 text-green-500" />
+                            <CheckCircle className="h-3 w-3 text-emerald-500" />
                           ) : (
-                            <XCircle className="h-3 w-3 text-red-500" />
+                            <XCircle className="h-3 w-3 text-destructive" />
                           )}
                         </div>
-                        <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                          {commit.filesChanged.length} file{commit.filesChanged.length !== 1 ? 's' : ''} changed
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {commit.filesChanged.length} file
+                          {commit.filesChanged.length !== 1 ? 's' : ''} changed
                         </p>
                       </div>
                       {selectedCommit === commit.hash && (
-                        <div className="w-2 h-2 bg-purple-500 rounded-full" />
+                        <div className="w-2 h-2 bg-primary rounded-full" />
                       )}
                     </div>
                   </button>
                 ))}
-                <div className="p-2 border-t border-gray-200 dark:border-gray-700">
+                <div className="p-2 border-t border-border">
                   <button
                     onClick={() => {
                       handleRollback();
                       setShowCommits(false);
                     }}
                     disabled={selectedCommit === currentCommit}
-                    className="w-full px-3 py-2 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    className="btn btn-primary w-full text-sm"
                   >
                     Rollback to Selected
                   </button>
@@ -146,21 +144,17 @@ export default function PreviewPanel({
         )}
 
         {/* Current Commit Info */}
-        <div className="px-3 py-2 bg-gray-50 dark:bg-gray-900 rounded-lg">
-          <p className="text-xs text-gray-500 dark:text-gray-400">Current commit</p>
-          <p className="text-sm font-mono text-gray-700 dark:text-gray-300 mt-1">
+        <div className="px-3 py-2 bg-muted rounded-lg">
+          <p className="text-xs text-muted-foreground">Current commit</p>
+          <p className="text-sm font-mono text-card-foreground mt-1">
             {currentCommit.substring(0, 8)}
           </p>
         </div>
       </div>
 
       {/* Preview */}
-      <div className="flex-1 border-2 border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden bg-white dark:bg-gray-900">
-        <iframe
-          src={previewUrl}
-          className="w-full h-full"
-          title={`Preview of ${appName}`}
-        />
+      <div className="flex-1 border-2 border-border rounded-lg overflow-hidden bg-card">
+        <iframe src={previewUrl} className="w-full h-full" title={`Preview of ${appName}`} />
       </div>
     </div>
   );

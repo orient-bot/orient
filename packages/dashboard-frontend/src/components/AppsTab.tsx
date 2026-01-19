@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import MiniAppEditorModal from './MiniAppEditor/MiniAppEditorModal';
+import MissingIntegrationsBadge from './MissingIntegrationsBadge';
 import { assetUrl } from '../api';
 
 interface AppSummary {
@@ -10,6 +11,7 @@ interface AppSummary {
   status: 'draft' | 'pending_review' | 'published' | 'archived';
   isBuilt: boolean;
   author?: string;
+  permissions?: Record<string, { read: boolean; write: boolean }>;
 }
 
 interface AppStats {
@@ -64,9 +66,11 @@ export default function AppsTab() {
   const [showEditorModal, setShowEditorModal] = useState(false);
   const [editorAppName, setEditorAppName] = useState<string>('');
   const [editorCreateNew, setEditorCreateNew] = useState(false);
+  const [activeIntegrations, setActiveIntegrations] = useState<string[]>([]);
 
   useEffect(() => {
     loadApps();
+    loadActiveIntegrations();
   }, []);
 
   const loadApps = async () => {
@@ -109,6 +113,25 @@ export default function AppsTab() {
     } catch (err) {
       console.error('Failed to load app details', err);
     }
+  };
+
+  const loadActiveIntegrations = async () => {
+    try {
+      const response = await fetch(`${API_BASE}/api/integrations/active`);
+      if (response.ok) {
+        const data = await response.json();
+        setActiveIntegrations(data.integrations || []);
+      }
+    } catch (err) {
+      console.error('Failed to load active integrations', err);
+    }
+  };
+
+  const getMissingIntegrations = (app: AppSummary): string[] => {
+    if (!app.permissions) return [];
+    return Object.keys(app.permissions).filter(
+      (permission) => !activeIntegrations.includes(permission)
+    );
   };
 
   const handleReload = async () => {
@@ -287,6 +310,9 @@ export default function AppsTab() {
                   Status
                 </th>
                 <th className="text-left p-4 text-xs font-medium uppercase text-muted-foreground">
+                  Integrations
+                </th>
+                <th className="text-left p-4 text-xs font-medium uppercase text-muted-foreground">
                   Author
                 </th>
                 <th className="text-right p-4 text-xs font-medium uppercase text-muted-foreground">
@@ -305,6 +331,9 @@ export default function AppsTab() {
                   </td>
                   <td className="p-4 font-mono text-sm">{app.version}</td>
                   <td className="p-4">{getStatusBadge(app.status, app.isBuilt)}</td>
+                  <td className="p-4">
+                    <MissingIntegrationsBadge missingIntegrations={getMissingIntegrations(app)} />
+                  </td>
                   <td className="p-4 text-sm text-muted-foreground">{app.author || '-'}</td>
                   <td className="p-4 text-right space-x-2">
                     <button
@@ -313,7 +342,7 @@ export default function AppsTab() {
                         setEditorCreateNew(false);
                         setShowEditorModal(true);
                       }}
-                      className="inline-flex items-center px-2 py-1 rounded text-sm font-medium bg-purple-600 text-white hover:bg-purple-700"
+                      className="btn btn-primary inline-flex items-center gap-1 text-sm"
                     >
                       <svg
                         className="w-3 h-3 mr-1"
@@ -521,7 +550,7 @@ export default function AppsTab() {
                     </span>
                   )}
                   {selectedApp.capabilities.webhooks?.enabled && (
-                    <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400">
+                    <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-cyan-100 text-cyan-800 dark:bg-cyan-900/30 dark:text-cyan-400">
                       Webhooks (max {selectedApp.capabilities.webhooks.max_endpoints} endpoints)
                     </span>
                   )}
