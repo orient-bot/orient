@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import MiniAppEditorModal from './MiniAppEditor/MiniAppEditorModal';
 import MissingIntegrationsBadge from './MissingIntegrationsBadge';
+import MissingCapabilitiesBadge from './MissingCapabilitiesBadge';
 import { assetUrl } from '../api';
 
 interface AppSummary {
@@ -12,6 +13,11 @@ interface AppSummary {
   isBuilt: boolean;
   author?: string;
   permissions?: Record<string, { read: boolean; write: boolean }>;
+  capabilities?: {
+    scheduler?: { enabled: boolean };
+    webhooks?: { enabled: boolean };
+    storage?: { enabled: boolean };
+  };
 }
 
 interface AppStats {
@@ -67,10 +73,12 @@ export default function AppsTab() {
   const [editorAppName, setEditorAppName] = useState<string>('');
   const [editorCreateNew, setEditorCreateNew] = useState(false);
   const [activeIntegrations, setActiveIntegrations] = useState<string[]>([]);
+  const [availableCapabilities, setAvailableCapabilities] = useState<string[]>([]);
 
   useEffect(() => {
     loadApps();
     loadActiveIntegrations();
+    loadAvailableCapabilities();
   }, []);
 
   const loadApps = async () => {
@@ -127,11 +135,44 @@ export default function AppsTab() {
     }
   };
 
+  const loadAvailableCapabilities = async () => {
+    try {
+      const response = await fetch(`${API_BASE}/api/integrations/capabilities`);
+      if (response.ok) {
+        const data = await response.json();
+        setAvailableCapabilities(data.capabilities || []);
+      }
+    } catch (err) {
+      console.error('Failed to load available capabilities', err);
+    }
+  };
+
   const getMissingIntegrations = (app: AppSummary): string[] => {
     if (!app.permissions) return [];
     return Object.keys(app.permissions).filter(
       (permission) => !activeIntegrations.includes(permission)
     );
+  };
+
+  const getMissingCapabilities = (app: AppSummary): string[] => {
+    if (!app.capabilities) return [];
+    const missing: string[] = [];
+
+    if (app.capabilities.scheduler?.enabled && !availableCapabilities.includes('scheduler')) {
+      missing.push('scheduler');
+    }
+    if (app.capabilities.webhooks?.enabled && !availableCapabilities.includes('webhooks')) {
+      missing.push('webhooks');
+    }
+    if (app.capabilities.storage?.enabled && !availableCapabilities.includes('storage')) {
+      missing.push('storage');
+    }
+
+    return missing;
+  };
+
+  const hasUnsupportedFeatures = (app: AppSummary): boolean => {
+    return getMissingIntegrations(app).length > 0 || getMissingCapabilities(app).length > 0;
   };
 
   const handleReload = async () => {
@@ -321,108 +362,131 @@ export default function AppsTab() {
               </tr>
             </thead>
             <tbody>
-              {apps.map((app) => (
-                <tr key={app.name} className="border-t border-border hover:bg-muted/50">
-                  <td className="p-4">
-                    <div>
-                      <div className="font-medium">{app.title}</div>
-                      <div className="text-xs text-muted-foreground font-mono">{app.name}</div>
-                    </div>
-                  </td>
-                  <td className="p-4 font-mono text-sm">{app.version}</td>
-                  <td className="p-4">{getStatusBadge(app.status, app.isBuilt)}</td>
-                  <td className="p-4">
-                    <MissingIntegrationsBadge missingIntegrations={getMissingIntegrations(app)} />
-                  </td>
-                  <td className="p-4 text-sm text-muted-foreground">{app.author || '-'}</td>
-                  <td className="p-4 text-right space-x-2">
-                    <button
-                      onClick={() => {
-                        setEditorAppName(app.name);
-                        setEditorCreateNew(false);
-                        setShowEditorModal(true);
-                      }}
-                      className="btn btn-primary inline-flex items-center gap-1 text-sm"
-                    >
-                      <svg
-                        className="w-3 h-3 mr-1"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
+              {apps.map((app) => {
+                const unsupported = hasUnsupportedFeatures(app);
+                const rowClass = unsupported
+                  ? 'border-t border-border bg-muted/30 opacity-60'
+                  : 'border-t border-border hover:bg-muted/50';
+
+                return (
+                  <tr key={app.name} className={rowClass}>
+                    <td className="p-4">
+                      <div>
+                        <div className="font-medium">{app.title}</div>
+                        <div className="text-xs text-muted-foreground font-mono">{app.name}</div>
+                      </div>
+                    </td>
+                    <td className="p-4 font-mono text-sm">{app.version}</td>
+                    <td className="p-4">{getStatusBadge(app.status, app.isBuilt)}</td>
+                    <td className="p-4">
+                      <div className="flex flex-col gap-1">
+                        <MissingIntegrationsBadge
+                          missingIntegrations={getMissingIntegrations(app)}
                         />
-                      </svg>
-                      Edit with AI
-                    </button>
-                    {app.isBuilt && (
-                      <>
-                        <a
-                          href={`/apps/${app.name}/`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center px-2 py-1 rounded text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90"
+                        <MissingCapabilitiesBadge
+                          missingCapabilities={getMissingCapabilities(app)}
+                        />
+                      </div>
+                    </td>
+                    <td className="p-4 text-sm text-muted-foreground">{app.author || '-'}</td>
+                    <td className="p-4 text-right space-x-2">
+                      <button
+                        onClick={() => {
+                          setEditorAppName(app.name);
+                          setEditorCreateNew(false);
+                          setShowEditorModal(true);
+                        }}
+                        disabled={unsupported}
+                        className="btn btn-primary inline-flex items-center gap-1 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                        title={
+                          unsupported ? 'This app requires features not available' : undefined
+                        }
+                      >
+                        <svg
+                          className="w-3 h-3 mr-1"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
                         >
-                          <svg
-                            className="w-3 h-3 mr-1"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
+                          />
+                        </svg>
+                        Edit with AI
+                      </button>
+                      {app.isBuilt && !unsupported && (
+                        <>
+                          <a
+                            href={`/apps/${app.name}/`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center px-2 py-1 rounded text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90"
                           >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                            />
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-                            />
-                          </svg>
-                          Preview
-                        </a>
-                        <button
-                          onClick={() => {
-                            const url = `${window.location.origin}/apps/${app.name}/`;
-                            navigator.clipboard.writeText(url);
-                            alert(`Link copied!\n\n${url}`);
-                          }}
-                          className="inline-flex items-center px-2 py-1 rounded text-sm font-medium bg-secondary text-secondary-foreground hover:bg-secondary/80"
-                          title="Copy app link"
-                        >
-                          <svg
-                            className="w-3 h-3 mr-1"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
+                            <svg
+                              className="w-3 h-3 mr-1"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                              />
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                              />
+                            </svg>
+                            Preview
+                          </a>
+                          <button
+                            onClick={() => {
+                              const url = `${window.location.origin}/apps/${app.name}/`;
+                              navigator.clipboard.writeText(url);
+                              alert(`Link copied!\n\n${url}`);
+                            }}
+                            className="inline-flex items-center px-2 py-1 rounded text-sm font-medium bg-secondary text-secondary-foreground hover:bg-secondary/80"
+                            title="Copy app link"
                           >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"
-                            />
-                          </svg>
-                          Link
-                        </button>
-                      </>
-                    )}
-                    <button
-                      onClick={() => loadAppDetails(app.name)}
-                      className="inline-flex items-center px-2 py-1 rounded text-sm font-medium hover:bg-muted"
-                    >
-                      Details
-                    </button>
-                  </td>
-                </tr>
-              ))}
+                            <svg
+                              className="w-3 h-3 mr-1"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"
+                              />
+                            </svg>
+                            Link
+                          </button>
+                        </>
+                      )}
+                      {app.isBuilt && unsupported && (
+                        <span className="text-xs text-muted-foreground italic">
+                          Unsupported in this environment
+                        </span>
+                      )}
+                      <button
+                        onClick={() => loadAppDetails(app.name)}
+                        className="inline-flex items-center px-2 py-1 rounded text-sm font-medium hover:bg-muted"
+                      >
+                        Details
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
