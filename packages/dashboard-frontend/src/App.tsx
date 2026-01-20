@@ -1204,15 +1204,9 @@ function AppContent() {
         <div className="flex gap-1 mb-6 p-1 bg-secondary rounded-lg w-fit border border-border">
           <Link
             to={ROUTES.WHATSAPP_CHATS}
-            className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${whatsappView === 'chats' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+            className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors flex items-center gap-2 ${whatsappView === 'chats' || whatsappView === 'discover' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
           >
-            Configured Chats
-          </Link>
-          <Link
-            to={ROUTES.WHATSAPP_DISCOVER}
-            className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors flex items-center gap-2 ${whatsappView === 'discover' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
-          >
-            Discover New
+            Chats
             {stats.whatsapp && stats.whatsapp.chatsWithoutPermissions > 0 && (
               <span className="px-1.5 py-0.5 text-[10px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 rounded-full">
                 {stats.whatsapp.chatsWithoutPermissions}
@@ -1389,12 +1383,10 @@ function AppContent() {
 
         {!globalView && activeService === 'whatsapp' && (
           <>
-            {!needsWhatsAppPairingActive && whatsappView === 'chats' && (
-              <WhatsAppService discover={false} onUpdate={handleRefresh} />
-            )}
-            {!needsWhatsAppPairingActive && whatsappView === 'discover' && (
-              <WhatsAppService discover={true} onUpdate={handleRefresh} />
-            )}
+            {!needsWhatsAppPairingActive &&
+              (whatsappView === 'chats' || whatsappView === 'discover') && (
+                <WhatsAppService onUpdate={handleRefresh} />
+              )}
             {!needsWhatsAppPairingActive && whatsappView === 'audit' && <AuditLog />}
           </>
         )}
