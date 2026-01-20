@@ -210,6 +210,7 @@ function createBaseServer(config: DashboardServerConfig): Application {
 
   // Setup wizard routes (no auth required)
   app.use('/api/setup', createSetupRouter());
+  app.use('/dashboard/api/setup', createSetupRouter());
 
   return app;
 }
@@ -222,15 +223,21 @@ function attachFrontend(app: Application, config: DashboardServerConfig): void {
   if (staticPath && fs.existsSync(staticPath)) {
     logger.info('Serving React frontend', { staticPath });
 
-    // Serve static files
+    // Serve static files at root and /dashboard/ prefix
+    // (production build uses base: '/dashboard/' for assets)
     app.use(express.static(staticPath));
+    app.use('/dashboard', express.static(staticPath));
 
     // SPA fallback - serve index.html for any non-API routes
     // This allows React Router to handle client-side routing
     // Note: Express 5 / path-to-regexp v8 requires named wildcards
     app.get('/{*splat}', (req, res, next) => {
       // Skip API routes and health checks
-      if (req.path.startsWith('/api') || req.path === '/health') {
+      if (
+        req.path.startsWith('/api') ||
+        req.path.startsWith('/dashboard/api') ||
+        req.path === '/health'
+      ) {
         return next();
       }
 
@@ -351,6 +358,10 @@ export function createDashboardServer(
 
   // API routes - place before static files
   app.use('/api', createDashboardRouter(services));
+
+  // Support /dashboard/api/* routes for production frontend build
+  // (production build uses base: '/dashboard/' which prefixes API calls)
+  app.use('/dashboard/api', createDashboardRouter(services));
 
   // Mini-apps static file serving - serve built apps from /apps/:appName/
   if (services.appsService) {
