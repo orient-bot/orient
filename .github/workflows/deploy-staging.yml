@@ -498,12 +498,28 @@ jobs:
             # Ensure staging postgres is running before migrations
             echo "Ensuring PostgreSQL (staging) is running..."
             cd "${DOCKER_DIR}"
+
+            # Function to check if postgres is accepting connections
+            check_postgres() {
+              sudo docker exec orienter-postgres-staging psql -U orient -d whatsapp_bot_staging -c "SELECT 1" > /dev/null 2>&1 || \
+              sudo docker exec orienter-postgres-staging psql -U postgres -c "SELECT 1" > /dev/null 2>&1
+            }
+
+            # Start or restart postgres container
             if ! sudo docker ps --format '{{.Names}}' | grep -qx "orienter-postgres-staging"; then
               echo "  Starting postgres container..."
               sudo docker compose --env-file "${DEPLOY_DIR}/.env" ${COMPOSE_FILES} up -d postgres
-              sleep 5
+              sleep 10
             else
-              echo "  PostgreSQL (staging) already running"
+              echo "  PostgreSQL (staging) container is running, checking if accepting connections..."
+              # Quick check - if not accepting connections, restart the container
+              if ! check_postgres; then
+                echo "  Container running but postgres not accepting connections. Checking logs..."
+                sudo docker logs --tail 20 orienter-postgres-staging 2>&1 || true
+                echo "  Restarting postgres container..."
+                sudo docker compose --env-file "${DEPLOY_DIR}/.env" ${COMPOSE_FILES} restart postgres
+                sleep 10
+              fi
             fi
 
             # Wait for staging postgres to be ready (try with orient user first, then postgres user)
@@ -524,7 +540,9 @@ jobs:
             done
 
             if [ "$POSTGRES_READY" != "true" ]; then
-              echo "ERROR: PostgreSQL (staging) failed to start"
+              echo "ERROR: PostgreSQL (staging) failed to start after restart"
+              echo "Container logs:"
+              sudo docker logs --tail 50 orienter-postgres-staging 2>&1 || true
               exit 1
             fi
 
