@@ -11,11 +11,10 @@ import ChatList from './ChatList';
 import { PlatformPromptSection } from './prompts';
 
 interface WhatsAppServiceProps {
-  discover?: boolean;
   onUpdate?: () => void;
 }
 
-export default function WhatsAppService({ discover = false, onUpdate }: WhatsAppServiceProps) {
+export default function WhatsAppService({ onUpdate }: WhatsAppServiceProps) {
   const [promptsExpanded, setPromptsExpanded] = useState(false);
 
   return (
@@ -61,7 +60,7 @@ export default function WhatsAppService({ discover = false, onUpdate }: WhatsApp
       </details>
 
       {/* Chat List */}
-      <ChatList discover={discover} onUpdate={onUpdate ?? (() => {})} />
+      <ChatList onUpdate={onUpdate ?? (() => {})} />
     </div>
   );
 }
