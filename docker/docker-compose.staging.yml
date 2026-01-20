@@ -206,7 +206,7 @@ services:
       - TZ=Asia/Jerusalem
       - DASHBOARD_PORT=4098
       - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@orienter-postgres-staging:5432/whatsapp_bot_staging
-      - DASHBOARD_JWT_SECRET=${DASHBOARD_JWT_SECRET_STAGING}
+      - DASHBOARD_JWT_SECRET=${DASHBOARD_JWT_SECRET}
     volumes: !override
       - ../logs/staging:/app/logs
     ports: !override
