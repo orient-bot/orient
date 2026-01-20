@@ -203,7 +203,7 @@ export function createAgentsRoutes(
 
       res.json({
         ...agent,
-        skills: skills.map((s) => ({ name: s.skillName, enabled: s.enabled })),
+        skills: skills.map((s) => ({ id: s.id, skillName: s.skillName, enabled: s.enabled })),
         tools: tools.map((t) => ({
           id: t.id,
           agentId: t.agentId,
@@ -354,7 +354,9 @@ export function createAgentsRoutes(
     try {
       const { id } = req.params;
       const skills = await db.select().from(agentSkills).where(eq(agentSkills.agentId, id));
-      res.json({ skills: skills.map((s) => ({ name: s.skillName, enabled: s.enabled })) });
+      res.json({
+        skills: skills.map((s) => ({ id: s.id, skillName: s.skillName, enabled: s.enabled })),
+      });
     } catch (error) {
       logger.error('Failed to get agent skills', {
         error: error instanceof Error ? error.message : String(error),
@@ -385,7 +387,13 @@ export function createAgentsRoutes(
       }
 
       const updatedSkills = await db.select().from(agentSkills).where(eq(agentSkills.agentId, id));
-      res.json({ skills: updatedSkills.map((s) => ({ name: s.skillName, enabled: s.enabled })) });
+      res.json({
+        skills: updatedSkills.map((s) => ({
+          id: s.id,
+          skillName: s.skillName,
+          enabled: s.enabled,
+        })),
+      });
     } catch (error) {
       logger.error('Failed to update agent skills', {
         error: error instanceof Error ? error.message : String(error),
