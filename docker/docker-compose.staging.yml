@@ -80,7 +80,7 @@ services:
       - DATA_DIR=/app/data
       - LOG_DIR=/app/logs
       # Staging database connection
-      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@orienter-postgres-staging:5432/whatsapp_bot_staging
+      - DATABASE_URL=postgresql://orient:orient@orienter-postgres-staging:5432/whatsapp_bot_staging
       - S3_BUCKET=${S3_BUCKET_STAGING:-orient-data-staging}
       - S3_SYNC_INTERVAL=${S3_SYNC_INTERVAL:-60}
       - AWS_ACCESS_KEY_ID=${MINIO_ROOT_USER}
@@ -119,7 +119,7 @@ services:
       - NODE_ENV=staging
       - TZ=Asia/Jerusalem
       # Staging database connection
-      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@orienter-postgres-staging:5432/whatsapp_bot_staging
+      - DATABASE_URL=postgresql://orient:orient@orienter-postgres-staging:5432/whatsapp_bot_staging
       - OPENCODE_SERVER_URL=http://orienter-opencode-staging:5099
       - OPENCODE_URL=http://orienter-opencode-staging:5099
       - OPENCODE_ENABLED=true
@@ -164,7 +164,7 @@ services:
     environment:
       - NODE_ENV=staging
       - TZ=Asia/Jerusalem
-      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@orienter-postgres-staging:5432/whatsapp_bot_staging
+      - DATABASE_URL=postgresql://orient:orient@orienter-postgres-staging:5432/whatsapp_bot_staging
       - OPENCODE_SERVER_URL=http://orienter-opencode-staging:5099
       - OPENCODE_URL=http://orienter-opencode-staging:5099
       - OPENCODE_ENABLED=true
@@ -187,7 +187,7 @@ services:
     environment:
       - NODE_ENV=staging
       - TZ=Asia/Jerusalem
-      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@orienter-postgres-staging:5432/whatsapp_bot_staging
+      - DATABASE_URL=postgresql://orient:orient@orienter-postgres-staging:5432/whatsapp_bot_staging
       - API_GATEWAY_PORT=4100
     volumes: !override
       - ../logs/staging:/app/logs
@@ -205,12 +205,20 @@ services:
       - NODE_ENV=staging
       - TZ=Asia/Jerusalem
       - DASHBOARD_PORT=4098
-      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@orienter-postgres-staging:5432/whatsapp_bot_staging
+      # Use orient credentials explicitly (same as staging postgres)
+      - DATABASE_URL=postgresql://orient:orient@orienter-postgres-staging:5432/whatsapp_bot_staging
       - DASHBOARD_JWT_SECRET=${DASHBOARD_JWT_SECRET}
     volumes: !override
       - ../logs/staging:/app/logs
     ports: !override
       - '5098:4098'
+    # Override healthcheck with longer start_period for first deployment
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:4098/health']
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
 
   # ===========================================================================
   # S3 Sync Service (Staging - Optional)
