@@ -58,9 +58,13 @@ vi.mock('@orient/database-services', () => ({
   }),
 }));
 
-vi.mock('@orient/integrations', () => ({
-  getInstalledIntegrations: vi.fn().mockResolvedValue([]),
-}));
+vi.mock('@orient/integrations', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@orient/integrations')>();
+  return {
+    ...actual,
+    getInstalledIntegrations: vi.fn().mockResolvedValue([]),
+  };
+});
 
 vi.mock('@orient/integrations/google', () => ({
   getGoogleOAuthService: vi.fn().mockReturnValue({
