@@ -436,6 +436,7 @@ jobs:
             docker/docker-compose.yml \
             docker/docker-compose.v2.yml \
             docker/docker-compose.prod.yml \
+            docker/docker-compose.prod-secure.yml \
             docker/docker-compose.r2.yml \
             docker/docker-compose.local.yml \
             docker/nginx-ssl.conf \
@@ -470,7 +471,7 @@ jobs:
             DEPLOY_DIR="${HOME}/orient"
             MIGRATIONS_DIR="${DEPLOY_DIR}/data/migrations"
             DOCKER_DIR="${DEPLOY_DIR}/docker"
-            COMPOSE_FILES="-f docker-compose.v2.yml -f docker-compose.prod.yml -f docker-compose.r2.yml"
+            COMPOSE_FILES="-f docker-compose.v2.yml -f docker-compose.prod.yml -f docker-compose.r2.yml -f docker-compose.prod-secure.yml"
 
             # Get database credentials from server .env
             DB_USER=$(grep '^POSTGRES_USER=' ~/orient/.env | cut -d= -f2 | tr -d '"' || echo "aibot")
@@ -598,7 +599,7 @@ jobs:
             DEPLOY_DIR="${HOME}/orient"
             DOCKER_DIR="${DEPLOY_DIR}/docker"
             BACKUP_DIR="${DEPLOY_DIR}/backups"
-            COMPOSE_FILES="-f docker-compose.v2.yml -f docker-compose.prod.yml -f docker-compose.r2.yml"
+            COMPOSE_FILES="-f docker-compose.v2.yml -f docker-compose.prod.yml -f docker-compose.r2.yml -f docker-compose.prod-secure.yml"
             TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 
             cd "${DOCKER_DIR}"
@@ -764,7 +765,7 @@ jobs:
 
           ssh -o StrictHostKeyChecking=no $OCI_USER@$OCI_HOST 'bash -s' << 'EOF'
           cd ~/orient/docker
-          COMPOSE_FILES="-f docker-compose.v2.yml -f docker-compose.prod.yml -f docker-compose.r2.yml"
+          COMPOSE_FILES="-f docker-compose.v2.yml -f docker-compose.prod.yml -f docker-compose.r2.yml -f docker-compose.prod-secure.yml"
 
           LATEST=$(ls -t ~/orient/backups 2>/dev/null | head -1)
           if [[ -n "$LATEST" ]]; then
