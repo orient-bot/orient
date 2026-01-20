@@ -26,7 +26,6 @@ import {
   createVersionRoutes,
 } from './routes/index.js';
 import { initStorageService } from '../services/storageService.js';
-// TODO: Re-enable with miniapp editor if needed
 
 const logger = createServiceLogger('dashboard-routes');
 
@@ -44,7 +43,8 @@ export function createDashboardRouter(services: DashboardServices): Router {
     promptService,
     appsService,
     storageDb,
-    /* miniappEditService, */ auth,
+    miniappEditService,
+    auth,
   } = services;
   router.get('/config/version', (_req: Request, res: Response) => {
     res.json({ version: getConfigVersion() });
@@ -206,9 +206,12 @@ export function createDashboardRouter(services: DashboardServices): Router {
     router.use('/prompts', createPromptsRoutes(promptService, requireAuth));
   }
 
-  // Apps routes (for mini-apps listing and bridge API)
+  // Apps routes (for mini-apps listing, bridge API, and AI editing)
   if (appsService) {
-    router.use('/apps', createAppsRoutes(appsService, requireAuth, { storageDb }));
+    router.use(
+      '/apps',
+      createAppsRoutes(appsService, requireAuth, { storageDb }, miniappEditService)
+    );
   }
   // Secrets routes (always available)
   router.use('/secrets', createSecretsRoutes(requireAuth));
