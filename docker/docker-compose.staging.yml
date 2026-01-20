@@ -70,7 +70,7 @@ services:
   # OpenCode Server + MCP Server (Staging)
   # ===========================================================================
   opencode:
-    image: ghcr.io/orient-code/orient/opencode:staging
+    image: ghcr.io/orient-bot/orient/opencode:staging
     container_name: orienter-opencode-staging
     environment:
       - NODE_ENV=staging
@@ -113,7 +113,7 @@ services:
   # WhatsApp Bot (Staging)
   # ===========================================================================
   bot-whatsapp:
-    image: ghcr.io/orient-code/orient/whatsapp-bot:staging
+    image: ghcr.io/orient-bot/orient/whatsapp-bot:staging
     container_name: orienter-bot-whatsapp-staging
     environment:
       - NODE_ENV=staging
@@ -159,7 +159,7 @@ services:
   # Slack Bot (Staging - Optional)
   # ===========================================================================
   bot-slack:
-    image: ghcr.io/orient-code/orient/slack-bot:staging
+    image: ghcr.io/orient-bot/orient/slack-bot:staging
     container_name: orienter-bot-slack-staging
     environment:
       - NODE_ENV=staging
@@ -182,7 +182,7 @@ services:
   # API Gateway (Staging - Optional)
   # ===========================================================================
   api-gateway:
-    image: ghcr.io/orient-code/orient/api-gateway:staging
+    image: ghcr.io/orient-bot/orient/api-gateway:staging
     container_name: orienter-api-gateway-staging
     environment:
       - NODE_ENV=staging
@@ -199,7 +199,7 @@ services:
   # Dashboard - Staging
   # ===========================================================================
   dashboard:
-    image: ghcr.io/orient-code/orient/dashboard:staging
+    image: ghcr.io/orient-bot/orient/dashboard:staging
     container_name: orienter-dashboard-staging
     environment:
       - NODE_ENV=staging
