@@ -36,9 +36,20 @@ export function createAgentsRoutes(
       const allAgents = await db.select().from(agents);
       const enabledAgents = allAgents.filter((a) => a.enabled);
 
+      // Count distinct enabled skills from agent_skills table
+      const enabledSkills = await db
+        .selectDistinct({ skillName: agentSkills.skillName })
+        .from(agentSkills)
+        .where(eq(agentSkills.enabled, true));
+
+      // Count context rules
+      const allContextRules = await db.select().from(contextRules);
+
       res.json({
         totalAgents: allAgents.length,
         enabledAgents: enabledAgents.length,
+        totalSkills: enabledSkills.length,
+        totalContextRules: allContextRules.length,
       });
     } catch (error) {
       logger.error('Failed to get agent stats', {
