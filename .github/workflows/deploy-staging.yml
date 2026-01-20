@@ -491,17 +491,61 @@ jobs:
             set -e
 
             DEPLOY_DIR="${HOME}/orient"
+            DOCKER_DIR="${DEPLOY_DIR}/docker"
             MIGRATIONS_DIR="${DEPLOY_DIR}/data/migrations"
+            COMPOSE_FILES="-f docker-compose.v2.yml -f docker-compose.staging.yml"
 
-            # Wait for staging postgres to be ready
-            echo "Waiting for PostgreSQL (staging)..."
+            # Ensure staging postgres is running before migrations
+            echo "Ensuring PostgreSQL (staging) is running..."
+            cd "${DOCKER_DIR}"
+            if ! sudo docker ps --format '{{.Names}}' | grep -qx "orienter-postgres-staging"; then
+              echo "  Starting postgres container..."
+              sudo docker compose --env-file "${DEPLOY_DIR}/.env" ${COMPOSE_FILES} up -d postgres
+              sleep 5
+            else
+              echo "  PostgreSQL (staging) already running"
+            fi
+
+            # Wait for staging postgres to be ready (try with orient user first, then postgres user)
+            echo "Waiting for PostgreSQL (staging) to accept connections..."
+            POSTGRES_READY=false
             for i in {1..30}; do
               if sudo docker exec orienter-postgres-staging psql -U orient -d whatsapp_bot_staging -c "SELECT 1" > /dev/null 2>&1; then
-                echo "PostgreSQL (staging) is ready"
+                echo "PostgreSQL (staging) is ready (orient user)"
+                POSTGRES_READY=true
+                break
+              elif sudo docker exec orienter-postgres-staging psql -U postgres -c "SELECT 1" > /dev/null 2>&1; then
+                echo "PostgreSQL (staging) is ready (postgres user only)"
+                POSTGRES_READY=true
                 break
               fi
+              echo "  Attempt $i/30 - waiting..."
               sleep 2
             done
+
+            if [ "$POSTGRES_READY" != "true" ]; then
+              echo "ERROR: PostgreSQL (staging) failed to start"
+              exit 1
+            fi
+
+            # Ensure orient user and database exist (creates if missing)
+            echo "Ensuring orient user and database exist..."
+            sudo docker exec orienter-postgres-staging psql -U postgres -c "
+              DO \$\$
+              BEGIN
+                IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'orient') THEN
+                  CREATE ROLE orient WITH LOGIN SUPERUSER PASSWORD 'orient';
+                  RAISE NOTICE 'Created orient user';
+                END IF;
+              END
+              \$\$;
+            " 2>/dev/null || true
+
+            sudo docker exec orienter-postgres-staging psql -U postgres -c "
+              SELECT 'CREATE DATABASE whatsapp_bot_staging OWNER orient'
+              WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'whatsapp_bot_staging')
+              \gexec
+            " 2>/dev/null || true
 
             # Create migrations tracking table if not exists
             sudo docker exec orienter-postgres-staging psql -U orient -d whatsapp_bot_staging -c "
