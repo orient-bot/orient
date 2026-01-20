@@ -207,8 +207,12 @@ services:
       - DASHBOARD_PORT=4098
       - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@orienter-postgres-staging:5432/whatsapp_bot_staging
       - DASHBOARD_JWT_SECRET=${DASHBOARD_JWT_SECRET_STAGING}
+      # SSH key path for production monitoring (mounted from ~/.ssh)
+      - SSH_KEY_PATH=/app/.ssh/id_rsa
     volumes: !override
       - ../logs/staging:/app/logs
+      # Mount SSH key for production server monitoring (from docker/.ssh directory)
+      - ./.ssh:/app/.ssh:ro
     ports: !override
       - '5098:4098'
 
