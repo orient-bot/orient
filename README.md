@@ -10,6 +10,7 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/orient-bot/orient/releases"><img src="https://img.shields.io/github/v/release/orient-bot/orient" alt="Release"></a>
   <a href="https://github.com/orient-bot/orient/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License"></a>
   <a href="https://github.com/orient-bot/orient"><img src="https://img.shields.io/github/stars/orient-bot/orient?style=social" alt="GitHub Stars"></a>
   <a href="https://orient.bot"><img src="https://img.shields.io/badge/website-orient.bot-blue" alt="Website"></a>
