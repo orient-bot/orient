@@ -1,0 +1,24 @@
+name: pm-assistant-greeting-no-tools
+description: PM Assistant should NOT call tools for simple greetings
+type: response_quality
+agent: pm-assistant
+
+input:
+  prompt: 'hi'
+
+expect:
+  tool_calls:
+    forbidden:
+      - discover_tools
+      - ai_first_get_config
+      - ai_first_health_check
+      - ai_first_get_blockers
+      - ai_first_get_sprint_issues
+
+  assertions:
+    - type: response_matches
+      pattern: 'hello|hi|help|assist|welcome|how can i'
+
+scoring:
+  llm_judge:
+    enabled: false

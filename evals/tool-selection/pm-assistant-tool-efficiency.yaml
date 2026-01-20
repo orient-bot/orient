@@ -1,0 +1,29 @@
+name: pm-assistant-tool-efficiency
+description: Agent should use discover_tools at most once when needed
+type: tool_selection
+agent: pm-assistant
+
+input:
+  prompt: 'What JIRA tools are available?'
+
+mocks:
+  jira:
+    discover_tools:
+      response:
+        tools:
+          - name: ai_first_get_blockers
+            description: Get blocked JIRA issues
+          - name: ai_first_get_sprint_issues
+            description: Get issues in current sprint
+          - name: ai_first_get_daily_digest
+            description: Get daily JIRA digest
+
+expect:
+  tool_calls:
+    required:
+      - name: discover_tools
+    # Note: The eval framework should verify discover_tools is called only once
+
+  assertions:
+    - type: response_matches
+      pattern: 'jira|issue|blocker|sprint|digest'

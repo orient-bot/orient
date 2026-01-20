@@ -1,0 +1,26 @@
+name: onboarder-greeting-no-tools
+description: Onboarder should NOT call tools for simple greetings
+type: response_quality
+agent: onboarder
+
+context:
+  platform: dashboard
+
+input:
+  prompt: 'hi'
+
+expect:
+  tool_calls:
+    forbidden:
+      - discover_tools
+      - config_set_prompt
+      - config_set_secret
+      - config_set_permission
+
+  assertions:
+    - type: response_matches
+      pattern: 'hello|hi|welcome|help|ori|orient|setup|started'
+
+scoring:
+  llm_judge:
+    enabled: false
