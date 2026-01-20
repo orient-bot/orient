@@ -1,7 +1,7 @@
 name: onboarder-friendly-tone
 description: Onboarder maintains a friendly, helpful tone
 type: response_quality
-agent: onboarder
+agent: ori
 
 context:
   platform: dashboard

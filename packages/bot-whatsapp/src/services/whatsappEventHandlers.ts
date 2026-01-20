@@ -125,6 +125,11 @@ export function setupEventHandlers(deps: EventHandlerDependencies): void {
     (data: { messages: proto.IWebMessageInfo[]; isLatest: boolean }) =>
       handleHistorySync(data, deps)
   );
+
+  // Handle chat metadata sync (group names from history)
+  whatsappService.on('chats_sync', (chats: { id: string; name?: string; isGroup: boolean }[]) =>
+    handleChatsSync(chats, deps)
+  );
 }
 
 /**
@@ -699,20 +704,44 @@ async function handleMessageStored(
 ): Promise<void> {
   const { whatsappService, messageDb, mediaStorage } = deps;
 
-  // Capture group metadata for read-only groups too
+  logger.info('handleMessageStored called', {
+    messageId: message.id,
+    isGroup: message.isGroup,
+    groupId: message.groupId,
+    fromPhone: message.fromPhone,
+  });
+
+  // Capture group metadata for ALL groups (both read-only and writable)
   if (message.isGroup && message.groupId) {
+    logger.debug('Attempting to fetch group metadata', {
+      groupId: message.groupId,
+    });
     try {
       const groupMetadata = await whatsappService.getGroupMetadata(message.groupId);
       if (groupMetadata) {
+        logger.debug('Got group metadata', {
+          groupId: message.groupId,
+          subject: groupMetadata.subject,
+          participants: groupMetadata.participants?.length,
+        });
         await messageDb.upsertGroup(
           groupMetadata.id,
           groupMetadata.subject,
           groupMetadata.subject,
-          groupMetadata.participants
+          groupMetadata.participants?.length || 0
         );
+        logger.info('Stored group metadata from message', {
+          groupId: message.groupId,
+          name: groupMetadata.subject,
+        });
+      } else {
+        logger.warn('No metadata returned for group', { groupId: message.groupId });
       }
-    } catch {
-      // Silently ignore metadata errors for read-only messages
+    } catch (error) {
+      logger.warn('Failed to fetch group metadata', {
+        groupId: message.groupId,
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
   }
 
@@ -1051,5 +1080,87 @@ async function handleHistorySync(
         // Silently ignore - group may no longer exist
       }
     }
+  }
+}
+
+/**
+ * Handle chat metadata sync (saves group names from history)
+ */
+async function handleChatsSync(
+  chats: { id: string; name?: string; isGroup: boolean }[],
+  deps: EventHandlerDependencies
+): Promise<void> {
+  const { messageDb, whatsappService } = deps;
+
+  const groups = chats.filter((c) => c.isGroup);
+  if (groups.length === 0) return;
+
+  logger.info('Processing chat metadata sync for group names', {
+    totalGroups: groups.length,
+    groupsWithNames: groups.filter((g) => g.name).length,
+  });
+  console.log(`📋 Syncing names for ${groups.length} group(s) from chat metadata...`);
+
+  let updatedCount = 0;
+  const groupsWithoutNames: string[] = [];
+
+  // First, store groups with names
+  for (const group of groups) {
+    try {
+      if (group.name) {
+        // Update the group's name in the groups table
+        await messageDb.upsertGroup(group.id, group.name, group.name);
+        updatedCount++;
+        logger.debug('Updated group name from chat sync', {
+          groupId: group.id,
+          name: group.name,
+        });
+      } else {
+        // Ensure group entry exists even without name, so we can fetch metadata later
+        groupsWithoutNames.push(group.id);
+        await messageDb.upsertGroup(group.id, undefined, undefined, undefined);
+      }
+    } catch (error) {
+      logger.warn('Failed to update group from chat sync', {
+        groupId: group.id,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  console.log(`✅ Updated ${updatedCount} group name(s) from chat metadata`);
+
+  // Fetch metadata for groups without names (in background)
+  if (groupsWithoutNames.length > 0 && whatsappService) {
+    logger.info('Fetching metadata for groups without names', {
+      count: groupsWithoutNames.length,
+    });
+    console.log(`🔄 Fetching names for ${groupsWithoutNames.length} group(s) without metadata...`);
+
+    // Do this in the background to not block the chat sync
+    setImmediate(async () => {
+      for (const groupId of groupsWithoutNames) {
+        try {
+          const metadata = await whatsappService.getGroupMetadata(groupId);
+          if (metadata) {
+            await messageDb.upsertGroup(
+              metadata.id,
+              metadata.subject,
+              metadata.subject,
+              metadata.participants?.length || 0
+            );
+            logger.debug('Fetched group metadata from chat sync', {
+              groupId,
+              name: metadata.subject,
+            });
+          }
+        } catch (error) {
+          logger.warn('Failed to fetch group metadata from chat sync', {
+            groupId,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
+      }
+    });
   }
 }

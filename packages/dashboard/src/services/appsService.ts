@@ -38,6 +38,11 @@ export interface AppSummary {
   isBuilt: boolean;
   author?: string;
   permissions?: Record<string, { read: boolean; write: boolean }>;
+  capabilities?: {
+    scheduler?: { enabled: boolean };
+    webhooks?: { enabled: boolean };
+    storage?: { enabled: boolean };
+  };
 }
 
 // ============================================
@@ -251,6 +256,29 @@ export class AppsService {
   }
 
   /**
+   * Build capabilities object from manifest capabilities
+   */
+  private buildCapabilitiesObject(
+    capabilities: AppManifest['capabilities']
+  ): AppSummary['capabilities'] | undefined {
+    if (!capabilities) return undefined;
+
+    const result: NonNullable<AppSummary['capabilities']> = {};
+
+    if (capabilities.scheduler) {
+      result.scheduler = { enabled: capabilities.scheduler.enabled };
+    }
+    if (capabilities.webhooks) {
+      result.webhooks = { enabled: capabilities.webhooks.enabled };
+    }
+    if (capabilities.storage) {
+      result.storage = { enabled: capabilities.storage.enabled };
+    }
+
+    return Object.keys(result).length > 0 ? result : undefined;
+  }
+
+  /**
    * Get list of all available apps with their summaries
    */
   listApps(): AppSummary[] {
@@ -268,6 +296,7 @@ export class AppsService {
       isBuilt: app.isBuilt,
       author: app.manifest.author,
       permissions: this.buildPermissionsObject(app.manifest.permissions),
+      capabilities: this.buildCapabilitiesObject(app.manifest.capabilities),
     }));
   }
 

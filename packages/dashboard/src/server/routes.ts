@@ -6,6 +6,7 @@
 
 import { Router, Request, Response } from 'express';
 import { createServiceLogger, getConfigVersion } from '@orient/core';
+import { createSkillsService } from '@orient/agents';
 import type { DashboardServices } from './index.js';
 import { AuthenticatedRequest, createAuthMiddleware } from '../auth.js';
 import { ChatPermission, ChatType } from '../types/index.js';
@@ -452,6 +453,18 @@ export function createDashboardRouter(services: DashboardServices): Router {
     }
   });
 
+  // Get all chats unified (both configured and unconfigured in one view)
+  // Returns { chats: [...] } with isConfigured flag for each chat
+  router.get('/chats/all', requireAuth, async (_req: Request, res: Response) => {
+    try {
+      const chats = await db.getAllChatsUnified();
+      res.json({ chats });
+    } catch (error) {
+      logger.error('Get all chats unified error', { error: String(error) });
+      res.status(500).json({ error: 'Failed to get all chats' });
+    }
+  });
+
   // Get single chat permission
   router.get('/chats/:chatId', requireAuth, async (req: Request, res: Response) => {
     try {
@@ -624,12 +637,22 @@ export function createDashboardRouter(services: DashboardServices): Router {
 
   router.get('/capabilities', requireAuth, async (_req: Request, res: Response) => {
     try {
-      // Return empty capabilities - full implementation not yet migrated
+      // Load skills from .claude/skills/ using SkillsService
+      const skillsService = await createSkillsService();
+      const skillsList = skillsService.listSkills();
+
+      // Map to frontend SkillInfo interface
+      const skills = skillsList.map((skill) => ({
+        name: skill.name,
+        description: skill.description,
+        location: 'project' as const,
+      }));
+
       res.json({
-        skills: [],
+        skills,
         categories: [],
         summary: {
-          totalSkills: 0,
+          totalSkills: skills.length,
           totalTools: 0,
           categoryCounts: {},
         },

@@ -379,6 +379,39 @@ export function createIntegrationsRoutes(
     }
   });
 
+  // Get available capabilities (for mini-apps)
+  router.get('/capabilities', requireAuth, async (_req: Request, res: Response) => {
+    try {
+      const availableCapabilities: string[] = [];
+
+      // Storage is always available (uses SQLite)
+      availableCapabilities.push('storage');
+
+      // Check if scheduler service is available
+      try {
+        // Scheduler service is always available in production
+        availableCapabilities.push('scheduler');
+      } catch {
+        // Scheduler not available
+      }
+
+      // Check if webhooks service is available
+      try {
+        // Webhooks service is always available in production
+        availableCapabilities.push('webhooks');
+      } catch {
+        // Webhooks not available
+      }
+
+      res.json({ capabilities: availableCapabilities });
+    } catch (error) {
+      logger.error('Failed to get available capabilities', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      res.status(500).json({ error: 'Failed to get available capabilities' });
+    }
+  });
+
   // Get integration catalog
   router.get('/catalog', requireAuth, async (_req: Request, res: Response) => {
     try {

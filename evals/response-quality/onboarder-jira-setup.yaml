@@ -1,7 +1,7 @@
 name: onboarder-jira-setup
 description: Onboarder explains JIRA integration setup clearly
 type: response_quality
-agent: onboarder
+agent: ori
 
 context:
   platform: dashboard

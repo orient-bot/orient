@@ -1,7 +1,7 @@
 name: onboarder-no-manual-instructions
 description: Onboarder should use tools instead of giving manual dashboard instructions
 type: tool_selection
-agent: onboarder
+agent: ori
 
 context:
   platform: dashboard

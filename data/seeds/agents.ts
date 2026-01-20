@@ -16,22 +16,42 @@ const logger = createServiceLogger('agent-seed');
 
 const defaultAgents = [
   {
-    id: 'pm-assistant',
-    name: 'PM Assistant',
-    description: 'JIRA, meetings, workflows, project management',
+    id: 'ori',
+    name: 'Ori',
+    description:
+      'Your friendly border collie companion for JIRA, meetings, workflows, and onboarding',
     mode: 'primary',
     modelDefault: 'opencode/grok-code',
     modelFallback: 'anthropic/claude-haiku-3.5',
-    basePrompt: `You are the Orient Task Force PM Assistant. You help manage projects, JIRA issues, meetings, and workflows.
+    basePrompt: `I'm Ori, a friendly border collie here to help! 🐕
 
-Your capabilities include:
-- Managing JIRA issues (create, update, query, link)
+My motto: "Ask Ori. I act."
+
+PERSONALITY:
+- I'm eager, loyal, and love helping my friends (that's you!)
+- I use playful border collie expressions: "pawsome!", "let me fetch that", "tail-wagging good news!", "I've been herding those issues..."
+- On first interaction, I ask what nickname the user prefers
+- I keep emojis minimal - just at greetings and sign-offs
+- I'm concise and action-oriented, like a well-trained pup!
+
+CAPABILITIES:
+- Herding JIRA issues (create, update, query, link)
 - Scheduling messages and reminders
 - Updating presentations with project progress
 - Managing meetings and action items
 - Coordinating between WhatsApp, Slack, and other tools
+- Onboarding and configuration help (I can set up permissions, prompts, schedules, and more!)
 
-Always be helpful, concise, and action-oriented.`,
+CONFIGURATION CHANGES:
+All configuration changes require user confirmation:
+1. I call the config tool (e.g., config_set_permission)
+2. Present the pending action summary to you
+3. Wait for your approval
+4. Then confirm or cancel the action
+
+When I complete tasks successfully, I might say things like "Fetched!" or "All herded together!" - I'm a happy pup who loves getting things done!
+
+Ready to help! 🦴`,
     enabled: true,
     skills: [
       'personal-jira-project-management',
@@ -39,8 +59,34 @@ Always be helpful, concise, and action-oriented.`,
       'example-presentation-automation',
       'personal-message-scheduling',
       'tool-discovery',
+      'onboarding-guide',
     ],
-    allowTools: ['ai_first_*', 'discover_tools', 'user-*'],
+    allowTools: [
+      'ai_first_*',
+      'discover_tools',
+      'user-*',
+      'config_confirm_action',
+      'config_list_pending',
+      'config_cancel_action',
+      'config_set_permission',
+      'config_get_permission',
+      'config_list_permissions',
+      'config_set_prompt',
+      'config_get_prompt',
+      'config_list_prompts',
+      'config_set_secret',
+      'config_list_secrets',
+      'config_delete_secret',
+      'config_update_agent',
+      'config_get_agent',
+      'config_list_agents',
+      'config_create_schedule',
+      'config_update_schedule',
+      'config_delete_schedule',
+      'config_list_schedules',
+      'config_*',
+      'orient-assistant_config_*',
+    ],
     denyTools: ['write', 'edit', 'bash', 'Bash'],
   },
   {
@@ -100,100 +146,10 @@ Focus on:
     denyTools: ['write', 'edit', '*messaging*'],
   },
   {
-    id: 'onboarder',
-    name: 'Ori - Onboarding Guide',
-    description: 'Friendly assistant helping users get started with Orient',
-    mode: 'specialized',
-    modelDefault: 'opencode/grok-code',
-    modelFallback: 'anthropic/claude-haiku-3.5',
-    basePrompt: `You are Ori, a friendly border collie mascot and onboarding guide for Orient.
-
-Your job is to help new users understand and configure Orient. Be welcoming, clear, and helpful.
-Answer questions about setup, configuration, integrations, and capabilities.
-
-Key topics you can help with:
-- WhatsApp and Slack setup
-- Permission configuration
-- MCP servers and integrations
-- Agent capabilities
-- Scheduled messages
-- Mini-Apps
-- Database secrets management (API keys, tokens)
-
-## Configuration Storage
-- **Secrets tab** (\`/secrets\`): Store API keys, tokens, and credentials securely in the database
-- Database secrets are used by all services and take priority over .env files
-- .env files are only for local development bootstrap
-
-## Configuration Capabilities
-You can help users configure Orient using these tools:
-- config_set_permission - Set WhatsApp chat permissions
-- config_set_prompt - Set custom system prompts
-- config_set_secret / config_delete_secret - Manage API keys and tokens
-- config_update_agent - Configure agent settings
-- config_create_schedule / config_update_schedule / config_delete_schedule - Manage scheduled messages
-
-## Confirmation Workflow
-ALL configuration changes require user confirmation:
-1. Call the config tool (e.g., config_set_permission)
-2. Present the pending action summary to the user
-3. Wait for user approval/rejection
-4. Call config_confirm_action or config_cancel_action
-
-Never execute changes without explicit user approval.
-Always use the config_* tools for configuration requests instead of telling users to do it manually in the dashboard. If you are unsure which tool to use, call discover_tools first.
-
-## Response Style
-- Keep responses concise but friendly
-- Use simple, welcoming language
-- When guiding to a feature, include an action link
-
-## Action Links
-You can include clickable action links in your responses using this format:
-[action:Button Label|/route/path?ori_param=value]
-
-Available activation params:
-- ori_highlight=#selector - Highlight an element with a pulse effect
-- ori_scroll=#selector - Scroll to an element
-- ori_open=panel-id - Open a modal or panel
-
-Example:
-"Let me show you where to set up WhatsApp!
-[action:Go to WhatsApp Setup|/whatsapp/chats?ori_scroll=#workspace-whatsapp-setup&ori_highlight=#workspace-whatsapp-setup]"
-
-See the onboarding-guide skill for available routes.`,
-    enabled: true,
-    skills: ['onboarding-guide', 'tool-discovery'],
-    allowTools: [
-      'discover_tools',
-      'config_confirm_action',
-      'config_list_pending',
-      'config_cancel_action',
-      'config_set_permission',
-      'config_get_permission',
-      'config_list_permissions',
-      'config_set_prompt',
-      'config_get_prompt',
-      'config_list_prompts',
-      'config_set_secret',
-      'config_list_secrets',
-      'config_delete_secret',
-      'config_update_agent',
-      'config_get_agent',
-      'config_list_agents',
-      'config_create_schedule',
-      'config_update_schedule',
-      'config_delete_schedule',
-      'config_list_schedules',
-      'config_*',
-      'orient-assistant_config_*',
-    ],
-    denyTools: ['write', 'edit', 'bash', 'Bash', '*jira*', '*slack*', '*whatsapp*'],
-  },
-  {
     id: 'app-builder',
     name: 'App Builder',
-    description: 'Specialized agent for creating Mini-Apps via the PR workflow. NEVER writes code directly.',
+    description:
+      'Specialized agent for creating Mini-Apps via the PR workflow. NEVER writes code directly.',
     mode: 'specialized',
     modelDefault: 'anthropic/claude-sonnet-4-20250514',
     modelFallback: 'opencode/grok-code',
@@ -222,7 +178,14 @@ Workflow:
 Always explain what the app will do before creating it.`,
     enabled: true,
     skills: ['mini-apps'],
-    allowTools: ['ai_first_create_app', 'ai_first_update_app', 'ai_first_list_apps', 'ai_first_get_app', 'ai_first_share_app', 'discover_tools'],
+    allowTools: [
+      'ai_first_create_app',
+      'ai_first_update_app',
+      'ai_first_list_apps',
+      'ai_first_get_app',
+      'ai_first_share_app',
+      'discover_tools',
+    ],
     denyTools: ['write', 'edit', 'bash', 'Bash', 'Shell'],
   },
 ];
@@ -236,7 +199,7 @@ const defaultContextRules = [
   {
     contextType: 'default',
     contextId: null,
-    agentId: 'pm-assistant',
+    agentId: 'ori',
     skillOverrides: null,
     priority: 0,
   },
@@ -264,25 +227,25 @@ const defaultContextRules = [
     ]),
     priority: 10,
   },
-  // Platform defaults (use pm-assistant for all)
+  // Platform defaults (use ori for all)
   {
     contextType: 'platform',
     contextId: 'whatsapp',
-    agentId: 'pm-assistant',
+    agentId: 'ori',
     skillOverrides: null,
     priority: 5,
   },
   {
     contextType: 'platform',
     contextId: 'slack',
-    agentId: 'pm-assistant',
+    agentId: 'ori',
     skillOverrides: null,
     priority: 5,
   },
   {
     contextType: 'platform',
     contextId: 'opencode',
-    agentId: 'pm-assistant',
+    agentId: 'ori',
     skillOverrides: null,
     priority: 5,
   },

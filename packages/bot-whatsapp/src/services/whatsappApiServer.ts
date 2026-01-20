@@ -182,6 +182,15 @@ export class WhatsAppApiServer {
             return;
           }
 
+          // QR code regeneration endpoint (user-initiated after pause)
+          if (
+            (url.pathname === '/qr/regenerate' || url.pathname === '/regenerate') &&
+            req.method === 'POST'
+          ) {
+            await this.handleQrRegenerate(req, res);
+            return;
+          }
+
           // E2E test endpoint (WhatsApp messaging only)
           if (url.pathname === '/e2e-test' && req.method === 'POST') {
             await this.handleE2ETest(req, res);
@@ -542,6 +551,7 @@ export class WhatsAppApiServer {
     const isConnected = this.whatsappService.isReady();
     const needsQrScan = this.whatsappService.needsQrScan();
     const updatedAt = this.whatsappService.getQrCodeUpdatedAt();
+    const qrGenerationPaused = this.whatsappService.isQrGenerationPaused();
 
     let qrDataUrl: string | null = null;
     if (qrCode) {
@@ -569,6 +579,7 @@ export class WhatsAppApiServer {
         qrCode: qrCode || null,
         qrDataUrl,
         updatedAt: updatedAt?.toISOString() || null,
+        qrGenerationPaused,
       })
     );
   }
@@ -814,6 +825,56 @@ export class WhatsAppApiServer {
         JSON.stringify({
           success: false,
           error: error instanceof Error ? error.message : 'Failed to perform factory reset',
+        })
+      );
+    }
+  }
+
+  /**
+   * Handle QR code regeneration request
+   * Called when user clicks "Generate New QR Code" after QR generation was paused
+   */
+  private async handleQrRegenerate(
+    req: http.IncomingMessage,
+    res: http.ServerResponse
+  ): Promise<void> {
+    try {
+      logger.info('QR regeneration requested by user');
+
+      // Check if already connected - no need to regenerate
+      if (this.whatsappService.isReady()) {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(
+          JSON.stringify({
+            success: true,
+            message: 'Already connected to WhatsApp',
+            isConnected: true,
+          })
+        );
+        return;
+      }
+
+      // Request QR regeneration
+      await this.whatsappService.requestQrRegeneration();
+
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(
+        JSON.stringify({
+          success: true,
+          message: 'QR regeneration started. New QR code will appear shortly.',
+        })
+      );
+
+      logger.info('QR regeneration initiated successfully');
+    } catch (error) {
+      logger.error('QR regeneration failed', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(
+        JSON.stringify({
+          success: false,
+          error: error instanceof Error ? error.message : 'Failed to regenerate QR code',
         })
       );
     }
