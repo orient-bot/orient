@@ -398,9 +398,7 @@ export default function AppsTab() {
                         }}
                         disabled={unsupported}
                         className="btn btn-primary inline-flex items-center gap-1 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                        title={
-                          unsupported ? 'This app requires features not available' : undefined
-                        }
+                        title={unsupported ? 'This app requires features not available' : undefined}
                       >
                         <svg
                           className="w-3 h-3 mr-1"

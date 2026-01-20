@@ -1,7 +1,7 @@
 name: onboarder-cancel-action
 description: Onboarder cancels a pending configuration action when user declines
 type: multi_step_workflow
-agent: onboarder
+agent: ori
 
 context:
   platform: dashboard

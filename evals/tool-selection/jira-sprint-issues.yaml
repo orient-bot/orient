@@ -1,7 +1,7 @@
 name: jira-sprint-issues
 description: Agent should use sprint issues tool when asked about current sprint
 type: tool_selection
-agent: pm-assistant
+agent: ori
 
 input:
   prompt: 'What issues are in the current sprint?'

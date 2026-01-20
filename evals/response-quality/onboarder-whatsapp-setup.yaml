@@ -1,7 +1,7 @@
 name: onboarder-whatsapp-setup
 description: Onboarder explains WhatsApp pairing process
 type: response_quality
-agent: onboarder
+agent: ori
 
 context:
   platform: dashboard

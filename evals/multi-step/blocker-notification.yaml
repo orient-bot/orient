@@ -1,7 +1,7 @@
 name: blocker-notification-workflow
 description: Agent should find blockers and notify stakeholders
 type: multi_step_workflow
-agent: pm-assistant
+agent: ori
 
 input:
   prompt: 'Check for any blocked issues and send a summary to the #project-status Slack channel'
