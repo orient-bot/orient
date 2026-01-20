@@ -873,10 +873,10 @@ export class MessageDatabase {
     const result = await this.pool.query(`
       SELECT DISTINCT m.group_id
       FROM messages m
-      WHERE m.is_group = true 
+      WHERE m.is_group = true
         AND m.group_id IS NOT NULL
         AND m.group_id NOT IN (
-          SELECT g.group_id FROM groups g WHERE g.group_name IS NOT NULL
+          SELECT g.group_id FROM groups g WHERE g.group_name IS NOT NULL OR g.group_subject IS NOT NULL
         )
     `);
     return result.rows.map((row: { group_id: string }) => row.group_id);
@@ -1199,23 +1199,31 @@ export class MessageDatabase {
       GROUP BY m.jid, m.phone
     `);
 
-    // Combine all results: unconfigured first (sorted by last activity), then configured (sorted by last activity)
+    // Combine all results and sort by priority
     const unconfigured = [...unconfiguredGroupsResult.rows, ...unconfiguredIndividualsResult.rows];
     const configured = configuredResult.rows;
 
-    // Sort each group by last activity (most recent first)
-    unconfigured.sort((a, b) => {
-      const aTime = a.lastMessageAt ? new Date(a.lastMessageAt).getTime() : 0;
-      const bTime = b.lastMessageAt ? new Date(b.lastMessageAt).getTime() : 0;
-      return bTime - aTime;
-    });
-    configured.sort((a, b) => {
-      const aTime = a.lastMessageAt ? new Date(a.lastMessageAt).getTime() : 0;
-      const bTime = b.lastMessageAt ? new Date(b.lastMessageAt).getTime() : 0;
-      return bTime - aTime;
-    });
+    // Separate configured by permission type
+    const writePermissions = configured.filter(
+      (c) => c.permission === 'write' || c.permission === 'read_write'
+    );
+    const otherConfigured = configured.filter(
+      (c) => c.permission !== 'write' && c.permission !== 'read_write'
+    );
 
-    return [...unconfigured, ...configured];
+    // Sort each group by last activity (most recent first)
+    const sortByLastActivity = (a: any, b: any) => {
+      const aTime = a.lastMessageAt ? new Date(a.lastMessageAt).getTime() : 0;
+      const bTime = b.lastMessageAt ? new Date(b.lastMessageAt).getTime() : 0;
+      return bTime - aTime;
+    };
+
+    writePermissions.sort(sortByLastActivity);
+    otherConfigured.sort(sortByLastActivity);
+    unconfigured.sort(sortByLastActivity);
+
+    // Return in priority order: write-enabled first, then other configured, then unconfigured
+    return [...writePermissions, ...otherConfigured, ...unconfigured];
   }
 
   async setChatPermission(

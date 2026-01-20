@@ -395,11 +395,13 @@ export class WhatsAppService extends EventEmitter {
             name: chat.name,
             isGroup: chat.id.endsWith('@g.us'),
           }));
-          const groups = chatData.filter((c) => c.isGroup && c.name);
+          const groups = chatData.filter((c) => c.isGroup);
           logger.info('Received chat metadata sync', {
             totalChats: chats.length,
-            groupsWithNames: groups.length,
+            groups: groups.length,
+            groupsWithNames: groups.filter((c) => c.name).length,
           });
+          // Always emit to ensure groups are tracked even without names
           if (groups.length > 0) {
             this.emit('chats_sync', chatData);
           }
@@ -413,11 +415,13 @@ export class WhatsAppService extends EventEmitter {
           name: chat.name,
           isGroup: chat.id.endsWith('@g.us'),
         }));
-        const groups = chatData.filter((c) => c.isGroup && c.name);
+        const groups = chatData.filter((c) => c.isGroup);
         if (groups.length > 0) {
-          logger.info('Received chat upsert with group names', {
-            groupsWithNames: groups.length,
+          logger.info('Received chat upsert', {
+            groups: groups.length,
+            groupsWithNames: groups.filter((c) => c.name).length,
           });
+          // Always emit to track group updates
           this.emit('chats_sync', chatData);
         }
       });
