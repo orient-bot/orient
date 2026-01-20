@@ -1079,8 +1079,8 @@ async function handleChatsSync(
   let updatedCount = 0;
   for (const group of groups) {
     try {
-      // Update the chat's display name in the database
-      await messageDb.upsertChat(group.id, group.name);
+      // Update the group's name in the groups table
+      await messageDb.upsertGroup(group.id, group.name, group.name);
       updatedCount++;
       logger.debug('Updated group name from chat sync', {
         groupId: group.id,
