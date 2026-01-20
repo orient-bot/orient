@@ -479,8 +479,8 @@ deploy.*.local.sh
 # PROJECT-SPECIFIC PATTERNS
 # ============================================================================
 
-# Personal skills
-.claude/skills/personal-*/
+# Personal skills are COMMITTED in this repo (orient-core)
+# .claude/skills/personal-*/
 .claude/skills/local/
 
 # Meeting notes (user-specific)
