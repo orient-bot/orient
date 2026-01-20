@@ -681,7 +681,7 @@ jobs:
 
             echo "Removing lingering staging containers..."
             # Note: nginx is NOT included - staging uses production nginx with dynamic DNS
-            sudo docker rm -f orienter-postgres-staging orienter-bot-whatsapp-staging orienter-opencode-staging orienter-bot-slack-staging orienter-dashboard-staging 2>/dev/null || true
+            sudo docker rm -f orienter-postgres-staging orienter-minio-staging orienter-minio-setup-staging orienter-bot-whatsapp-staging orienter-opencode-staging orienter-bot-slack-staging orienter-dashboard-staging orienter-api-gateway-staging orienter-s3-sync-staging 2>/dev/null || true
 
             echo "Cleaning up..."
             sudo docker container prune -f 2>/dev/null || true
