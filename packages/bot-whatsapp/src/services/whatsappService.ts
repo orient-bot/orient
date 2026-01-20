@@ -50,12 +50,19 @@ export interface HistorySyncData {
   isLatest: boolean;
 }
 
+export interface ChatSyncData {
+  id: string;
+  name?: string;
+  isGroup: boolean;
+}
+
 export interface WhatsAppServiceEvents {
   ready: () => void;
   qr: (qr: string) => void;
   message: (message: WhatsAppMessage) => void;
   message_stored: (message: WhatsAppMessage) => void; // For read-only messages (not responded to)
   history_sync: (data: HistorySyncData) => void; // When historical messages are synced
+  chats_sync: (chats: ChatSyncData[]) => void; // When chat metadata is synced (includes group names)
   poll_vote: (vote: PollVote, poll: WhatsAppPoll) => void; // When someone votes on a poll
   disconnected: (reason: string) => void;
   error: (error: Error) => void;
@@ -135,6 +142,7 @@ export class WhatsAppService extends EventEmitter {
   private currentQrCode: string | null = null; // Store current QR code for web display
   private qrCodeUpdatedAt: Date | null = null; // Track when QR was last updated
   private readonly PAIRING_MODE_MARKER = '.pairing-mode'; // Marker file to indicate pairing mode
+  private qrGenerationPaused: boolean = false; // True when max reconnect attempts reached in pairing mode
 
   constructor(config: WhatsAppConfig) {
     super();
@@ -376,6 +384,41 @@ export class WhatsAppService extends EventEmitter {
             isLatest,
           });
           this.emit('history_sync', { messages, isLatest });
+        }
+      });
+
+      // Handle chat metadata sync (includes group names)
+      this.socket.ev.on('chats.set', ({ chats }) => {
+        if (chats.length > 0) {
+          const chatData = chats.map((chat) => ({
+            id: chat.id,
+            name: chat.name,
+            isGroup: chat.id.endsWith('@g.us'),
+          }));
+          const groups = chatData.filter((c) => c.isGroup && c.name);
+          logger.info('Received chat metadata sync', {
+            totalChats: chats.length,
+            groupsWithNames: groups.length,
+          });
+          if (groups.length > 0) {
+            this.emit('chats_sync', chatData);
+          }
+        }
+      });
+
+      // Handle chat updates (when group names change)
+      this.socket.ev.on('chats.upsert', (chats) => {
+        const chatData = chats.map((chat) => ({
+          id: chat.id,
+          name: chat.name,
+          isGroup: chat.id.endsWith('@g.us'),
+        }));
+        const groups = chatData.filter((c) => c.isGroup && c.name);
+        if (groups.length > 0) {
+          logger.info('Received chat upsert with group names', {
+            groupsWithNames: groups.length,
+          });
+          this.emit('chats_sync', chatData);
         }
       });
 
@@ -1428,6 +1471,48 @@ export class WhatsAppService extends EventEmitter {
   }
 
   /**
+   * Check if QR generation is paused (max attempts reached in pairing mode)
+   */
+  isQrGenerationPaused(): boolean {
+    return this.qrGenerationPaused;
+  }
+
+  /**
+   * Request QR code regeneration after being paused.
+   * Resets reconnect attempts and triggers a fresh connection attempt.
+   * Call this when the user clicks "Generate New QR Code".
+   */
+  async requestQrRegeneration(): Promise<void> {
+    logger.info('User requested QR regeneration');
+
+    // Reset state
+    this.reconnectAttempts = 0;
+    this.qrGenerationPaused = false;
+    this.currentQrCode = null;
+    this.qrCodeUpdatedAt = null;
+
+    // Force disconnect any existing socket
+    if (this.socket) {
+      try {
+        this.socket.end(undefined);
+      } catch {
+        // Ignore errors during disconnect
+      }
+      this.socket = null;
+      this.isConnected = false;
+    }
+
+    // Clear any pending reconnect timeout
+    if (this.reconnectTimeout) {
+      clearTimeout(this.reconnectTimeout);
+      this.reconnectTimeout = null;
+    }
+
+    // Trigger a fresh connection attempt
+    await this.connect();
+  }
+
+  /**
    * Get the path to the pairing mode marker file
    */
   private getPairingModeMarkerPath(): string {
@@ -1541,8 +1626,19 @@ export class WhatsAppService extends EventEmitter {
       logger.error('Max reconnection attempts reached', {
         attempts: this.reconnectAttempts,
         maxAttempts: this.maxReconnectAttempts,
+        isPairingMode: this.isInPairingMode(),
       });
-      // Reset attempts after a longer delay to allow future reconnection
+
+      // In pairing mode: pause and wait for user action to regenerate QR
+      // This prevents infinite QR code loops when user isn't scanning
+      if (this.isInPairingMode()) {
+        this.qrGenerationPaused = true;
+        logger.warn('QR generation paused in pairing mode - waiting for user to request new QR');
+        this.emit('error', new Error('QR code expired. Click "Generate New QR" to try again.'));
+        return;
+      }
+
+      // Connected mode (temporary disconnection): auto-reset after 5 minutes
       setTimeout(
         () => {
           this.reconnectAttempts = 0;

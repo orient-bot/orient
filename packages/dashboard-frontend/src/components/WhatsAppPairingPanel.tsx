@@ -9,6 +9,7 @@ interface WhatsAppQrStatus {
   qrDataUrl?: string | null;
   updatedAt?: string;
   adminPhone?: string | null;
+  qrGenerationPaused?: boolean;
 }
 
 interface WhatsAppPairingPanelProps {
@@ -26,6 +27,7 @@ export default function WhatsAppPairingPanel({ onConnected }: WhatsAppPairingPan
   const [isPairingLoading, setIsPairingLoading] = useState(false);
   const [pairingError, setPairingError] = useState<string | null>(null);
   const [isResetting, setIsResetting] = useState(false);
+  const [isRegenerating, setIsRegenerating] = useState(false);
 
   // Phone confirmation state (shown after QR pairing)
   const [needsPhoneConfirmation, setNeedsPhoneConfirmation] = useState(false);
@@ -271,6 +273,26 @@ export default function WhatsAppPairingPanel({ onConnected }: WhatsAppPairingPan
     }
   };
 
+  const handleRegenerateQr = async () => {
+    setIsRegenerating(true);
+
+    try {
+      const response = await fetch('/qr/regenerate', { method: 'POST' });
+      const data = await response.json();
+
+      if (data.success) {
+        // Reset local state - new QR code should appear via polling
+        setPairingCode(null);
+      } else {
+        alert('Failed to regenerate QR code: ' + (data.error || 'Unknown error'));
+      }
+    } catch (err) {
+      alert('Failed to regenerate QR code. Please try again.');
+    } finally {
+      setIsRegenerating(false);
+    }
+  };
+
   if (error) {
     return (
       <div className="rounded-lg border border-border bg-muted/40 p-6 text-center">
@@ -469,9 +491,21 @@ export default function WhatsAppPairingPanel({ onConnected }: WhatsAppPairingPan
     <div className="rounded-lg border border-border bg-card">
       {/* Status indicator */}
       <div className="flex items-center justify-center gap-2 py-3 border-b border-border">
-        <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
-        <span className="font-mono text-xs font-medium text-amber-500">
-          {status?.qrDataUrl ? 'Waiting for pairing...' : 'Generating QR code...'}
+        <span
+          className={`w-2 h-2 rounded-full ${
+            status?.qrGenerationPaused ? 'bg-muted-foreground' : 'bg-amber-500 animate-pulse'
+          }`}
+        />
+        <span
+          className={`font-mono text-xs font-medium ${
+            status?.qrGenerationPaused ? 'text-muted-foreground' : 'text-amber-500'
+          }`}
+        >
+          {status?.qrGenerationPaused
+            ? 'QR expired - click to regenerate'
+            : status?.qrDataUrl
+              ? 'Waiting for pairing...'
+              : 'Generating QR code...'}
         </span>
       </div>
 
@@ -509,7 +543,21 @@ export default function WhatsAppPairingPanel({ onConnected }: WhatsAppPairingPan
           <div className="flex flex-col items-center">
             {/* QR Code display */}
             <div className="p-4 bg-white rounded-lg border border-border mb-4">
-              {status?.qrDataUrl ? (
+              {status?.qrGenerationPaused ? (
+                // QR generation paused - show regenerate button
+                <div className="w-48 h-48 flex flex-col items-center justify-center bg-muted rounded text-muted-foreground">
+                  <div className="text-3xl mb-2">⏸️</div>
+                  <span className="text-xs text-center mb-3 px-2">QR code expired</span>
+                  <button
+                    type="button"
+                    onClick={handleRegenerateQr}
+                    disabled={isRegenerating}
+                    className="btn btn-primary h-8 text-xs"
+                  >
+                    {isRegenerating ? 'Generating...' : 'Generate New QR'}
+                  </button>
+                </div>
+              ) : status?.qrDataUrl ? (
                 <img src={status.qrDataUrl} alt="WhatsApp QR Code" className="w-48 h-48 rounded" />
               ) : (
                 <div className="w-48 h-48 flex flex-col items-center justify-center bg-muted rounded text-muted-foreground">
@@ -552,8 +600,14 @@ export default function WhatsAppPairingPanel({ onConnected }: WhatsAppPairingPan
             </div>
 
             <p className="font-mono text-[10px] text-muted-foreground mt-3">
-              Auto-refreshing every <code className="bg-border px-1 py-0.5 rounded">3s</code> · QR
-              expires in ~60s
+              {status?.qrGenerationPaused ? (
+                'QR generation paused · Click button above to generate new QR'
+              ) : (
+                <>
+                  Auto-refreshing every <code className="bg-border px-1 py-0.5 rounded">3s</code> ·
+                  QR expires in ~60s
+                </>
+              )}
             </p>
           </div>
         )}

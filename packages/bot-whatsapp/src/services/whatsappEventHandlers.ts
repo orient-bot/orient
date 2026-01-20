@@ -125,6 +125,11 @@ export function setupEventHandlers(deps: EventHandlerDependencies): void {
     (data: { messages: proto.IWebMessageInfo[]; isLatest: boolean }) =>
       handleHistorySync(data, deps)
   );
+
+  // Handle chat metadata sync (group names from history)
+  whatsappService.on('chats_sync', (chats: { id: string; name?: string; isGroup: boolean }[]) =>
+    handleChatsSync(chats, deps)
+  );
 }
 
 /**
@@ -1052,4 +1057,42 @@ async function handleHistorySync(
       }
     }
   }
+}
+
+/**
+ * Handle chat metadata sync (saves group names from history)
+ */
+async function handleChatsSync(
+  chats: { id: string; name?: string; isGroup: boolean }[],
+  deps: EventHandlerDependencies
+): Promise<void> {
+  const { messageDb } = deps;
+
+  const groups = chats.filter((c) => c.isGroup && c.name);
+  if (groups.length === 0) return;
+
+  logger.info('Processing chat metadata sync for group names', {
+    groupsWithNames: groups.length,
+  });
+  console.log(`📋 Syncing names for ${groups.length} group(s) from chat metadata...`);
+
+  let updatedCount = 0;
+  for (const group of groups) {
+    try {
+      // Update the chat's display name in the database
+      await messageDb.upsertChat(group.id, group.name);
+      updatedCount++;
+      logger.debug('Updated group name from chat sync', {
+        groupId: group.id,
+        name: group.name,
+      });
+    } catch (error) {
+      logger.warn('Failed to update group name from chat sync', {
+        groupId: group.id,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  console.log(`✅ Updated ${updatedCount} group name(s) from chat metadata`);
 }
