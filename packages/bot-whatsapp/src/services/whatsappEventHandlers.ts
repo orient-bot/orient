@@ -1143,11 +1143,16 @@ async function handleChatsSync(
         try {
           const metadata = await whatsappService.getGroupMetadata(groupId);
           if (metadata) {
+            const participantCount = Array.isArray(metadata.participants)
+              ? metadata.participants.length
+              : typeof metadata.participants === 'number'
+                ? metadata.participants
+                : 0;
             await messageDb.upsertGroup(
               metadata.id,
               metadata.subject,
               metadata.subject,
-              metadata.participants || 0
+              participantCount
             );
             logger.debug('Fetched group metadata from chat sync', {
               groupId,
