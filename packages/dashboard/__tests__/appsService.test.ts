@@ -98,6 +98,39 @@ describe('AppsService', () => {
 
       expect(summary.permissions).toBeUndefined();
     });
+
+    it('should include optional capabilities field', () => {
+      const summary: AppSummary = {
+        name: 'test-app',
+        title: 'Test App',
+        description: 'A test app',
+        version: '1.0.0',
+        status: 'draft',
+        isBuilt: false,
+        capabilities: {
+          scheduler: { enabled: true },
+          storage: { enabled: true },
+        },
+      };
+
+      expect(summary.capabilities).toBeDefined();
+      expect(summary.capabilities?.scheduler).toEqual({ enabled: true });
+      expect(summary.capabilities?.storage).toEqual({ enabled: true });
+      expect(summary.capabilities?.webhooks).toBeUndefined();
+    });
+
+    it('should allow capabilities to be undefined', () => {
+      const summary: AppSummary = {
+        name: 'test-app',
+        title: 'Test App',
+        description: 'A test app',
+        version: '1.0.0',
+        status: 'draft',
+        isBuilt: false,
+      };
+
+      expect(summary.capabilities).toBeUndefined();
+    });
   });
 
   describe('listApps', () => {
