@@ -26,11 +26,11 @@ import { createSetupRouter } from './setupRoutes.js';
 import { createSetupAuthRouter } from './setupAuthRoutes.js';
 // Apps service for mini-apps listing
 import { AppsService, createAppsService } from '../services/appsService.js';
-// TODO: Re-enable miniapp editor imports from @orient/apps and @orient/agents
-// import { createMiniappEditService, MiniappEditService } from '@orient/apps';
-// import { createMiniappEditDatabase } from '@orient/apps';
-// import { createAppGitService } from '@orient/apps';
-// import { createOpenCodeClient } from '@orient/agents';
+// Miniapp editor imports from @orient/apps and @orient/agents
+import { createMiniappEditService, MiniappEditService } from '@orient/apps';
+import { createMiniappEditDatabase } from '@orient/apps';
+import { createAppGitService } from '@orient/apps';
+import { createOpenCodeClient } from '@orient/agents';
 
 const logger = createServiceLogger('dashboard-server');
 
@@ -54,7 +54,7 @@ export interface DashboardServices {
   monitoring?: MonitoringService;
   appsService?: AppsService;
   storageDb?: StorageDatabase;
-  // miniappEditService?: MiniappEditService;  // TODO: Re-enable with miniapp editor
+  miniappEditService?: MiniappEditService;
   auth: DashboardAuth;
 }
 
@@ -120,39 +120,38 @@ async function initializeServices(config: DashboardServerConfig): Promise<Dashbo
   await storageDb.initialize();
   logger.info('Storage database initialized');
 
-  // TODO: Re-enable miniapp edit service when src/ directory is included in Docker build
   // Initialize miniapp edit service
-  // let miniappEditService: MiniappEditService | undefined;
-  // try {
-  //   const miniappEditDb = createMiniappEditDatabase(databaseUrl);
-  //   await miniappEditDb.initialize();
-  //
-  //   // Get repo path from environment or use default
-  //   const repoPath = process.env.REPO_PATH || process.cwd();
-  //
-  //   const appGitService = createAppGitService({
-  //     repoPath,
-  //     worktreeBase: process.env.APP_WORKTREES_PATH,
-  //   });
-  //
-  //   const openCodeClient = createOpenCodeClient(
-  //     process.env.OPENCODE_SERVER_URL || 'http://localhost:4099',
-  //     process.env.OPENCODE_DEFAULT_MODEL
-  //   );
-  //
-  //   miniappEditService = createMiniappEditService({
-  //     appGitService,
-  //     openCodeClient,
-  //     database: miniappEditDb,
-  //     portalBaseUrl: process.env.OPENCODE_PORTAL_URL || 'http://localhost:4099',
-  //   });
-  //
-  //   logger.info('Miniapp edit service initialized');
-  // } catch (error) {
-  //   logger.warn('Failed to initialize miniapp edit service', {
-  //     error: error instanceof Error ? error.message : String(error),
-  //     });
-  // }
+  let miniappEditService: MiniappEditService | undefined;
+  try {
+    const miniappEditDb = createMiniappEditDatabase(databaseUrl);
+    await miniappEditDb.initialize();
+
+    // Get repo path from environment or use default
+    const repoPath = process.env.REPO_PATH || process.cwd();
+
+    const appGitService = createAppGitService({
+      repoPath,
+      worktreeBase: process.env.APP_WORKTREES_PATH,
+    });
+
+    const openCodeClient = createOpenCodeClient(
+      process.env.OPENCODE_SERVER_URL || 'http://localhost:4099',
+      process.env.OPENCODE_DEFAULT_MODEL
+    );
+
+    miniappEditService = createMiniappEditService({
+      appGitService,
+      openCodeClient,
+      database: miniappEditDb,
+      portalBaseUrl: process.env.OPENCODE_PORTAL_URL || 'http://localhost:4099',
+    });
+
+    logger.info('Miniapp edit service initialized');
+  } catch (error) {
+    logger.warn('Failed to initialize miniapp edit service', {
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
 
   // Initialize auth
   const auth = createDashboardAuth(config.jwtSecret, db);
@@ -170,7 +169,7 @@ async function initializeServices(config: DashboardServerConfig): Promise<Dashbo
     monitoring,
     appsService,
     storageDb,
-    // miniappEditService,  // TODO: Re-enable with miniapp editor
+    miniappEditService,
     auth,
   };
 }

@@ -127,7 +127,12 @@ export default function MiniAppEditorModal({
     }
 
     try {
-      await closeSession(appName, session.sessionId, true); // merge=true creates PR
+      // Skip PR creation on localhost - merge directly instead
+      const isLocalhost =
+        window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+      const shouldMerge = !isLocalhost; // Only create PR in production
+
+      await closeSession(appName, session.sessionId, shouldMerge);
       onSuccess?.();
       onClose();
     } catch (err) {
