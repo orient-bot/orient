@@ -1,7 +1,7 @@
 name: jira-in-progress-query
 description: Agent should use the in-progress tool when asked about current work
 type: tool_selection
-agent: pm-assistant
+agent: ori
 
 input:
   prompt: 'What issues are currently being worked on?'

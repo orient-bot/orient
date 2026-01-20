@@ -1,7 +1,7 @@
 name: onboarder-set-permission
 description: Onboarder should use config_set_permission to change WhatsApp chat permissions
 type: tool_selection
-agent: onboarder
+agent: ori
 
 context:
   platform: dashboard

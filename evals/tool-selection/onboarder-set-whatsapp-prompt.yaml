@@ -1,7 +1,7 @@
 name: onboarder-set-whatsapp-prompt
 description: Onboarder should use config_set_prompt to change WhatsApp platform prompt
 type: tool_selection
-agent: onboarder
+agent: ori
 
 context:
   platform: dashboard

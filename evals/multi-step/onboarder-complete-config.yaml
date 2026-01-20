@@ -1,7 +1,7 @@
 name: onboarder-complete-config
 description: Onboarder completes a multi-step configuration workflow
 type: multi_step_workflow
-agent: onboarder
+agent: ori
 
 context:
   platform: dashboard

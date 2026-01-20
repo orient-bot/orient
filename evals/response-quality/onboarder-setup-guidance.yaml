@@ -1,7 +1,7 @@
 name: onboarder-setup-guidance
 description: Onboarder provides clear setup guidance for new users
 type: response_quality
-agent: onboarder
+agent: ori
 
 context:
   platform: dashboard

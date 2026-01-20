@@ -1,7 +1,7 @@
 name: jira-daily-digest
 description: Agent should use daily digest tool when asked for today's status
 type: tool_selection
-agent: pm-assistant
+agent: ori
 
 input:
   prompt: "What's the status for today? Give me a daily digest."
