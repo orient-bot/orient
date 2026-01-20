@@ -388,18 +388,21 @@ export class WhatsAppService extends EventEmitter {
       });
 
       // Handle chat metadata sync (includes group names)
-      this.socket.ev.on('chats.set', ({ chats }) => {
-        if (chats.length > 0) {
-          const chatData = chats.map((chat) => ({
+      // Listen for chat metadata updates (type assertion needed for Baileys compatibility)
+      const ev = this.socket.ev as any;
+
+      ev.on('chats.set', ({ chats }: any) => {
+        if (chats && chats.length > 0) {
+          const chatData = chats.map((chat: any) => ({
             id: chat.id,
             name: chat.name,
-            isGroup: chat.id.endsWith('@g.us'),
+            isGroup: chat.id?.endsWith('@g.us'),
           }));
-          const groups = chatData.filter((c) => c.isGroup);
+          const groups = chatData.filter((c: any) => c.isGroup);
           logger.info('Received chat metadata sync', {
             totalChats: chats.length,
             groups: groups.length,
-            groupsWithNames: groups.filter((c) => c.name).length,
+            groupsWithNames: groups.filter((c: any) => c.name).length,
           });
           // Always emit to ensure groups are tracked even without names
           if (groups.length > 0) {
@@ -409,20 +412,22 @@ export class WhatsAppService extends EventEmitter {
       });
 
       // Handle chat updates (when group names change)
-      this.socket.ev.on('chats.upsert', (chats) => {
-        const chatData = chats.map((chat) => ({
-          id: chat.id,
-          name: chat.name,
-          isGroup: chat.id.endsWith('@g.us'),
-        }));
-        const groups = chatData.filter((c) => c.isGroup);
-        if (groups.length > 0) {
-          logger.info('Received chat upsert', {
-            groups: groups.length,
-            groupsWithNames: groups.filter((c) => c.name).length,
-          });
-          // Always emit to track group updates
-          this.emit('chats_sync', chatData);
+      ev.on('chats.upsert', (chats: any) => {
+        if (chats && chats.length > 0) {
+          const chatData = chats.map((chat: any) => ({
+            id: chat.id,
+            name: chat.name,
+            isGroup: chat.id?.endsWith('@g.us'),
+          }));
+          const groups = chatData.filter((c: any) => c.isGroup);
+          if (groups.length > 0) {
+            logger.info('Received chat upsert', {
+              groups: groups.length,
+              groupsWithNames: groups.filter((c: any) => c.name).length,
+            });
+            // Always emit to track group updates
+            this.emit('chats_sync', chatData);
+          }
         }
       });
 

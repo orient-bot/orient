@@ -722,13 +722,13 @@ async function handleMessageStored(
         logger.debug('Got group metadata', {
           groupId: message.groupId,
           subject: groupMetadata.subject,
-          participants: groupMetadata.participants?.length,
+          participants: groupMetadata.participants,
         });
         await messageDb.upsertGroup(
           groupMetadata.id,
           groupMetadata.subject,
           groupMetadata.subject,
-          groupMetadata.participants?.length || 0
+          groupMetadata.participants || 0
         );
         logger.info('Stored group metadata from message', {
           groupId: message.groupId,

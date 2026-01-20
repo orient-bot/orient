@@ -361,11 +361,16 @@ async function main(): Promise<void> {
                   if (socket && socket.groupMetadata) {
                     const metadata = await socket.groupMetadata(message.chatId);
                     if (metadata?.subject) {
+                      const participantCount = Array.isArray(metadata.participants)
+                        ? metadata.participants.length
+                        : typeof metadata.participants === 'number'
+                          ? metadata.participants
+                          : 0;
                       await messageDb.upsertGroup(
                         message.chatId,
                         metadata.subject,
                         metadata.subject,
-                        metadata.participants?.length || 0
+                        participantCount
                       );
                       logger.debug('Stored group metadata from incoming message', {
                         groupId: message.chatId,
