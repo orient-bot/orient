@@ -1097,7 +1097,7 @@ export class MessageDatabase {
         m.group_id as "chatId",
         'group' as "chatType",
         NULL as permission,
-        COALESCE(g.group_name, g.group_subject) as "displayName",
+        COALESCE(g.group_name, g.group_subject, 'Unnamed Group') as "displayName",
         NULL as notes,
         NULL as "createdAt",
         NULL as "updatedAt",
@@ -1132,6 +1132,90 @@ export class MessageDatabase {
     `);
 
     return [...groupsResult.rows, ...individualsResult.rows];
+  }
+
+  /**
+   * Get all chats in a unified view with isConfigured flag.
+   * Combines configured chats (with permissions) and unconfigured chats (without permissions).
+   * Sorted with unconfigured first by default for easier onboarding.
+   */
+  async getAllChatsUnified(): Promise<(ChatWithPermission & { isConfigured: boolean })[]> {
+    // Get configured chats (with permissions)
+    const configuredResult = await this.pool.query(`
+      SELECT
+        cp.chat_id as "chatId",
+        cp.chat_type as "chatType",
+        cp.permission,
+        COALESCE(cp.display_name, g.group_name, g.group_subject) as "displayName",
+        cp.notes,
+        cp.created_at as "createdAt",
+        cp.updated_at as "updatedAt",
+        (SELECT COUNT(*) FROM messages m WHERE m.jid = cp.chat_id OR m.group_id = cp.chat_id) as "messageCount",
+        (SELECT MAX(timestamp) FROM messages m WHERE m.jid = cp.chat_id OR m.group_id = cp.chat_id) as "lastMessageAt",
+        TRUE as "isConfigured"
+      FROM chat_permissions cp
+      LEFT JOIN groups g ON cp.chat_id = g.group_id
+    `);
+
+    // Get unconfigured groups
+    const unconfiguredGroupsResult = await this.pool.query(`
+      SELECT DISTINCT
+        m.group_id as "chatId",
+        'group' as "chatType",
+        NULL as permission,
+        COALESCE(g.group_name, g.group_subject, 'Unnamed Group') as "displayName",
+        NULL as notes,
+        NULL as "createdAt",
+        NULL as "updatedAt",
+        COUNT(*) as "messageCount",
+        MAX(m.timestamp) as "lastMessageAt",
+        FALSE as "isConfigured"
+      FROM messages m
+      LEFT JOIN groups g ON m.group_id = g.group_id
+      LEFT JOIN chat_permissions cp ON m.group_id = cp.chat_id
+      WHERE m.is_group = true
+        AND m.group_id IS NOT NULL
+        AND cp.chat_id IS NULL
+      GROUP BY m.group_id, g.group_name, g.group_subject
+    `);
+
+    // Get unconfigured individual chats
+    const unconfiguredIndividualsResult = await this.pool.query(`
+      SELECT DISTINCT
+        m.jid as "chatId",
+        'individual' as "chatType",
+        NULL as permission,
+        m.phone as "displayName",
+        NULL as notes,
+        NULL as "createdAt",
+        NULL as "updatedAt",
+        COUNT(*) as "messageCount",
+        MAX(m.timestamp) as "lastMessageAt",
+        FALSE as "isConfigured"
+      FROM messages m
+      LEFT JOIN chat_permissions cp ON m.jid = cp.chat_id
+      WHERE m.is_group = false
+        AND cp.chat_id IS NULL
+      GROUP BY m.jid, m.phone
+    `);
+
+    // Combine all results: unconfigured first (sorted by last activity), then configured (sorted by last activity)
+    const unconfigured = [...unconfiguredGroupsResult.rows, ...unconfiguredIndividualsResult.rows];
+    const configured = configuredResult.rows;
+
+    // Sort each group by last activity (most recent first)
+    unconfigured.sort((a, b) => {
+      const aTime = a.lastMessageAt ? new Date(a.lastMessageAt).getTime() : 0;
+      const bTime = b.lastMessageAt ? new Date(b.lastMessageAt).getTime() : 0;
+      return bTime - aTime;
+    });
+    configured.sort((a, b) => {
+      const aTime = a.lastMessageAt ? new Date(a.lastMessageAt).getTime() : 0;
+      const bTime = b.lastMessageAt ? new Date(b.lastMessageAt).getTime() : 0;
+      return bTime - aTime;
+    });
+
+    return [...unconfigured, ...configured];
   }
 
   async setChatPermission(

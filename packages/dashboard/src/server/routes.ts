@@ -449,6 +449,18 @@ export function createDashboardRouter(services: DashboardServices): Router {
     }
   });
 
+  // Get all chats unified (both configured and unconfigured in one view)
+  // Returns { chats: [...] } with isConfigured flag for each chat
+  router.get('/chats/all', requireAuth, async (_req: Request, res: Response) => {
+    try {
+      const chats = await db.getAllChatsUnified();
+      res.json({ chats });
+    } catch (error) {
+      logger.error('Get all chats unified error', { error: String(error) });
+      res.status(500).json({ error: 'Failed to get all chats' });
+    }
+  });
+
   // Get single chat permission
   router.get('/chats/:chatId', requireAuth, async (req: Request, res: Response) => {
     try {
