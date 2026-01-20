@@ -21,7 +21,7 @@ import {
 import LoginForm from './components/LoginForm';
 import SetupForm from './components/SetupForm';
 import SetupWizard from './components/SetupWizard';
-import ChatList from './components/ChatList';
+import WhatsAppService from './components/WhatsAppService';
 import SlackChannels from './components/SlackChannels';
 import AuditLog from './components/AuditLog';
 import BillingTab from './components/BillingTab';
@@ -30,16 +30,19 @@ import AgentCapabilitiesSidebar from './components/AgentCapabilitiesSidebar';
 import DualModeSettings from './components/DualModeSettings';
 import SchedulesTab from './components/SchedulesTab';
 import WebhooksTab from './components/WebhooksTab';
-import SystemPrompts from './components/SystemPrompts';
 import AgentsTab from './components/AgentsTab';
 import AppsTab from './components/AppsTab';
 import MonitoringTab from './components/MonitoringTab';
+import StorageTab from './components/StorageTab';
 import WorkspaceSetupPanel from './components/WorkspaceSetupPanel';
 import SecretsTab from './components/SecretsTab';
 import ProvidersTab from './components/ProvidersTab';
 import IntegrationCatalog from './components/IntegrationCatalog';
 import OnboarderBubble from './components/OnboarderBubble';
 import OnboarderChat from './components/OnboarderChat';
+import { SettingsLayout, AppearancePage, UpdatesPage } from './components/Settings';
+import { VersionBanner } from './components/VersionNotification/VersionBanner';
+import { useVersionCheck } from './hooks/useVersionCheck';
 import { ThemeProvider, useTheme } from './context/ThemeContext';
 import { AppLayout } from './components/Layout/AppLayout';
 import { CommandPalette, useCommandPalette, type Command } from './components/CommandPalette';
@@ -90,17 +93,25 @@ function AppContent() {
   const [setupSkips, setSetupSkips] = useState<SetupSkipState>({ whatsapp: false, slack: false });
   const [servicesReady, setServicesReady] = useState(false);
   const [onboarderOpen, setOnboarderOpen] = useState(false);
+  const [showSlackOnboarding, setShowSlackOnboarding] = useState(false);
 
   const { setTheme } = useTheme();
   const commandPalette = useCommandPalette();
   const navigate = useNavigate();
   const location = useLocation();
   useOriActivation();
+  const versionCheck = useVersionCheck();
 
-  const { globalView, activeService, whatsappView, integrationsView, automationView } = useMemo(
-    () => getRouteState(location.pathname),
-    [location.pathname]
-  );
+  const {
+    globalView,
+    activeService,
+    whatsappView,
+    integrationsView,
+    automationView,
+    operationsView,
+    settingsView,
+    connectionsSubView,
+  } = useMemo(() => getRouteState(location.pathname), [location.pathname]);
 
   useEffect(() => {
     if (location.pathname.startsWith('/schedules')) {
@@ -109,6 +120,49 @@ function AppContent() {
     }
     if (location.pathname.startsWith('/webhooks')) {
       navigate(ROUTES.AUTOMATION_WEBHOOKS, { replace: true });
+      return;
+    }
+    // Redirect old integrations routes to new settings routes
+    if (location.pathname.startsWith('/integrations/catalog')) {
+      navigate(ROUTES.SETTINGS_CONNECTIONS_CATALOG, { replace: true });
+      return;
+    }
+    if (location.pathname.startsWith('/integrations/mcp-servers')) {
+      navigate(ROUTES.SETTINGS_CONNECTIONS_MCP, { replace: true });
+      return;
+    }
+    if (location.pathname.startsWith('/integrations/dual-mode')) {
+      navigate(ROUTES.SETTINGS_CONNECTIONS_MODES, { replace: true });
+      return;
+    }
+    if (location.pathname.startsWith('/integrations/secrets')) {
+      navigate(ROUTES.SETTINGS_SECRETS, { replace: true });
+      return;
+    }
+    if (location.pathname.startsWith('/integrations/providers')) {
+      navigate(ROUTES.SETTINGS_PROVIDERS, { replace: true });
+      return;
+    }
+    if (location.pathname.startsWith('/integrations')) {
+      navigate(ROUTES.SETTINGS_CONNECTIONS, { replace: true });
+      return;
+    }
+    // Redirect legacy billing/monitoring/storage routes to operations
+    if (location.pathname === '/billing') {
+      navigate(ROUTES.OPERATIONS_BILLING, { replace: true });
+      return;
+    }
+    if (location.pathname === '/monitoring') {
+      navigate(ROUTES.OPERATIONS_MONITORING, { replace: true });
+      return;
+    }
+    if (location.pathname === '/storage') {
+      navigate(ROUTES.OPERATIONS_STORAGE, { replace: true });
+      return;
+    }
+    // Redirect /operations to default sub-view
+    if (location.pathname === '/operations') {
+      navigate(ROUTES.OPERATIONS_BILLING, { replace: true });
       return;
     }
     if (location.pathname === '/' || location.pathname === '') {
@@ -175,6 +229,22 @@ function AppContent() {
       setSetupSkips({ whatsapp: false, slack: false });
     }
   }, []);
+
+  // Check for pending Slack onboarding notification
+  useEffect(() => {
+    if (slackAvailable && !needsSetup) {
+      fetch('/onboarder/pending')
+        .then((res) => res.json())
+        .then((result) => {
+          if (result.hasPending && result.type === 'slack') {
+            setShowSlackOnboarding(true);
+            // Auto-open onboarder after 500ms
+            setTimeout(() => setOnboarderOpen(true), 500);
+          }
+        })
+        .catch((err) => console.error('Failed to check pending onboarding', err));
+    }
+  }, [slackAvailable, needsSetup]);
 
   const updateSetupSkips = (next: SetupSkipState) => {
     setSetupSkips(next);
@@ -292,8 +362,8 @@ function AppContent() {
     }
   };
 
-  const handleOpenIntegrations = () => {
-    navigate(ROUTES.INTEGRATIONS_DUAL);
+  const handleOpenSettings = () => {
+    navigate(ROUTES.SETTINGS_CONNECTIONS_MODES);
   };
 
   const handleOpenQrPage = () => {
@@ -347,11 +417,20 @@ function AppContent() {
     });
 
     cmds.push({
-      id: 'nav-integrations',
-      label: 'Integrations',
-      description: 'MCP servers and dual mode settings',
+      id: 'nav-settings',
+      label: 'Settings',
+      description: 'Connections, providers, secrets, and appearance',
       category: 'navigation',
-      keywords: ['mcp', 'servers', 'oauth', 'connections'],
+      keywords: [
+        'mcp',
+        'servers',
+        'oauth',
+        'connections',
+        'theme',
+        'appearance',
+        'providers',
+        'secrets',
+      ],
       icon: (
         <svg
           xmlns="http://www.w3.org/2000/svg"
@@ -364,11 +443,11 @@ function AppContent() {
           strokeLinecap="round"
           strokeLinejoin="round"
         >
-          <rect width="8" height="8" x="2" y="2" rx="2" />
-          <path d="M14 2c.6 0 1.1.2 1.5.5L20 6.5c.3.4.5.9.5 1.5v9c0 1.1-.9 2-2 2h-6c-1.1 0-2-.9-2-2V3c0-1.1.9-2 2-2Z" />
+          <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
+          <circle cx="12" cy="12" r="3" />
         </svg>
       ),
-      action: () => navigate(ROUTES.INTEGRATIONS),
+      action: () => navigate(ROUTES.SETTINGS),
     });
 
     if (schedulerAvailable) {
@@ -423,30 +502,6 @@ function AppContent() {
         action: () => navigate(ROUTES.AUTOMATION_WEBHOOKS),
       });
     }
-
-    cmds.push({
-      id: 'nav-prompts',
-      label: 'System Prompts',
-      description: 'Configure AI system prompts',
-      category: 'navigation',
-      keywords: ['ai', 'instructions', 'behavior'],
-      icon: (
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="16"
-          height="16"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-        </svg>
-      ),
-      action: () => navigate(ROUTES.PROMPTS),
-    });
 
     cmds.push({
       id: 'nav-agents',
@@ -505,11 +560,35 @@ function AppContent() {
     });
 
     cmds.push({
-      id: 'nav-billing',
-      label: 'Billing',
+      id: 'nav-operations',
+      label: 'Operations',
+      description: 'Billing, monitoring, and storage',
+      category: 'navigation',
+      keywords: ['billing', 'monitoring', 'storage', 'costs', 'usage', 'health', 'database'],
+      icon: (
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+        </svg>
+      ),
+      action: () => navigate(ROUTES.OPERATIONS_BILLING),
+    });
+
+    cmds.push({
+      id: 'nav-operations-billing',
+      label: 'Operations: Billing',
       description: 'View usage and costs',
       category: 'navigation',
-      keywords: ['costs', 'usage', 'spending', 'money'],
+      keywords: ['costs', 'usage', 'spending', 'money', 'operations'],
       icon: (
         <svg
           xmlns="http://www.w3.org/2000/svg"
@@ -526,15 +605,15 @@ function AppContent() {
           <line x1="2" x2="22" y1="10" y2="10" />
         </svg>
       ),
-      action: () => navigate(ROUTES.BILLING),
+      action: () => navigate(ROUTES.OPERATIONS_BILLING),
     });
 
     cmds.push({
-      id: 'nav-monitoring',
-      label: 'Monitoring',
+      id: 'nav-operations-monitoring',
+      label: 'Operations: Monitoring',
       description: 'Server health and metrics',
       category: 'navigation',
-      keywords: ['cpu', 'memory', 'disk', 'server', 'health', 'docker', 'containers'],
+      keywords: ['cpu', 'memory', 'disk', 'server', 'health', 'docker', 'containers', 'operations'],
       icon: (
         <svg
           xmlns="http://www.w3.org/2000/svg"
@@ -550,7 +629,33 @@ function AppContent() {
           <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
         </svg>
       ),
-      action: () => navigate(ROUTES.MONITORING),
+      action: () => navigate(ROUTES.OPERATIONS_MONITORING),
+    });
+
+    cmds.push({
+      id: 'nav-operations-storage',
+      label: 'Operations: Storage',
+      description: 'Database, media, and cloud storage',
+      category: 'navigation',
+      keywords: ['database', 'media', 'files', 'postgresql', 'session', 'cleanup', 'operations'],
+      icon: (
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <ellipse cx="12" cy="5" rx="9" ry="3" />
+          <path d="M3 5V19A9 3 0 0 0 21 19V5" />
+          <path d="M3 12A9 3 0 0 0 21 12" />
+        </svg>
+      ),
+      action: () => navigate(ROUTES.OPERATIONS_STORAGE),
     });
 
     // Actions
@@ -664,6 +769,38 @@ function AppContent() {
     });
 
     // Settings
+    cmds.push({
+      id: 'settings-appearance',
+      label: 'Appearance Settings',
+      description: 'Open theme and display settings',
+      category: 'settings',
+      keywords: ['theme', 'appearance', 'display', 'dark mode', 'light mode'],
+      icon: (
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <circle cx="12" cy="12" r="4" />
+          <path d="M12 2v2" />
+          <path d="M12 20v2" />
+          <path d="m4.93 4.93 1.41 1.41" />
+          <path d="m17.66 17.66 1.41 1.41" />
+          <path d="M2 12h2" />
+          <path d="M20 12h2" />
+          <path d="m6.34 17.66-1.41 1.41" />
+          <path d="m19.07 4.93-1.41 1.41" />
+        </svg>
+      ),
+      action: () => navigate(ROUTES.SETTINGS_APPEARANCE),
+    });
+
     cmds.push({
       id: 'settings-theme-light',
       label: 'Light Mode',
@@ -842,6 +979,15 @@ function AppContent() {
       onOpenCapabilities={() => setCapabilitiesSidebarOpen(true)}
       onOpenCommandPalette={commandPalette.open}
     >
+      {/* Version Update Banner */}
+      {versionCheck.shouldShowBanner && versionCheck.status && (
+        <VersionBanner
+          status={versionCheck.status}
+          onDismiss={versionCheck.dismissCurrentVersion}
+          onRemindLater={versionCheck.remindLater}
+        />
+      )}
+
       {showSetupIndicators && (
         <div className="card p-4 border-border bg-muted/40 mb-6">
           <div className="flex flex-col gap-3">
@@ -917,7 +1063,7 @@ function AppContent() {
                     <button
                       type="button"
                       className="btn btn-secondary h-9"
-                      onClick={handleOpenIntegrations}
+                      onClick={handleOpenSettings}
                     >
                       Integrations
                     </button>
@@ -955,6 +1101,38 @@ function AppContent() {
         </div>
       )}
 
+      {showSlackOnboarding && (
+        <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-4 mb-4">
+          <div className="flex items-start gap-3">
+            <div className="text-2xl">🎉</div>
+            <div className="flex-1">
+              <h3 className="font-semibold text-foreground mb-1">Slack Connected Successfully!</h3>
+              <p className="text-sm text-muted-foreground mb-3">
+                Your Slack bot is configured and ready to use. Check your Slack DMs for a quick
+                start guide.
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowSlackOnboarding(false);
+                  setOnboarderOpen(true);
+                }}
+                className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-sm"
+              >
+                Learn More
+              </button>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowSlackOnboarding(false)}
+              className="text-muted-foreground hover:text-foreground text-xl leading-none"
+            >
+              ×
+            </button>
+          </div>
+        </div>
+      )}
+
       {!globalView && (
         <WorkspaceSetupPanel
           activeService={activeService}
@@ -966,7 +1144,7 @@ function AppContent() {
           onRefreshWhatsAppStatus={handleRefresh}
           onSkipWhatsApp={() => updateSetupSkips({ ...setupSkips, whatsapp: true })}
           onOpenSlackSetup={handleOpenSlackSetup}
-          onOpenIntegrations={handleOpenIntegrations}
+          onOpenIntegrations={handleOpenSettings}
           onSkipSlack={() => updateSetupSkips({ ...setupSkips, slack: true })}
         />
       )}
@@ -1114,6 +1292,30 @@ function AppContent() {
         </div>
       )}
 
+      {/* Operations Sub-tabs */}
+      {globalView === 'operations' && (
+        <div className="flex gap-1 mb-6 p-1 bg-secondary rounded-lg w-fit border border-border">
+          <Link
+            to={ROUTES.OPERATIONS_BILLING}
+            className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${operationsView === 'billing' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+          >
+            Billing
+          </Link>
+          <Link
+            to={ROUTES.OPERATIONS_MONITORING}
+            className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${operationsView === 'monitoring' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+          >
+            Monitoring
+          </Link>
+          <Link
+            to={ROUTES.OPERATIONS_STORAGE}
+            className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${operationsView === 'storage' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+          >
+            Storage
+          </Link>
+        </div>
+      )}
+
       {/* Content */}
       <div className="animate-fade-in space-y-6">
         {globalView === 'integrations' && integrationsView === 'catalog' && <IntegrationCatalog />}
@@ -1130,8 +1332,6 @@ function AppContent() {
 
         {globalView === 'integrations' && integrationsView === 'providers' && <ProvidersTab />}
 
-        {globalView === 'billing' && <BillingTab />}
-
         {globalView === 'automation' && automationView === 'schedules' && (
           <SchedulesTab onUpdate={handleRefresh} />
         )}
@@ -1140,21 +1340,60 @@ function AppContent() {
           <WebhooksTab onRefresh={handleRefresh} />
         )}
 
-        {globalView === 'prompts' && <SystemPrompts onUpdate={handleRefresh} />}
+        {globalView === 'operations' && operationsView === 'billing' && <BillingTab />}
+
+        {globalView === 'operations' && operationsView === 'monitoring' && <MonitoringTab />}
+
+        {globalView === 'operations' && operationsView === 'storage' && <StorageTab />}
 
         {globalView === 'agents' && <AgentsTab onUpdate={handleRefresh} />}
 
         {globalView === 'apps' && <AppsTab />}
 
-        {globalView === 'monitoring' && <MonitoringTab />}
+        {globalView === 'settings' && (
+          <SettingsLayout currentView={settingsView}>
+            {settingsView === 'connections' && (
+              <>
+                {/* Connections Sub-tabs */}
+                <div className="flex gap-1 mb-6 p-1 bg-secondary rounded-lg w-fit border border-border">
+                  <Link
+                    to={ROUTES.SETTINGS_CONNECTIONS_CATALOG}
+                    className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${connectionsSubView === 'catalog' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                  >
+                    Catalog
+                  </Link>
+                  <Link
+                    to={ROUTES.SETTINGS_CONNECTIONS_MCP}
+                    className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${connectionsSubView === 'mcp' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                  >
+                    MCP Servers
+                  </Link>
+                  <Link
+                    to={ROUTES.SETTINGS_CONNECTIONS_MODES}
+                    className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${connectionsSubView === 'modes' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                  >
+                    Service Modes
+                  </Link>
+                </div>
+                {connectionsSubView === 'catalog' && <IntegrationCatalog />}
+                {connectionsSubView === 'mcp' && <MCPServers onUpdate={handleRefresh} />}
+                {connectionsSubView === 'modes' && <DualModeSettings onUpdate={handleRefresh} />}
+              </>
+            )}
+            {settingsView === 'providers' && <ProvidersTab />}
+            {settingsView === 'secrets' && <SecretsTab />}
+            {settingsView === 'appearance' && <AppearancePage />}
+            {settingsView === 'updates' && <UpdatesPage />}
+          </SettingsLayout>
+        )}
 
         {!globalView && activeService === 'whatsapp' && (
           <>
             {!needsWhatsAppPairingActive && whatsappView === 'chats' && (
-              <ChatList discover={false} onUpdate={handleRefresh} />
+              <WhatsAppService discover={false} onUpdate={handleRefresh} />
             )}
             {!needsWhatsAppPairingActive && whatsappView === 'discover' && (
-              <ChatList discover={true} onUpdate={handleRefresh} />
+              <WhatsAppService discover={true} onUpdate={handleRefresh} />
             )}
             {!needsWhatsAppPairingActive && whatsappView === 'audit' && <AuditLog />}
           </>

@@ -17,7 +17,7 @@ const config: Config = {
   baseUrl: '/',
 
   onBrokenLinks: 'throw',
-  
+
   // Open Graph / Social metadata
   headTags: [
     {
@@ -31,7 +31,8 @@ const config: Config = {
       tagName: 'meta',
       attributes: {
         property: 'og:description',
-        content: 'Open-source AI agent that runs on your infrastructure. Takes action through natural conversation.',
+        content:
+          'Open-source AI agent that runs on your infrastructure. Takes action through natural conversation.',
       },
     },
     {
@@ -80,7 +81,8 @@ const config: Config = {
       tagName: 'meta',
       attributes: {
         name: 'twitter:description',
-        content: 'Open-source AI agent that runs on your infrastructure. Takes action through natural conversation.',
+        content:
+          'Open-source AI agent that runs on your infrastructure. Takes action through natural conversation.',
       },
     },
     {

@@ -4,7 +4,7 @@ sidebar_position: 1
 
 # Connect via WhatsApp
 
-<div style={{textAlign: 'center', marginBottom: '2rem'}}>
+<div style={{ textAlign: 'center', marginBottom: '2rem' }}>
   <img src="/img/mascot/ori-attentive.png" alt="Ori ready to help" width="180" />
 </div>
 
@@ -34,7 +34,13 @@ Orient uses a permission system where the bot can only send messages to explicit
 
 Navigate to your Orient dashboard and locate the **Workspace Setup** panel.
 
-{/* TODO: Add screenshot - Dashboard WhatsApp Setup */}
+<div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+  <img
+    src="/img/screenshots/getting-started/whatsapp-dashboard-setup.png"
+    alt="WhatsApp Dashboard Setup"
+    style={{ maxWidth: '100%', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }}
+  />
+</div>
 
 ## Step 3: Choose Pairing Method
 
@@ -46,14 +52,26 @@ You have two options:
 2. Click **Get Pairing Code**
 3. You'll receive an 8-character code (e.g., `ABCD-1234`)
 
-{/* TODO: Add screenshot - WhatsApp Pairing Code */}
+<div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+  <img
+    src="/img/screenshots/getting-started/whatsapp-pairing-code.png"
+    alt="WhatsApp Pairing Code"
+    style={{ maxWidth: '100%', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }}
+  />
+</div>
 
 ### Option B: QR Code
 
 1. Click **Show QR Code**
 2. A QR code will be displayed on screen
 
-{/* TODO: Add screenshot - WhatsApp QR Code */}
+<div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+  <img
+    src="/img/screenshots/getting-started/whatsapp-qr-code.png"
+    alt="WhatsApp QR Code"
+    style={{ maxWidth: '100%', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }}
+  />
+</div>
 
 :::tip
 The QR code refreshes every 60 seconds. If it expires, simply click to refresh it.

@@ -135,6 +135,27 @@ export const dashboardUsers = pgTable('dashboard_users', {
 });
 
 /**
+ * User version notification preferences
+ * Stores per-user settings for version update notifications
+ */
+export const userVersionPreferences = pgTable(
+  'user_version_preferences',
+  {
+    id: serial('id').primaryKey(),
+    userId: integer('user_id')
+      .notNull()
+      .references(() => dashboardUsers.id, { onDelete: 'cascade' })
+      .unique(),
+    notificationsEnabled: boolean('notifications_enabled').default(true),
+    dismissedVersions: text('dismissed_versions').array().default([]),
+    remindLaterUntil: timestamp('remind_later_until', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+  },
+  (table) => [index('idx_user_version_prefs_user').on(table.userId)]
+);
+
+/**
  * System prompts table (shared between WhatsApp and Slack)
  */
 export const systemPrompts = pgTable(

@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { createServiceLogger, invalidateConfigCache, setSecretOverrides } from '@orient/core';
-import { createSecretsService } from '@orient/database-services';
+import { createSecretsService, createMessageDatabase } from '@orient/database-services';
 
 const logger = createServiceLogger('setup-wizard');
 const secretsService = createSecretsService();
@@ -325,11 +325,17 @@ export async function applySetup(values: Record<string, string>): Promise<SetupA
     }
 
     if (Object.keys(secretValues).length > 0) {
+      // Before saving secrets, capture existing secret keys
+      const existingSecrets = new Set((await secretsService.listSecrets()).map((s) => s.key));
+
       for (const [key, value] of Object.entries(secretValues)) {
         await secretsService.setSecret(key, value, { category: 'setup' });
         process.env[key] = value;
       }
       setSecretOverrides(secretValues);
+
+      // After secrets saved, check for first-time Slack setup
+      await checkAndTriggerSlackOnboarding(existingSecrets, secretValues);
     }
   }
 
@@ -340,4 +346,49 @@ export async function applySetup(values: Record<string, string>): Promise<SetupA
     needsRestart: false,
     ...status,
   };
+}
+
+async function checkAndTriggerSlackOnboarding(
+  previousSecrets: Set<string>,
+  newSecrets: Record<string, string>
+): Promise<void> {
+  const slackKeys = ['SLACK_BOT_TOKEN', 'SLACK_SIGNING_SECRET', 'SLACK_APP_TOKEN'];
+
+  // Check if ALL three Slack secrets are new (first-time setup)
+  const isFirstTimeSetup = slackKeys.every((key) => newSecrets[key] && !previousSecrets.has(key));
+
+  if (!isFirstTimeSetup) return;
+
+  // Check if already onboarded
+  const db = createMessageDatabase();
+  try {
+    await db.initialize();
+    const alreadyOnboarded = await db.checkOnboardingCompleted('slack');
+    if (alreadyOnboarded) return;
+
+    // Trigger onboarding (non-blocking)
+    try {
+      const { SlackOnboardingService } = await import('./services/slackOnboardingService.js');
+      const service = new SlackOnboardingService({
+        botToken: newSecrets.SLACK_BOT_TOKEN,
+        signingSecret: newSecrets.SLACK_SIGNING_SECRET,
+        appToken: newSecrets.SLACK_APP_TOKEN,
+      });
+
+      await service.sendOnboardingDM();
+      await db.markOnboardingCompleted('slack', 'system', { dm_sent: true });
+      logger.info('Slack onboarding DM sent successfully');
+    } catch (error) {
+      logger.warn('Slack onboarding DM failed, dashboard notification will be shown', {
+        error: String(error),
+      });
+      // Still mark as completed so we don't retry
+      await db.markOnboardingCompleted('slack', 'system', {
+        dm_sent: false,
+        error: String(error),
+      });
+    }
+  } catch (error) {
+    logger.error('Failed to check/trigger Slack onboarding', { error: String(error) });
+  }
 }

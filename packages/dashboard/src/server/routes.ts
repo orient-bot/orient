@@ -22,7 +22,10 @@ import {
   createProvidersRoutes,
   createOnboarderRoutes,
   createIntegrationsRoutes,
+  createStorageRoutes,
+  createVersionRoutes,
 } from './routes/index.js';
+import { initStorageService } from '../services/storageService.js';
 // TODO: Re-enable with miniapp editor if needed
 
 const logger = createServiceLogger('dashboard-routes');
@@ -40,6 +43,7 @@ export function createDashboardRouter(services: DashboardServices): Router {
     webhookService,
     promptService,
     appsService,
+    storageDb,
     /* miniappEditService, */ auth,
   } = services;
   router.get('/config/version', (_req: Request, res: Response) => {
@@ -202,9 +206,9 @@ export function createDashboardRouter(services: DashboardServices): Router {
     router.use('/prompts', createPromptsRoutes(promptService, requireAuth));
   }
 
-  // Apps routes (for mini-apps listing)
+  // Apps routes (for mini-apps listing and bridge API)
   if (appsService) {
-    router.use('/apps', createAppsRoutes(appsService, requireAuth));
+    router.use('/apps', createAppsRoutes(appsService, requireAuth, { storageDb }));
   }
   // Secrets routes (always available)
   router.use('/secrets', createSecretsRoutes(requireAuth));
@@ -223,6 +227,13 @@ export function createDashboardRouter(services: DashboardServices): Router {
 
   // Integrations catalog routes (always available)
   router.use('/integrations', createIntegrationsRoutes(requireAuth));
+
+  // Storage routes (always available)
+  initStorageService(db, slackDb);
+  router.use('/storage', createStorageRoutes(requireAuth));
+
+  // Version check routes (always available)
+  router.use('/version', createVersionRoutes(requireAuth));
 
   // Onboarder routes (always available - uses db for session persistence)
   router.use('/onboarder', createOnboarderRoutes(db, requireAuth));

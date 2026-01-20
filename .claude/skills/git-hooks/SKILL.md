@@ -163,3 +163,26 @@ The hook doesn't run ESLint/typecheck. Run locally:
 ```bash
 pnpm turbo run typecheck lint
 ```
+
+### Common ESLint Errors in CI
+
+**no-case-declarations**: Lexical declarations (`const`, `let`, `class`, `function`) in `switch` case blocks must be wrapped in braces:
+
+```typescript
+// ❌ Bad - ESLint error
+switch (method) {
+  case 'storage.get':
+    const value = await db.get(key); // Error: Unexpected lexical declaration
+    return res.json({ data: value });
+}
+
+// ✅ Good - wrap case block in braces
+switch (method) {
+  case 'storage.get': {
+    const value = await db.get(key);
+    return res.json({ data: value });
+  }
+}
+```
+
+This pattern is common in route handlers and bridge API implementations.

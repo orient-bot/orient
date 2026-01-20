@@ -24,6 +24,113 @@ Worktrees are isolated checkouts used for skill development without affecting th
 
 See the `multi-instance-development` skill for complete details.
 
+### Slack Bot Instance Isolation (CRITICAL)
+
+**Only ONE Slack bot instance can be connected at a time.** Unlike WhatsApp which uses phone-based sessions, Slack uses Socket Mode which means all instances try to connect to the same workspace. Running multiple Slack bots simultaneously causes:
+
+- Connection conflicts and dropped messages
+- Duplicate responses
+- Session instability
+
+#### Before Testing Slack Features
+
+Always ensure only one Slack bot instance is running:
+
+```bash
+# 1. Kill ALL Slack bot processes across all worktrees
+pkill -f "tsx.*slack-bot" || true
+pkill -f "node.*bot-slack" || true
+
+# 2. Verify no orphaned processes
+ps aux | grep -E "slack.*tsx|tsx.*slack" | grep -v grep
+
+# 3. Stop other worktree dev environments
+# If you have other worktrees running ./run.sh dev, stop them first:
+cd ~/claude-worktrees/other-worktree
+./run.sh dev stop
+
+# 4. Start Slack bot in your target worktree only
+./run.sh dev
+```
+
+#### Checking for Running Slack Instances
+
+```bash
+# Quick check: Count Slack bot processes
+ps aux | grep -E "slack.*tsx|tsx.*slack|bot-slack" | grep -v grep | wc -l
+# Should be 0 before starting, 1-2 after (tsx watch spawns child process)
+
+# Detailed view: See all Slack-related processes
+ps aux | grep -E "slack.*tsx|tsx.*slack|bot-slack" | grep -v grep
+
+# Check which ports are in use (Slack doesn't use a port, but check related services)
+lsof -i :4099  # OpenCode server
+```
+
+#### Killing Orphaned Slack Processes
+
+```bash
+# If you see multiple Slack processes or stale processes:
+
+# Option 1: Kill by pattern (recommended)
+pkill -f "tsx.*slack-bot"
+pkill -f "tsx.*watch.*slack"
+
+# Option 2: Kill specific PIDs
+ps aux | grep "slack" | grep -v grep | awk '{print $2}' | xargs kill -9
+
+# Option 3: Use run.sh stop (cleans up properly)
+./run.sh dev stop
+```
+
+#### Best Practices for Multi-Worktree Development with Slack
+
+1. **Designate one worktree for Slack testing** - Don't run Slack in multiple worktrees
+2. **Stop Slack in main repo when testing in worktree** - Run `./run.sh dev stop` in main repo first
+3. **Use `--no-slack` flag** when you don't need Slack: `./run.sh dev --no-slack`
+4. **Check logs for connection issues**:
+   ```bash
+   tail -f logs/instance-0/slack-bot.log | grep -E "(connected|error|conflict)"
+   ```
+5. **Verify single connection** before testing:
+   ```bash
+   # Should see exactly one "Now connected to Slack" message
+   grep "Now connected to Slack" logs/instance-0/slack-bot.log | tail -1
+   ```
+
+#### Troubleshooting Slack Connection Issues
+
+**Symptom**: Bot doesn't respond to messages
+
+```bash
+# Check if bot is connected
+grep -E "(connected|error|disconnect)" logs/instance-0/slack-bot.log | tail -10
+
+# Kill all instances and restart fresh
+pkill -f "slack-bot"
+sleep 2
+./run.sh dev
+```
+
+**Symptom**: Duplicate responses or messages lost
+
+```bash
+# Multiple bots are likely running - kill all and restart one
+pkill -f "tsx.*slack"
+./run.sh dev stop  # In ALL worktrees
+./run.sh dev       # In ONLY the worktree you want to use
+```
+
+**Symptom**: "socket hang up" or connection errors
+
+```bash
+# OpenCode server might be down
+curl -s http://localhost:4099/global/health || echo "OpenCode not running"
+
+# Restart everything
+./run.sh dev stop && ./run.sh dev
+```
+
 ## Initial Setup (After Worktree Creation)
 
 When a worktree is first created, run these commands:
@@ -2178,6 +2285,335 @@ curl -H "Authorization: Bearer $TOKEN" \
 9. **✅ Use factory functions** - Easier to mock for testing
 10. **✅ Follow dependency injection** - Pass dependencies to constructors
 
+### Database Service Integration for Bots
+
+**Critical Pattern**: When integrating services like PromptService into bot entry points, you must understand which database types implement which interfaces.
+
+#### Understanding Database Type Requirements
+
+**The Key Concept**: Different services require different database interfaces. Using the wrong database type will cause TypeScript compilation errors.
+
+**Common TypeScript Error**:
+
+```typescript
+// ❌ WRONG - TypeScript compilation error
+import { createSlackDatabase, createPromptService } from '@orient/database-services';
+
+const slackDatabase = createSlackDatabase();
+const promptService = createPromptService(slackDatabase); // ERROR!
+
+// Error: Argument of type 'SlackDatabase' is not assignable to parameter of type 'PromptDatabaseInterface'.
+// Type 'SlackDatabase' is missing properties: getSystemPromptText, getSystemPrompt, setSystemPrompt, deleteSystemPrompt, etc.
+```
+
+**Why This Fails**:
+
+- `PromptService` requires a database implementing `PromptDatabaseInterface`
+- `SlackDatabase` implements `SlackDatabaseInterface` (platform-specific operations)
+- `MessageDatabase` implements `PromptDatabaseInterface` (cross-platform operations including prompts)
+
+#### Correct Pattern: Using MessageDatabase
+
+**Bot Entry Point Pattern** (`packages/bot-slack/src/main.ts`):
+
+```typescript
+import { createSlackBotService } from './services/index.js';
+import { createServiceLogger, loadConfig, getConfig } from '@orient/core';
+import {
+  createSecretsService,
+  createSlackDatabase, // Platform-specific database
+  createMessageDatabase, // Cross-platform database (for prompts)
+  createPromptService,
+} from '@orient/database-services';
+
+const logger = createServiceLogger('slack-bot');
+
+async function main(): Promise<void> {
+  try {
+    // ... config loading ...
+
+    // Initialize BOTH databases
+    const slackDatabase = createSlackDatabase(); // For Slack-specific data
+    const messageDatabase = createMessageDatabase(); // For cross-platform data
+
+    // PromptService uses MessageDatabase (implements PromptDatabaseInterface)
+    const promptService = createPromptService(messageDatabase);
+    logger.info('Prompt service initialized');
+
+    // Create bot with platform-specific database
+    const slackBot = createSlackBotService(config, slackDatabase);
+
+    // Attach prompt service to bot
+    slackBot.setPromptService(promptService);
+    logger.info('Prompt service configured for Slack bot');
+
+    await slackBot.start();
+  } catch (error) {
+    logger.error('Failed to start Slack Bot', { error });
+    process.exit(1);
+  }
+}
+```
+
+#### Why Multiple Databases?
+
+**Database Separation by Concern**:
+
+```
+Platform-Specific Databases:
+├─ SlackDatabase
+│  ├─ slack_channels (Slack channel metadata)
+│  ├─ slack_messages (Slack-specific message fields)
+│  └─ slack_threads (thread tracking)
+│
+└─ WhatsAppDatabase
+   ├─ whatsapp_contacts (contact info)
+   ├─ whatsapp_groups (group metadata)
+   └─ whatsapp_media (media references)
+
+Cross-Platform Database:
+└─ MessageDatabase (implements PromptDatabaseInterface)
+   ├─ messages (normalized cross-platform messages)
+   ├─ system_prompts (shared prompts for all platforms)
+   └─ message_context (conversation context)
+```
+
+**Design Rationale**:
+
+- **Prompts are cross-platform**: Same prompt system works for Slack, WhatsApp, Discord, etc.
+- **Platform-specific data stays isolated**: Slack threads don't mix with WhatsApp groups
+- **Services use appropriate database**: PromptService → MessageDatabase, SlackService → SlackDatabase
+
+#### Verifying Service Initialization in Logs
+
+After starting a bot, verify services initialized correctly by checking logs:
+
+**Log File Location**:
+
+```bash
+# For Slack bot
+tail -f logs/instance-9/slack-dev.log
+
+# For WhatsApp bot
+tail -f logs/instance-9/whatsapp-dev.log
+```
+
+**Expected Log Sequence**:
+
+```
+2026-01-19 06:27:14.601 [INFO] [slack-db] Slack database pool created
+  → {
+    "connectionString": "postgresql://orient:****@localhost:14432/whatsapp_bot_9"
+  }
+
+2026-01-19 06:27:14.601 [INFO] [message-db] Database pool created
+  → {
+    "connectionString": "postgresql://orient:****@localhost:14432/whatsapp_bot_9"
+  }
+
+2026-01-19 06:27:14.602 [INFO] [prompt-service] Prompt service initialized
+  → {
+    "cacheEnabled": true
+  }
+
+2026-01-19 06:27:14.602 [INFO] [slack-bot] Prompt service initialized
+
+2026-01-19 06:27:14.621 [INFO] [slack-bot] Prompt service configured for Slack bot
+
+2026-01-19 06:27:15.327 [INFO] [slack-bot] Slack Bot is ready!
+```
+
+**Key Log Indicators**:
+
+1. ✅ `[slack-db] Slack database pool created` - Platform database initialized
+2. ✅ `[message-db] Database pool created` - Cross-platform database initialized
+3. ✅ `[prompt-service] Prompt service initialized` - Service created successfully
+4. ✅ `[slack-bot] Prompt service configured` - Service attached to bot
+5. ✅ `[slack-bot] Slack Bot is ready!` - Bot fully operational
+
+**Missing Log Indicators** (problems):
+
+```bash
+# If you see this but NOT the message-db/prompt-service logs:
+[INFO] [slack-bot] Starting Slack Bot...
+[INFO] [slack-db] Slack database pool created
+[ERROR] [slack-bot] Failed to handle message: Cannot read property 'getSystemPromptText' of undefined
+
+# Cause: PromptService was never initialized in main.ts
+```
+
+#### Common Mistakes and Fixes
+
+**Mistake 1: Using Platform Database Instead of MessageDatabase**
+
+```typescript
+// ❌ WRONG - TypeScript error
+const slackDatabase = createSlackDatabase();
+const promptService = createPromptService(slackDatabase);
+
+// Error: Type 'SlackDatabase' is not assignable to 'PromptDatabaseInterface'
+
+// ✅ CORRECT
+const slackDatabase = createSlackDatabase();
+const messageDatabase = createMessageDatabase();
+const promptService = createPromptService(messageDatabase);
+```
+
+**Mistake 2: Forgetting to Import MessageDatabase**
+
+```typescript
+// ❌ WRONG - Missing import
+import {
+  createSlackDatabase,
+  createPromptService, // No createMessageDatabase!
+} from '@orient/database-services';
+
+// ✅ CORRECT
+import {
+  createSlackDatabase,
+  createMessageDatabase, // Added
+  createPromptService,
+} from '@orient/database-services';
+```
+
+**Mistake 3: Forgetting to Attach Service to Bot**
+
+```typescript
+// ❌ WRONG - Service created but never used
+const promptService = createPromptService(messageDatabase);
+const slackBot = createSlackBotService(config, slackDatabase);
+// Missing: slackBot.setPromptService(promptService)
+
+await slackBot.start(); // Bot will crash when trying to use prompts
+
+// ✅ CORRECT
+const promptService = createPromptService(messageDatabase);
+logger.info('Prompt service initialized');
+
+const slackBot = createSlackBotService(config, slackDatabase);
+
+slackBot.setPromptService(promptService); // Attach it!
+logger.info('Prompt service configured for Slack bot');
+
+await slackBot.start();
+```
+
+**Mistake 4: Not Logging Initialization Steps**
+
+```typescript
+// ❌ BAD - Silent failures hard to debug
+const messageDatabase = createMessageDatabase();
+const promptService = createPromptService(messageDatabase);
+slackBot.setPromptService(promptService);
+
+// ✅ GOOD - Clear audit trail
+const messageDatabase = createMessageDatabase();
+logger.info('Message database initialized');
+
+const promptService = createPromptService(messageDatabase);
+logger.info('Prompt service initialized');
+
+slackBot.setPromptService(promptService);
+logger.info('Prompt service configured for Slack bot');
+```
+
+#### Troubleshooting Service Integration
+
+**Problem: Bot crashes on message handling**
+
+```bash
+# Symptom in logs:
+[ERROR] Cannot read property 'getSystemPromptText' of undefined
+
+# Debug steps:
+1. Check if PromptService was initialized:
+   grep "Prompt service initialized" logs/instance-9/slack-dev.log
+
+2. If missing, check main.ts for initialization code
+
+3. Verify MessageDatabase import and initialization
+
+4. Rebuild and restart:
+   pnpm --filter @orient/bot-slack run build
+   ./run.sh dev
+```
+
+**Problem: TypeScript compilation fails**
+
+```bash
+# Error:
+src/main.ts(121,47): error TS2345: Argument of type 'SlackDatabase' is not assignable to parameter of type 'PromptDatabaseInterface'.
+
+# Fix:
+1. Check which database you're passing to createPromptService()
+2. Replace with createMessageDatabase()
+3. Import createMessageDatabase from @orient/database-services
+```
+
+**Problem: Service initialized but prompts don't work**
+
+```bash
+# Logs show initialization but bot ignores custom prompts
+
+# Debug:
+1. Verify service was attached:
+   grep "Prompt service configured" logs/instance-9/slack-dev.log
+
+2. Check if setPromptService() was called after creating bot
+
+3. Test prompt API endpoint:
+   curl http://localhost:13098/api/prompts
+
+4. Verify custom prompt exists in database:
+   psql $DATABASE_URL -c "SELECT * FROM system_prompts WHERE platform='slack';"
+```
+
+#### When to Apply This Pattern
+
+Use this multiple-database pattern when:
+
+1. **Adding PromptService to any bot**: Slack, WhatsApp, Discord, Telegram, etc.
+2. **Integrating cross-platform services**: Any service that works across multiple messaging platforms
+3. **Creating new bot integrations**: Template for adding new messaging platform support
+4. **Debugging bot crashes**: If bot fails when handling messages, check service initialization
+
+#### Testing Database Service Integration
+
+**Unit Test Pattern**:
+
+```typescript
+// __tests__/main.test.ts
+import { createMessageDatabase, createPromptService } from '@orient/database-services';
+
+describe('Database Service Integration', () => {
+  it('should initialize PromptService with MessageDatabase', () => {
+    const messageDatabase = createMessageDatabase();
+    const promptService = createPromptService(messageDatabase);
+
+    expect(promptService).toBeDefined();
+    expect(typeof promptService.getSystemPromptText).toBe('function');
+  });
+
+  it('should throw TypeScript error if using wrong database', () => {
+    // This won't compile (that's the point!)
+    // const slackDatabase = createSlackDatabase();
+    // const promptService = createPromptService(slackDatabase); // TS Error
+  });
+});
+```
+
+**Integration Test Pattern**:
+
+```bash
+# Start bot and verify initialization
+./run.sh dev
+
+# Check logs for proper sequence
+tail -f logs/instance-9/slack-dev.log | grep -E "(message-db|prompt-service|configured)"
+
+# Expected output shows all three initialization steps
+```
+
 ## Worktree-Specific Considerations
 
 ### 1. Shared node_modules
@@ -2341,11 +2777,632 @@ docker ps | grep -E "orienter-.*-${AI_INSTANCE_ID}"  # Finds orienter-postgres-0
 4. Container names follow the pattern `orienter-<service>-<instance_id>`
 5. When scripting, match container names directly, not compose project names
 
-### 6. Database (Legacy Notes)
+### 6. Instance-Specific Environment Variable Configuration
+
+**Critical Setup**: When copying `.env` from the main repo to a worktree, you MUST update instance-specific values or services will connect to the wrong database and storage.
+
+#### The Problem
+
+**Symptom**: Services fail to start, or you accidentally connect to instance 0's database from instance 9.
+
+**Root Cause**: `.env` contains hard-coded values for instance 0:
+
+```bash
+DATABASE_URL=postgresql://orient:aibot123@localhost:5432/whatsapp_bot_0
+S3_ENDPOINT=http://localhost:9000
+```
+
+When you copy this to a worktree with instance ID 9, services try to connect to:
+
+- PostgreSQL on port **5432** (instance 0) instead of **14432** (instance 9)
+- MinIO on port **9000** (instance 0) instead of **18000** (instance 9)
+- Database **whatsapp_bot_0** instead of **whatsapp_bot_9**
+
+#### Auto-Detecting Instance ID
+
+The instance ID is calculated from the worktree path:
+
+```bash
+# Source instance environment variables
+source scripts/instance-env.sh
+
+# This sets:
+echo $AI_INSTANCE_ID      # e.g., 9
+echo $POSTGRES_PORT       # e.g., 14432 (5432 + 9×1000)
+echo $MINIO_API_PORT      # e.g., 18000 (9000 + 9×1000)
+echo $DASHBOARD_PORT      # e.g., 13098 (4098 + 9×1000)
+```
+
+**How Instance ID is Calculated**:
+
+```bash
+# From scripts/instance-env.sh (simplified)
+WORKTREE_PATH=$(pwd)
+WORKTREE_NAME=$(basename "$WORKTREE_PATH")
+
+# Hash worktree name to get instance ID (1-9)
+HASH=$(echo -n "$WORKTREE_NAME" | md5sum | cut -c1-8)
+INSTANCE_ID=$((16#$HASH % 9 + 1))
+
+# For main repo (no worktree)
+if [ "$IS_WORKTREE" = "false" ]; then
+  INSTANCE_ID=0
+fi
+```
+
+#### Fixing DATABASE_URL
+
+**Manual Fix**:
+
+```bash
+# 1. Source instance environment
+source scripts/instance-env.sh
+
+# 2. Extract credentials from current DATABASE_URL
+OLD_URL=$(grep "^DATABASE_URL=" .env | cut -d'=' -f2-)
+CREDS=$(echo "$OLD_URL" | grep -oE '//[^@]+@' | tr -d '/@')
+
+# 3. Build new URL with correct instance port and database
+NEW_URL="postgresql://${CREDS}@localhost:${POSTGRES_PORT}/whatsapp_bot_${AI_INSTANCE_ID}"
+
+# 4. Replace in .env
+sed -i '' "s|^DATABASE_URL=.*|DATABASE_URL=${NEW_URL}|" .env
+
+# 5. Verify
+echo "Updated DATABASE_URL:"
+grep DATABASE_URL .env
+```
+
+**Expected Result**:
+
+```bash
+# Before (instance 0):
+DATABASE_URL=postgresql://orient:aibot123@localhost:5432/whatsapp_bot_0
+
+# After (instance 9):
+DATABASE_URL=postgresql://orient:aibot123@localhost:14432/whatsapp_bot_9
+```
+
+#### Adding S3_ENDPOINT (MinIO)
+
+MinIO also needs instance-specific configuration:
+
+```bash
+# Source instance environment
+source scripts/instance-env.sh
+
+# Check if S3_ENDPOINT exists in .env
+if grep -q "^S3_ENDPOINT=" .env; then
+  # Update existing
+  sed -i '' "s|^S3_ENDPOINT=.*|S3_ENDPOINT=http://localhost:${MINIO_API_PORT}|" .env
+else
+  # Add new
+  echo "S3_ENDPOINT=http://localhost:${MINIO_API_PORT}" >> .env
+fi
+
+# Also add AI_INSTANCE_ID for clarity
+if ! grep -q "^AI_INSTANCE_ID=" .env; then
+  echo "AI_INSTANCE_ID=${AI_INSTANCE_ID}" >> .env
+fi
+
+echo "Updated MinIO configuration:"
+grep -E "(S3_ENDPOINT|AI_INSTANCE_ID)" .env
+```
+
+**Expected Result**:
+
+```bash
+S3_ENDPOINT=http://localhost:18000
+AI_INSTANCE_ID=9
+```
+
+#### Complete Worktree .env Setup Script
+
+**Automated setup** when creating a new worktree:
+
+```bash
+#!/bin/bash
+# setup-worktree-env.sh
+# Run after copying .env from main repo
+
+set -e
+
+echo "=== Configuring .env for Worktree Instance ==="
+
+# 1. Source instance environment
+source scripts/instance-env.sh
+
+echo "📋 Instance Configuration:"
+echo "   AI_INSTANCE_ID:    $AI_INSTANCE_ID"
+echo "   POSTGRES_PORT:     $POSTGRES_PORT"
+echo "   MINIO_API_PORT:    $MINIO_API_PORT"
+echo ""
+
+# 2. Fix DATABASE_URL
+echo "🔧 Fixing DATABASE_URL..."
+OLD_URL=$(grep "^DATABASE_URL=" .env | head -1 | cut -d'=' -f2-)
+if [ -z "$OLD_URL" ]; then
+  echo "❌ DATABASE_URL not found in .env"
+  exit 1
+fi
+
+# Extract credentials
+CREDS=$(echo "$OLD_URL" | grep -oE '//[^@]+@' | tr -d '/@')
+NEW_URL="postgresql://${CREDS}@localhost:${POSTGRES_PORT}/whatsapp_bot_${AI_INSTANCE_ID}"
+
+# Replace
+sed -i '' "s|^DATABASE_URL=.*|DATABASE_URL=${NEW_URL}|" .env
+echo "   ✅ DATABASE_URL: ...@localhost:${POSTGRES_PORT}/whatsapp_bot_${AI_INSTANCE_ID}"
+
+# 3. Fix/Add S3_ENDPOINT
+echo "🔧 Configuring MinIO endpoint..."
+if grep -q "^S3_ENDPOINT=" .env; then
+  sed -i '' "s|^S3_ENDPOINT=.*|S3_ENDPOINT=http://localhost:${MINIO_API_PORT}|" .env
+else
+  echo "S3_ENDPOINT=http://localhost:${MINIO_API_PORT}" >> .env
+fi
+echo "   ✅ S3_ENDPOINT: http://localhost:${MINIO_API_PORT}"
+
+# 4. Add AI_INSTANCE_ID
+if ! grep -q "^AI_INSTANCE_ID=" .env; then
+  echo "" >> .env
+  echo "# Instance-specific configuration (auto-generated)" >> .env
+  echo "AI_INSTANCE_ID=${AI_INSTANCE_ID}" >> .env
+  echo "   ✅ Added AI_INSTANCE_ID=${AI_INSTANCE_ID}"
+fi
+
+echo ""
+echo "✅ Environment configured for instance $AI_INSTANCE_ID"
+echo ""
+echo "Verify with:"
+echo "  grep -E '(DATABASE_URL|S3_ENDPOINT|AI_INSTANCE_ID)' .env"
+```
+
+**Usage**:
+
+```bash
+# After copying .env from main repo
+cp $ROOT_WORKTREE_PATH/.env .env
+
+# Run setup script
+./scripts/setup-worktree-env.sh
+
+# Or manually:
+source scripts/instance-env.sh
+# ... run the sed commands above ...
+```
+
+#### Migrating Secrets to Database
+
+After fixing `.env`, migrate secrets from `.env` to the database:
+
+```bash
+# Set master encryption key (from main repo's .env)
+export ORIENT_MASTER_KEY="your-master-key-from-main-env"
+
+# Run migration script
+npx tsx scripts/migrate-secrets-to-db.ts
+
+# Expected output:
+# ✅ Migrated 7 secrets:
+#    - SLACK_BOT_TOKEN
+#    - SLACK_APP_TOKEN
+#    - SLACK_SIGNING_SECRET
+#    - SLACK_USER_TOKEN
+#    - OPENAI_API_KEY
+#    - ANTHROPIC_API_KEY
+#    - WHATSAPP_PHONE_NUMBER_ID
+```
+
+**What This Does**:
+
+1. Reads secrets from `.env` (e.g., `SLACK_BOT_TOKEN=xoxb-...`)
+2. Encrypts them using `ORIENT_MASTER_KEY`
+3. Stores encrypted values in `secrets` table
+4. Services load secrets from database instead of `.env`
+
+**Important**: The migration script uses `DATABASE_URL` from `.env`, which is why fixing it first is critical!
+
+#### Verification Checklist
+
+After configuring `.env`, verify instance isolation:
+
+```bash
+# 1. Check environment variables
+source scripts/instance-env.sh
+echo "Instance ID: $AI_INSTANCE_ID"
+
+# 2. Verify DATABASE_URL port
+DB_PORT=$(grep DATABASE_URL .env | grep -oE 'localhost:[0-9]+' | cut -d':' -f2)
+echo "DATABASE_URL port: $DB_PORT (expected: $POSTGRES_PORT)"
+
+# 3. Verify database name
+DB_NAME=$(grep DATABASE_URL .env | grep -oE '/[^/]+$' | tr -d '/')
+echo "Database name: $DB_NAME (expected: whatsapp_bot_$AI_INSTANCE_ID)"
+
+# 4. Verify MinIO endpoint
+MINIO_PORT=$(grep S3_ENDPOINT .env | grep -oE ':[0-9]+' | tr -d ':')
+echo "MinIO port: $MINIO_PORT (expected: $MINIO_API_PORT)"
+
+# 5. Test database connection
+psql "$(grep DATABASE_URL .env | cut -d'=' -f2-)" -c "SELECT 1" >/dev/null && \
+  echo "✅ Database connection successful" || \
+  echo "❌ Database connection failed"
+```
+
+#### Common Issues
+
+**Issue 1: Database authentication failed**
+
+```bash
+# Error: password authentication failed for user "orient"
+# Cause: DATABASE_URL points to wrong port
+
+# Fix:
+source scripts/instance-env.sh
+sed -i '' "s|localhost:[0-9]\{4,5\}|localhost:${POSTGRES_PORT}|" .env
+```
+
+**Issue 2: Services connect to wrong instance**
+
+```bash
+# Symptom: Instance 9 sees data from instance 0
+# Cause: DATABASE_URL still points to whatsapp_bot_0
+
+# Fix database name:
+sed -i '' "s|/whatsapp_bot_[0-9]|/whatsapp_bot_${AI_INSTANCE_ID}|" .env
+```
+
+**Issue 3: MinIO bucket not found**
+
+```bash
+# Error: Bucket 'orient-data' not found
+# Cause: S3_ENDPOINT not set, defaults to instance 0
+
+# Fix:
+source scripts/instance-env.sh
+echo "S3_ENDPOINT=http://localhost:${MINIO_API_PORT}" >> .env
+```
+
+#### Environment Variable Reference
+
+**Instance-Specific Variables** (must be updated per instance):
+
+| Variable                  | Instance 0              | Instance 9               | Formula              |
+| ------------------------- | ----------------------- | ------------------------ | -------------------- |
+| `AI_INSTANCE_ID`          | `0`                     | `9`                      | Auto-detected        |
+| `DATABASE_URL` (port)     | `5432`                  | `14432`                  | 5432 + (ID × 1000)   |
+| `DATABASE_URL` (database) | `whatsapp_bot_0`        | `whatsapp_bot_9`         | `whatsapp_bot_${ID}` |
+| `S3_ENDPOINT`             | `http://localhost:9000` | `http://localhost:18000` | 9000 + (ID × 1000)   |
+| `DASHBOARD_PORT`          | `4098`                  | `13098`                  | 4098 + (ID × 1000)   |
+| `OPENCODE_PORT`           | `4099`                  | `13099`                  | 4099 + (ID × 1000)   |
+
+**Shared Variables** (same across all instances):
+
+- `ORIENT_MASTER_KEY` - Encryption key for secrets
+- `SLACK_BOT_TOKEN` - Stored in database, not `.env`
+- `OPENAI_API_KEY` - Stored in database, not `.env`
+- Most service credentials (migrate to database)
+
+### 7. Verifying Instance Isolation
+
+**CRITICAL**: When running multiple instances, you MUST verify that your `.env` file is properly configured for your instance. A common issue is copying `.env` from the main repo without updating instance-specific values.
+
+#### Quick Verification Command
+
+Run this one-liner to check if your `.env` matches your instance:
+
+```bash
+source scripts/instance-env.sh && echo "Instance: $AI_INSTANCE_ID" && \
+grep DATABASE_URL .env | grep -q ":$POSTGRES_PORT/" && echo "✅ DATABASE_URL OK" || echo "❌ DATABASE_URL WRONG (expected port $POSTGRES_PORT)"
+```
+
+#### Comprehensive Isolation Check Script
+
+Create or run this script to verify full isolation:
+
+```bash
+#!/bin/bash
+# verify-instance-isolation.sh
+# Run from worktree root directory
+
+set -e
+
+echo "=== Instance Isolation Verification ==="
+echo ""
+
+# Source instance environment
+source scripts/instance-env.sh
+
+echo "📋 Instance Configuration:"
+echo "   AI_INSTANCE_ID:    $AI_INSTANCE_ID"
+echo "   COMPOSE_PROJECT:   $COMPOSE_PROJECT_NAME"
+echo "   Expected ports:"
+echo "     - Nginx:         $NGINX_PORT"
+echo "     - Postgres:      $POSTGRES_PORT"
+echo "     - MinIO API:     $MINIO_API_PORT"
+echo "     - MinIO Console: $MINIO_CONSOLE_PORT"
+echo "     - Dashboard:     $DASHBOARD_PORT"
+echo "     - OpenCode:      $OPENCODE_PORT"
+echo ""
+
+ERRORS=0
+
+# Check DATABASE_URL
+echo "🔍 Checking DATABASE_URL..."
+CURRENT_DB_URL=$(grep "^DATABASE_URL=" .env 2>/dev/null | cut -d'=' -f2-)
+if [ -z "$CURRENT_DB_URL" ]; then
+  echo "   ❌ DATABASE_URL not found in .env"
+  ((ERRORS++))
+else
+  # Extract port from DATABASE_URL
+  DB_PORT=$(echo "$CURRENT_DB_URL" | grep -oE 'localhost:[0-9]+' | cut -d':' -f2)
+  DB_NAME=$(echo "$CURRENT_DB_URL" | grep -oE '/[^/]+$' | tr -d '/')
+
+  if [ "$DB_PORT" != "$POSTGRES_PORT" ]; then
+    echo "   ❌ DATABASE_URL uses port $DB_PORT, expected $POSTGRES_PORT"
+    echo "   Current:  $CURRENT_DB_URL"
+    echo "   Expected: postgresql://...@localhost:$POSTGRES_PORT/whatsapp_bot_$AI_INSTANCE_ID"
+    ((ERRORS++))
+  else
+    echo "   ✅ DATABASE_URL port is correct ($DB_PORT)"
+  fi
+
+  EXPECTED_DB_NAME="whatsapp_bot_$AI_INSTANCE_ID"
+  if [ "$DB_NAME" != "$EXPECTED_DB_NAME" ]; then
+    echo "   ⚠️  Database name is '$DB_NAME', expected '$EXPECTED_DB_NAME'"
+    echo "      (This may be intentional for shared database setups)"
+  else
+    echo "   ✅ Database name is correct ($DB_NAME)"
+  fi
+fi
+
+# Check S3_ENDPOINT / MinIO
+echo ""
+echo "🔍 Checking S3/MinIO configuration..."
+S3_ENDPOINT=$(grep "^S3_ENDPOINT=" .env 2>/dev/null | cut -d'=' -f2-)
+if [ -z "$S3_ENDPOINT" ]; then
+  echo "   ⚠️  S3_ENDPOINT not set (will default to localhost:9000 - instance 0)"
+  echo "   Expected: http://localhost:$MINIO_API_PORT"
+  ((ERRORS++))
+else
+  MINIO_PORT_IN_ENV=$(echo "$S3_ENDPOINT" | grep -oE ':[0-9]+' | tr -d ':')
+  if [ "$MINIO_PORT_IN_ENV" != "$MINIO_API_PORT" ]; then
+    echo "   ❌ S3_ENDPOINT uses port $MINIO_PORT_IN_ENV, expected $MINIO_API_PORT"
+    ((ERRORS++))
+  else
+    echo "   ✅ S3_ENDPOINT port is correct ($MINIO_PORT_IN_ENV)"
+  fi
+fi
+
+# Check AI_INSTANCE_ID in .env
+echo ""
+echo "🔍 Checking AI_INSTANCE_ID in .env..."
+ENV_INSTANCE_ID=$(grep "^AI_INSTANCE_ID=" .env 2>/dev/null | cut -d'=' -f2-)
+if [ -z "$ENV_INSTANCE_ID" ]; then
+  echo "   ⚠️  AI_INSTANCE_ID not set in .env (relies on auto-detection)"
+elif [ "$ENV_INSTANCE_ID" != "$AI_INSTANCE_ID" ]; then
+  echo "   ❌ AI_INSTANCE_ID in .env ($ENV_INSTANCE_ID) differs from detected ($AI_INSTANCE_ID)"
+  ((ERRORS++))
+else
+  echo "   ✅ AI_INSTANCE_ID matches ($ENV_INSTANCE_ID)"
+fi
+
+# Check for Docker containers
+echo ""
+echo "🔍 Checking Docker containers for instance $AI_INSTANCE_ID..."
+POSTGRES_CONTAINER="orienter-postgres-$AI_INSTANCE_ID"
+NGINX_CONTAINER="orienter-nginx-$AI_INSTANCE_ID"
+MINIO_CONTAINER="orienter-minio-$AI_INSTANCE_ID"
+
+for container in "$POSTGRES_CONTAINER" "$NGINX_CONTAINER" "$MINIO_CONTAINER"; do
+  if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "^${container}$"; then
+    echo "   ✅ $container is running"
+  else
+    echo "   ⚠️  $container is NOT running"
+  fi
+done
+
+# Check for port conflicts
+echo ""
+echo "🔍 Checking for port conflicts..."
+for port_var in NGINX_PORT POSTGRES_PORT MINIO_API_PORT DASHBOARD_PORT OPENCODE_PORT; do
+  port_value=$(eval echo \$$port_var)
+  pid=$(lsof -ti :$port_value 2>/dev/null | head -1)
+  if [ -n "$pid" ]; then
+    proc_name=$(ps -p $pid -o comm= 2>/dev/null)
+    echo "   Port $port_value ($port_var): in use by $proc_name (PID $pid)"
+  else
+    echo "   Port $port_value ($port_var): available"
+  fi
+done
+
+# Summary
+echo ""
+echo "=== Summary ==="
+if [ $ERRORS -eq 0 ]; then
+  echo "✅ All isolation checks passed!"
+else
+  echo "❌ Found $ERRORS isolation issue(s) - see above for details"
+  echo ""
+  echo "To fix DATABASE_URL, run:"
+  echo "  sed -i '' 's|localhost:5432/whatsapp_bot_0|localhost:$POSTGRES_PORT/whatsapp_bot_$AI_INSTANCE_ID|g' .env"
+  echo ""
+  echo "To add S3_ENDPOINT, run:"
+  echo "  echo 'S3_ENDPOINT=http://localhost:$MINIO_API_PORT' >> .env"
+fi
+```
+
+#### Auto-Fix Database URL
+
+If your DATABASE_URL points to the wrong instance, run this to fix it:
+
+```bash
+# Source instance env to get correct ports
+source scripts/instance-env.sh
+
+# Fix DATABASE_URL in .env
+# First, extract current credentials
+OLD_URL=$(grep "^DATABASE_URL=" .env | cut -d'=' -f2-)
+CREDS=$(echo "$OLD_URL" | grep -oE '//[^@]+@' | tr -d '/@')
+
+# Build new URL with correct port and database
+NEW_URL="postgresql://${CREDS}@localhost:${POSTGRES_PORT}/whatsapp_bot_${AI_INSTANCE_ID}"
+
+# Replace in .env
+sed -i '' "s|^DATABASE_URL=.*|DATABASE_URL=${NEW_URL}|" .env
+
+# Verify
+echo "Updated DATABASE_URL:"
+grep DATABASE_URL .env
+```
+
+#### Auto-Fix MinIO Endpoint
+
+```bash
+# Source instance env
+source scripts/instance-env.sh
+
+# Check if S3_ENDPOINT exists
+if grep -q "^S3_ENDPOINT=" .env; then
+  # Update existing
+  sed -i '' "s|^S3_ENDPOINT=.*|S3_ENDPOINT=http://localhost:${MINIO_API_PORT}|" .env
+else
+  # Add new
+  echo "S3_ENDPOINT=http://localhost:${MINIO_API_PORT}" >> .env
+fi
+
+# Also add AI_INSTANCE_ID for clarity
+if ! grep -q "^AI_INSTANCE_ID=" .env; then
+  echo "AI_INSTANCE_ID=${AI_INSTANCE_ID}" >> .env
+fi
+
+echo "Updated .env:"
+grep -E "(S3_ENDPOINT|AI_INSTANCE_ID)" .env
+```
+
+#### Detecting Database Sharing Issues
+
+**Symptom**: Changes in one worktree appear in another, or data conflicts occur.
+
+**Detection**:
+
+```bash
+# From each worktree, run:
+source scripts/instance-env.sh
+echo "Instance $AI_INSTANCE_ID using database:"
+grep DATABASE_URL .env
+
+# If two worktrees show the same DATABASE_URL, they're sharing!
+```
+
+**Fix**: Run the auto-fix script above in the worktree that has the wrong DATABASE_URL.
+
+#### Port Collision Detection
+
+When starting services, check for port conflicts:
+
+```bash
+# Quick check before starting
+source scripts/instance-env.sh
+echo "Checking ports for instance $AI_INSTANCE_ID..."
+
+for port in $NGINX_PORT $POSTGRES_PORT $MINIO_API_PORT $DASHBOARD_PORT $OPENCODE_PORT; do
+  if lsof -Pi :$port -sTCP:LISTEN -t >/dev/null 2>&1; then
+    echo "⚠️  Port $port is already in use!"
+    lsof -Pi :$port -sTCP:LISTEN
+  fi
+done
+```
+
+**Resolving Port Conflicts**:
+
+```bash
+# Option 1: Kill the process using the port
+lsof -ti :6080 | xargs kill -9
+
+# Option 2: Use a different instance ID
+export AI_INSTANCE_ID=7  # Try a different instance
+source scripts/instance-env.sh
+./run.sh dev
+
+# Option 3: Stop other instances first
+./run.sh stop  # Stop this instance's containers
+```
+
+#### Troubleshooting Common Isolation Issues
+
+**Issue: "Connection refused" to database**
+
+```bash
+# Check if container is running
+docker ps | grep "orienter-postgres-$AI_INSTANCE_ID"
+
+# If not running, start infrastructure
+source scripts/instance-env.sh
+docker compose -f docker/docker-compose.infra.yml up -d
+
+# Verify database exists
+docker exec orienter-postgres-$AI_INSTANCE_ID psql -U orient -c "\l" | grep whatsapp_bot
+```
+
+**Issue: Two instances writing to same database**
+
+```bash
+# Check what's using the database
+docker exec orienter-postgres-0 psql -U orient -d whatsapp_bot_0 -c "SELECT * FROM pg_stat_activity WHERE datname = 'whatsapp_bot_0';"
+
+# Fix: Ensure each worktree has correct DATABASE_URL
+# In worktree 1:
+grep DATABASE_URL .env  # Should show port 6432, database whatsapp_bot_1
+# In worktree 6:
+grep DATABASE_URL .env  # Should show port 11432, database whatsapp_bot_6
+```
+
+**Issue: MinIO bucket conflicts**
+
+```bash
+# Each instance should use its own MinIO
+# Check current MinIO endpoint
+grep S3_ENDPOINT .env
+
+# List buckets in your instance's MinIO
+docker exec orienter-minio-$AI_INSTANCE_ID mc ls local/
+```
+
+#### Environment Template for Worktrees
+
+When creating a new worktree, use this template to ensure proper isolation:
+
+```bash
+# Copy .env from main and fix instance-specific values
+cp /path/to/main/repo/.env .env
+
+# Auto-configure for this instance
+source scripts/instance-env.sh
+
+# Update instance-specific values
+cat >> .env << EOF
+
+# Instance $AI_INSTANCE_ID configuration (auto-generated)
+AI_INSTANCE_ID=$AI_INSTANCE_ID
+S3_ENDPOINT=http://localhost:$MINIO_API_PORT
+EOF
+
+# Fix DATABASE_URL
+OLD_URL=$(grep "^DATABASE_URL=" .env | head -1 | cut -d'=' -f2-)
+CREDS=$(echo "$OLD_URL" | grep -oE '//[^@]+@' | tr -d '/@')
+NEW_URL="postgresql://${CREDS}@localhost:${POSTGRES_PORT}/whatsapp_bot_${AI_INSTANCE_ID}"
+sed -i '' "s|^DATABASE_URL=.*|DATABASE_URL=${NEW_URL}|" .env
+
+echo "✅ Environment configured for instance $AI_INSTANCE_ID"
+```
+
+### 7. Database (Legacy Notes)
 
 In multi-instance setups, each worktree has its own database. For legacy single-instance behavior, database connections would be shared.
 
-### 7. Frontend Dependencies
+### 8. Frontend Dependencies
 
 When adding UI components that use new icon libraries or utilities:
 
@@ -3034,6 +4091,268 @@ git rebase origin/staging
 git merge -X theirs origin/staging  # Prefer their changes
 git merge -X ours origin/staging    # Prefer our changes
 ```
+
+## Merging Branches in Worktrees
+
+This section covers the complete workflow for merging branches, handling conflicts, and rebuilding after merges.
+
+### Standard Merge Workflow
+
+**Step 1: Fetch and Merge**
+
+```bash
+# Fetch latest from remote
+git fetch origin dev
+
+# Merge into your worktree branch
+git merge origin/dev --no-edit
+```
+
+**Step 2: Handle Conflicts (if any)**
+
+See conflict resolution patterns below.
+
+**Step 3: Rebuild After Merge**
+
+```bash
+# Install dependencies (lock file may have changed)
+pnpm install
+
+# Build with turbo (handles dependency order)
+pnpm turbo run build --force
+```
+
+### Conflict Resolution Patterns
+
+#### Pattern 1: pnpm-lock.yaml Conflicts
+
+**Problem**: Lock file conflicts are common when merging branches with different dependency versions.
+
+```bash
+# ❌ DON'T manually resolve pnpm-lock.yaml conflicts
+
+# ✅ DO accept theirs and regenerate
+git checkout --theirs pnpm-lock.yaml
+pnpm install  # Regenerates lock file with your package.json changes
+git add pnpm-lock.yaml
+git commit --no-edit
+```
+
+**Why this works**: pnpm regenerates the lock file based on your current `package.json` files, ensuring consistency.
+
+#### Pattern 2: .pnpm-install.pid Conflicts
+
+**Problem**: This temporary file tracks running pnpm processes and often causes merge conflicts.
+
+```bash
+# This file should NEVER be committed
+# If you see it in conflicts:
+
+# Option 1: Remove before merge
+rm .pnpm-install.pid
+git merge origin/dev --no-edit
+
+# Option 2: Remove during conflict resolution
+git checkout --theirs .pnpm-install.pid 2>/dev/null || true
+rm -f .pnpm-install.pid
+git add .pnpm-install.pid  # Stages deletion
+
+# Verify it's in .gitignore
+grep -q ".pnpm-install.pid" .gitignore || echo ".pnpm-install.pid" >> .gitignore
+```
+
+#### Pattern 3: Environment File Conflicts (.env, .env.local)
+
+**Problem**: Worktree-specific environment values conflict with merged changes.
+
+```bash
+# Keep your worktree's environment (usually correct)
+git checkout --ours .env
+git checkout --ours .env.local 2>/dev/null || true
+git add .env .env.local
+
+# If you need to merge new variables from dev:
+# 1. Save your current env
+cp .env .env.backup
+
+# 2. Accept theirs
+git checkout --theirs .env
+
+# 3. Manually merge new variables
+diff .env.backup .env  # See what changed
+# Add any new variables you need to .env.backup
+mv .env.backup .env
+git add .env
+```
+
+#### Pattern 4: Build Artifact Conflicts (dist/, _.js, _.d.ts)
+
+**Problem**: Compiled TypeScript files conflict.
+
+```bash
+# Build artifacts should not be committed
+# If they are, remove and rebuild
+
+rm -rf packages/*/dist
+rm -rf src/**/dist
+git add -A
+pnpm turbo run build --force
+```
+
+### TypeScript Module Resolution Errors After Merge
+
+**Common Error**: `Cannot find module '@orient/core'` or similar after merging from dev.
+
+**Cause**: Build order dependencies - packages must be built in the correct order.
+
+**Solution 1: Force Rebuild with Turbo**
+
+```bash
+# Turbo handles dependency ordering automatically
+pnpm turbo run build --force
+
+# The --force flag bypasses cache, ensuring fresh builds
+```
+
+**Solution 2: Clean Install and Build**
+
+```bash
+# Nuclear option - clean everything and rebuild
+rm -rf node_modules
+rm -rf packages/*/node_modules
+rm -rf packages/*/dist
+pnpm install
+pnpm turbo run build --force
+```
+
+**Solution 3: Build Specific Package First**
+
+```bash
+# If you know which package is missing, build it first
+pnpm --filter @orient/core run build
+pnpm --filter @orient/database run build
+
+# Then build the rest
+pnpm turbo run build
+```
+
+**Understanding Turbo Build Order**:
+
+```
+@orient/core           (no dependencies)
+    ↓
+@orient/database       (depends on core)
+    ↓
+@orient/agents         (depends on core, database)
+    ↓
+@orient/bot-whatsapp   (depends on agents)
+@orient/dashboard      (depends on multiple packages)
+```
+
+Turbo reads `turbo.json` and `package.json` dependencies to determine build order. When merging introduces new dependencies, turbo ensures they're built first.
+
+### Complete Merge Workflow Example
+
+Here's a full example of merging from dev with all best practices:
+
+```bash
+# 1. Pre-merge cleanup
+rm -f .pnpm-install.pid
+git stash push -m "WIP before merge" 2>/dev/null || true
+
+# 2. Fetch and merge
+git fetch origin dev
+git merge origin/dev --no-edit
+
+# 3. If conflicts occur:
+# Handle lock file
+if git diff --name-only --diff-filter=U | grep -q "pnpm-lock.yaml"; then
+  git checkout --theirs pnpm-lock.yaml
+fi
+
+# Handle .env (keep ours)
+if git diff --name-only --diff-filter=U | grep -q ".env"; then
+  git checkout --ours .env
+fi
+
+# Remove temp files from conflicts
+rm -f .pnpm-install.pid
+git add .pnpm-install.pid 2>/dev/null || true
+
+# Complete merge
+git add pnpm-lock.yaml .env 2>/dev/null || true
+git commit --no-edit 2>/dev/null || true
+
+# 4. Reinstall and rebuild
+pnpm install
+pnpm turbo run build --force
+
+# 5. Restore stashed changes
+git stash pop 2>/dev/null || true
+
+# 6. Verify
+pnpm run typecheck
+echo "✅ Merge complete!"
+```
+
+### Troubleshooting Post-Merge Issues
+
+**Issue: "TS2307: Cannot find module" after merge**
+
+```bash
+# Cause: Package build order issue
+# Solution: Force rebuild with turbo
+pnpm turbo run build --force
+
+# If still failing, check specific package
+pnpm --filter @orient/core run build
+# Then rebuild all
+pnpm turbo run build
+```
+
+**Issue: "ENOENT: no such file or directory" for dist files**
+
+```bash
+# Cause: dist/ directories not built
+# Solution: Build everything
+pnpm turbo run build --force
+
+# If persists, clean and rebuild
+rm -rf packages/*/dist
+pnpm turbo run build --force
+```
+
+**Issue: pnpm install fails with integrity errors**
+
+```bash
+# Cause: Lock file out of sync
+# Solution: Regenerate lock file
+rm pnpm-lock.yaml
+pnpm install
+git add pnpm-lock.yaml
+git commit -m "chore: regenerate pnpm-lock.yaml"
+```
+
+**Issue: Tests fail after merge but build succeeds**
+
+```bash
+# Cause: Test cache or mock files stale
+# Solution: Clear caches and rerun
+rm -rf node_modules/.cache
+pnpm test -- --clearCache
+pnpm test
+```
+
+### Best Practices Summary
+
+1. **✅ Always remove .pnpm-install.pid before merging**
+2. **✅ Use `git checkout --theirs pnpm-lock.yaml` for lock conflicts**
+3. **✅ Keep your .env file (use `git checkout --ours .env`)**
+4. **✅ Run `pnpm turbo run build --force` after every merge**
+5. **✅ Use `pnpm install` before building (lock file may have changed)**
+6. **❌ Don't manually edit pnpm-lock.yaml**
+7. **❌ Don't commit build artifacts (dist/)**
+8. **❌ Don't skip the rebuild step after merging**
 
 ## Cleanup
 

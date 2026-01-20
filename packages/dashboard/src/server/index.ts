@@ -19,6 +19,7 @@ import { WebhookDatabase } from '../services/webhookDatabase.js';
 import { WebhookService } from '../services/webhookService.js';
 import { MonitoringService, createMonitoringService } from '../services/monitoringService.js';
 import { PromptService, createPromptService } from '../services/promptService.js';
+import { StorageDatabase } from '../services/storageDatabase.js';
 import { createDashboardAuth, DashboardAuth, createRateLimitMiddleware } from '../auth.js';
 import { createDashboardRouter } from './routes.js';
 import { createSetupRouter } from './setupRoutes.js';
@@ -52,6 +53,7 @@ export interface DashboardServices {
   promptService?: PromptService;
   monitoring?: MonitoringService;
   appsService?: AppsService;
+  storageDb?: StorageDatabase;
   // miniappEditService?: MiniappEditService;  // TODO: Re-enable with miniapp editor
   auth: DashboardAuth;
 }
@@ -113,6 +115,11 @@ async function initializeServices(config: DashboardServerConfig): Promise<Dashbo
     });
   }
 
+  // Initialize storage database for mini-app persistence
+  const storageDb = new StorageDatabase(databaseUrl);
+  await storageDb.initialize();
+  logger.info('Storage database initialized');
+
   // TODO: Re-enable miniapp edit service when src/ directory is included in Docker build
   // Initialize miniapp edit service
   // let miniappEditService: MiniappEditService | undefined;
@@ -162,6 +169,7 @@ async function initializeServices(config: DashboardServerConfig): Promise<Dashbo
     promptService,
     monitoring,
     appsService,
+    storageDb,
     // miniappEditService,  // TODO: Re-enable with miniapp editor
     auth,
   };
@@ -344,6 +352,34 @@ export function createDashboardServer(
 
   // API routes - place before static files
   app.use('/api', createDashboardRouter(services));
+
+  // Mini-apps static file serving - serve built apps from /apps/:appName/
+  if (services.appsService) {
+    const appsService = services.appsService;
+
+    // Serve mini-app static files
+    app.use('/apps/:appName', (req, res, next) => {
+      const appName = req.params.appName;
+      const app = appsService.getApp(appName);
+
+      if (!app || !app.isBuilt) {
+        return res.status(404).json({ error: `App "${appName}" not found or not built` });
+      }
+
+      // Serve static files from the app's dist directory
+      express.static(app.distPath)(req, res, () => {
+        // If no file found, serve index.html for SPA routing
+        const indexPath = path.join(app.distPath, 'index.html');
+        if (fs.existsSync(indexPath)) {
+          res.sendFile(indexPath);
+        } else {
+          next();
+        }
+      });
+    });
+
+    logger.info('Mini-apps static file serving enabled');
+  }
 
   attachFrontend(app, config);
 

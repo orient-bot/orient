@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import { saveWhatsAppAdminPhone } from '../api';
 
 interface WhatsAppQrStatus {
@@ -25,7 +26,7 @@ export default function WhatsAppPairingPanel({ onConnected }: WhatsAppPairingPan
   const [isPairingLoading, setIsPairingLoading] = useState(false);
   const [pairingError, setPairingError] = useState<string | null>(null);
   const [isResetting, setIsResetting] = useState(false);
-  
+
   // Phone confirmation state (shown after QR pairing)
   const [needsPhoneConfirmation, setNeedsPhoneConfirmation] = useState(false);
   const [confirmPhonePrefix, setConfirmPhonePrefix] = useState('+');
@@ -46,11 +47,16 @@ export default function WhatsAppPairingPanel({ onConnected }: WhatsAppPairingPan
     return false;
   });
 
+  // Track onboarding dismissed state (for new users)
+  const [onboardingDismissed, setOnboardingDismissed] = useState(() => {
+    return localStorage.getItem('whatsapp-onboarding-dismissed') === 'true';
+  });
+
   // Use refs to avoid infinite loops
   const wasConnectedRef = useRef<boolean | null>(null);
   const onConnectedRef = useRef(onConnected);
   onConnectedRef.current = onConnected;
-  
+
   // Track if phone was entered via pairing code (so we can auto-save it)
   const pairingPhoneRef = useRef<string | null>(null);
 
@@ -64,7 +70,7 @@ export default function WhatsAppPairingPanel({ onConnected }: WhatsAppPairingPan
         if (!response.ok) {
           throw new Error(`QR status failed: ${response.status}`);
         }
-        const data = await response.json() as WhatsAppQrStatus;
+        const data = (await response.json()) as WhatsAppQrStatus;
 
         if (!isMounted) return;
 
@@ -75,11 +81,12 @@ export default function WhatsAppPairingPanel({ onConnected }: WhatsAppPairingPan
         // Handle phone confirmation logic
         const justConnected = data.isConnected && wasConnectedRef.current === false;
         const initiallyConnectedWithoutPhone = isFirstFetch && data.isConnected && !data.adminPhone;
-        
+
         // Check if phone was recently saved (localStorage persists across refresh)
         const recentlySavedPhone = localStorage.getItem('whatsapp_phone_saved');
-        const hasRecentSave = recentlySavedPhone && (Date.now() - parseInt(recentlySavedPhone, 10) < 5 * 60 * 1000);
-        
+        const hasRecentSave =
+          recentlySavedPhone && Date.now() - parseInt(recentlySavedPhone, 10) < 5 * 60 * 1000;
+
         if (justConnected || initiallyConnectedWithoutPhone) {
           // Just connected OR first load while already connected without phone
           if (pairingPhoneRef.current) {
@@ -101,17 +108,17 @@ export default function WhatsAppPairingPanel({ onConnected }: WhatsAppPairingPan
             // But don't ask if we just saved recently (server may not have restarted yet)
             setNeedsPhoneConfirmation(true);
           }
-          
+
           if (justConnected) {
             onConnectedRef.current?.();
           }
         }
-        
+
         // Clear localStorage flag once server has the phone configured
         if (data.adminPhone && recentlySavedPhone) {
           localStorage.removeItem('whatsapp_phone_saved');
         }
-        
+
         wasConnectedRef.current = data.isConnected;
         isFirstFetch = false;
       } catch (err) {
@@ -139,7 +146,7 @@ export default function WhatsAppPairingPanel({ onConnected }: WhatsAppPairingPan
       if (!response.ok) {
         throw new Error(`QR status failed: ${response.status}`);
       }
-      const data = await response.json() as WhatsAppQrStatus;
+      const data = (await response.json()) as WhatsAppQrStatus;
       setStatus(data);
       setError(null);
     } catch (err) {
@@ -217,7 +224,11 @@ export default function WhatsAppPairingPanel({ onConnected }: WhatsAppPairingPan
   };
 
   const handleFactoryReset = async () => {
-    if (!confirm('FACTORY RESET will:\n\n• Clear ALL session data locally\n• Require a completely fresh pairing\n\nThis is the nuclear option for fixing pairing issues. Continue?')) {
+    if (
+      !confirm(
+        'FACTORY RESET will:\n\n• Clear ALL session data locally\n• Require a completely fresh pairing\n\nThis is the nuclear option for fixing pairing issues. Continue?'
+      )
+    ) {
       return;
     }
 
@@ -263,17 +274,9 @@ export default function WhatsAppPairingPanel({ onConnected }: WhatsAppPairingPan
   if (error) {
     return (
       <div className="rounded-lg border border-border bg-muted/40 p-6 text-center">
-        <div className="text-sm text-muted-foreground mb-3">
-          WhatsApp QR service is unavailable
-        </div>
-        <p className="text-xs text-muted-foreground">
-          Start the WhatsApp bot and try again.
-        </p>
-        <button
-          type="button"
-          onClick={retryFetch}
-          className="btn btn-secondary h-8 mt-4"
-        >
+        <div className="text-sm text-muted-foreground mb-3">WhatsApp QR service is unavailable</div>
+        <p className="text-xs text-muted-foreground">Start the WhatsApp bot and try again.</p>
+        <button type="button" onClick={retryFetch} className="btn btn-secondary h-8 mt-4">
           Retry
         </button>
       </div>
@@ -298,7 +301,14 @@ export default function WhatsAppPairingPanel({ onConnected }: WhatsAppPairingPan
       return (
         <div className="rounded-lg border border-border bg-card p-6">
           <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-emerald-500/10 flex items-center justify-center">
-            <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="w-6 h-6 text-emerald-500"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
               <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
             </svg>
           </div>
@@ -306,7 +316,7 @@ export default function WhatsAppPairingPanel({ onConnected }: WhatsAppPairingPan
           <p className="text-xs text-muted-foreground text-center mb-4">
             Please confirm your phone number for admin configuration
           </p>
-          
+
           <div className="space-y-3">
             <div className="flex gap-2">
               <input
@@ -327,13 +337,13 @@ export default function WhatsAppPairingPanel({ onConnected }: WhatsAppPairingPan
                 onKeyPress={(e) => e.key === 'Enter' && savePhoneConfirmation()}
               />
             </div>
-            
+
             {phoneConfirmError && (
               <div className="p-2 rounded-md bg-destructive/10 border border-destructive/20 text-destructive text-xs">
                 {phoneConfirmError}
               </div>
             )}
-            
+
             <div className="flex gap-2">
               <button
                 type="button"
@@ -343,15 +353,11 @@ export default function WhatsAppPairingPanel({ onConnected }: WhatsAppPairingPan
               >
                 {isSavingPhone ? 'Saving...' : 'Save Phone Number'}
               </button>
-              <button
-                type="button"
-                onClick={skipPhoneConfirmation}
-                className="btn btn-ghost h-9"
-              >
+              <button type="button" onClick={skipPhoneConfirmation} className="btn btn-ghost h-9">
                 Skip
               </button>
             </div>
-            
+
             <p className="text-[10px] text-muted-foreground text-center">
               This phone number is used for admin configuration and bot identification.
             </p>
@@ -359,22 +365,36 @@ export default function WhatsAppPairingPanel({ onConnected }: WhatsAppPairingPan
         </div>
       );
     }
-    
+
     // Normal connected state
     return (
       <div className="rounded-lg border border-border bg-card p-6 text-center">
         <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-emerald-500/10 flex items-center justify-center">
-          <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            className="w-6 h-6 text-emerald-500"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth="2"
+          >
             <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
           </svg>
         </div>
         <p className="text-sm font-medium text-foreground mb-1">Connected</p>
         <p className="text-xs text-muted-foreground mb-1">WhatsApp bot is ready and running</p>
-        
+
         {phoneConfirmSuccess ? (
           <div className="mb-4">
             <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
-              <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="w-3.5 h-3.5 text-emerald-500"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
                 <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
               </svg>
               <span className="text-xs font-medium text-emerald-600">Phone number saved</span>
@@ -396,7 +416,43 @@ export default function WhatsAppPairingPanel({ onConnected }: WhatsAppPairingPan
             </button>
           </div>
         )}
-        
+
+        {/* Onboarding Steps - show for new users */}
+        {!onboardingDismissed && (
+          <div className="mb-4 p-4 rounded-lg bg-blue-500/5 border border-blue-500/20 text-left">
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="text-sm font-medium text-foreground">Next Steps</h4>
+              <button
+                type="button"
+                onClick={() => {
+                  localStorage.setItem('whatsapp-onboarding-dismissed', 'true');
+                  setOnboardingDismissed(true);
+                }}
+                className="text-xs text-muted-foreground hover:text-foreground"
+              >
+                Dismiss
+              </button>
+            </div>
+            <ol className="text-xs text-muted-foreground space-y-2 list-decimal list-inside">
+              <li>Create a WhatsApp group with just yourself (name it "Orient")</li>
+              <li>Send any message to that group</li>
+              <li>
+                Go to{' '}
+                <Link to="/chats" className="text-blue-500 hover:underline">
+                  Chats
+                </Link>{' '}
+                and find your group
+              </li>
+              <li>Change permission to "Read + Write"</li>
+              <li>Send another message - the bot will respond!</li>
+            </ol>
+            <p className="text-xs text-muted-foreground mt-3">
+              <strong>Why?</strong> By default, the bot can read but won't respond until you enable
+              write access.
+            </p>
+          </div>
+        )}
+
         <button
           type="button"
           onClick={handleFlushSession}
@@ -454,11 +510,7 @@ export default function WhatsAppPairingPanel({ onConnected }: WhatsAppPairingPan
             {/* QR Code display */}
             <div className="p-4 bg-white rounded-lg border border-border mb-4">
               {status?.qrDataUrl ? (
-                <img
-                  src={status.qrDataUrl}
-                  alt="WhatsApp QR Code"
-                  className="w-48 h-48 rounded"
-                />
+                <img src={status.qrDataUrl} alt="WhatsApp QR Code" className="w-48 h-48 rounded" />
               ) : (
                 <div className="w-48 h-48 flex flex-col items-center justify-center bg-muted rounded text-muted-foreground">
                   <div className="w-6 h-6 border-2 border-border border-t-foreground rounded-full animate-spin mb-2" />
@@ -472,26 +524,36 @@ export default function WhatsAppPairingPanel({ onConnected }: WhatsAppPairingPan
               <p className="text-xs font-medium text-foreground mb-2">How to connect</p>
               <ol className="text-xs text-muted-foreground space-y-1">
                 <li className="flex items-start gap-2">
-                  <span className="w-4 h-4 flex-shrink-0 rounded-full bg-border flex items-center justify-center text-[10px] font-medium text-foreground">1</span>
+                  <span className="w-4 h-4 flex-shrink-0 rounded-full bg-border flex items-center justify-center text-[10px] font-medium text-foreground">
+                    1
+                  </span>
                   Open WhatsApp on your phone
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="w-4 h-4 flex-shrink-0 rounded-full bg-border flex items-center justify-center text-[10px] font-medium text-foreground">2</span>
-                  Go to <strong className="text-foreground font-medium">Settings → Linked Devices</strong>
+                  <span className="w-4 h-4 flex-shrink-0 rounded-full bg-border flex items-center justify-center text-[10px] font-medium text-foreground">
+                    2
+                  </span>
+                  Go to{' '}
+                  <strong className="text-foreground font-medium">Settings → Linked Devices</strong>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="w-4 h-4 flex-shrink-0 rounded-full bg-border flex items-center justify-center text-[10px] font-medium text-foreground">3</span>
+                  <span className="w-4 h-4 flex-shrink-0 rounded-full bg-border flex items-center justify-center text-[10px] font-medium text-foreground">
+                    3
+                  </span>
                   Tap <strong className="text-foreground font-medium">Link a Device</strong>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="w-4 h-4 flex-shrink-0 rounded-full bg-border flex items-center justify-center text-[10px] font-medium text-foreground">4</span>
+                  <span className="w-4 h-4 flex-shrink-0 rounded-full bg-border flex items-center justify-center text-[10px] font-medium text-foreground">
+                    4
+                  </span>
                   Point your camera at this QR code
                 </li>
               </ol>
             </div>
 
             <p className="font-mono text-[10px] text-muted-foreground mt-3">
-              Auto-refreshing every <code className="bg-border px-1 py-0.5 rounded">3s</code> · QR expires in ~60s
+              Auto-refreshing every <code className="bg-border px-1 py-0.5 rounded">3s</code> · QR
+              expires in ~60s
             </p>
           </div>
         )}
@@ -545,9 +607,7 @@ export default function WhatsAppPairingPanel({ onConnected }: WhatsAppPairingPan
                   <p className="font-mono text-2xl font-semibold tracking-widest text-foreground">
                     {pairingCode}
                   </p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Enter this code in WhatsApp
-                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">Enter this code in WhatsApp</p>
                 </div>
                 <button
                   type="button"
@@ -564,19 +624,31 @@ export default function WhatsAppPairingPanel({ onConnected }: WhatsAppPairingPan
               <p className="text-xs font-medium text-foreground mb-2">How to connect with code</p>
               <ol className="text-xs text-muted-foreground space-y-1">
                 <li className="flex items-start gap-2">
-                  <span className="w-4 h-4 flex-shrink-0 rounded-full bg-border flex items-center justify-center text-[10px] font-medium text-foreground">1</span>
+                  <span className="w-4 h-4 flex-shrink-0 rounded-full bg-border flex items-center justify-center text-[10px] font-medium text-foreground">
+                    1
+                  </span>
                   Open WhatsApp on your phone
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="w-4 h-4 flex-shrink-0 rounded-full bg-border flex items-center justify-center text-[10px] font-medium text-foreground">2</span>
-                  Go to <strong className="text-foreground font-medium">Settings → Linked Devices</strong>
+                  <span className="w-4 h-4 flex-shrink-0 rounded-full bg-border flex items-center justify-center text-[10px] font-medium text-foreground">
+                    2
+                  </span>
+                  Go to{' '}
+                  <strong className="text-foreground font-medium">Settings → Linked Devices</strong>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="w-4 h-4 flex-shrink-0 rounded-full bg-border flex items-center justify-center text-[10px] font-medium text-foreground">3</span>
-                  Tap <strong className="text-foreground font-medium">Link with phone number instead</strong>
+                  <span className="w-4 h-4 flex-shrink-0 rounded-full bg-border flex items-center justify-center text-[10px] font-medium text-foreground">
+                    3
+                  </span>
+                  Tap{' '}
+                  <strong className="text-foreground font-medium">
+                    Link with phone number instead
+                  </strong>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="w-4 h-4 flex-shrink-0 rounded-full bg-border flex items-center justify-center text-[10px] font-medium text-foreground">4</span>
+                  <span className="w-4 h-4 flex-shrink-0 rounded-full bg-border flex items-center justify-center text-[10px] font-medium text-foreground">
+                    4
+                  </span>
                   Enter the 8-character code shown above
                 </li>
               </ol>

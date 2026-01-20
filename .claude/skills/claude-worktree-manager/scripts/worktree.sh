@@ -14,6 +14,9 @@ NC='\033[0m' # No Color
 # Configuration
 DEFAULT_MAX_AGE_DAYS=7
 WORKTREE_BASE="$HOME/claude-worktrees"
+# Default model for new worktrees (opus, sonnet, haiku, or empty for no default)
+# Set this to automatically configure a model for all new worktrees
+DEFAULT_MODEL="sonnet"
 
 # Get the repository root (works from anywhere in the repo)
 get_repo_root() {
@@ -41,6 +44,57 @@ log_warn() {
 
 log_error() {
     echo -e "${RED}[ERROR]${NC} $1" >&2
+}
+
+# Set model in settings.local.json using sed (fallback method)
+set_model_with_sed() {
+    local settings_file="$1"
+    local model="$2"
+
+    # Try to update existing model key
+    if grep -q "\"model\"" "$settings_file"; then
+        # Model key exists, update its value
+        if [[ "$OSTYPE" == "darwin"* ]]; then
+            sed -i '' "s/\"model\": \"[^\"]*\"/\"model\": \"$model\"/g" "$settings_file"
+        else
+            sed -i "s/\"model\": \"[^\"]*\"/\"model\": \"$model\"/g" "$settings_file"
+        fi
+        return 0
+    else
+        # Model key doesn't exist, add it after the first opening brace
+        if [[ "$OSTYPE" == "darwin"* ]]; then
+            sed -i '' "1s/{/{\"model\": \"$model\",/" "$settings_file"
+        else
+            sed -i "1s/{/{\"model\": \"$model\",/" "$settings_file"
+        fi
+        return 0
+    fi
+}
+
+# Verify that the model was correctly set in settings.local.json
+verify_model_setting() {
+    local settings_file="$1"
+    local expected_model="$2"
+
+    if [[ ! -f "$settings_file" ]]; then
+        return 1
+    fi
+
+    # Try to extract model value using jq first
+    if command -v jq &> /dev/null; then
+        local model_value
+        model_value=$(jq -r '.model // empty' "$settings_file" 2>/dev/null)
+        if [[ "$model_value" == "$expected_model" ]]; then
+            return 0
+        fi
+    fi
+
+    # Fallback to grep
+    if grep -q "\"model\": \"$expected_model\"" "$settings_file"; then
+        return 0
+    fi
+
+    return 1
 }
 
 # Cleanup stale worktrees
@@ -121,6 +175,7 @@ cleanup_stale_worktrees() {
 create_worktree() {
     local name="$1"
     local isolated="${2:-false}"
+    local model="${3:-}"
     local repo_root
     local project_name
 
@@ -158,11 +213,26 @@ create_worktree() {
     local main_branch
     main_branch=$(git -C "$repo_root" symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's@^refs/remotes/origin/@@' || echo "main")
 
+    # Check if a branch with the sanitized name already exists on origin
+    local checkout_ref="origin/$main_branch"
+    if git -C "$repo_root" rev-parse "origin/$sanitized_name" >/dev/null 2>&1; then
+        log_info "Found existing branch on origin: $sanitized_name"
+        log_info "Pulling latest changes from origin/$sanitized_name..."
+        checkout_ref="origin/$sanitized_name"
+        # Create local branch tracking the remote one
+        git -C "$repo_root" branch -D "$sanitized_name" 2>/dev/null || true
+        git -C "$repo_root" branch -t "$sanitized_name" "origin/$sanitized_name"
+        branch_name="$sanitized_name"
+    else
+        log_info "No existing branch found on origin, creating new branch from $main_branch"
+        checkout_ref="origin/$main_branch"
+    fi
+
     # Create the worktree
     log_info "Creating worktree: $worktree_path"
     log_info "Branch: $branch_name"
 
-    if ! git -C "$repo_root" worktree add -b "$branch_name" "$worktree_path" "origin/$main_branch"; then
+    if ! git -C "$repo_root" worktree add "$worktree_path" "$checkout_ref"; then
         log_error "Failed to create worktree"
         return 1
     fi
@@ -184,6 +254,49 @@ create_worktree() {
         log_success "Claude settings copied"
     else
         log_warn "No .claude/settings.local.json found in main repo"
+    fi
+
+    # Set default model if specified
+    if [[ -n "$model" ]]; then
+        log_info "Setting default model to: $model"
+        mkdir -p "$worktree_path/.claude"
+
+        # Create or update settings.local.json with the model
+        if [[ ! -f "$worktree_path/.claude/settings.local.json" ]]; then
+            echo "{}" > "$worktree_path/.claude/settings.local.json"
+        fi
+
+        # Update the JSON file with the model using jq if available, else use sed
+        if command -v jq &> /dev/null; then
+            # Use jq to safely update JSON (preferred method)
+            if jq ".model = \"$model\"" "$worktree_path/.claude/settings.local.json" > "$worktree_path/.claude/settings.local.json.tmp" 2>/dev/null; then
+                mv "$worktree_path/.claude/settings.local.json.tmp" "$worktree_path/.claude/settings.local.json"
+                log_success "Default model set to: $model (via jq)"
+            else
+                log_warn "jq update failed, falling back to sed"
+                rm -f "$worktree_path/.claude/settings.local.json.tmp"
+                # Fallback to sed if jq fails
+                set_model_with_sed "$worktree_path/.claude/settings.local.json" "$model" || {
+                    log_error "Failed to set model in settings.local.json"
+                    return 1
+                }
+            fi
+        else
+            # No jq available, use sed fallback
+            log_warn "jq not found, using sed for JSON update (may be less reliable)"
+            set_model_with_sed "$worktree_path/.claude/settings.local.json" "$model" || {
+                log_error "Failed to set model in settings.local.json"
+                return 1
+            }
+        fi
+
+        # Verify the model was actually set
+        if verify_model_setting "$worktree_path/.claude/settings.local.json" "$model"; then
+            log_success "Model configuration verified: $model"
+        else
+            log_warn "Could not verify model setting, but configuration was attempted"
+            log_warn "You may need to manually add the model to .claude/settings.local.json"
+        fi
     fi
 
     # Start pnpm install in background
@@ -276,7 +389,7 @@ usage() {
 Claude Worktree Manager
 
 Usage:
-    $0 create <name> [--isolated]  Create a new worktree with auto-setup
+    $0 create <name> [OPTIONS]     Create a new worktree with auto-setup
     $0 list                        List all worktrees for the current project
     $0 cleanup [--days N]          Cleanup worktrees older than N days (default: 7)
     $0 help                        Show this help message
@@ -284,11 +397,20 @@ Usage:
 Options:
     --isolated    Create a dedicated database for this worktree and seed it with test data.
                   Use this for schema changes, migration testing, or isolated experiments.
+    --model       Set the default Claude model for this worktree (opus, sonnet, haiku).
+                  Configures .claude/settings.local.json with the selected model.
+                  Default: $DEFAULT_MODEL (configured in script)
+
+Configuration:
+    DEFAULT_MODEL is set to "$DEFAULT_MODEL" - all new worktrees will use this model
+    unless overridden with --model flag. Edit the script to change the default.
 
 Examples:
-    $0 create staging-env              # Uses shared dev database
-    $0 create dark-mode-feature        # Uses shared dev database
-    $0 create schema-changes --isolated # Creates dedicated database with seeding
+    $0 create staging-env                    # Uses shared dev database
+    $0 create dark-mode-feature              # Uses shared dev database
+    $0 create schema-changes --isolated      # Creates dedicated database with seeding
+    $0 create feature-x --model opus         # Sets Opus as default model
+    $0 create complex-task --model opus --isolated # Opus + isolated DB
     $0 list
     $0 cleanup
     $0 cleanup --days 14
@@ -310,11 +432,49 @@ main() {
             fi
             local name="$2"
             local isolated="false"
-            # Check for --isolated flag
-            if [[ $# -ge 3 ]] && [[ "$3" == "--isolated" ]]; then
-                isolated="true"
+            local model=""
+
+            # Parse optional flags
+            shift 2
+            while [[ $# -gt 0 ]]; do
+                case "$1" in
+                    --isolated)
+                        isolated="true"
+                        shift
+                        ;;
+                    --model)
+                        if [[ $# -lt 2 ]]; then
+                            log_error "Missing model name for --model flag"
+                            exit 1
+                        fi
+                        model="$2"
+                        # Validate model
+                        case "$model" in
+                            opus|sonnet|haiku)
+                                shift 2
+                                ;;
+                            *)
+                                log_error "Invalid model: $model. Must be one of: opus, sonnet, haiku"
+                                exit 1
+                                ;;
+                        esac
+                        ;;
+                    *)
+                        log_error "Unknown option: $1"
+                        echo ""
+                        usage
+                        exit 1
+                        ;;
+                esac
+            done
+
+            # Use default model if not specified and DEFAULT_MODEL is set
+            if [[ -z "$model" ]] && [[ -n "$DEFAULT_MODEL" ]]; then
+                log_info "Using default model: $DEFAULT_MODEL"
+                model="$DEFAULT_MODEL"
             fi
-            create_worktree "$name" "$isolated"
+
+            create_worktree "$name" "$isolated" "$model"
             ;;
         list)
             list_worktrees

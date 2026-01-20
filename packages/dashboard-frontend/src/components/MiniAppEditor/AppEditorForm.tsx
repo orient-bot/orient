@@ -34,7 +34,7 @@ export default function AppEditorForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+        <label className="block text-sm font-medium text-foreground mb-2">
           What would you like to build or change?
         </label>
         <textarea
@@ -42,16 +42,14 @@ export default function AppEditorForm({
           onChange={(e) => setPrompt(e.target.value)}
           disabled={disabled}
           placeholder="E.g., Create a todo list app with add, complete, and delete features. Style it with Tailwind using a modern card design..."
-          className="w-full h-32 px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white resize-none"
+          className="input resize-none h-32"
         />
         <div className="flex items-center justify-between mt-2">
-          <p className="text-xs text-gray-500 dark:text-gray-400">
+          <p className="text-xs text-muted-foreground">
             {prompt.length} / {minLength} characters minimum
           </p>
           {!isValid && prompt.length > 0 && (
-            <p className="text-xs text-red-500">
-              Please enter at least {minLength} characters
-            </p>
+            <p className="text-xs text-destructive">Please enter at least {minLength} characters</p>
           )}
         </div>
       </div>
@@ -59,7 +57,7 @@ export default function AppEditorForm({
       <button
         type="submit"
         disabled={!isValid || disabled}
-        className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        className="btn btn-primary w-full flex items-center justify-center gap-2"
       >
         <Sparkles className="h-5 w-5" />
         {disabled ? 'Generating...' : 'Generate Code'}

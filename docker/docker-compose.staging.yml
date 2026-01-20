@@ -16,25 +16,12 @@
 
 services:
   # ===========================================================================
-  # Nginx - Reverse Proxy / Ingress (Staging)
+  # NOTE: Nginx is NOT overridden here - staging uses production nginx
   # ===========================================================================
-  nginx:
-    container_name: orienter-nginx-staging
-    # !override replaces volumes array to use staging-specific config
-    volumes: !override
-      - ./nginx-staging.conf:/etc/nginx/conf.d/default.conf:ro
-      - ./admin:/usr/share/nginx/html:ro
-      # Staging subdomain SSL certificates
-      - ../certbot/conf/live/${ORIENT_STAGING_DOMAIN}/fullchain.pem:/etc/nginx/ssl/${ORIENT_STAGING_DOMAIN}/fullchain.pem:ro
-      - ../certbot/conf/live/${ORIENT_STAGING_DOMAIN}/privkey.pem:/etc/nginx/ssl/${ORIENT_STAGING_DOMAIN}/privkey.pem:ro
-      # OpenCode staging subdomain SSL certificate
-      - ../certbot/conf/live/${ORIENT_CODE_STAGING_DOMAIN}/fullchain.pem:/etc/nginx/ssl/${ORIENT_CODE_STAGING_DOMAIN}/fullchain.pem:ro
-      - ../certbot/conf/live/${ORIENT_CODE_STAGING_DOMAIN}/privkey.pem:/etc/nginx/ssl/${ORIENT_CODE_STAGING_DOMAIN}/privkey.pem:ro
-      - ../certbot/conf/archive:/etc/letsencrypt/archive:ro
-    # !override replaces ports to use staging-specific ports (8080/8443)
-    ports: !override
-      - '8080:80'
-      - '8443:443'
+  # Production nginx (orienter-nginx) serves both production and staging via
+  # dynamic DNS resolution. Staging containers must be on the production network.
+  # See nginx-ssl.conf for routing configuration.
+  # ===========================================================================
 
   # ===========================================================================
   # PostgreSQL - Staging Database
@@ -93,12 +80,12 @@ services:
       - DATA_DIR=/app/data
       - LOG_DIR=/app/logs
       # Staging database connection
-      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/whatsapp_bot_staging
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@orienter-postgres-staging:5432/whatsapp_bot_staging
       - S3_BUCKET=${S3_BUCKET_STAGING:-orient-data-staging}
       - S3_SYNC_INTERVAL=${S3_SYNC_INTERVAL:-60}
       - AWS_ACCESS_KEY_ID=${MINIO_ROOT_USER}
       - AWS_SECRET_ACCESS_KEY=${MINIO_ROOT_PASSWORD}
-      - AWS_ENDPOINT_URL=http://minio:9000
+      - AWS_ENDPOINT_URL=http://orienter-minio-staging:9000
       - AWS_REGION=us-east-1
       - OAUTH_CALLBACK_PORT=${OAUTH_CALLBACK_PORT:-8765}
       - OAUTH_CALLBACK_HOST=${OAUTH_CALLBACK_HOST:-localhost}
@@ -132,15 +119,15 @@ services:
       - NODE_ENV=staging
       - TZ=Asia/Jerusalem
       # Staging database connection
-      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/whatsapp_bot_staging
-      - OPENCODE_SERVER_URL=http://opencode:5099
-      - OPENCODE_URL=http://opencode:5099
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@orienter-postgres-staging:5432/whatsapp_bot_staging
+      - OPENCODE_SERVER_URL=http://orienter-opencode-staging:5099
+      - OPENCODE_URL=http://orienter-opencode-staging:5099
       - OPENCODE_ENABLED=true
       - S3_BUCKET=${S3_BUCKET_STAGING:-orienter-data-staging}
       - S3_SYNC_INTERVAL=${S3_SYNC_INTERVAL:-60}
       - AWS_ACCESS_KEY_ID=${MINIO_ROOT_USER}
       - AWS_SECRET_ACCESS_KEY=${MINIO_ROOT_PASSWORD}
-      - AWS_ENDPOINT_URL=http://minio:9000
+      - AWS_ENDPOINT_URL=http://orienter-minio-staging:9000
       - AWS_REGION=us-east-1
       # Staging WhatsApp Cloud API settings (optional)
       - WHATSAPP_CLOUD_API_ENABLED=${WHATSAPP_CLOUD_API_ENABLED_STAGING:-false}
@@ -177,9 +164,9 @@ services:
     environment:
       - NODE_ENV=staging
       - TZ=Asia/Jerusalem
-      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/whatsapp_bot_staging
-      - OPENCODE_SERVER_URL=http://opencode:5099
-      - OPENCODE_URL=http://opencode:5099
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@orienter-postgres-staging:5432/whatsapp_bot_staging
+      - OPENCODE_SERVER_URL=http://orienter-opencode-staging:5099
+      - OPENCODE_URL=http://orienter-opencode-staging:5099
       - OPENCODE_ENABLED=true
       # Staging Slack credentials (from .env.staging)
       - SLACK_BOT_TOKEN=${SLACK_BOT_TOKEN_STAGING}
@@ -200,7 +187,7 @@ services:
     environment:
       - NODE_ENV=staging
       - TZ=Asia/Jerusalem
-      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/whatsapp_bot_staging
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@orienter-postgres-staging:5432/whatsapp_bot_staging
       - API_GATEWAY_PORT=4100
     volumes: !override
       - ../logs/staging:/app/logs
@@ -218,7 +205,7 @@ services:
       - NODE_ENV=staging
       - TZ=Asia/Jerusalem
       - DASHBOARD_PORT=4098
-      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/whatsapp_bot_staging
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@orienter-postgres-staging:5432/whatsapp_bot_staging
       - DASHBOARD_JWT_SECRET=${DASHBOARD_JWT_SECRET_STAGING}
     volumes: !override
       - ../logs/staging:/app/logs
@@ -234,7 +221,7 @@ services:
       - S3_BUCKET=${S3_BUCKET_STAGING:-orienter-data-staging}
       - AWS_ACCESS_KEY_ID=${MINIO_ROOT_USER}
       - AWS_SECRET_ACCESS_KEY=${MINIO_ROOT_PASSWORD}
-      - AWS_ENDPOINT_URL=http://minio:9000
+      - AWS_ENDPOINT_URL=http://orienter-minio-staging:9000
       - AWS_REGION=us-east-1
       - DATA_DIR=/app/data
       - LOG_DIR=/app/logs
@@ -256,3 +243,14 @@ volumes:
     driver: local
   opencode-storage-staging:
     driver: local
+
+# =============================================================================
+# Networks - Join production network for nginx routing
+# =============================================================================
+# Staging containers must be on the same network as production nginx.
+# Using external: true connects to the existing production network instead of
+# creating a new staging_orienter-network.
+networks:
+  orienter-network:
+    external: true
+    name: docker_orienter-network

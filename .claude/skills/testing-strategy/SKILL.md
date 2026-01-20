@@ -160,20 +160,23 @@ orienter/
 
 ## Decision Tree - Which Tests to Run
 
-| Modified Package/File             | Tests to Run               | Command                                                 |
-| --------------------------------- | -------------------------- | ------------------------------------------------------- |
-| `packages/core/src/**`            | Core unit tests            | `pnpm --filter @orient/core test`                       |
-| `packages/database/src/**`        | Database tests             | `pnpm --filter @orient/database test`                   |
-| `packages/database/src/schema/**` | Database E2E               | `pnpm --filter @orient/database test:e2e`               |
-| `packages/mcp-tools/src/**`       | MCP Tools tests            | `pnpm --filter @orient/mcp-tools test`                  |
-| `src/services/*.ts`               | Service unit tests         | `npm test -- src/services/__tests__/<name>.test.ts`     |
-| `src/services/openCode*.ts`       | OpenCode E2E               | `npx vitest run tests/e2e/opencode-session.e2e.test.ts` |
-| `src/tools/*.ts`                  | Tool tests                 | `npm run test:tools`                                    |
-| `src/db/*.ts`                     | E2E database tests         | `npm run test:e2e`                                      |
-| `packages/*/Dockerfile`           | Docker tests               | `pnpm test:docker:files`                                |
-| `docker/docker-compose*.yml`      | Docker compose tests       | `pnpm test:docker:files`                                |
-| `packages/*/src/main.ts`          | Entry point + Docker tests | Package test + `pnpm test:docker:files`                 |
-| Multiple files                    | All tests                  | `npm run test:ci`                                       |
+| Modified Package/File                           | Tests to Run               | Command                                                 |
+| ----------------------------------------------- | -------------------------- | ------------------------------------------------------- |
+| `packages/core/src/**`                          | Core unit tests            | `pnpm --filter @orient/core test`                       |
+| `packages/database/src/**`                      | Database tests             | `pnpm --filter @orient/database test`                   |
+| `packages/database/src/schema/**`               | Database E2E               | `pnpm --filter @orient/database test:e2e`               |
+| `packages/mcp-tools/src/**`                     | MCP Tools tests            | `pnpm --filter @orient/mcp-tools test`                  |
+| `packages/dashboard-frontend/src/routes.ts`     | Frontend routing tests     | `pnpm --filter dashboard-frontend test -- routes`       |
+| `packages/dashboard-frontend/src/components/**` | Frontend component tests   | `pnpm --filter dashboard-frontend test`                 |
+| `packages/dashboard-frontend/src/App.tsx`       | Frontend integration tests | `pnpm --filter dashboard-frontend test`                 |
+| `src/services/*.ts`                             | Service unit tests         | `npm test -- src/services/__tests__/<name>.test.ts`     |
+| `src/services/openCode*.ts`                     | OpenCode E2E               | `npx vitest run tests/e2e/opencode-session.e2e.test.ts` |
+| `src/tools/*.ts`                                | Tool tests                 | `npm run test:tools`                                    |
+| `src/db/*.ts`                                   | E2E database tests         | `npm run test:e2e`                                      |
+| `packages/*/Dockerfile`                         | Docker tests               | `pnpm test:docker:files`                                |
+| `docker/docker-compose*.yml`                    | Docker compose tests       | `pnpm test:docker:files`                                |
+| `packages/*/src/main.ts`                        | Entry point + Docker tests | Package test + `pnpm test:docker:files`                 |
+| Multiple files                                  | All tests                  | `npm run test:ci`                                       |
 
 ## Writing New Tests
 
@@ -222,6 +225,77 @@ describe('ModuleName', () => {
     });
   });
 });
+```
+
+### Frontend Routing Tests (React/Vitest)
+
+Test routing utilities (`getRouteState`, `getRoutePath`) for React applications:
+
+```typescript
+/**
+ * Tests for Frontend URL Routing
+ * Location: packages/dashboard-frontend/__tests__/routes.test.ts
+ */
+
+import { describe, it, expect } from 'vitest';
+import { getRouteState, getRoutePath, ROUTES } from '../src/routes';
+
+describe('Frontend URL Routing', () => {
+  // Test route constants exist
+  describe('ROUTES constants', () => {
+    it('should have all expected route paths', () => {
+      expect(ROUTES.SETTINGS).toBe('/settings');
+      expect(ROUTES.SETTINGS_APPEARANCE).toBe('/settings/appearance');
+    });
+  });
+
+  // Test getRouteState - derives state from URL pathname
+  describe('getRouteState', () => {
+    it('should match route path and return correct view state', () => {
+      const state = getRouteState('/settings/appearance');
+      expect(state.globalView).toBe('settings');
+      expect(state.settingsView).toBe('appearance');
+    });
+
+    it('should return default state for unknown paths', () => {
+      const state = getRouteState('/unknown');
+      expect(state.globalView).toBeNull();
+      expect(state.activeService).toBe('whatsapp'); // default
+    });
+  });
+
+  // Test getRoutePath - generates URL from view state
+  describe('getRoutePath', () => {
+    it('should return correct path for view', () => {
+      expect(getRoutePath('settings', 'whatsapp', 'appearance')).toBe('/settings/appearance');
+    });
+  });
+
+  // Test round-trip consistency
+  describe('route consistency', () => {
+    it('should have matching getRouteState and getRoutePath', () => {
+      const path = getRoutePath('settings', 'whatsapp', 'appearance');
+      const state = getRouteState(path);
+      expect(state.globalView).toBe('settings');
+      expect(state.settingsView).toBe('appearance');
+    });
+  });
+});
+```
+
+**Key patterns for routing tests:**
+
+1. **Route constants** - Verify all route paths are defined correctly
+2. **getRouteState** - Test URL → state derivation for each route pattern
+3. **getRoutePath** - Test state → URL generation
+4. **Round-trip consistency** - Ensure `getRouteState(getRoutePath(...))` returns expected state
+5. **Default handling** - Test fallback behavior for unknown routes
+
+**Run frontend tests:**
+
+```bash
+pnpm --filter dashboard-frontend test
+pnpm --filter dashboard-frontend test -- __tests__/routes.test.ts
 ```
 
 ### Cross-Package Integration Test Template
@@ -281,6 +355,247 @@ vi.mock('../../config', () => import('../../__mocks__/config'));
 For detailed mock usage, see [references/mock-catalog.md](references/mock-catalog.md).
 For test patterns, see [references/test-patterns.md](references/test-patterns.md).
 For file-test mapping, see [references/file-test-mapping.md](references/file-test-mapping.md).
+
+## Testing Database Services
+
+Database services (e.g., `StorageDatabase`, `SchedulerDatabase`) require special testing approaches due to their reliance on PostgreSQL connections.
+
+### Integration vs Unit Test Trade-offs
+
+| Approach                  | Pros                                       | Cons                                     | When to Use                     |
+| ------------------------- | ------------------------------------------ | ---------------------------------------- | ------------------------------- |
+| **Unit tests with mocks** | Fast, no DB needed, isolated               | Complex mocking, may miss real DB issues | Simple logic, utility methods   |
+| **Integration tests**     | Tests real DB behavior, catches SQL errors | Slower, requires PostgreSQL              | Schema changes, complex queries |
+| **API-level tests**       | Tests full stack, simpler mocking          | Less granular                            | Bridge endpoints, service APIs  |
+
+**Recommended approach**: Test database services through their API endpoints (like bridge API tests) rather than mocking `pg.Pool` directly. This provides better coverage with simpler test code.
+
+### Mocking pg.Pool (Complex - Often Avoid)
+
+Mocking `pg.Pool` is complex because of its class-based API and connection pattern. If you must mock it:
+
+```typescript
+// WARNING: This pattern is complex and fragile
+// Prefer API-level testing instead
+
+const mockQuery = vi.fn();
+const mockConnect = vi.fn();
+const mockRelease = vi.fn();
+
+vi.mock('pg', () => ({
+  default: {
+    Pool: class MockPool {
+      query = mockQuery;
+      connect = mockConnect;
+      on = vi.fn();
+      end = vi.fn();
+    },
+  },
+}));
+
+// Setup connect to return a client with query and release
+mockConnect.mockResolvedValue({
+  query: mockQuery,
+  release: mockRelease,
+});
+```
+
+**Why this is problematic:**
+
+1. The `pg` module uses default exports with a class
+2. You need to mock both pool-level and client-level methods
+3. Transaction testing requires careful mock sequencing
+4. Mock setup is verbose and error-prone
+
+### Better Pattern: API-Level Testing
+
+Test database functionality through the API layer that uses it:
+
+```typescript
+/**
+ * Test storage functionality through the bridge API
+ * Much simpler than mocking pg.Pool directly
+ */
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import express from 'express';
+import request from 'supertest';
+
+describe('Bridge API Storage Endpoints', () => {
+  let app: express.Express;
+  let mockStorageDb: {
+    set: ReturnType<typeof vi.fn>;
+    get: ReturnType<typeof vi.fn>;
+    delete: ReturnType<typeof vi.fn>;
+    list: ReturnType<typeof vi.fn>;
+    clear: ReturnType<typeof vi.fn>;
+  };
+
+  beforeEach(() => {
+    // Mock the database service (not pg.Pool)
+    mockStorageDb = {
+      set: vi.fn().mockResolvedValue(undefined),
+      get: vi.fn().mockResolvedValue(null),
+      delete: vi.fn().mockResolvedValue(true),
+      list: vi.fn().mockResolvedValue([]),
+      clear: vi.fn().mockResolvedValue(0),
+    };
+
+    // Create express app with mocked service
+    app = express();
+    app.use(express.json());
+
+    // Mount your route handler with mocked service
+    app.post('/api/apps/bridge', async (req, res) => {
+      const { method, params } = req.body;
+
+      switch (method) {
+        case 'storage.get':
+          const value = await mockStorageDb.get('app', params.key);
+          return res.json({ data: value });
+        // ... other methods
+      }
+    });
+  });
+
+  it('should return stored value', async () => {
+    mockStorageDb.get.mockResolvedValue({ items: ['a', 'b'] });
+
+    const response = await request(app)
+      .post('/api/apps/bridge')
+      .send({ method: 'storage.get', params: { key: 'data' } });
+
+    expect(response.status).toBe(200);
+    expect(response.body.data).toEqual({ items: ['a', 'b'] });
+  });
+});
+```
+
+### Testing Async Database Operations
+
+For async database operations, use these patterns:
+
+```typescript
+describe('Async Database Operations', () => {
+  it('should handle successful async operation', async () => {
+    mockDb.create.mockResolvedValue({ id: 1, name: 'test' });
+
+    const result = await service.createItem({ name: 'test' });
+
+    expect(result.id).toBe(1);
+    expect(mockDb.create).toHaveBeenCalledWith({ name: 'test' });
+  });
+
+  it('should handle async rejection', async () => {
+    mockDb.create.mockRejectedValue(new Error('Connection failed'));
+
+    await expect(service.createItem({ name: 'test' })).rejects.toThrow('Connection failed');
+  });
+
+  it('should handle multiple sequential operations', async () => {
+    mockDb.get
+      .mockResolvedValueOnce(null) // First call
+      .mockResolvedValueOnce({ id: 1 }); // Second call
+
+    const first = await service.findItem('missing');
+    const second = await service.findItem('exists');
+
+    expect(first).toBeNull();
+    expect(second).toEqual({ id: 1 });
+  });
+});
+```
+
+### E2E Database Tests
+
+For tests that need a real database:
+
+```typescript
+/**
+ * E2E Database Test Template
+ * Requires: DATABASE_URL or TEST_DATABASE_URL environment variable
+ */
+import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
+import { StorageDatabase } from '../../packages/dashboard/src/services/storageDatabase.js';
+
+const TEST_DB_URL = process.env.TEST_DATABASE_URL || process.env.DATABASE_URL;
+const dbAvailable = !!TEST_DB_URL;
+
+describe.skipIf(!dbAvailable)('StorageDatabase E2E', () => {
+  let db: StorageDatabase;
+  const testAppName = `test-app-${Date.now()}`; // Unique per test run
+
+  beforeAll(async () => {
+    db = new StorageDatabase(TEST_DB_URL);
+    await db.initialize();
+  });
+
+  afterAll(async () => {
+    // Clean up test data
+    await db.clear(testAppName);
+    await db.close();
+  });
+
+  beforeEach(async () => {
+    // Reset state between tests
+    await db.clear(testAppName);
+  });
+
+  it('should set and get a value', async () => {
+    await db.set(testAppName, 'key1', { data: 'value1' });
+    const result = await db.get(testAppName, 'key1');
+    expect(result).toEqual({ data: 'value1' });
+  });
+
+  it('should list keys for an app', async () => {
+    await db.set(testAppName, 'a', 1);
+    await db.set(testAppName, 'b', 2);
+
+    const keys = await db.list(testAppName);
+    expect(keys).toContain('a');
+    expect(keys).toContain('b');
+  });
+});
+```
+
+### Test Data Isolation
+
+When testing database services, ensure test isolation:
+
+```typescript
+// Use unique identifiers per test run
+const testAppName = `test-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+// Or use test-specific prefixes
+const TEST_PREFIX = 'test_';
+
+beforeEach(async () => {
+  // Clean up any previous test data
+  await db.query(`DELETE FROM app_storage WHERE app_name LIKE '${TEST_PREFIX}%'`);
+});
+
+afterAll(async () => {
+  // Final cleanup
+  await db.query(`DELETE FROM app_storage WHERE app_name LIKE '${TEST_PREFIX}%'`);
+});
+```
+
+### Decision Tree: Database Test Approach
+
+```
+Need to test database service?
+│
+├─ Is it simple CRUD logic?
+│  └─ YES → Mock the service interface, test through API
+│
+├─ Does it involve complex SQL/transactions?
+│  └─ YES → Write E2E test with real database
+│
+├─ Are you testing permission/capability checks?
+│  └─ YES → Mock at service level, test API responses
+│
+└─ Are you testing error handling?
+   └─ Use mockRejectedValue() at service level
+```
 
 ## Coverage Requirements
 

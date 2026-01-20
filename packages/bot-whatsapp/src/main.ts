@@ -244,6 +244,30 @@ async function main(): Promise<void> {
     // Setup graceful shutdown
     setupGracefulShutdown(connection);
 
+    // Start the API server FIRST (before connection.connect) so health endpoint is available immediately
+    // This allows the dev script to detect that the bot process started successfully
+    const port = parseInt(process.env.WHATSAPP_PORT || '4097', 10);
+    const apiServer = createWhatsAppApiServer(connection, {
+      port,
+      host: '0.0.0.0',
+    });
+
+    await apiServer.start();
+
+    logger.info('WhatsApp API server started', {
+      port,
+      endpoints: [
+        '/',
+        '/qr',
+        '/qr/status',
+        '/qr.png',
+        '/pairing-code',
+        '/health',
+        '/flush-session',
+        '/factory-reset',
+      ],
+    });
+
     // Listen for events
     connection.on('connected', () => {
       logger.info('WhatsApp connected successfully');
@@ -580,31 +604,8 @@ async function main(): Promise<void> {
       }
     });
 
-    // Start the bot connection
+    // Start the bot connection (API server already started above)
     await connection.connect();
-
-    // Start the API server with all endpoints (QR, pairing code, health, etc.)
-    const port = parseInt(process.env.WHATSAPP_PORT || '4097', 10);
-    const apiServer = createWhatsAppApiServer(connection, {
-      port,
-      host: '0.0.0.0',
-    });
-
-    await apiServer.start();
-
-    logger.info('WhatsApp API server started', {
-      port,
-      endpoints: [
-        '/',
-        '/qr',
-        '/qr/status',
-        '/qr.png',
-        '/pairing-code',
-        '/health',
-        '/flush-session',
-        '/factory-reset',
-      ],
-    });
 
     op.success('WhatsApp Bot started successfully');
 

@@ -129,6 +129,26 @@ describe('Docker Compose Configuration', () => {
       expect(compose.volumes['postgres-data']).toBeDefined();
       expect(compose.volumes['opencode-data']).toBeDefined();
     });
+
+    it('should use container name in DATABASE_URL to avoid DNS conflicts with staging', () => {
+      // CRITICAL: When staging and production share the same network, both postgres
+      // containers have the DNS alias "postgres". Using the container name
+      // "orienter-postgres" ensures production services connect to the correct database.
+      const compose = parseYaml(path.join(dockerDir, 'docker-compose.v2.yml'));
+
+      const servicesWithDb = ['opencode', 'bot-whatsapp', 'bot-slack', 'api-gateway', 'dashboard'];
+
+      for (const serviceName of servicesWithDb) {
+        const service = compose.services[serviceName];
+        if (service?.environment) {
+          const dbUrl = service.environment.find((env: string) => env.startsWith('DATABASE_URL='));
+          if (dbUrl) {
+            expect(dbUrl).toContain('@orienter-postgres:');
+            expect(dbUrl).not.toMatch(/@postgres:/);
+          }
+        }
+      }
+    });
   });
 
   describe('Compose File Validation', () => {
