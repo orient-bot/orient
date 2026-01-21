@@ -70,7 +70,7 @@ services:
   # OpenCode Server + MCP Server (Staging)
   # ===========================================================================
   opencode:
-    image: ghcr.io/orient-code/orient/opencode:staging
+    image: ghcr.io/orient-bot/orient/opencode:staging
     container_name: orienter-opencode-staging
     environment:
       - NODE_ENV=staging
@@ -80,7 +80,7 @@ services:
       - DATA_DIR=/app/data
       - LOG_DIR=/app/logs
       # Staging database connection
-      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@orienter-postgres-staging:5432/whatsapp_bot_staging
+      - DATABASE_URL=postgresql://orient:orient@orienter-postgres-staging:5432/whatsapp_bot_staging
       - S3_BUCKET=${S3_BUCKET_STAGING:-orient-data-staging}
       - S3_SYNC_INTERVAL=${S3_SYNC_INTERVAL:-60}
       - AWS_ACCESS_KEY_ID=${MINIO_ROOT_USER}
@@ -113,13 +113,13 @@ services:
   # WhatsApp Bot (Staging)
   # ===========================================================================
   bot-whatsapp:
-    image: ghcr.io/orient-code/orient/whatsapp-bot:staging
+    image: ghcr.io/orient-bot/orient/whatsapp-bot:staging
     container_name: orienter-bot-whatsapp-staging
     environment:
       - NODE_ENV=staging
       - TZ=Asia/Jerusalem
       # Staging database connection
-      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@orienter-postgres-staging:5432/whatsapp_bot_staging
+      - DATABASE_URL=postgresql://orient:orient@orienter-postgres-staging:5432/whatsapp_bot_staging
       - OPENCODE_SERVER_URL=http://orienter-opencode-staging:5099
       - OPENCODE_URL=http://orienter-opencode-staging:5099
       - OPENCODE_ENABLED=true
@@ -159,12 +159,12 @@ services:
   # Slack Bot (Staging - Optional)
   # ===========================================================================
   bot-slack:
-    image: ghcr.io/orient-code/orient/slack-bot:staging
+    image: ghcr.io/orient-bot/orient/slack-bot:staging
     container_name: orienter-bot-slack-staging
     environment:
       - NODE_ENV=staging
       - TZ=Asia/Jerusalem
-      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@orienter-postgres-staging:5432/whatsapp_bot_staging
+      - DATABASE_URL=postgresql://orient:orient@orienter-postgres-staging:5432/whatsapp_bot_staging
       - OPENCODE_SERVER_URL=http://orienter-opencode-staging:5099
       - OPENCODE_URL=http://orienter-opencode-staging:5099
       - OPENCODE_ENABLED=true
@@ -182,12 +182,12 @@ services:
   # API Gateway (Staging - Optional)
   # ===========================================================================
   api-gateway:
-    image: ghcr.io/orient-code/orient/api-gateway:staging
+    image: ghcr.io/orient-bot/orient/api-gateway:staging
     container_name: orienter-api-gateway-staging
     environment:
       - NODE_ENV=staging
       - TZ=Asia/Jerusalem
-      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@orienter-postgres-staging:5432/whatsapp_bot_staging
+      - DATABASE_URL=postgresql://orient:orient@orienter-postgres-staging:5432/whatsapp_bot_staging
       - API_GATEWAY_PORT=4100
     volumes: !override
       - ../logs/staging:/app/logs
@@ -199,7 +199,7 @@ services:
   # Dashboard - Staging
   # ===========================================================================
   dashboard:
-    image: ghcr.io/orient-code/orient/dashboard:staging
+    image: ghcr.io/orient-bot/orient/dashboard:staging
     container_name: orienter-dashboard-staging
     environment:
       - NODE_ENV=staging
@@ -207,10 +207,21 @@ services:
       - DASHBOARD_PORT=4098
       - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@orienter-postgres-staging:5432/whatsapp_bot_staging
       - DASHBOARD_JWT_SECRET=${DASHBOARD_JWT_SECRET_STAGING}
+      # SSH key path for production monitoring (mounted from ~/.ssh)
+      - SSH_KEY_PATH=/app/.ssh/id_rsa
     volumes: !override
       - ../logs/staging:/app/logs
+      # Mount SSH key for production server monitoring (from docker/.ssh directory)
+      - ./.ssh:/app/.ssh:ro
     ports: !override
       - '5098:4098'
+    # Override healthcheck with longer start_period for first deployment
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:4098/health']
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
 
   # ===========================================================================
   # S3 Sync Service (Staging - Optional)

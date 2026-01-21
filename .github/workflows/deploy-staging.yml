@@ -216,6 +216,8 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            DEPLOY_ENV=prod
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -491,17 +493,95 @@ jobs:
             set -e
 
             DEPLOY_DIR="${HOME}/orient"
+            DOCKER_DIR="${DEPLOY_DIR}/docker"
             MIGRATIONS_DIR="${DEPLOY_DIR}/data/migrations"
+            COMPOSE_FILES="-f docker-compose.v2.yml -f docker-compose.staging.yml"
 
-            # Wait for staging postgres to be ready
-            echo "Waiting for PostgreSQL (staging)..."
+            # Ensure staging postgres is running before migrations
+            echo "Ensuring PostgreSQL (staging) is running..."
+            cd "${DOCKER_DIR}"
+
+            # Function to check if postgres is accepting connections
+            check_postgres() {
+              sudo docker exec orienter-postgres-staging psql -U orient -d whatsapp_bot_staging -c "SELECT 1" > /dev/null 2>&1 || \
+              sudo docker exec orienter-postgres-staging psql -U postgres -c "SELECT 1" > /dev/null 2>&1
+            }
+
+            # Start or restart postgres container
+            if ! sudo docker ps --format '{{.Names}}' | grep -qx "orienter-postgres-staging"; then
+              echo "  Starting postgres container..."
+              # Explicitly set POSTGRES_USER to ensure correct initialization
+              sudo POSTGRES_USER=orient POSTGRES_PASSWORD=orient docker compose --env-file "${DEPLOY_DIR}/.env" ${COMPOSE_FILES} up -d postgres
+              sleep 10
+            else
+              echo "  PostgreSQL (staging) container is running, checking if accepting connections..."
+              # Quick check - if not accepting connections, check if volume is corrupted
+              if ! check_postgres; then
+                echo "  Container running but postgres not accepting connections. Checking logs..."
+                sudo docker logs --tail 20 orienter-postgres-staging 2>&1 || true
+
+                # Check if the volume is corrupted (neither orient nor postgres users exist)
+                # This happens when the volume was initialized with a different POSTGRES_USER
+                echo "  Checking if staging postgres volume needs to be recreated..."
+                if ! sudo docker exec orienter-postgres-staging psql -U postgres -c "SELECT 1" > /dev/null 2>&1; then
+                  echo "  WARNING: Staging postgres volume is corrupted (no postgres user)"
+                  echo "  Recreating staging postgres container with fresh volume..."
+                  sudo docker rm -f orienter-postgres-staging 2>/dev/null || true
+                  sudo docker volume rm docker_postgres-data-staging 2>/dev/null || true
+                  # Ensure POSTGRES_USER is set correctly before starting postgres
+                  # The staging compose expects this variable to be 'orient'
+                  sudo POSTGRES_USER=orient POSTGRES_PASSWORD=orient docker compose --env-file "${DEPLOY_DIR}/.env" ${COMPOSE_FILES} up -d postgres
+                  sleep 15
+                else
+                  echo "  Restarting staging postgres container..."
+                  sudo docker restart orienter-postgres-staging
+                  sleep 10
+                fi
+              fi
+            fi
+
+            # Wait for staging postgres to be ready (try with orient user first, then postgres user)
+            echo "Waiting for PostgreSQL (staging) to accept connections..."
+            POSTGRES_READY=false
             for i in {1..30}; do
               if sudo docker exec orienter-postgres-staging psql -U orient -d whatsapp_bot_staging -c "SELECT 1" > /dev/null 2>&1; then
-                echo "PostgreSQL (staging) is ready"
+                echo "PostgreSQL (staging) is ready (orient user)"
+                POSTGRES_READY=true
+                break
+              elif sudo docker exec orienter-postgres-staging psql -U postgres -c "SELECT 1" > /dev/null 2>&1; then
+                echo "PostgreSQL (staging) is ready (postgres user only)"
+                POSTGRES_READY=true
                 break
               fi
+              echo "  Attempt $i/30 - waiting..."
               sleep 2
             done
+
+            if [ "$POSTGRES_READY" != "true" ]; then
+              echo "ERROR: PostgreSQL (staging) failed to start after restart"
+              echo "Container logs:"
+              sudo docker logs --tail 50 orienter-postgres-staging 2>&1 || true
+              exit 1
+            fi
+
+            # Ensure orient user and database exist (creates if missing)
+            echo "Ensuring orient user and database exist..."
+            sudo docker exec orienter-postgres-staging psql -U postgres -c "
+              DO \$\$
+              BEGIN
+                IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'orient') THEN
+                  CREATE ROLE orient WITH LOGIN SUPERUSER PASSWORD 'orient';
+                  RAISE NOTICE 'Created orient user';
+                END IF;
+              END
+              \$\$;
+            " 2>/dev/null || true
+
+            sudo docker exec orienter-postgres-staging psql -U postgres -c "
+              SELECT 'CREATE DATABASE whatsapp_bot_staging OWNER orient'
+              WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'whatsapp_bot_staging')
+              \gexec
+            " 2>/dev/null || true
 
             # Create migrations tracking table if not exists
             sudo docker exec orienter-postgres-staging psql -U orient -d whatsapp_bot_staging -c "
@@ -601,7 +681,7 @@ jobs:
 
             echo "Removing lingering staging containers..."
             # Note: nginx is NOT included - staging uses production nginx with dynamic DNS
-            sudo docker rm -f orienter-postgres-staging orienter-bot-whatsapp-staging orienter-opencode-staging orienter-bot-slack-staging orienter-dashboard-staging 2>/dev/null || true
+            sudo docker rm -f orienter-postgres-staging orienter-minio-staging orienter-minio-setup-staging orienter-bot-whatsapp-staging orienter-opencode-staging orienter-bot-slack-staging orienter-dashboard-staging orienter-api-gateway-staging orienter-s3-sync-staging 2>/dev/null || true
 
             echo "Cleaning up..."
             sudo docker container prune -f 2>/dev/null || true

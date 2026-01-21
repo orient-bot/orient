@@ -19,10 +19,10 @@
  *   --force-seed            Force re-seed even if agents exist
  */
 
-import { getAgentRegistry } from '../src/services/agentRegistry.js';
+import { getAgentRegistry } from '@orient/agents';
+import { createServiceLogger } from '@orient/core';
+import { closeDatabase } from '@orient/database';
 import { seedAgents } from '../data/seeds/agents.js';
-import { createServiceLogger } from '../src/utils/logger.js';
-import { closeDatabase } from '../src/db/client.js';
 import path from 'path';
 
 const logger = createServiceLogger('sync-agent-config');
@@ -190,11 +190,11 @@ async function main(): Promise<void> {
     // Sync to filesystem
     if (options.dryRun) {
       console.log('🔍 Dry run - no changes will be made\n');
-      
+
       // List what would be synced
       const availableSkills = await registry.listAvailableSkills(options.skillsSourceDir);
       const enabledSkills = agentContext?.skills || [];
-      
+
       console.log('Skills that would be synced:');
       for (const skill of availableSkills) {
         const enabled = enabledSkills.includes(skill);

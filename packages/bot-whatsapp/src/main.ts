@@ -352,6 +352,40 @@ async function main(): Promise<void> {
               message.isGroup,
               message.isGroup ? message.chatId : undefined
             );
+
+            // For group messages, fetch and store group metadata in the background
+            if (message.isGroup && message.chatId) {
+              setImmediate(async () => {
+                try {
+                  const socket = connection.getSocket();
+                  if (socket && socket.groupMetadata) {
+                    const metadata = await socket.groupMetadata(message.chatId);
+                    if (metadata?.subject) {
+                      const participantCount = Array.isArray(metadata.participants)
+                        ? metadata.participants.length
+                        : typeof metadata.participants === 'number'
+                          ? metadata.participants
+                          : 0;
+                      await messageDb.upsertGroup(
+                        message.chatId,
+                        metadata.subject,
+                        metadata.subject,
+                        participantCount
+                      );
+                      logger.debug('Stored group metadata from incoming message', {
+                        groupId: message.chatId,
+                        name: metadata.subject,
+                      });
+                    }
+                  }
+                } catch (error) {
+                  logger.debug('Failed to fetch group metadata', {
+                    groupId: message.chatId,
+                    error: error instanceof Error ? error.message : String(error),
+                  });
+                }
+              });
+            }
           } catch (storeError) {
             logger.warn('Failed to store message', { error: String(storeError) });
           }

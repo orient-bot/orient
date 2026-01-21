@@ -36,9 +36,20 @@ export function createAgentsRoutes(
       const allAgents = await db.select().from(agents);
       const enabledAgents = allAgents.filter((a) => a.enabled);
 
+      // Count distinct enabled skills from agent_skills table
+      const enabledSkills = await db
+        .selectDistinct({ skillName: agentSkills.skillName })
+        .from(agentSkills)
+        .where(eq(agentSkills.enabled, true));
+
+      // Count context rules
+      const allContextRules = await db.select().from(contextRules);
+
       res.json({
         totalAgents: allAgents.length,
         enabledAgents: enabledAgents.length,
+        totalSkills: enabledSkills.length,
+        totalContextRules: allContextRules.length,
       });
     } catch (error) {
       logger.error('Failed to get agent stats', {
@@ -192,7 +203,7 @@ export function createAgentsRoutes(
 
       res.json({
         ...agent,
-        skills: skills.map((s) => ({ name: s.skillName, enabled: s.enabled })),
+        skills: skills.map((s) => ({ id: s.id, skillName: s.skillName, enabled: s.enabled })),
         tools: tools.map((t) => ({
           id: t.id,
           agentId: t.agentId,
@@ -343,7 +354,9 @@ export function createAgentsRoutes(
     try {
       const { id } = req.params;
       const skills = await db.select().from(agentSkills).where(eq(agentSkills.agentId, id));
-      res.json({ skills: skills.map((s) => ({ name: s.skillName, enabled: s.enabled })) });
+      res.json({
+        skills: skills.map((s) => ({ id: s.id, skillName: s.skillName, enabled: s.enabled })),
+      });
     } catch (error) {
       logger.error('Failed to get agent skills', {
         error: error instanceof Error ? error.message : String(error),
@@ -374,7 +387,13 @@ export function createAgentsRoutes(
       }
 
       const updatedSkills = await db.select().from(agentSkills).where(eq(agentSkills.agentId, id));
-      res.json({ skills: updatedSkills.map((s) => ({ name: s.skillName, enabled: s.enabled })) });
+      res.json({
+        skills: updatedSkills.map((s) => ({
+          id: s.id,
+          skillName: s.skillName,
+          enabled: s.enabled,
+        })),
+      });
     } catch (error) {
       logger.error('Failed to update agent skills', {
         error: error instanceof Error ? error.message : String(error),

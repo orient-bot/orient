@@ -1,7 +1,7 @@
 name: onboarder-list-pending
 description: Onboarder should use config_list_pending to show pending actions
 type: tool_selection
-agent: onboarder
+agent: ori
 
 context:
   platform: dashboard

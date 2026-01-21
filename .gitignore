@@ -486,6 +486,9 @@ deploy.*.local.sh
 # .claude/skills/personal-*/
 .claude/skills/local/
 
+# Personal packages (for orient-core work)
+packages/personal-*/
+
 # Meeting notes (user-specific)
 meetings/action-items-report.md
 # Uncomment to exclude all personal meeting notes:
