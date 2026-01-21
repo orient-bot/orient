@@ -1,3 +1,8 @@
+---
+name: personal-crypto-secrets-management
+description: 'Diagnose and resolve AES-256-GCM crypto key mismatches in the Orient secrets service'
+---
+
 # Crypto Secrets Management
 
 Guide for diagnosing and resolving crypto key mismatches in the Orient secrets service.
@@ -7,6 +12,7 @@ Guide for diagnosing and resolving crypto key mismatches in the Orient secrets s
 The Orient uses AES-256-GCM encryption to store secrets in PostgreSQL. The encryption key is derived from `ORIENT_MASTER_KEY` using scrypt with a fixed salt.
 
 **Key files:**
+
 - `packages/core/src/crypto.ts` - Encryption/decryption functions
 - `packages/database-services/src/secretsService.ts` - Database operations for secrets
 - `scripts/load-secrets.ts` - Load secrets as shell exports
@@ -47,6 +53,7 @@ npx tsx scripts/load-secrets.ts 2>&1
 ### 4. Check development vs production key
 
 In development, if `ORIENT_MASTER_KEY` is not set, the code uses a default dev key:
+
 ```typescript
 const DEV_MASTER_KEY = 'orient-dev-master-key-do-not-use-in-production-32chars';
 ```
@@ -126,6 +133,7 @@ export OPENAI_API_KEY="sk-..."
 ### 1. Document your master key
 
 Store the `ORIENT_MASTER_KEY` securely:
+
 - Password manager
 - Encrypted notes
 - `.env` file (gitignored)
@@ -133,6 +141,7 @@ Store the `ORIENT_MASTER_KEY` securely:
 ### 2. Use consistent keys across environments
 
 Each environment (dev, staging, prod) should have its own consistent key:
+
 - Development: Can use default dev key (unset `ORIENT_MASTER_KEY`)
 - Production: Must set a secure `ORIENT_MASTER_KEY`
 
