@@ -8,6 +8,7 @@
 
 import { Router, Request, Response } from 'express';
 import { createServiceLogger } from '@orient/core';
+import type { MiniappEditService } from '@orient/apps';
 import type { AppsService } from '../../services/appsService.js';
 import type { StorageDatabase } from '../../services/storageDatabase.js';
 
@@ -22,8 +23,9 @@ interface BridgeServices {
  */
 export function createAppsRoutes(
   appsService: AppsService,
-  _requireAuth: (req: Request, res: Response, next: () => void) => void,
-  bridgeServices?: BridgeServices
+  requireAuth: (req: Request, res: Response, next: () => void) => void,
+  bridgeServices?: BridgeServices,
+  miniappEditService?: MiniappEditService
 ): Router {
   const router = Router();
 
@@ -274,6 +276,249 @@ export function createAppsRoutes(
       res.status(500).json({ error: 'Bridge call failed' });
     }
   });
+
+  // ============================================
+  // AI-POWERED MINIAPP EDITING ROUTES
+  // ============================================
+
+  // Only add edit routes if miniappEditService is available
+  if (miniappEditService) {
+    // Start or continue editing an app
+    router.post('/:appName/edit', requireAuth, async (req: Request, res: Response) => {
+      try {
+        const { appName } = req.params;
+        const { prompt, createNew, continueSession } = req.body;
+
+        // Validation
+        if (!prompt || typeof prompt !== 'string' || prompt.length < 10) {
+          res.status(400).json({
+            error: 'Prompt is required and must be at least 10 characters',
+          });
+          return;
+        }
+
+        if (!appName || !/^[a-z0-9-]+$/.test(appName)) {
+          res.status(400).json({
+            error: 'App name must be lowercase with hyphens only',
+          });
+          return;
+        }
+
+        let result;
+
+        // Continue existing session or start new one
+        if (continueSession) {
+          logger.info('Continuing edit session', { appName, sessionId: continueSession });
+          result = await miniappEditService.continueEdit(continueSession, prompt);
+        } else {
+          logger.info('Starting new edit session', { appName, createNew });
+          result = await miniappEditService.startEditSession(appName, prompt, createNew || false);
+        }
+
+        res.json({
+          success: true,
+          sessionId: result.sessionId,
+          portalUrl: result.portalUrl,
+          response: result.response,
+          commitHash: result.commitHash,
+          buildStatus: result.buildStatus,
+        });
+      } catch (error) {
+        logger.error('Failed to edit app', {
+          appName: req.params.appName,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        res.status(500).json({
+          error: 'Failed to edit app',
+          message: error instanceof Error ? error.message : String(error),
+        });
+      }
+    });
+
+    // Trigger a build for an app
+    router.post('/:appName/build', requireAuth, async (req: Request, res: Response) => {
+      try {
+        const { appName } = req.params;
+        const { sessionId } = req.body;
+
+        if (!sessionId) {
+          res.status(400).json({ error: 'Session ID is required' });
+          return;
+        }
+
+        logger.info('Building app', { appName, sessionId });
+        const buildResult = await miniappEditService.buildApp(sessionId);
+
+        res.json({
+          success: buildResult.success,
+          buildOutput: buildResult.output,
+          duration: buildResult.duration,
+          error: buildResult.error,
+        });
+      } catch (error) {
+        logger.error('Failed to build app', {
+          appName: req.params.appName,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        res.status(500).json({
+          error: 'Failed to build app',
+          message: error instanceof Error ? error.message : String(error),
+        });
+      }
+    });
+
+    // Rollback to a previous commit
+    router.post('/:appName/rollback', requireAuth, async (req: Request, res: Response) => {
+      try {
+        const { appName } = req.params;
+        const { sessionId, commitHash } = req.body;
+
+        if (!sessionId || !commitHash) {
+          res.status(400).json({ error: 'Session ID and commit hash are required' });
+          return;
+        }
+
+        logger.info('Rolling back to commit', { appName, sessionId, commitHash });
+        await miniappEditService.rollbackToCommit(sessionId, commitHash);
+
+        res.json({
+          success: true,
+          message: `Rolled back to commit ${commitHash}`,
+        });
+      } catch (error) {
+        logger.error('Failed to rollback app', {
+          appName: req.params.appName,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        res.status(500).json({
+          error: 'Failed to rollback app',
+          message: error instanceof Error ? error.message : String(error),
+        });
+      }
+    });
+
+    // Get commit history for a session
+    router.get('/:appName/history', requireAuth, async (req: Request, res: Response) => {
+      try {
+        const { appName } = req.params;
+        const { sessionId } = req.query;
+
+        if (!sessionId || typeof sessionId !== 'string') {
+          res.status(400).json({ error: 'Session ID is required' });
+          return;
+        }
+
+        logger.info('Getting commit history', { appName, sessionId });
+        const history = await miniappEditService.getHistory(sessionId);
+
+        res.json({
+          success: true,
+          commits: history.commits,
+        });
+      } catch (error) {
+        logger.error('Failed to get app history', {
+          appName: req.params.appName,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        res.status(500).json({
+          error: 'Failed to get app history',
+          message: error instanceof Error ? error.message : String(error),
+        });
+      }
+    });
+
+    // Close a session and optionally create PR
+    router.post('/:appName/close-session', requireAuth, async (req: Request, res: Response) => {
+      try {
+        const { appName } = req.params;
+        const { sessionId, merge } = req.body;
+
+        if (!sessionId) {
+          res.status(400).json({ error: 'Session ID is required' });
+          return;
+        }
+
+        logger.info('Closing session', { appName, sessionId, merge: merge || false });
+        const result = await miniappEditService.closeSession(sessionId, merge || false);
+
+        res.json({
+          success: true,
+          message: 'Session closed',
+          prUrl: result.prUrl,
+        });
+      } catch (error) {
+        logger.error('Failed to close session', {
+          appName: req.params.appName,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        res.status(500).json({
+          error: 'Failed to close session',
+          message: error instanceof Error ? error.message : String(error),
+        });
+      }
+    });
+
+    // Get active sessions
+    router.get('/sessions/active', requireAuth, async (_req: Request, res: Response) => {
+      try {
+        logger.info('Getting active sessions');
+        const sessions = await miniappEditService.getActiveSessions();
+
+        res.json({
+          success: true,
+          sessions: sessions.map((s) => ({
+            id: s.id,
+            appName: s.appName,
+            sessionId: s.sessionId,
+            branchName: s.branchName,
+            createdAt: s.createdAt,
+            updatedAt: s.updatedAt,
+          })),
+        });
+      } catch (error) {
+        logger.error('Failed to get active sessions', {
+          error: error instanceof Error ? error.message : String(error),
+        });
+        res.status(500).json({
+          error: 'Failed to get active sessions',
+          message: error instanceof Error ? error.message : String(error),
+        });
+      }
+    });
+
+    // Get sessions for a specific app
+    router.get('/:appName/sessions', requireAuth, async (req: Request, res: Response) => {
+      try {
+        const { appName } = req.params;
+
+        logger.info('Getting sessions for app', { appName });
+        const sessions = await miniappEditService.getAppSessions(appName);
+
+        res.json({
+          success: true,
+          sessions: sessions.map((s) => ({
+            id: s.id,
+            sessionId: s.sessionId,
+            branchName: s.branchName,
+            createdAt: s.createdAt,
+            updatedAt: s.updatedAt,
+            closedAt: s.closedAt,
+          })),
+        });
+      } catch (error) {
+        logger.error('Failed to get app sessions', {
+          appName: req.params.appName,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        res.status(500).json({
+          error: 'Failed to get app sessions',
+          message: error instanceof Error ? error.message : String(error),
+        });
+      }
+    });
+
+    logger.info('Miniapp edit routes initialized');
+  }
 
   logger.info('Apps routes initialized');
 

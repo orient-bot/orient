@@ -1,7 +1,7 @@
 name: whatsapp-group-messages
 description: Agent should search WhatsApp group messages when asked about a specific group
 type: tool_selection
-agent: pm-assistant
+agent: ori
 
 context:
   platform: whatsapp

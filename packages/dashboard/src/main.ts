@@ -111,7 +111,7 @@ async function main(): Promise<void> {
       const { resolve, dirname } = await import('path');
       const { fileURLToPath } = await import('url');
       const __dirname = dirname(fileURLToPath(import.meta.url));
-      const devFrontendPath = resolve(__dirname, '../frontend/dist');
+      const devFrontendPath = resolve(__dirname, '../../dashboard-frontend/dist');
       if (existsSync(devFrontendPath)) {
         staticPath = devFrontendPath;
         logger.info('Auto-detected frontend path', { staticPath });

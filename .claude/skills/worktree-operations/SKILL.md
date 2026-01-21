@@ -244,6 +244,83 @@ pnpm --filter @orient/core run test
 pnpm turbo run test
 ```
 
+### Running Evals in Worktrees
+
+**Important**: Focused worktrees may lack the full eval runner setup (`src/eval/cli.ts`). Use these alternatives:
+
+#### Option 1: Validate YAML Schema (Always Available)
+
+```bash
+# Validate all eval YAML files against schema
+npx tsx evals/validate-evals.test.ts
+
+# Or manually with Node.js
+node -e "
+const yaml = require('js-yaml');
+const fs = require('fs');
+const data = yaml.load(fs.readFileSync('evals/response-quality/pm-assistant-greeting-no-tools.yaml', 'utf8'));
+console.log('✅ Valid YAML:', data.name);
+"
+```
+
+#### Option 2: JSON Config Validation
+
+```bash
+# Validate opencode.json structure and check for tool guidelines
+node -e "
+const data = JSON.parse(require('fs').readFileSync('opencode.json', 'utf8'));
+Object.entries(data.agent || {}).forEach(([name, config]) => {
+  const hasGuidelines = (config.prompt || '').includes('Tool Usage Guidelines');
+  console.log(name + ': ' + (hasGuidelines ? '✅ Has guidelines' : '⚠️  No guidelines'));
+});
+"
+```
+
+#### Option 3: Full Eval Runner (Requires Full Repo)
+
+If you need the full eval runner:
+
+```bash
+# Check if eval CLI exists
+ls src/eval/cli.ts 2>/dev/null && echo "✅ Eval runner available" || echo "❌ Eval runner not in this worktree"
+
+# If available, run evals
+pnpm eval                    # Run all evals
+pnpm eval:fast               # Run with fast matrix
+pnpm eval:full               # Run full matrix
+
+# Run specific eval types
+pnpm eval -- --type tool_selection
+pnpm eval -- --agent pm-assistant
+```
+
+#### Option 4: Merge to Full Repo and Test
+
+For comprehensive eval testing:
+
+```bash
+# 1. Commit your changes
+git add -A && git commit -m "feat: add tool usage guidelines"
+
+# 2. Push to remote
+git push origin HEAD
+
+# 3. In the main repo (with full eval setup)
+git fetch origin
+git checkout your-branch
+pnpm install
+pnpm eval
+```
+
+#### What Each Validation Approach Tests
+
+| Approach         | Tests                                   | Use When                            |
+| ---------------- | --------------------------------------- | ----------------------------------- |
+| YAML Schema      | YAML syntax, required fields, structure | Quick validation of new evals       |
+| JSON Config      | JSON syntax, prompt content             | Checking system instruction changes |
+| Full Eval Runner | Actual agent behavior with LLM          | Pre-merge comprehensive testing     |
+| Merge & Test     | End-to-end in CI/CD                     | Final validation before deploy      |
+
 ### Development
 
 ```bash

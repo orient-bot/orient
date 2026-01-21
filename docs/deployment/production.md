@@ -65,6 +65,62 @@ volumes:
   - /path/to/key.pem:/etc/nginx/ssl/key.pem:ro
 ```
 
+## Network Security
+
+Production deployments use Docker network isolation. Only Nginx (ports 80/443) is exposed to the host network. All other services communicate internally via Docker's bridge network.
+
+### Accessing Internal Services
+
+**Database Access via SSH Tunnel:**
+
+```bash
+# Create SSH tunnel to production database
+ssh -L 5432:localhost:5432 user@production-server
+
+# Then connect locally (in another terminal)
+psql -h localhost -U $POSTGRES_USER -d $POSTGRES_DB
+```
+
+**Database Access via Docker:**
+
+```bash
+# Direct container access
+ssh user@production-server
+docker exec -it orienter-postgres psql -U $POSTGRES_USER -d $POSTGRES_DB
+```
+
+**MinIO Console Access via SSH Tunnel:**
+
+```bash
+# Forward MinIO console port
+ssh -L 9001:orienter-minio:9001 user@production-server
+
+# Access at http://localhost:9001
+```
+
+### Services Available via Nginx
+
+All application services are accessible through the Nginx reverse proxy:
+
+| Service   | Nginx Path     | Internal Port |
+| --------- | -------------- | ------------- |
+| Dashboard | `/dashboard/*` | 4098          |
+| OpenCode  | `/opencode/*`  | 4099          |
+| Bot API   | `/bot/*`       | 4097          |
+| Webhooks  | `/webhook/*`   | 4097          |
+
+### Disabling Port Hardening
+
+To restore direct port access (for debugging), remove `docker-compose.prod-secure.yml` from the compose stack:
+
+```bash
+# Without port hardening (exposes all ports)
+docker compose -f docker-compose.v2.yml -f docker-compose.prod.yml -f docker-compose.r2.yml up -d
+
+# With port hardening (production default)
+docker compose -f docker-compose.v2.yml -f docker-compose.prod.yml -f docker-compose.r2.yml -f docker-compose.prod-secure.yml up -d
+```
+
 ## Notes
 
 Use your infrastructure tooling to deploy and manage updates. This repository does not ship production credentials.

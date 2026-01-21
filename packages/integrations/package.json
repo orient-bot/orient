@@ -80,7 +80,8 @@
     }
   },
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && npm run copy:manifests",
+    "copy:manifests": "for dir in src/catalog/*/; do name=$(basename \"$dir\"); if [ -f \"$dir/INTEGRATION.yaml\" ]; then mkdir -p \"dist/catalog/$name\" && cp \"$dir/INTEGRATION.yaml\" \"dist/catalog/$name/\"; fi; done",
     "clean": "rm -rf dist",
     "test": "vitest run",
     "test:watch": "vitest",

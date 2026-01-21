@@ -329,6 +329,14 @@ export async function discoverChats(): Promise<{
   return apiRequest('/chats/discover');
 }
 
+export interface UnifiedChat extends ChatWithPermission {
+  isConfigured: boolean;
+}
+
+export async function getAllChatsUnified(): Promise<{ chats: UnifiedChat[] }> {
+  return apiRequest('/chats/all');
+}
+
 export async function getChat(chatId: string): Promise<ChatWithPermission> {
   return apiRequest(`/chats/${encodeURIComponent(chatId)}`);
 }

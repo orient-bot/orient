@@ -1,7 +1,7 @@
 name: weekly-report-workflow
 description: Agent should gather JIRA sprint data and update weekly presentation slides
 type: multi_step_workflow
-agent: pm-assistant
+agent: ori
 
 input:
   prompt: 'Get the current sprint progress and update the weekly presentation with a summary'

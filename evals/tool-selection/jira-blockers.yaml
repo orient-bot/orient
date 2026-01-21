@@ -1,7 +1,7 @@
 name: jira-blockers-detection
 description: Agent should use the blockers tool when asked about blocked issues
 type: tool_selection
-agent: pm-assistant
+agent: ori
 
 input:
   prompt: 'Are there any blocked tickets right now?'

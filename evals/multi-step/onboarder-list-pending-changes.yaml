@@ -1,7 +1,7 @@
 name: onboarder-list-pending-changes
 description: Onboarder lists pending configuration actions when asked
 type: multi_step_workflow
-agent: onboarder
+agent: ori
 
 context:
   platform: dashboard

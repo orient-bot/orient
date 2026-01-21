@@ -10,6 +10,7 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/orient-bot/orient/releases"><img src="https://img.shields.io/github/v/release/orient-bot/orient" alt="Release"></a>
   <a href="https://github.com/orient-bot/orient/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License"></a>
   <a href="https://github.com/orient-bot/orient"><img src="https://img.shields.io/github/stars/orient-bot/orient?style=social" alt="GitHub Stars"></a>
   <a href="https://orient.bot"><img src="https://img.shields.io/badge/website-orient.bot-blue" alt="Website"></a>
@@ -22,6 +23,8 @@
   <a href="#-platforms">Platforms</a> •
   <a href="#-contributing">Contributing</a>
 </p>
+
+> **⚠️ Status: Beta (v0.1.x)** — This project is experimental and under active development. Expect breaking changes.
 
 ---
 
@@ -37,6 +40,27 @@
 - **📦 Mini-Apps Builder** — Create and host lightweight apps through conversation.
 - **📅 Scheduler** — Set up recurring jobs and one-off tasks with natural language.
 - **🔒 Self-Hosted** — Runs entirely on your infrastructure. Your data never leaves your control.
+
+## 📋 Project Status
+
+Orient is in **early beta** (v0.1.x). We're actively developing new features and improving stability, but you should expect:
+
+- **Breaking changes** between minor versions
+- **Rough edges** in documentation and setup
+- **Evolving APIs** that may change without notice
+
+This is a self-hosted project—you're responsible for your own deployment, security, and backups. We recommend starting with the demo mode to explore before committing to a production setup.
+
+## 📖 How to Use This Project
+
+**Local Development / Personal Use**
+Clone the repo, configure your environment, and run it on your own machine or server. Great for trying things out or personal productivity.
+
+**Production / Team Deployment**
+We recommend forking the repository so you can customize configurations and maintain control over updates. Pull upstream changes when you're ready.
+
+**Contributing Back**
+Found a bug? Built something cool? PRs are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 ## 🚀 Quick Start
 
@@ -163,6 +187,10 @@ pnpm test
 # Run linting
 pnpm lint
 ```
+
+## ⚠️ Disclaimer
+
+This software is provided "as is", without warranty of any kind. Use at your own risk. The authors are not responsible for any damages, data loss, or other issues arising from its use. By using Orient, you accept full responsibility for your deployment, security, and compliance with applicable laws.
 
 ## 📄 License
 
