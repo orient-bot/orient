@@ -1143,12 +1143,15 @@ export class MessageDatabase {
   async getDashboardUser(username: string): Promise<DashboardUser | undefined> {
     const result = await this.pool.query(
       `
-      SELECT 
+      SELECT
         id,
         username,
         password_hash as "passwordHash",
+        google_id as "googleId",
+        google_email as "googleEmail",
+        auth_method as "authMethod",
         created_at as "createdAt"
-      FROM dashboard_users 
+      FROM dashboard_users
       WHERE username = $1
     `,
       [username]
@@ -1159,17 +1162,84 @@ export class MessageDatabase {
   async getDashboardUserById(id: number): Promise<DashboardUser | undefined> {
     const result = await this.pool.query(
       `
-      SELECT 
+      SELECT
         id,
         username,
         password_hash as "passwordHash",
+        google_id as "googleId",
+        google_email as "googleEmail",
+        auth_method as "authMethod",
         created_at as "createdAt"
-      FROM dashboard_users 
+      FROM dashboard_users
       WHERE id = $1
     `,
       [id]
     );
     return result.rows[0];
+  }
+
+  async getDashboardUserByGoogleId(googleId: string): Promise<DashboardUser | undefined> {
+    const result = await this.pool.query(
+      `
+      SELECT
+        id,
+        username,
+        password_hash as "passwordHash",
+        google_id as "googleId",
+        google_email as "googleEmail",
+        auth_method as "authMethod",
+        created_at as "createdAt"
+      FROM dashboard_users
+      WHERE google_id = $1
+    `,
+      [googleId]
+    );
+    return result.rows[0];
+  }
+
+  async getDashboardUserByEmail(email: string): Promise<DashboardUser | undefined> {
+    const result = await this.pool.query(
+      `
+      SELECT
+        id,
+        username,
+        password_hash as "passwordHash",
+        google_id as "googleId",
+        google_email as "googleEmail",
+        auth_method as "authMethod",
+        created_at as "createdAt"
+      FROM dashboard_users
+      WHERE username = $1
+    `,
+      [email]
+    );
+    return result.rows[0];
+  }
+
+  async linkGoogleAccount(userId: number, googleId: string, googleEmail: string): Promise<boolean> {
+    const result = await this.pool.query(
+      `
+      UPDATE dashboard_users
+      SET google_id = $1, google_email = $2, auth_method = 'both'
+      WHERE id = $3
+    `,
+      [googleId, googleEmail, userId]
+    );
+    logger.info('Linked Google account to dashboard user', { userId, googleEmail });
+    return (result.rowCount || 0) > 0;
+  }
+
+  async createDashboardUserWithGoogle(googleId: string, email: string): Promise<number> {
+    const result = await this.pool.query(
+      `
+      INSERT INTO dashboard_users (username, password_hash, google_id, google_email, auth_method)
+      VALUES ($1, NULL, $2, $3, 'google')
+      RETURNING id
+    `,
+      [email, googleId, email]
+    );
+    logger.info('Created dashboard user with Google', { email, id: result.rows[0].id });
+    return result.rows[0].id;
   }
 
   async createDashboardUser(username: string, passwordHash: string): Promise<number> {

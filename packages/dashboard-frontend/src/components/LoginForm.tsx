@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { login, assetUrl } from '../api';
+import { login, assetUrl, signInWithGoogle } from '../api';
+import { GoogleIcon } from './GoogleIcon';
 
 interface LoginFormProps {
   onSuccess: (username: string) => void;
@@ -40,6 +41,29 @@ export default function LoginForm({ onSuccess }: LoginFormProps) {
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setError(null);
+    setIsLoading(true);
+
+    try {
+      const result = await signInWithGoogle();
+
+      // If there's a redirect URL, navigate to it after successful login
+      if (redirectUrl) {
+        // Small delay to ensure cookie is set
+        setTimeout(() => {
+          window.location.href = redirectUrl;
+        }, 100);
+      } else {
+        onSuccess(result.username);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Google sign-in failed');
     } finally {
       setIsLoading(false);
     }
@@ -114,6 +138,25 @@ export default function LoginForm({ onSuccess }: LoginFormProps) {
             ) : (
               'Sign In'
             )}
+          </button>
+
+          <div className="relative my-4">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-surface-300"></div>
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="px-2 bg-card text-surface-500">or</span>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleGoogleSignIn}
+            disabled={isLoading}
+            className="btn btn-secondary w-full py-2.5 flex items-center justify-center gap-2"
+          >
+            <GoogleIcon />
+            Sign in with Google
           </button>
         </form>
       </div>

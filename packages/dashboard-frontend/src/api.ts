@@ -273,6 +273,108 @@ export async function getCurrentUser(): Promise<{ user: { userId: number; userna
   return apiRequest('/auth/me');
 }
 
+/**
+ * Initiate Google OAuth flow
+ * Returns the authorization URL to redirect the user to
+ */
+export async function initiateGoogleAuth(): Promise<{ authUrl: string; state: string }> {
+  return apiRequest('/auth/google/start', {
+    method: 'POST',
+  });
+}
+
+/**
+ * Sign in with Google OAuth
+ * Opens Google OAuth popup and returns auth token on success
+ */
+export async function signInWithGoogle(): Promise<LoginResponse> {
+  // Initiate OAuth flow
+  const { authUrl } = await initiateGoogleAuth();
+
+  // Open popup window for Google OAuth
+  const width = 600;
+  const height = 700;
+  const left = window.screen.width / 2 - width / 2;
+  const top = window.screen.height / 2 - height / 2;
+
+  const popup = window.open(
+    authUrl,
+    'Google Sign In',
+    `width=${width},height=${height},left=${left},top=${top},toolbar=no,menubar=no,location=no,status=no`
+  );
+
+  if (!popup) {
+    throw new Error('Failed to open Google sign-in popup. Please allow popups for this site.');
+  }
+
+  // Wait for OAuth callback and token
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(
+      () => {
+        cleanup();
+        reject(new Error('Google sign-in timed out'));
+      },
+      5 * 60 * 1000
+    ); // 5 minute timeout
+
+    const checkPopupClosed = setInterval(() => {
+      if (popup.closed) {
+        cleanup();
+        reject(new Error('Google sign-in popup was closed'));
+      }
+    }, 500);
+
+    const cleanup = () => {
+      clearTimeout(timeout);
+      clearInterval(checkPopupClosed);
+      window.removeEventListener('message', handleMessage);
+      if (!popup.closed) popup.close();
+    };
+
+    const handleMessage = (event: MessageEvent) => {
+      // Verify origin
+      if (event.origin !== window.location.origin) return;
+
+      if (event.data.type === 'GOOGLE_AUTH_SUCCESS') {
+        cleanup();
+        const token = event.data.token;
+        const username = event.data.username;
+        setAuthToken(token);
+        resolve({ token, username });
+      } else if (event.data.type === 'GOOGLE_AUTH_ERROR') {
+        cleanup();
+        reject(new Error(event.data.error || 'Google sign-in failed'));
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+
+    // Also check for redirect-based flow (if popup is blocked)
+    const checkInterval = setInterval(() => {
+      try {
+        const url = new URL(popup.location.href);
+        if (url.searchParams.get('google_auth') === 'success') {
+          cleanup();
+          clearInterval(checkInterval);
+          // Token was set via cookie, retrieve it
+          const token = getAuthToken();
+          if (token) {
+            getCurrentUser()
+              .then((userInfo) => {
+                resolve({ token, username: userInfo.user.username });
+              })
+              .catch(reject);
+          } else {
+            reject(new Error('Failed to retrieve auth token after Google sign-in'));
+          }
+        }
+      } catch {
+        // Ignore cross-origin errors while popup is on Google domain
+      }
+    }, 500);
+  });
+}
+
 // ============================================
 // STATS API
 // ============================================
