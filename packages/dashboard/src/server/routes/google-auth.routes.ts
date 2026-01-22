@@ -342,10 +342,12 @@ export function createGoogleAuthRoutes(auth: DashboardAuth, db: MessageDatabase)
       pendingStates.delete(state);
 
       // Set token in cookie and redirect to dashboard
+      // Note: httpOnly must be false so frontend JavaScript can read the token
       res.cookie('auth_token', loginResult.token, {
-        httpOnly: true,
+        httpOnly: false,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
+        path: '/',
         maxAge: 24 * 60 * 60 * 1000, // 24 hours
       });
 

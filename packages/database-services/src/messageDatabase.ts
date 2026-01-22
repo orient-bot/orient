@@ -1209,7 +1209,7 @@ export class MessageDatabase {
         auth_method as "authMethod",
         created_at as "createdAt"
       FROM dashboard_users
-      WHERE username = $1
+      WHERE username = $1 OR google_email = $1
     `,
       [email]
     );
