@@ -64,5 +64,12 @@ export {
 export type { PromptServiceConfig, PromptDatabaseInterface } from './promptService.js';
 export { EMBEDDED_DEFAULT_PROMPTS, getEmbeddedDefaultPrompt } from './embeddedDefaultPrompts.js';
 
+export { FeatureFlagsService, createFeatureFlagsService } from './featureFlagsService.js';
+export type {
+  FeatureFlag,
+  FeatureFlagWithOverride,
+  SetOverrideInput,
+} from './featureFlagsService.js';
+
 // Re-export all types
 export * from './types/index.js';

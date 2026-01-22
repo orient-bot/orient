@@ -140,6 +140,7 @@ export class WhatsAppConnection extends EventEmitter {
       const socket = (makeWASocket as any)({
         version,
         logger: baileysLogger,
+        browser: ['Orient Bot', 'Chrome', '125.0.0.0'],
         auth: {
           creds: state.creds,
           keys: makeCacheableSignalKeyStore(state.keys, baileysLogger),

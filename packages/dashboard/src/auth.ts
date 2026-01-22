@@ -108,6 +108,12 @@ export class DashboardAuth {
       return null;
     }
 
+    // Check if user has a password (Google-only users don't)
+    if (!user.passwordHash) {
+      logger.warn('Login failed: user has no password (Google-only account)', { username });
+      return null;
+    }
+
     const isValid = await this.verifyPassword(password, user.passwordHash);
 
     if (!isValid) {
@@ -140,6 +146,66 @@ export class DashboardAuth {
     const userId = await this.db.createDashboardUser(username, passwordHash);
 
     logger.info('Created new dashboard user', { username, userId });
+    return userId;
+  }
+
+  /**
+   * Authenticate a user with Google OAuth
+   * Returns a JWT token if successful, null otherwise
+   * Handles account linking if email matches existing user
+   */
+  async loginWithGoogle(
+    googleId: string,
+    email: string
+  ): Promise<{ token: string; username: string } | null> {
+    // Check if user exists by Google ID
+    let user = await this.db.getDashboardUserByGoogleId(googleId);
+
+    if (user) {
+      // User found by Google ID - login directly
+      const token = this.generateToken(user.id, user.username);
+      logger.info('User logged in with Google', { username: user.username, userId: user.id });
+      return { token, username: user.username };
+    }
+
+    // Check if user exists by email (for auto-linking)
+    user = await this.db.getDashboardUserByEmail(email);
+
+    if (user) {
+      // Auto-link Google account to existing user
+      await this.db.linkGoogleAccount(user.id, googleId, email);
+      const token = this.generateToken(user.id, user.username);
+      logger.info('Linked Google account and logged in', {
+        username: user.username,
+        userId: user.id,
+        email,
+      });
+      return { token, username: user.username };
+    }
+
+    // No existing user - need to create one
+    return null;
+  }
+
+  /**
+   * Create a new user with Google OAuth
+   */
+  async createUserWithGoogle(googleId: string, email: string): Promise<number> {
+    // Check if user already exists by Google ID
+    const existingByGoogle = await this.db.getDashboardUserByGoogleId(googleId);
+    if (existingByGoogle) {
+      throw new Error(`User with Google account already exists`);
+    }
+
+    // Check if user already exists by email
+    const existingByEmail = await this.db.getDashboardUserByEmail(email);
+    if (existingByEmail) {
+      throw new Error(`User with email "${email}" already exists`);
+    }
+
+    const userId = await this.db.createDashboardUserWithGoogle(googleId, email);
+
+    logger.info('Created new dashboard user with Google', { email, userId });
     return userId;
   }
 

@@ -28,13 +28,22 @@ Connect Google to enable Calendar, Gmail, Tasks, and more.
 
 ## Step 2: Enable APIs
 
+:::danger Important: Enable APIs First
+You **must** enable each Google API before Orient can access it. Without enabling these APIs, you will get "API not enabled" or "unauthorized" errors even after successful OAuth authentication.
+:::
+
 1. Go to **APIs and Services**, then **Library**
-2. Search for and enable each of these APIs:
-   - **Gmail API**
-   - **Google Calendar API**
-   - **Google Tasks API**
-   - **Google Sheets API** (optional)
-   - **Google Slides API** (optional)
+2. Search for and enable **each** of these APIs:
+   - **Gmail API** - Required for email access
+   - **Google Calendar API** - Required for calendar access
+   - **Google Tasks API** - Required for tasks access
+   - **Google Sheets API** (optional) - For spreadsheet access
+   - **Google Slides API** (optional) - For presentation access
+   - **Google Drive API** (optional) - For file access
+
+:::tip
+Click on each API and make sure you see **"API enabled"** with a green checkmark. If you see "Enable", click it to activate the API for your project.
+:::
 
 {/* TODO: Add screenshot - Google Enable APIs */}
 
@@ -107,12 +116,15 @@ Once connected, Orient can access your Calendar, Gmail, and Tasks!
 
 ## Troubleshooting
 
-| Problem                    | Solution                                                            |
-| -------------------------- | ------------------------------------------------------------------- |
-| OAuth popup blocked        | Allow popups for localhost in your browser                          |
-| "Access denied"            | Add your email as a test user in OAuth consent screen               |
-| Redirect URI mismatch      | Ensure `http://localhost:8766/oauth/callback` is in authorized URIs |
-| "App not verified" warning | Click "Advanced", then "Go to Orient (unsafe)" during testing       |
+| Problem                                | Solution                                                                                                   |
+| -------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| "API not enabled" or "unauthorized"    | Go to Google Cloud Console → APIs & Services → Library, and enable each API (Calendar, Gmail, Tasks, etc.) |
+| Calendar/Gmail not working after OAuth | Verify the specific API is enabled in Google Cloud Console. OAuth success doesn't mean APIs are enabled.   |
+| OAuth popup blocked                    | Allow popups for localhost in your browser                                                                 |
+| "Access denied"                        | Add your email as a test user in OAuth consent screen                                                      |
+| Redirect URI mismatch                  | Ensure `http://localhost:8766/oauth/callback` is in authorized URIs                                        |
+| "App not verified" warning             | Click "Advanced", then "Go to Orient (unsafe)" during testing                                              |
+| Token refresh fails                    | Disconnect and reconnect your Google account in Dashboard → Integrations                                   |
 
 ## Next Steps
 

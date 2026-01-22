@@ -76,7 +76,64 @@ The `detect-changes` job analyzes which files changed and sets build flags:
 | ----------------------------------- | ------------ | ------------ |
 | Single package change               | ~20 min      | ~5-8 min     |
 | Config-only change (nginx, compose) | ~20 min      | ~3 min       |
+| Website-only change (Docusaurus)    | ~20 min      | ~2-3 min     |
 | All packages change                 | ~20 min      | ~20 min      |
+
+### Website-Only Deployments
+
+When you modify only website files (Docusaurus documentation), the deployment is extremely fast because:
+
+**What Gets Skipped:**
+
+- No Docker image builds (OpenCode, WhatsApp, Dashboard)
+- No image pushes to GHCR
+- No container recreation on the server
+
+**What Still Runs:**
+
+1. **Detect Changes** (~8s) - Identifies website-only changes
+2. **Run Tests** (~40s) - Runs test suite
+3. **Deploy to Oracle Cloud** (~2min) - Only syncs website files and restarts nginx
+
+**Files That Trigger Website-Only Deployment:**
+
+- `website/docs/**` - Documentation markdown files
+- `website/src/**` - Custom React pages (e.g., privacy.tsx, terms.tsx)
+- `website/docusaurus.config.ts` - Site configuration
+- `website/static/**` - Static assets
+- `website/sidebars.ts` - Navigation configuration
+
+**Example Deployment:**
+
+```bash
+# Change detection output for website-only changes
+changes_opencode: false
+changes_whatsapp: false
+changes_dashboard: false
+changes_website: true
+
+# Build jobs are skipped
+Build OpenCode Image: skipped
+Build WhatsApp Bot Image: skipped
+Build Dashboard Image: skipped
+
+# Deploy job syncs website files
+Deploy to Oracle Cloud: success (2min)
+```
+
+**What Gets Deployed:**
+The deploy job syncs the `website/` directory to the server and runs:
+
+```bash
+# Build static Docusaurus site
+cd ~/orient/website && npm run build
+
+# Nginx serves the built site from website/build/
+# No container restarts needed (except nginx reload for config changes)
+```
+
+**Quick Website Updates:**
+For documentation or content changes, this means you can deploy in under 3 minutes total - perfect for rapid iterations on privacy policies, terms, blog posts, or documentation updates.
 
 ### Workflow Jobs
 
@@ -205,13 +262,70 @@ The deployment pipeline:
 
 ### Common CI Failures
 
-| Issue                                  | Cause                     | Fix                             |
-| -------------------------------------- | ------------------------- | ------------------------------- |
-| `Cannot find package`                  | Missing devDependency     | Check pnpm-lock.yaml            |
-| `No test found in suite`               | Eval tests included       | Use `test:ci` instead of `test` |
-| Dockerfile not found                   | Path changed              | Update workflow matrix          |
-| Container name conflict                | V1/V2 name mismatch       | Clean up both names             |
-| `Missing parameter name at index 1: *` | Express 5 breaking change | Use `/{*splat}` not `*`         |
+| Issue                                       | Cause                     | Fix                             |
+| ------------------------------------------- | ------------------------- | ------------------------------- |
+| `Cannot find package`                       | Missing devDependency     | Check pnpm-lock.yaml            |
+| `No test found in suite`                    | Eval tests included       | Use `test:ci` instead of `test` |
+| Dockerfile not found                        | Path changed              | Update workflow matrix          |
+| Container name conflict                     | V1/V2 name mismatch       | Clean up both names             |
+| `Missing parameter name at index 1: *`      | Express 5 breaking change | Use `/{*splat}` not `*`         |
+| `SKILL.md file(s) with invalid frontmatter` | Missing YAML metadata     | Add `---` delimited frontmatter |
+
+### Skill File Validation Failures
+
+The CI pipeline validates all SKILL.md files have proper YAML frontmatter metadata.
+
+**Error Example:**
+
+```
+Error: Found 2 SKILL.md file(s) with invalid frontmatter:
+  - .claude/skills/personal-vite-jsx-caching-fix/SKILL.md: File does not start with frontmatter delimiter (---)
+  - .claude/skills/personal-crypto-secrets-management/SKILL.md: File does not start with frontmatter delimiter (---)
+```
+
+**Required YAML Frontmatter Format:**
+
+```yaml
+---
+name: my-skill-name
+description: "Brief description of what this skill does"
+---
+
+# Skill Title
+... rest of skill content ...
+```
+
+**Common Issues with Multi-Repo Setups:**
+
+When using a personal fork (e.g., `orient-core/orient`) that has additional skills not in the OSS repo (`orient-bot/orient`):
+
+1. **Personal skills are gitignored in OSS** - Files starting with `personal-` are in `.gitignore`
+2. **Tests run on ALL skill files** - Including personal skills that may lack frontmatter
+3. **OSS repo passes, personal repo fails** - Because personal skills weren't tested upstream
+
+**Recovery Workflow:**
+
+```bash
+# 1. Checkout the failing repo's main branch
+git fetch deploy main
+git checkout -B fix-skill-frontmatter deploy/main
+
+# 2. Find skills missing frontmatter
+grep -L "^---" .claude/skills/*/SKILL.md
+
+# 3. Add frontmatter to each file
+# File must START with --- (no content before it)
+
+# 4. Commit and push fix
+git add .claude/skills/
+git commit -m "fix(skills): add YAML frontmatter to skill files"
+git push deploy fix-skill-frontmatter:main
+
+# 5. Re-trigger deployment
+gh workflow run deploy.yml -f force_build_all=true --repo YOUR_ORG/YOUR_REPO
+```
+
+**Validation Test Location:** `tests/config/skill-files.test.ts`
 
 ### Express 5 / path-to-regexp v8 Breaking Changes
 
@@ -643,6 +757,97 @@ orienter-opencode       Up X minutes (healthy)
 orienter-dashboard      Up X minutes (healthy)
 orienter-postgres       Up X minutes (healthy)
 ```
+
+### Worktree Checkout Conflicts
+
+When working in a git worktree, you may encounter branch checkout conflicts when trying to merge PRs.
+
+**Error:**
+
+```
+fatal: 'main' is already used by worktree at '/path/to/other-worktree'
+```
+
+**Cause:** Git prevents checking out a branch that's already checked out in another worktree. This happens when:
+
+- You try to run `gh pr merge` which attempts to checkout the target branch (main)
+- Another worktree already has the `main` branch checked out
+- Git's safety mechanism prevents conflicts between worktrees
+
+**Workaround Options:**
+
+**Option 1: Use GitHub API (Recommended)**
+
+Merge PRs without checking out the target branch:
+
+```bash
+# Merge PR with squash
+gh api repos/orient-bot/orient/pulls/PR_NUMBER/merge -X PUT \
+  -f merge_method=squash \
+  -f commit_title="Your commit title (#PR_NUMBER)"
+
+# Example
+gh api repos/orient-bot/orient/pulls/50/merge -X PUT \
+  -f merge_method=squash \
+  -f commit_title="docs(website): add Privacy Policy and Terms pages (#50)"
+```
+
+**Option 2: Use Auto-Merge**
+
+Enable auto-merge and let GitHub merge when checks pass:
+
+```bash
+gh pr merge PR_NUMBER --auto --squash
+```
+
+**Option 3: Switch to Main Worktree**
+
+Navigate to the worktree that has `main` checked out:
+
+```bash
+# Find which worktree has main
+git worktree list | grep main
+
+# Navigate to that worktree
+cd /path/to/main-worktree
+
+# Merge from there
+gh pr merge PR_NUMBER --squash --delete-branch
+```
+
+**Option 4: Merge from GitHub Web UI**
+
+When automation fails, use the GitHub web interface:
+
+1. Navigate to the PR on GitHub
+2. Click "Squash and merge" button
+3. Confirm the merge
+
+**Prevention:**
+
+When creating worktrees for feature branches, avoid checking out `main` in multiple worktrees:
+
+```bash
+# Good - each worktree has its own branch
+git worktree add ~/worktrees/feature-a -b feature-a
+git worktree add ~/worktrees/feature-b -b feature-b
+
+# Avoid - multiple worktrees with main
+git worktree add ~/worktrees/work-1 main  # First is OK
+git worktree add ~/worktrees/work-2 main  # This will fail
+```
+
+**Why This Matters:**
+
+This worktree limitation only affects the merge operation itself. You can:
+
+- ✅ Create PRs from worktree branches
+- ✅ Push changes from worktrees
+- ✅ Review and approve PRs
+- ✅ Run CI/CD workflows
+- ❌ Merge PRs using `gh pr merge` when main is checked out elsewhere
+
+The GitHub API workaround bypasses the local git checkout, making it the most reliable option when working with worktrees.
 
 ## Quick Commands
 

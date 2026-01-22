@@ -873,10 +873,10 @@ export class MessageDatabase {
     const result = await this.pool.query(`
       SELECT DISTINCT m.group_id
       FROM messages m
-      WHERE m.is_group = true 
+      WHERE m.is_group = true
         AND m.group_id IS NOT NULL
         AND m.group_id NOT IN (
-          SELECT g.group_id FROM groups g WHERE g.group_name IS NOT NULL
+          SELECT g.group_id FROM groups g WHERE g.group_name IS NOT NULL OR g.group_subject IS NOT NULL
         )
     `);
     return result.rows.map((row: { group_id: string }) => row.group_id);
@@ -1097,7 +1097,7 @@ export class MessageDatabase {
         m.group_id as "chatId",
         'group' as "chatType",
         NULL as permission,
-        COALESCE(g.group_name, g.group_subject) as "displayName",
+        COALESCE(g.group_name, g.group_subject, 'Unnamed Group') as "displayName",
         NULL as notes,
         NULL as "createdAt",
         NULL as "updatedAt",
@@ -1132,6 +1132,98 @@ export class MessageDatabase {
     `);
 
     return [...groupsResult.rows, ...individualsResult.rows];
+  }
+
+  /**
+   * Get all chats in a unified view with isConfigured flag.
+   * Combines configured chats (with permissions) and unconfigured chats (without permissions).
+   * Sorted with unconfigured first by default for easier onboarding.
+   */
+  async getAllChatsUnified(): Promise<(ChatWithPermission & { isConfigured: boolean })[]> {
+    // Get configured chats (with permissions)
+    const configuredResult = await this.pool.query(`
+      SELECT
+        cp.chat_id as "chatId",
+        cp.chat_type as "chatType",
+        cp.permission,
+        COALESCE(cp.display_name, g.group_name, g.group_subject) as "displayName",
+        cp.notes,
+        cp.created_at as "createdAt",
+        cp.updated_at as "updatedAt",
+        (SELECT COUNT(*) FROM messages m WHERE m.jid = cp.chat_id OR m.group_id = cp.chat_id) as "messageCount",
+        (SELECT MAX(timestamp) FROM messages m WHERE m.jid = cp.chat_id OR m.group_id = cp.chat_id) as "lastMessageAt",
+        TRUE as "isConfigured"
+      FROM chat_permissions cp
+      LEFT JOIN groups g ON cp.chat_id = g.group_id
+    `);
+
+    // Get unconfigured groups
+    const unconfiguredGroupsResult = await this.pool.query(`
+      SELECT DISTINCT
+        m.group_id as "chatId",
+        'group' as "chatType",
+        NULL as permission,
+        COALESCE(g.group_name, g.group_subject, 'Unnamed Group') as "displayName",
+        NULL as notes,
+        NULL as "createdAt",
+        NULL as "updatedAt",
+        COUNT(*) as "messageCount",
+        MAX(m.timestamp) as "lastMessageAt",
+        FALSE as "isConfigured"
+      FROM messages m
+      LEFT JOIN groups g ON m.group_id = g.group_id
+      LEFT JOIN chat_permissions cp ON m.group_id = cp.chat_id
+      WHERE m.is_group = true
+        AND m.group_id IS NOT NULL
+        AND cp.chat_id IS NULL
+      GROUP BY m.group_id, g.group_name, g.group_subject
+    `);
+
+    // Get unconfigured individual chats
+    const unconfiguredIndividualsResult = await this.pool.query(`
+      SELECT DISTINCT
+        m.jid as "chatId",
+        'individual' as "chatType",
+        NULL as permission,
+        m.phone as "displayName",
+        NULL as notes,
+        NULL as "createdAt",
+        NULL as "updatedAt",
+        COUNT(*) as "messageCount",
+        MAX(m.timestamp) as "lastMessageAt",
+        FALSE as "isConfigured"
+      FROM messages m
+      LEFT JOIN chat_permissions cp ON m.jid = cp.chat_id
+      WHERE m.is_group = false
+        AND cp.chat_id IS NULL
+      GROUP BY m.jid, m.phone
+    `);
+
+    // Combine all results and sort by priority
+    const unconfigured = [...unconfiguredGroupsResult.rows, ...unconfiguredIndividualsResult.rows];
+    const configured = configuredResult.rows;
+
+    // Separate configured by permission type
+    const writePermissions = configured.filter(
+      (c) => c.permission === 'write' || c.permission === 'read_write'
+    );
+    const otherConfigured = configured.filter(
+      (c) => c.permission !== 'write' && c.permission !== 'read_write'
+    );
+
+    // Sort each group by last activity (most recent first)
+    const sortByLastActivity = (a: any, b: any) => {
+      const aTime = a.lastMessageAt ? new Date(a.lastMessageAt).getTime() : 0;
+      const bTime = b.lastMessageAt ? new Date(b.lastMessageAt).getTime() : 0;
+      return bTime - aTime;
+    };
+
+    writePermissions.sort(sortByLastActivity);
+    otherConfigured.sort(sortByLastActivity);
+    unconfigured.sort(sortByLastActivity);
+
+    // Return in priority order: write-enabled first, then other configured, then unconfigured
+    return [...writePermissions, ...otherConfigured, ...unconfigured];
   }
 
   async setChatPermission(
@@ -1343,12 +1435,15 @@ export class MessageDatabase {
   async getDashboardUser(username: string): Promise<DashboardUser | undefined> {
     const result = await this.pool.query(
       `
-      SELECT 
+      SELECT
         id,
         username,
         password_hash as "passwordHash",
+        google_id as "googleId",
+        google_email as "googleEmail",
+        auth_method as "authMethod",
         created_at as "createdAt"
-      FROM dashboard_users 
+      FROM dashboard_users
       WHERE username = $1
     `,
       [username]
@@ -1359,12 +1454,15 @@ export class MessageDatabase {
   async getDashboardUserById(id: number): Promise<DashboardUser | undefined> {
     const result = await this.pool.query(
       `
-      SELECT 
+      SELECT
         id,
         username,
         password_hash as "passwordHash",
+        google_id as "googleId",
+        google_email as "googleEmail",
+        auth_method as "authMethod",
         created_at as "createdAt"
-      FROM dashboard_users 
+      FROM dashboard_users
       WHERE id = $1
     `,
       [id]
@@ -1419,6 +1517,70 @@ export class MessageDatabase {
   async hasDashboardUsers(): Promise<boolean> {
     const result = await this.pool.query(`SELECT COUNT(*) as count FROM dashboard_users`);
     return parseInt(result.rows[0].count) > 0;
+  }
+
+  async getDashboardUserByGoogleId(googleId: string): Promise<DashboardUser | undefined> {
+    const result = await this.pool.query(
+      `
+      SELECT
+        id,
+        username,
+        password_hash as "passwordHash",
+        google_id as "googleId",
+        google_email as "googleEmail",
+        auth_method as "authMethod",
+        created_at as "createdAt"
+      FROM dashboard_users
+      WHERE google_id = $1
+    `,
+      [googleId]
+    );
+    return result.rows[0];
+  }
+
+  async getDashboardUserByEmail(email: string): Promise<DashboardUser | undefined> {
+    const result = await this.pool.query(
+      `
+      SELECT
+        id,
+        username,
+        password_hash as "passwordHash",
+        google_id as "googleId",
+        google_email as "googleEmail",
+        auth_method as "authMethod",
+        created_at as "createdAt"
+      FROM dashboard_users
+      WHERE username = $1 OR google_email = $1
+    `,
+      [email]
+    );
+    return result.rows[0];
+  }
+
+  async linkGoogleAccount(userId: number, googleId: string, googleEmail: string): Promise<boolean> {
+    const result = await this.pool.query(
+      `
+      UPDATE dashboard_users
+      SET google_id = $1, google_email = $2, auth_method = 'both'
+      WHERE id = $3
+    `,
+      [googleId, googleEmail, userId]
+    );
+    logger.info('Linked Google account to dashboard user', { userId, googleEmail });
+    return (result.rowCount || 0) > 0;
+  }
+
+  async createDashboardUserWithGoogle(googleId: string, email: string): Promise<number> {
+    const result = await this.pool.query(
+      `
+      INSERT INTO dashboard_users (username, password_hash, google_id, google_email, auth_method)
+      VALUES ($1, NULL, $2, $3, 'google')
+      RETURNING id
+    `,
+      [email, googleId, email]
+    );
+    logger.info('Created dashboard user with Google', { email, id: result.rows[0].id });
+    return result.rows[0].id;
   }
 
   // ============================================

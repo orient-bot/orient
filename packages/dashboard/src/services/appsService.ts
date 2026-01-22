@@ -234,6 +234,51 @@ export class AppsService {
   }
 
   /**
+   * Build permissions object from manifest permissions
+   */
+  private buildPermissionsObject(
+    permissions: Record<string, unknown>
+  ): Record<string, { read: boolean; write: boolean }> | undefined {
+    const result: Record<string, { read: boolean; write: boolean }> = {};
+    let hasPermissions = false;
+
+    for (const [key, value] of Object.entries(permissions)) {
+      if (key !== 'tools' && value && typeof value === 'object' && !Array.isArray(value)) {
+        const perm = value as { read?: boolean; write?: boolean };
+        if (perm.read !== undefined || perm.write !== undefined) {
+          result[key] = { read: !!perm.read, write: !!perm.write };
+          hasPermissions = true;
+        }
+      }
+    }
+
+    return hasPermissions ? result : undefined;
+  }
+
+  /**
+   * Build capabilities object from manifest capabilities
+   */
+  private buildCapabilitiesObject(
+    capabilities: AppManifest['capabilities']
+  ): AppSummary['capabilities'] | undefined {
+    if (!capabilities) return undefined;
+
+    const result: NonNullable<AppSummary['capabilities']> = {};
+
+    if (capabilities.scheduler) {
+      result.scheduler = { enabled: capabilities.scheduler.enabled };
+    }
+    if (capabilities.webhooks) {
+      result.webhooks = { enabled: capabilities.webhooks.enabled };
+    }
+    if (capabilities.storage) {
+      result.storage = { enabled: capabilities.storage.enabled };
+    }
+
+    return Object.keys(result).length > 0 ? result : undefined;
+  }
+
+  /**
    * Get list of all available apps with their summaries
    */
   listApps(): AppSummary[] {
@@ -242,47 +287,17 @@ export class AppsService {
       return [];
     }
 
-    return Array.from(this.appsCache.values()).map((app) => {
-      // Build permissions object
-      const permissions: Record<string, { read: boolean; write: boolean }> = {};
-      if (app.manifest.permissions) {
-        for (const [key, value] of Object.entries(app.manifest.permissions)) {
-          if (key !== 'tools' && value && typeof value === 'object' && !Array.isArray(value)) {
-            const perm = value as { read: boolean; write: boolean };
-            permissions[key] = { read: perm.read, write: perm.write };
-          }
-        }
-      }
-
-      // Build capabilities object
-      const capabilities: {
-        scheduler?: { enabled: boolean };
-        webhooks?: { enabled: boolean };
-        storage?: { enabled: boolean };
-      } = {};
-
-      if (app.manifest.capabilities?.scheduler) {
-        capabilities.scheduler = { enabled: app.manifest.capabilities.scheduler.enabled };
-      }
-      if (app.manifest.capabilities?.webhooks) {
-        capabilities.webhooks = { enabled: app.manifest.capabilities.webhooks.enabled };
-      }
-      if (app.manifest.capabilities?.storage) {
-        capabilities.storage = { enabled: app.manifest.capabilities.storage.enabled };
-      }
-
-      return {
-        name: app.manifest.name,
-        title: app.manifest.title,
-        description: app.manifest.description,
-        version: app.manifest.version,
-        status: app.status,
-        isBuilt: app.isBuilt,
-        author: app.manifest.author,
-        permissions: Object.keys(permissions).length > 0 ? permissions : undefined,
-        capabilities: Object.keys(capabilities).length > 0 ? capabilities : undefined,
-      };
-    });
+    return Array.from(this.appsCache.values()).map((app) => ({
+      name: app.manifest.name,
+      title: app.manifest.title,
+      description: app.manifest.description,
+      version: app.manifest.version,
+      status: app.status,
+      isBuilt: app.isBuilt,
+      author: app.manifest.author,
+      permissions: this.buildPermissionsObject(app.manifest.permissions),
+      capabilities: this.buildCapabilitiesObject(app.manifest.capabilities),
+    }));
   }
 
   /**

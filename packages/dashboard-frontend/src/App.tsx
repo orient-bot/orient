@@ -40,13 +40,19 @@ import ProvidersTab from './components/ProvidersTab';
 import IntegrationCatalog from './components/IntegrationCatalog';
 import OnboarderBubble from './components/OnboarderBubble';
 import OnboarderChat from './components/OnboarderChat';
-import { SettingsLayout, AppearancePage, UpdatesPage } from './components/Settings';
+import {
+  SettingsLayout,
+  AppearancePage,
+  UpdatesPage,
+  FeatureFlagsPage,
+} from './components/Settings';
 import { VersionBanner } from './components/VersionNotification/VersionBanner';
 import { useVersionCheck } from './hooks/useVersionCheck';
 import { ThemeProvider, useTheme } from './context/ThemeContext';
 import { AppLayout } from './components/Layout/AppLayout';
 import { CommandPalette, useCommandPalette, type Command } from './components/CommandPalette';
 import { useOriActivation } from './hooks/useOriActivation';
+import { ProtectedRoute } from './components/ProtectedRoute';
 
 interface CombinedStats {
   whatsapp: DashboardStats | null;
@@ -1204,15 +1210,9 @@ function AppContent() {
         <div className="flex gap-1 mb-6 p-1 bg-secondary rounded-lg w-fit border border-border">
           <Link
             to={ROUTES.WHATSAPP_CHATS}
-            className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${whatsappView === 'chats' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+            className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors flex items-center gap-2 ${whatsappView === 'chats' || whatsappView === 'discover' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
           >
-            Configured Chats
-          </Link>
-          <Link
-            to={ROUTES.WHATSAPP_DISCOVER}
-            className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors flex items-center gap-2 ${whatsappView === 'discover' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
-          >
-            Discover New
+            Chats
             {stats.whatsapp && stats.whatsapp.chatsWithoutPermissions > 0 && (
               <span className="px-1.5 py-0.5 text-[10px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 rounded-full">
                 {stats.whatsapp.chatsWithoutPermissions}
@@ -1266,54 +1266,58 @@ function AppContent() {
 
       {/* Automation Sub-tabs */}
       {globalView === 'automation' && (
-        <div className="flex gap-1 mb-6 p-1 bg-secondary rounded-lg w-fit border border-border">
-          <Link
-            to={ROUTES.AUTOMATION_SCHEDULES}
-            className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors flex items-center gap-2 ${automationView === 'schedules' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
-          >
-            Schedules
-            {stats.scheduler && stats.scheduler.enabledJobs > 0 && (
-              <span className="px-1.5 py-0.5 text-[10px] font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 rounded-full">
-                {stats.scheduler.enabledJobs}
-              </span>
-            )}
-          </Link>
-          <Link
-            to={ROUTES.AUTOMATION_WEBHOOKS}
-            className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors flex items-center gap-2 ${automationView === 'webhooks' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
-          >
-            Webhooks
-            {stats.webhook && stats.webhook.enabledWebhooks > 0 && (
-              <span className="px-1.5 py-0.5 text-[10px] font-bold bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 rounded-full">
-                {stats.webhook.enabledWebhooks}
-              </span>
-            )}
-          </Link>
-        </div>
+        <ProtectedRoute flagId="automation">
+          <div className="flex gap-1 mb-6 p-1 bg-secondary rounded-lg w-fit border border-border">
+            <Link
+              to={ROUTES.AUTOMATION_SCHEDULES}
+              className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors flex items-center gap-2 ${automationView === 'schedules' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+            >
+              Schedules
+              {stats.scheduler && stats.scheduler.enabledJobs > 0 && (
+                <span className="px-1.5 py-0.5 text-[10px] font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 rounded-full">
+                  {stats.scheduler.enabledJobs}
+                </span>
+              )}
+            </Link>
+            <Link
+              to={ROUTES.AUTOMATION_WEBHOOKS}
+              className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors flex items-center gap-2 ${automationView === 'webhooks' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+            >
+              Webhooks
+              {stats.webhook && stats.webhook.enabledWebhooks > 0 && (
+                <span className="px-1.5 py-0.5 text-[10px] font-bold bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 rounded-full">
+                  {stats.webhook.enabledWebhooks}
+                </span>
+              )}
+            </Link>
+          </div>
+        </ProtectedRoute>
       )}
 
       {/* Operations Sub-tabs */}
       {globalView === 'operations' && (
-        <div className="flex gap-1 mb-6 p-1 bg-secondary rounded-lg w-fit border border-border">
-          <Link
-            to={ROUTES.OPERATIONS_BILLING}
-            className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${operationsView === 'billing' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
-          >
-            Billing
-          </Link>
-          <Link
-            to={ROUTES.OPERATIONS_MONITORING}
-            className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${operationsView === 'monitoring' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
-          >
-            Monitoring
-          </Link>
-          <Link
-            to={ROUTES.OPERATIONS_STORAGE}
-            className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${operationsView === 'storage' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
-          >
-            Storage
-          </Link>
-        </div>
+        <ProtectedRoute flagId="operations">
+          <div className="flex gap-1 mb-6 p-1 bg-secondary rounded-lg w-fit border border-border">
+            <Link
+              to={ROUTES.OPERATIONS_BILLING}
+              className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${operationsView === 'billing' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+            >
+              Billing
+            </Link>
+            <Link
+              to={ROUTES.OPERATIONS_MONITORING}
+              className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${operationsView === 'monitoring' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+            >
+              Monitoring
+            </Link>
+            <Link
+              to={ROUTES.OPERATIONS_STORAGE}
+              className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${operationsView === 'storage' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+            >
+              Storage
+            </Link>
+          </div>
+        </ProtectedRoute>
       )}
 
       {/* Content */}
@@ -1333,22 +1337,46 @@ function AppContent() {
         {globalView === 'integrations' && integrationsView === 'providers' && <ProvidersTab />}
 
         {globalView === 'automation' && automationView === 'schedules' && (
-          <SchedulesTab onUpdate={handleRefresh} />
+          <ProtectedRoute flagId="automation_schedules">
+            <SchedulesTab onUpdate={handleRefresh} />
+          </ProtectedRoute>
         )}
 
         {globalView === 'automation' && automationView === 'webhooks' && (
-          <WebhooksTab onRefresh={handleRefresh} />
+          <ProtectedRoute flagId="automation_webhooks">
+            <WebhooksTab onRefresh={handleRefresh} />
+          </ProtectedRoute>
         )}
 
-        {globalView === 'operations' && operationsView === 'billing' && <BillingTab />}
+        {globalView === 'operations' && operationsView === 'billing' && (
+          <ProtectedRoute flagId="operations_billing">
+            <BillingTab />
+          </ProtectedRoute>
+        )}
 
-        {globalView === 'operations' && operationsView === 'monitoring' && <MonitoringTab />}
+        {globalView === 'operations' && operationsView === 'monitoring' && (
+          <ProtectedRoute flagId="operations_monitoring">
+            <MonitoringTab />
+          </ProtectedRoute>
+        )}
 
-        {globalView === 'operations' && operationsView === 'storage' && <StorageTab />}
+        {globalView === 'operations' && operationsView === 'storage' && (
+          <ProtectedRoute flagId="operations_storage">
+            <StorageTab />
+          </ProtectedRoute>
+        )}
 
-        {globalView === 'agents' && <AgentsTab onUpdate={handleRefresh} />}
+        {globalView === 'agents' && (
+          <ProtectedRoute flagId="agentRegistry">
+            <AgentsTab onUpdate={handleRefresh} />
+          </ProtectedRoute>
+        )}
 
-        {globalView === 'apps' && <AppsTab />}
+        {globalView === 'apps' && (
+          <ProtectedRoute flagId="miniApps">
+            <AppsTab />
+          </ProtectedRoute>
+        )}
 
         {globalView === 'settings' && (
           <SettingsLayout currentView={settingsView}>
@@ -1382,6 +1410,7 @@ function AppContent() {
             )}
             {settingsView === 'providers' && <ProvidersTab />}
             {settingsView === 'secrets' && <SecretsTab />}
+            {settingsView === 'feature-flags' && <FeatureFlagsPage />}
             {settingsView === 'appearance' && <AppearancePage />}
             {settingsView === 'updates' && <UpdatesPage />}
           </SettingsLayout>
@@ -1389,12 +1418,10 @@ function AppContent() {
 
         {!globalView && activeService === 'whatsapp' && (
           <>
-            {!needsWhatsAppPairingActive && whatsappView === 'chats' && (
-              <WhatsAppService discover={false} onUpdate={handleRefresh} />
-            )}
-            {!needsWhatsAppPairingActive && whatsappView === 'discover' && (
-              <WhatsAppService discover={true} onUpdate={handleRefresh} />
-            )}
+            {!needsWhatsAppPairingActive &&
+              (whatsappView === 'chats' || whatsappView === 'discover') && (
+                <WhatsAppService onUpdate={handleRefresh} />
+              )}
             {!needsWhatsAppPairingActive && whatsappView === 'audit' && <AuditLog />}
           </>
         )}

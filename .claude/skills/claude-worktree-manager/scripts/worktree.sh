@@ -15,8 +15,13 @@ NC='\033[0m' # No Color
 DEFAULT_MAX_AGE_DAYS=7
 WORKTREE_BASE="$HOME/claude-worktrees"
 # Default model for new worktrees (opus, sonnet, haiku, or empty for no default)
-# Set this to automatically configure a model for all new worktrees
+# This sets the model in .claude/settings.local.json for the worktree
 DEFAULT_MODEL="sonnet"
+# Claude command alias (use "cc" if you have an alias configured in .zshrc)
+# The alias should include desired flags like --model and --permission-mode plan
+CLAUDE_CMD="cc"
+# Ghostty tab binary path
+GHOSTTY_TAB="$HOME/.local/bin/ghostty-tab"
 
 # Get the repository root (works from anywhere in the repo)
 get_repo_root() {
@@ -44,6 +49,34 @@ log_warn() {
 
 log_error() {
     echo -e "${RED}[ERROR]${NC} $1" >&2
+}
+
+# Open a new Ghostty tab with Claude in the worktree
+open_ghostty_tab() {
+    local worktree_path="$1"
+    local goal="${2:-}"
+
+    # Check if we're in Ghostty
+    if [[ "$TERM_PROGRAM" != "ghostty" ]]; then
+        return 1
+    fi
+
+    # Check if ghostty-tab exists
+    if [[ ! -x "$GHOSTTY_TAB" ]]; then
+        log_warn "ghostty-tab not found at $GHOSTTY_TAB"
+        return 1
+    fi
+
+    # Build full command
+    local full_cmd="$CLAUDE_CMD"
+    if [[ -n "$goal" ]]; then
+        # Wrap goal in plan mode instruction
+        full_cmd="$full_cmd 'enter plan mode to work on: $goal'"
+    fi
+
+    # Open new Ghostty tab
+    "$GHOSTTY_TAB" -d "$worktree_path" --no-enter "$full_cmd"
+    return 0
 }
 
 # Set model in settings.local.json using sed (fallback method)
@@ -176,6 +209,7 @@ create_worktree() {
     local name="$1"
     local isolated="${2:-false}"
     local model="${3:-}"
+    local goal="${4:-}"
     local repo_root
     local project_name
 
@@ -336,6 +370,19 @@ create_worktree() {
         log_info "Check progress: tail -f $worktree_path/.db-seed.log"
     fi
 
+    # Try to open Ghostty tab
+    if open_ghostty_tab "$worktree_path" "$goal"; then
+        log_success "Opened new Ghostty tab with $CLAUDE_CMD"
+        if [[ -n "$goal" ]]; then
+            log_info "Goal: $goal"
+        fi
+    else
+        echo ""
+        log_info "To start working in this worktree:"
+        echo "  cd $worktree_path"
+        echo "  $CLAUDE_CMD"
+    fi
+
     echo ""
     echo "$worktree_path"
 
@@ -400,17 +447,23 @@ Options:
     --model       Set the default Claude model for this worktree (opus, sonnet, haiku).
                   Configures .claude/settings.local.json with the selected model.
                   Default: $DEFAULT_MODEL (configured in script)
+    --goal        Set a goal/task description for the Claude session.
+                  Opens in Ghostty tab with this goal pre-filled.
 
-Configuration:
-    DEFAULT_MODEL is set to "$DEFAULT_MODEL" - all new worktrees will use this model
-    unless overridden with --model flag. Edit the script to change the default.
+Configuration (edit script to change defaults):
+    CLAUDE_CMD="$CLAUDE_CMD"              - Command to run Claude (alias defined in ~/.zshrc)
+    DEFAULT_MODEL="$DEFAULT_MODEL"        - Default model saved in worktree settings
+
+Ghostty Integration:
+    When running in Ghostty terminal, automatically opens a new tab with Claude.
+    The cc alias includes --model and --permission-mode plan by default.
 
 Examples:
-    $0 create staging-env                    # Uses shared dev database
-    $0 create dark-mode-feature              # Uses shared dev database
-    $0 create schema-changes --isolated      # Creates dedicated database with seeding
-    $0 create feature-x --model opus         # Sets Opus as default model
-    $0 create complex-task --model opus --isolated # Opus + isolated DB
+    $0 create staging-env                              # Basic worktree
+    $0 create feature-x --goal "Add dark mode"         # With goal prompt
+    $0 create schema-changes --isolated                # Isolated database
+    $0 create complex-task --model opus --isolated     # Opus + isolated DB
+    $0 create bugfix --goal "Fix login redirect bug"   # Goal for Ghostty tab
     $0 list
     $0 cleanup
     $0 cleanup --days 14
@@ -433,6 +486,7 @@ main() {
             local name="$2"
             local isolated="false"
             local model=""
+            local goal=""
 
             # Parse optional flags
             shift 2
@@ -459,6 +513,14 @@ main() {
                                 ;;
                         esac
                         ;;
+                    --goal)
+                        if [[ $# -lt 2 ]]; then
+                            log_error "Missing goal text for --goal flag"
+                            exit 1
+                        fi
+                        goal="$2"
+                        shift 2
+                        ;;
                     *)
                         log_error "Unknown option: $1"
                         echo ""
@@ -474,7 +536,7 @@ main() {
                 model="$DEFAULT_MODEL"
             fi
 
-            create_worktree "$name" "$isolated" "$model"
+            create_worktree "$name" "$isolated" "$model" "$goal"
             ;;
         list)
             list_worktrees

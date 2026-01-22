@@ -1,7 +1,7 @@
 name: personal-jira-project-management-skill-activation
 description: Agent should load and use personal-jira-project-management skill when creating issues
 type: skill_invocation
-agent: pm-assistant
+agent: ori
 
 input:
   prompt: 'Create a new story for implementing user authentication. Link it to the Security Epic PROJ-100.'

@@ -1,7 +1,7 @@
 name: onboarder-jira-integration
 description: Onboarder helps user set up JIRA integration with secrets
 type: multi_step_workflow
-agent: onboarder
+agent: ori
 
 context:
   platform: dashboard

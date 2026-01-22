@@ -127,13 +127,59 @@ The root `tsconfig.json` defines path aliases for development:
 
 **Important**: Path aliases point to **source** files for development, but production builds use **dist** via package.json exports.
 
+## Incremental Compilation Troubleshooting
+
+### Stale .tsbuildinfo Files
+
+**Symptom**: Build completes with no errors but dist/ is empty. Turbo shows "cache hit" or warns "no output files found."
+
+**Cause**: `.tsbuildinfo` stores incremental state. When stale, tsc skips compilation entirely.
+
+**Fix**:
+
+```bash
+find packages -name "*.tsbuildinfo" -delete
+rm -f .tsbuildinfo
+pnpm run build:packages
+```
+
+### Verifying Build Completion
+
+**Always verify dist/ before running dependent builds or tests:**
+
+```bash
+# After build, verify all packages have dist/index.js
+ls packages/*/dist/index.js
+
+# If any are missing, that package didn't compile
+# Check for stale tsbuildinfo or stray .js files in src/
+```
+
+### Empty dist/ Despite "Cache Hit"
+
+Turbo's cache can be misleading when tsbuildinfo is stale:
+
+1. Turbo checks its cache → finds cached task
+2. Replays cached tsc (which produced no output due to stale tsbuildinfo)
+3. Result: "cache hit" but empty dist/
+
+**Fix**: Clean both turbo cache AND tsbuildinfo:
+
+```bash
+rm -rf .turbo packages/*/.turbo
+find packages -name "*.tsbuildinfo" -delete
+pnpm run build:packages
+```
+
 ## Common Build Errors
 
-### "Cannot find module '@orient/package'"
+### "Cannot find module '@orient/package'" (TS2307)
 
-1. Check package is built: `ls packages/package/dist/`
-2. Build dependencies first: `pnpm --filter @orient/package... build`
-3. Verify package.json exports match dist structure
+**Most common cause**: Prerequisite package didn't build (empty dist/).
+
+1. Verify prerequisite dist exists: `ls packages/package/dist/index.js`
+2. If empty, clean tsbuildinfo and rebuild: `find packages -name "*.tsbuildinfo" -delete && pnpm run build:packages`
+3. If still failing, check package.json exports match dist structure
 
 ### "Type 'X' is not assignable to type 'Y'"
 

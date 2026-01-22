@@ -84,7 +84,8 @@ WORKDIR /app
 
 # Install pnpm and runtime dependencies
 RUN corepack enable && corepack prepare pnpm@latest --activate
-RUN apk add --no-cache curl bash
+# openssh-client is needed for production monitoring (SSH to collect server metrics)
+RUN apk add --no-cache curl bash openssh-client
 
 # Create non-root user
 RUN addgroup -g 1001 -S nodejs && \

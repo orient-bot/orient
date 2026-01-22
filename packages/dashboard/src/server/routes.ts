@@ -6,6 +6,7 @@
 
 import { Router, Request, Response } from 'express';
 import { createServiceLogger, getConfigVersion } from '@orient/core';
+import { createSkillsService } from '@orient/agents';
 import type { DashboardServices } from './index.js';
 import { AuthenticatedRequest, createAuthMiddleware } from '../auth.js';
 import { ChatPermission, ChatType } from '../types/index.js';
@@ -24,9 +25,10 @@ import {
   createIntegrationsRoutes,
   createStorageRoutes,
   createVersionRoutes,
+  createFeatureFlagsRoutes,
 } from './routes/index.js';
+import { createGoogleAuthRoutes } from './routes/google-auth.routes.js';
 import { initStorageService } from '../services/storageService.js';
-// TODO: Re-enable with miniapp editor if needed
 
 const logger = createServiceLogger('dashboard-routes');
 
@@ -44,7 +46,8 @@ export function createDashboardRouter(services: DashboardServices): Router {
     promptService,
     appsService,
     storageDb,
-    /* miniappEditService, */ auth,
+    miniappEditService,
+    auth,
   } = services;
   router.get('/config/version', (_req: Request, res: Response) => {
     res.json({ version: getConfigVersion() });
@@ -206,9 +209,12 @@ export function createDashboardRouter(services: DashboardServices): Router {
     router.use('/prompts', createPromptsRoutes(promptService, requireAuth));
   }
 
-  // Apps routes (for mini-apps listing and bridge API)
+  // Apps routes (for mini-apps listing, bridge API, and AI editing)
   if (appsService) {
-    router.use('/apps', createAppsRoutes(appsService, requireAuth, { storageDb }));
+    router.use(
+      '/apps',
+      createAppsRoutes(appsService, requireAuth, { storageDb }, miniappEditService)
+    );
   }
   // Secrets routes (always available)
   router.use('/secrets', createSecretsRoutes(requireAuth));
@@ -235,12 +241,18 @@ export function createDashboardRouter(services: DashboardServices): Router {
   // Version check routes (always available)
   router.use('/version', createVersionRoutes(requireAuth));
 
+  // Feature flags routes (always available)
+  router.use('/feature-flags', createFeatureFlagsRoutes(requireAuth));
+
   // Onboarder routes (always available - uses db for session persistence)
   router.use('/onboarder', createOnboarderRoutes(db, requireAuth));
 
   // ============================================
   // AUTH ROUTES (public)
   // ============================================
+
+  // Google OAuth routes
+  router.use('/auth/google', createGoogleAuthRoutes(auth, db));
 
   // Login
   router.post('/auth/login', async (req: Request, res: Response) => {
@@ -449,6 +461,18 @@ export function createDashboardRouter(services: DashboardServices): Router {
     }
   });
 
+  // Get all chats unified (both configured and unconfigured in one view)
+  // Returns { chats: [...] } with isConfigured flag for each chat
+  router.get('/chats/all', requireAuth, async (_req: Request, res: Response) => {
+    try {
+      const chats = await db.getAllChatsUnified();
+      res.json({ chats });
+    } catch (error) {
+      logger.error('Get all chats unified error', { error: String(error) });
+      res.status(500).json({ error: 'Failed to get all chats' });
+    }
+  });
+
   // Get single chat permission
   router.get('/chats/:chatId', requireAuth, async (req: Request, res: Response) => {
     try {
@@ -621,12 +645,22 @@ export function createDashboardRouter(services: DashboardServices): Router {
 
   router.get('/capabilities', requireAuth, async (_req: Request, res: Response) => {
     try {
-      // Return empty capabilities - full implementation not yet migrated
+      // Load skills from .claude/skills/ using SkillsService
+      const skillsService = await createSkillsService();
+      const skillsList = skillsService.listSkills();
+
+      // Map to frontend SkillInfo interface
+      const skills = skillsList.map((skill) => ({
+        name: skill.name,
+        description: skill.description,
+        location: 'project' as const,
+      }));
+
       res.json({
-        skills: [],
+        skills,
         categories: [],
         summary: {
-          totalSkills: 0,
+          totalSkills: skills.length,
           totalTools: 0,
           categoryCounts: {},
         },

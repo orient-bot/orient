@@ -27,8 +27,8 @@ echo -e "${BLUE}║   Worktree Database Seeding Script     ║${NC}"
 echo -e "${BLUE}╚════════════════════════════════════════╝${NC}"
 echo ""
 
-# Load DATABASE_URL from .env if present, otherwise use default
-if [ -f ".env" ]; then
+# Load DATABASE_URL from .env if not already set in environment
+if [ -z "${DATABASE_URL:-}" ] && [ -f ".env" ]; then
   # Extract DATABASE_URL safely (avoid sourcing whole file due to cron expressions)
   DB_URL_LINE=$(grep "^DATABASE_URL=" .env | head -1)
   if [ -n "$DB_URL_LINE" ]; then
@@ -42,6 +42,8 @@ if [ -f ".env" ]; then
     export DATABASE_URL="$DB_URL_VALUE"
     echo -e "${GREEN}✓${NC} Loaded DATABASE_URL from .env"
   fi
+elif [ -n "${DATABASE_URL:-}" ]; then
+  echo -e "${GREEN}✓${NC} Using DATABASE_URL from environment"
 fi
 
 # Use default if not set
@@ -97,7 +99,7 @@ if [ -z "${DATABASE_URL:-}" ]; then
 fi
 
 echo ""
-echo -e "${BLUE}Step 1/2: Running migrations...${NC}"
+echo -e "${BLUE}Step 1/3: Running migrations...${NC}"
 
 # Run migrations
 if [ -d "data/migrations" ]; then
@@ -116,7 +118,28 @@ else
 fi
 
 echo ""
-echo -e "${BLUE}Step 2/2: Seeding data...${NC}"
+echo -e "${BLUE}Step 2/3: Migrating secrets from .env...${NC}"
+
+# Migrate secrets to database (requires ORIENT_MASTER_KEY)
+# Extract ORIENT_MASTER_KEY from .env if not already set
+if [ -z "${ORIENT_MASTER_KEY:-}" ] && [ -f ".env" ]; then
+  MASTER_KEY_LINE=$(grep "^ORIENT_MASTER_KEY=" .env | head -1)
+  if [ -n "$MASTER_KEY_LINE" ]; then
+    ORIENT_MASTER_KEY="${MASTER_KEY_LINE#ORIENT_MASTER_KEY=}"
+  fi
+fi
+
+if [ -n "${ORIENT_MASTER_KEY:-}" ]; then
+  # Run migration with explicit DATABASE_URL to ensure correct database is used
+  DATABASE_URL="$DATABASE_URL" ORIENT_MASTER_KEY="$ORIENT_MASTER_KEY" npx tsx scripts/migrate-secrets-to-db.ts && \
+    echo -e "  ${GREEN}✓${NC} Secrets migrated" || \
+    echo -e "  ${YELLOW}!${NC} Secret migration failed (continuing)"
+else
+  echo -e "  ${YELLOW}!${NC} ORIENT_MASTER_KEY not found, skipping secret migration"
+fi
+
+echo ""
+echo -e "${BLUE}Step 3/3: Seeding data...${NC}"
 
 # Build seed command
 SEED_ARGS=""

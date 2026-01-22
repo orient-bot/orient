@@ -49,6 +49,16 @@ if [ -f "$PROJECT_ROOT/.env" ]; then
         # Export the variable
         export "$key=$value"
     done < "$PROJECT_ROOT/.env"
+
+    # Ensure ORIENT_MASTER_KEY exists (for upgrades from older versions)
+    if ! grep -q "^ORIENT_MASTER_KEY=" "$PROJECT_ROOT/.env"; then
+        echo "" >> "$PROJECT_ROOT/.env"
+        echo "# Secrets Encryption (auto-generated on upgrade)" >> "$PROJECT_ROOT/.env"
+        local master_key=$(openssl rand -hex 32)
+        echo "ORIENT_MASTER_KEY=${master_key}" >> "$PROJECT_ROOT/.env"
+        export ORIENT_MASTER_KEY="$master_key"
+        echo -e "\033[1;33m[DEV]\033[0m Generated ORIENT_MASTER_KEY for secrets encryption"
+    fi
 fi
 
 # Load instance environment configuration (multi-instance support)
@@ -75,6 +85,7 @@ DASHBOARD_PID_FILE="$PID_DIR/dashboard.pid"
 # WhatsApp defaults to enabled for instance 0, disabled for worktrees (unless --enable-whatsapp)
 RUN_WHATSAPP="${WHATSAPP_ENABLED:-true}"
 RUN_SLACK=true
+FRESH_START=false
 
 # LOG_DIR is set by instance-env.sh
 
@@ -452,10 +463,42 @@ cleanup_orphaned_processes() {
 }
 
 # =============================================================================
+# Fresh Start (Clean Build)
+# =============================================================================
+
+fresh_start() {
+    log_step "Fresh start requested - cleaning up..."
+
+    # Stop everything forcefully
+    log_info "Stopping all services..."
+    "$SCRIPT_DIR/stop.sh" --force 2>/dev/null || true
+
+    # Clean build artifacts
+    log_info "Cleaning build artifacts..."
+    cd "$PROJECT_ROOT"
+
+    # Remove turbo cache (but keep dist folders for faster rebuilds)
+    rm -rf .turbo node_modules/.cache 2>/dev/null || true
+
+    # Rebuild only core packages needed for dev (using turbo for proper dependency handling)
+    log_info "Rebuilding core packages..."
+    pnpm turbo build --filter=@orient/core --filter=@orient/database --filter=@orient/database-services --filter=@orient/apps --filter=@orient/mcp-tools --filter=@orient/agents 2>&1 | tail -20 || {
+        log_warn "Some packages failed to build. Dev mode may still work with tsx."
+    }
+
+    log_info "Fresh start cleanup complete!"
+}
+
+# =============================================================================
 # Start Development Environment
 # =============================================================================
 
 start_dev() {
+    # Handle fresh start if requested
+    if [ "$FRESH_START" = true ]; then
+        fresh_start
+    fi
+
     ensure_dirs
 
     # Auto-create .env from .env.example if it doesn't exist
@@ -463,6 +506,17 @@ start_dev() {
         if [ -f "$PROJECT_ROOT/.env.example" ]; then
             log_info "Creating .env from .env.example..."
             cp "$PROJECT_ROOT/.env.example" "$PROJECT_ROOT/.env"
+
+            # Generate secure ORIENT_MASTER_KEY (64 hex characters = 256 bits)
+            local master_key=$(openssl rand -hex 32)
+            sed -i '' "s/ORIENT_MASTER_KEY=GENERATE_ON_INSTALL/ORIENT_MASTER_KEY=${master_key}/" "$PROJECT_ROOT/.env"
+            log_info "Generated secure ORIENT_MASTER_KEY for secrets encryption"
+
+            # Generate secure DASHBOARD_JWT_SECRET (64 hex characters)
+            local jwt_secret=$(openssl rand -hex 32)
+            sed -i '' "s/DASHBOARD_JWT_SECRET=dev-jwt-secret-for-local-development-only-change-in-production/DASHBOARD_JWT_SECRET=${jwt_secret}/" "$PROJECT_ROOT/.env"
+            log_info "Generated secure DASHBOARD_JWT_SECRET"
+
             log_warn "Created .env with development defaults. Review and customize as needed."
             log_info "Tip: Configure integrations via Dashboard at http://localhost:${NGINX_PORT}/dashboard/integrations"
             # Re-source the .env file
@@ -497,7 +551,24 @@ start_dev() {
     # Step 1: Start Docker infrastructure
     log_step "Starting Docker infrastructure..."
     cd "$PROJECT_ROOT/docker"
-    docker compose -f docker-compose.infra.yml up -d
+    if ! docker compose -f docker-compose.infra.yml up -d 2>&1 | tee /tmp/docker-compose-output.txt; then
+        if grep -q "already in use" /tmp/docker-compose-output.txt; then
+            log_error "Docker container name conflict detected!"
+            log_error "This happens when containers exist from a previous run that wasn't fully cleaned up."
+            log_error ""
+            log_error "To fix this, run:"
+            log_error "  ./run.sh stop --force && ./run.sh dev"
+            log_error ""
+            log_error "This will remove the old containers and start fresh."
+            rm -f /tmp/docker-compose-output.txt
+            exit 1
+        fi
+        # Some other docker compose error
+        cat /tmp/docker-compose-output.txt
+        rm -f /tmp/docker-compose-output.txt
+        exit 1
+    fi
+    rm -f /tmp/docker-compose-output.txt
     cd "$PROJECT_ROOT"
     
     # Step 2: Wait for PostgreSQL
@@ -905,9 +976,13 @@ show_status() {
 # Main
 # =============================================================================
 
-# Get the command (first arg)
-CMD="${1:-start}"
-shift || true
+# Get the command (first arg), but if it starts with -- it's a flag, not a command
+if [[ "${1:-}" == --* ]]; then
+    CMD="start"
+else
+    CMD="${1:-start}"
+    shift || true
+fi
 
 # Parse remaining options
 while [[ $# -gt 0 ]]; do
@@ -932,6 +1007,10 @@ while [[ $# -gt 0 ]]; do
         --whatsapp-only)
             RUN_WHATSAPP=true
             RUN_SLACK=false
+            shift
+            ;;
+        --fresh)
+            FRESH_START=true
             shift
             ;;
         *)
@@ -962,6 +1041,7 @@ case "$CMD" in
         echo "Usage: ./run.sh dev [start|stop|logs|status|restart] [options]"
         echo ""
         echo "Options:"
+        echo "  --fresh             Clean rebuild: stop all, clear dist folders, rebuild packages"
         echo "  --no-slack          Don't start Slack bot"
         echo "  --no-whatsapp       Don't start WhatsApp bot"
         echo "  --enable-whatsapp   Enable WhatsApp in worktrees (disabled by default)"

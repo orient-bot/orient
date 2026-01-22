@@ -130,7 +130,10 @@ export const permissionAuditLog = pgTable(
 export const dashboardUsers = pgTable('dashboard_users', {
   id: serial('id').primaryKey(),
   username: text('username').unique().notNull(),
-  passwordHash: text('password_hash').notNull(),
+  passwordHash: text('password_hash'), // Nullable for Google-only users
+  googleId: text('google_id').unique(),
+  googleEmail: text('google_email'),
+  authMethod: text('auth_method').notNull().default('password'), // 'password' | 'google' | 'both'
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
 });
 
@@ -545,6 +548,54 @@ export const chatContext = pgTable(
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
   },
   (table) => [index('idx_chat_context_lookup').on(table.platform, table.chatId)]
+);
+
+// ============================================
+// FEATURE FLAGS TABLES
+// ============================================
+
+/**
+ * Global feature flags with hierarchical IDs via naming convention
+ */
+export const featureFlags = pgTable(
+  'feature_flags',
+  {
+    id: text('id').primaryKey(), // e.g., 'mini_apps.edit_with_ai'
+    name: text('name').notNull(),
+    description: text('description'),
+    enabled: boolean('enabled').default(true),
+    category: text('category').default('ui'),
+    sortOrder: integer('sort_order').default(0),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+  },
+  (table) => [
+    index('idx_feature_flags_category').on(table.category),
+    index('idx_feature_flags_sort_order').on(table.sortOrder),
+  ]
+);
+
+/**
+ * Per-user feature flag overrides
+ */
+export const userFeatureFlagOverrides = pgTable(
+  'user_feature_flag_overrides',
+  {
+    id: serial('id').primaryKey(),
+    userId: integer('user_id')
+      .notNull()
+      .references(() => dashboardUsers.id, { onDelete: 'cascade' }),
+    flagId: text('flag_id')
+      .notNull()
+      .references(() => featureFlags.id, { onDelete: 'cascade' }),
+    enabled: boolean('enabled').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+  },
+  (table) => [
+    index('idx_user_flag_overrides_user').on(table.userId),
+    index('idx_user_flag_overrides_flag').on(table.flagId),
+  ]
 );
 
 export { secrets, secretsAuditLog } from './secrets.js';

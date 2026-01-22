@@ -56,11 +56,25 @@ vi.mock('@orient/database-services', () => ({
     shouldShowNotification: vi.fn().mockResolvedValue(true),
     close: vi.fn().mockResolvedValue(undefined),
   }),
+  createFeatureFlagsService: vi.fn().mockReturnValue({
+    getAllFlags: vi.fn().mockResolvedValue([]),
+    getAllFlagsWithOverrides: vi.fn().mockResolvedValue([]),
+    getEffectiveFlags: vi.fn().mockResolvedValue({}),
+    setUserOverride: vi.fn().mockResolvedValue(undefined),
+    removeUserOverride: vi.fn().mockResolvedValue(undefined),
+    getParentId: vi.fn().mockReturnValue(null),
+    getAncestorIds: vi.fn().mockReturnValue([]),
+    close: vi.fn().mockResolvedValue(undefined),
+  }),
 }));
 
-vi.mock('@orient/integrations', () => ({
-  getInstalledIntegrations: vi.fn().mockResolvedValue([]),
-}));
+vi.mock('@orient/integrations', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@orient/integrations')>();
+  return {
+    ...actual,
+    getInstalledIntegrations: vi.fn().mockResolvedValue([]),
+  };
+});
 
 vi.mock('@orient/integrations/google', () => ({
   getGoogleOAuthService: vi.fn().mockReturnValue({

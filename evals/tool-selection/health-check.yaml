@@ -1,7 +1,7 @@
 name: health-check-invocation
 description: Agent should use health check tool when asked about system status
 type: tool_selection
-agent: pm-assistant
+agent: ori
 
 input:
   prompt: 'Check if everything is working correctly'

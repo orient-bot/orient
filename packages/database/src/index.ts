@@ -61,6 +61,9 @@ export {
   approvalGrants,
   // Context Persistence tables
   chatContext,
+  // Feature Flags tables
+  featureFlags,
+  userFeatureFlagOverrides,
   // Enums
   messageDirectionEnum,
   chatTypeEnum,

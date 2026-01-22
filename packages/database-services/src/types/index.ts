@@ -52,7 +52,10 @@ export interface PermissionAuditEntry {
 export interface DashboardUser {
   id: number;
   username: string;
-  passwordHash: string;
+  passwordHash: string | null;
+  googleId?: string | null;
+  googleEmail?: string | null;
+  authMethod?: 'password' | 'google' | 'both';
   createdAt: string;
 }
 

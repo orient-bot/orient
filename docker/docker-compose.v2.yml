@@ -18,7 +18,7 @@ services:
   # ===========================================================================
   nginx:
     image: nginx:alpine
-    container_name: orienter-nginx
+    container_name: orienter-nginx-${AI_INSTANCE_ID:-0}
     restart: unless-stopped
     depends_on:
       opencode:
@@ -28,8 +28,8 @@ services:
       dashboard:
         condition: service_healthy
     ports:
-      - '80:80'
-      - '443:443'
+      - '${NGINX_PORT:-80}:80'
+      - '${NGINX_SSL_PORT:-443}:443'
     volumes:
       - ./nginx-ssl.conf:/etc/nginx/conf.d/default.conf:ro
       - ./admin:/usr/share/nginx/html:ro
@@ -57,7 +57,7 @@ services:
   # ===========================================================================
   postgres:
     image: postgres:16-alpine
-    container_name: orienter-postgres
+    container_name: orienter-postgres-${AI_INSTANCE_ID:-0}
     restart: unless-stopped
     environment:
       - POSTGRES_USER=${POSTGRES_USER}
@@ -66,7 +66,7 @@ services:
     volumes:
       - postgres-data:/var/lib/postgresql/data
     ports:
-      - '5432:5432'
+      - '${POSTGRES_PORT:-5432}:5432'
     networks:
       - orienter-network
     healthcheck:
@@ -86,15 +86,15 @@ services:
   # ===========================================================================
   minio:
     image: minio/minio:latest
-    container_name: orienter-minio
+    container_name: orienter-minio-${AI_INSTANCE_ID:-0}
     restart: unless-stopped
     command: server /data --console-address ":9001"
     environment:
       - MINIO_ROOT_USER=${MINIO_ROOT_USER}
       - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
     ports:
-      - '9000:9000'
-      - '9001:9001'
+      - '${MINIO_API_PORT:-9000}:9000'
+      - '${MINIO_CONSOLE_PORT:-9001}:9001'
     volumes:
       - minio-data:/data
     networks:
@@ -116,7 +116,7 @@ services:
   # ===========================================================================
   minio-setup:
     image: minio/mc:latest
-    container_name: orienter-minio-setup
+    container_name: orienter-minio-setup-${AI_INSTANCE_ID:-0}
     depends_on:
       minio:
         condition: service_healthy
@@ -146,7 +146,7 @@ services:
     build:
       context: ..
       dockerfile: docker/Dockerfile.opencode.legacy
-    container_name: orienter-opencode
+    container_name: orienter-opencode-${AI_INSTANCE_ID:-0}
     restart: unless-stopped
     depends_on:
       minio:
@@ -166,7 +166,7 @@ services:
       - OPENCODE_HOSTNAME=0.0.0.0
       - DATA_DIR=/app/data
       - LOG_DIR=/app/logs
-      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@orienter-postgres:5432/${POSTGRES_DB:-whatsapp_bot_0}
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-whatsapp_bot_0}
       - S3_BUCKET=${S3_BUCKET:-orienter-data}
       - S3_SYNC_INTERVAL=${S3_SYNC_INTERVAL:-60}
       - AWS_ACCESS_KEY_ID=${MINIO_ROOT_USER}
@@ -210,7 +210,7 @@ services:
     build:
       context: ..
       dockerfile: packages/bot-whatsapp/Dockerfile
-    container_name: orienter-bot-whatsapp
+    container_name: orienter-bot-whatsapp-${AI_INSTANCE_ID:-0}
     restart: unless-stopped
     depends_on:
       opencode:
@@ -225,7 +225,7 @@ services:
     environment:
       - NODE_ENV=production
       - TZ=Asia/Jerusalem
-      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@orienter-postgres:5432/${POSTGRES_DB:-whatsapp_bot_0}
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-whatsapp_bot_0}
       - OPENCODE_SERVER_URL=http://opencode:${OPENCODE_PORT:-4099}
       - OPENCODE_URL=http://opencode:${OPENCODE_PORT:-4099}
       - OPENCODE_ENABLED=true
@@ -249,7 +249,7 @@ services:
       - ../logs:/app/logs
       - ../credentials:/app/credentials:ro
     ports:
-      - '4097:4097'
+      - '${WHATSAPP_PORT:-4097}:4097'
     networks:
       - orienter-network
     stdin_open: true
@@ -274,7 +274,7 @@ services:
     build:
       context: ..
       dockerfile: packages/bot-slack/Dockerfile
-    container_name: orienter-bot-slack
+    container_name: orienter-bot-slack-${AI_INSTANCE_ID:-0}
     restart: unless-stopped
     profiles:
       - slack
@@ -288,7 +288,7 @@ services:
     environment:
       - NODE_ENV=production
       - TZ=Asia/Jerusalem
-      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@orienter-postgres:5432/${POSTGRES_DB:-whatsapp_bot_0}
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-whatsapp_bot_0}
       - OPENCODE_SERVER_URL=http://opencode:${OPENCODE_PORT:-4099}
       - OPENCODE_URL=http://opencode:${OPENCODE_PORT:-4099}
       - OPENCODE_ENABLED=true
@@ -331,7 +331,7 @@ services:
     build:
       context: ..
       dockerfile: packages/api-gateway/Dockerfile
-    container_name: orienter-api-gateway
+    container_name: orienter-api-gateway-${AI_INSTANCE_ID:-0}
     restart: unless-stopped
     profiles:
       - api
@@ -343,13 +343,13 @@ services:
     environment:
       - NODE_ENV=production
       - TZ=Asia/Jerusalem
-      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@orienter-postgres:5432/${POSTGRES_DB:-whatsapp_bot_0}
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-whatsapp_bot_0}
       - API_GATEWAY_PORT=4100
     volumes:
       - ../logs:/app/logs
       - ../.mcp.config.local.json:/app/.mcp.config.json:ro
     ports:
-      - '4100:4100'
+      - '${API_GATEWAY_PORT:-4100}:4100'
     networks:
       - orienter-network
     healthcheck:
@@ -372,7 +372,7 @@ services:
     build:
       context: ..
       dockerfile: packages/dashboard/Dockerfile
-    container_name: orienter-dashboard
+    container_name: orienter-dashboard-${AI_INSTANCE_ID:-0}
     restart: unless-stopped
     depends_on:
       postgres:
@@ -383,17 +383,22 @@ services:
       - NODE_ENV=production
       - TZ=Asia/Jerusalem
       - DASHBOARD_PORT=4098
-      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@orienter-postgres:5432/${POSTGRES_DB:-whatsapp_bot_0}
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-whatsapp_bot_0}
       - DASHBOARD_JWT_SECRET=${DASHBOARD_JWT_SECRET}
       - ORIENT_MASTER_KEY=${ORIENT_MASTER_KEY}
       # Path to .env file for setup wizard to write non-sensitive values
       - ORIENT_ENV_PATH=/app/.env
+      # SSH key path for production monitoring (mounted from ~/.ssh)
+      - SSH_KEY_PATH=/app/.ssh/id_rsa
     volumes:
       - ../logs:/app/logs
       # Mount .env file for setup wizard to write non-sensitive config values
       - ../.env:/app/.env
+      # Mount SSH key for production server monitoring (from docker/.ssh directory)
+      # Copy your SSH key to docker/.ssh/id_rsa with readable permissions
+      - ./.ssh:/app/.ssh:ro
     ports:
-      - '4098:4098'
+      - '${DASHBOARD_PORT:-4098}:4098'
     networks:
       - orienter-network
     healthcheck:
@@ -413,7 +418,7 @@ services:
   # ===========================================================================
   s3-sync:
     image: amazon/aws-cli:latest
-    container_name: orienter-s3-sync
+    container_name: orienter-s3-sync-${AI_INSTANCE_ID:-0}
     restart: unless-stopped
     profiles:
       - s3 # Only starts when using: docker compose --profile s3 up

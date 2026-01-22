@@ -358,19 +358,143 @@ export type DashboardConfig = z.infer<typeof DashboardConfigSchema>;
 // Feature Flags
 // =============================================================================
 
+/**
+ * Feature flag definition with UI visibility controls
+ * Supports hierarchical relationships and per-feature hide/notify strategies
+ */
+export const FeatureFlagDefinitionSchema = z.object({
+  /** Whether the feature is enabled */
+  enabled: z.boolean().default(false),
+  /** UI strategy when disabled: 'hide' (remove from UI) or 'notify' (show with overlay) */
+  uiStrategy: z.enum(['hide', 'notify']).default('hide'),
+  /** Route to control (e.g., /apps, /automation) */
+  route: z.string().optional(),
+  /** Navigation section where this feature appears */
+  navSection: z.enum(['SERVICES', 'MANAGEMENT', 'TOOLS']).optional(),
+  /** Parent flag ID for hierarchical relationships */
+  parentFlag: z.string().optional(),
+});
+
+export type FeatureFlagDefinition = z.infer<typeof FeatureFlagDefinitionSchema>;
+
+/**
+ * Feature Flags Configuration Schema
+ *
+ * IMPORTANT: All features are DISABLED by default for pre-launch safety.
+ * To enable features, use one of these methods (in priority order):
+ *
+ * 1. Environment variables: FEATURE_FLAG_<FLAG_ID>=true
+ *    e.g., FEATURE_FLAG_MINI_APPS=true
+ *
+ * 2. Config file (config.yml):
+ *    features:
+ *      miniApps:
+ *        enabled: true
+ *
+ * See packages/core/src/config/featureFlags.ts for the resolution logic.
+ */
 export const FeaturesConfigSchema = z.object({
   /** Enable SLA monitoring and alerts */
-  slaMonitoring: z.boolean().default(true),
+  slaMonitoring: FeatureFlagDefinitionSchema.default({ enabled: false, uiStrategy: 'hide' }),
   /** Enable weekly reports/summaries */
-  weeklyReports: z.boolean().default(true),
+  weeklyReports: FeatureFlagDefinitionSchema.default({ enabled: false, uiStrategy: 'hide' }),
+
+  // Dashboard features with UI visibility - ALL DISABLED BY DEFAULT
+  /** Mini-Apps feature */
+  miniApps: FeatureFlagDefinitionSchema.default({
+    enabled: false,
+    uiStrategy: 'hide',
+    route: '/apps',
+    navSection: 'MANAGEMENT',
+  }),
+  /** Mini-Apps: Create new app */
+  miniApps_create: FeatureFlagDefinitionSchema.default({
+    enabled: false,
+    uiStrategy: 'hide',
+    parentFlag: 'miniApps',
+  }),
+  /** Mini-Apps: Edit with AI */
+  miniApps_editWithAI: FeatureFlagDefinitionSchema.default({
+    enabled: false,
+    uiStrategy: 'hide',
+    parentFlag: 'miniApps',
+  }),
+  /** Mini-Apps: Share apps */
+  miniApps_share: FeatureFlagDefinitionSchema.default({
+    enabled: false,
+    uiStrategy: 'hide',
+    parentFlag: 'miniApps',
+  }),
+
+  /** Automation feature */
+  automation: FeatureFlagDefinitionSchema.default({
+    enabled: false,
+    uiStrategy: 'hide',
+    route: '/automation',
+    navSection: 'MANAGEMENT',
+  }),
+  /** Automation: Schedules */
+  automation_schedules: FeatureFlagDefinitionSchema.default({
+    enabled: false,
+    uiStrategy: 'hide',
+    parentFlag: 'automation',
+  }),
+  /** Automation: Webhooks */
+  automation_webhooks: FeatureFlagDefinitionSchema.default({
+    enabled: false,
+    uiStrategy: 'hide',
+    parentFlag: 'automation',
+  }),
+
+  /** Agent Registry feature */
+  agentRegistry: FeatureFlagDefinitionSchema.default({
+    enabled: false,
+    uiStrategy: 'hide',
+    route: '/agents',
+    navSection: 'MANAGEMENT',
+  }),
+  /** Agent Registry: Edit agents */
+  agentRegistry_edit: FeatureFlagDefinitionSchema.default({
+    enabled: false,
+    uiStrategy: 'hide',
+    parentFlag: 'agentRegistry',
+  }),
+
+  /** Operations feature */
+  operations: FeatureFlagDefinitionSchema.default({
+    enabled: false,
+    uiStrategy: 'hide',
+    route: '/operations',
+    navSection: 'MANAGEMENT',
+  }),
+  /** Operations: Monitoring */
+  operations_monitoring: FeatureFlagDefinitionSchema.default({
+    enabled: false,
+    uiStrategy: 'hide',
+    parentFlag: 'operations',
+  }),
+  /** Operations: Storage */
+  operations_storage: FeatureFlagDefinitionSchema.default({
+    enabled: false,
+    uiStrategy: 'hide',
+    parentFlag: 'operations',
+  }),
+  /** Operations: Billing */
+  operations_billing: FeatureFlagDefinitionSchema.default({
+    enabled: false,
+    uiStrategy: 'hide',
+    parentFlag: 'operations',
+  }),
+
+  // Integration flags - ALL DISABLED BY DEFAULT
   /** Enable WhatsApp bot */
-  whatsappBot: z.boolean().default(false),
+  whatsappBot: FeatureFlagDefinitionSchema.default({ enabled: false, uiStrategy: 'hide' }),
   /** Enable Slack bot */
-  slackBot: z.boolean().default(false),
+  slackBot: FeatureFlagDefinitionSchema.default({ enabled: false, uiStrategy: 'hide' }),
   /** Enable Google Slides integration */
-  googleSlides: z.boolean().default(false),
+  googleSlides: FeatureFlagDefinitionSchema.default({ enabled: false, uiStrategy: 'hide' }),
   /** Enable MCP server */
-  mcpServer: z.boolean().default(true),
+  mcpServer: FeatureFlagDefinitionSchema.default({ enabled: false, uiStrategy: 'hide' }),
 });
 
 export type FeaturesConfig = z.infer<typeof FeaturesConfigSchema>;
@@ -453,14 +577,42 @@ export const AppConfigSchema = z.object({
     })
     .default({}),
 
-  /** Feature flags */
+  /** Feature flags - ALL DISABLED BY DEFAULT for pre-launch safety */
   features: FeaturesConfigSchema.optional().default({
-    slaMonitoring: true,
-    weeklyReports: true,
-    whatsappBot: false,
-    slackBot: false,
-    googleSlides: false,
-    mcpServer: true,
+    slaMonitoring: { enabled: false, uiStrategy: 'hide' },
+    weeklyReports: { enabled: false, uiStrategy: 'hide' },
+    miniApps: { enabled: false, uiStrategy: 'hide', route: '/apps', navSection: 'MANAGEMENT' },
+    miniApps_create: { enabled: false, uiStrategy: 'hide', parentFlag: 'miniApps' },
+    miniApps_editWithAI: { enabled: false, uiStrategy: 'hide', parentFlag: 'miniApps' },
+    miniApps_share: { enabled: false, uiStrategy: 'hide', parentFlag: 'miniApps' },
+    automation: {
+      enabled: false,
+      uiStrategy: 'hide',
+      route: '/automation',
+      navSection: 'MANAGEMENT',
+    },
+    automation_schedules: { enabled: false, uiStrategy: 'hide', parentFlag: 'automation' },
+    automation_webhooks: { enabled: false, uiStrategy: 'hide', parentFlag: 'automation' },
+    agentRegistry: {
+      enabled: false,
+      uiStrategy: 'hide',
+      route: '/agents',
+      navSection: 'MANAGEMENT',
+    },
+    agentRegistry_edit: { enabled: false, uiStrategy: 'hide', parentFlag: 'agentRegistry' },
+    operations: {
+      enabled: false,
+      uiStrategy: 'hide',
+      route: '/operations',
+      navSection: 'MANAGEMENT',
+    },
+    operations_monitoring: { enabled: false, uiStrategy: 'hide', parentFlag: 'operations' },
+    operations_storage: { enabled: false, uiStrategy: 'hide', parentFlag: 'operations' },
+    operations_billing: { enabled: false, uiStrategy: 'hide', parentFlag: 'operations' },
+    whatsappBot: { enabled: false, uiStrategy: 'hide' },
+    slackBot: { enabled: false, uiStrategy: 'hide' },
+    googleSlides: { enabled: false, uiStrategy: 'hide' },
+    mcpServer: { enabled: false, uiStrategy: 'hide' },
   }),
 
   /** SLA configuration */

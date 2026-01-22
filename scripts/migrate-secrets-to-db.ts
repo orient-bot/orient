@@ -10,13 +10,24 @@ import path from 'path';
 import { createSecretsService } from '@orient/database-services';
 
 const SENSITIVE_KEYS = [
+  // Infrastructure
   'POSTGRES_PASSWORD',
   'MINIO_ROOT_PASSWORD',
   'DASHBOARD_JWT_SECRET',
+  'ORIENT_MASTER_KEY',
+  // Slack
   'SLACK_BOT_TOKEN',
   'SLACK_SIGNING_SECRET',
   'SLACK_APP_TOKEN',
+  'SLACK_USER_TOKEN',
+  // AI Providers
   'GEMINI_API_KEY',
+  'ANTHROPIC_API_KEY',
+  'OPENAI_API_KEY',
+  // External Services
+  'GITHUB_TOKEN',
+  'VERCEL_TOKEN',
+  'GOOGLE_OAUTH_CLIENT_SECRET',
 ];
 
 function findProjectRoot(): string {
@@ -41,7 +52,10 @@ function parseEnv(content: string): Record<string, string> {
     if (idx <= 0) continue;
     const key = line.slice(0, idx).trim();
     let value = line.slice(idx + 1).trim();
-    if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+    if (
+      (value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith("'") && value.endsWith("'"))
+    ) {
       value = value.slice(1, -1);
     }
     result[key] = value;

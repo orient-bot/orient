@@ -405,6 +405,34 @@ export class GoogleOAuthService {
   }
 
   /**
+   * Add a Google account from externally obtained tokens.
+   * Used when sign-in flow also grants integration permissions.
+   */
+  addAccountFromTokens(params: {
+    email: string;
+    displayName?: string;
+    accessToken: string;
+    refreshToken: string;
+    expiresAt: number;
+    scopes: string[];
+  }): void {
+    const op = logger.startOperation('addAccountFromTokens', { email: params.email });
+
+    this.data.accounts[params.email] = {
+      email: params.email,
+      displayName: params.displayName,
+      accessToken: params.accessToken,
+      refreshToken: params.refreshToken,
+      expiresAt: params.expiresAt,
+      scopes: params.scopes,
+      connectedAt: Date.now(),
+    };
+
+    this.saveData();
+    op.success('Account added from external tokens');
+  }
+
+  /**
    * Get an authenticated OAuth2 client for a specific account.
    * Automatically refreshes tokens if expired.
    */

@@ -1,7 +1,7 @@
 name: pm-assistant-weekly-summary-quality
 description: PM assistant should provide clear and well-structured weekly summaries
 type: response_quality
-agent: pm-assistant
+agent: ori
 
 input:
   prompt: "Give me a summary of this week's progress"
