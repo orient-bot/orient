@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { setup, assetUrl } from '../api';
+import { setup, assetUrl, signInWithGoogle } from '../api';
+import { GoogleIcon } from './GoogleIcon';
 
 interface SetupFormProps {
   onSuccess: (username: string) => void;
@@ -52,6 +53,29 @@ export default function SetupForm({ onSuccess }: SetupFormProps) {
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Setup failed');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleGoogleSignUp = async () => {
+    setError(null);
+    setIsLoading(true);
+
+    try {
+      const result = await signInWithGoogle();
+
+      // If there's a redirect URL, navigate to it after successful setup
+      if (redirectUrl) {
+        // Small delay to ensure cookie is set
+        setTimeout(() => {
+          window.location.href = redirectUrl;
+        }, 100);
+      } else {
+        onSuccess(result.username);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Google sign-up failed');
     } finally {
       setIsLoading(false);
     }
@@ -135,6 +159,25 @@ export default function SetupForm({ onSuccess }: SetupFormProps) {
             ) : (
               'Create Admin Account'
             )}
+          </button>
+
+          <div className="relative my-4">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-border"></div>
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="px-2 bg-card text-muted-foreground">or</span>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleGoogleSignUp}
+            disabled={isLoading}
+            className="btn btn-secondary w-full py-2.5 flex items-center justify-center gap-2"
+          >
+            <GoogleIcon />
+            Sign up with Google
           </button>
         </form>
 

@@ -13,13 +13,13 @@ export interface MockQueryResult<T = any> {
 }
 
 export interface MockPoolClient {
-  query: Mock<any, Promise<MockQueryResult>>;
+  query: Mock<(sql: string, params?: any[]) => Promise<MockQueryResult>>;
   release: Mock;
 }
 
 export interface MockPgPool {
-  query: Mock<any, Promise<MockQueryResult>>;
-  connect: Mock<any, Promise<MockPoolClient>>;
+  query: Mock<(sql: string, params?: any[]) => Promise<MockQueryResult>>;
+  connect: Mock<() => Promise<MockPoolClient>>;
   end: Mock;
   on: Mock;
   removeListener: Mock;

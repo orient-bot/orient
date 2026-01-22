@@ -130,7 +130,10 @@ export const permissionAuditLog = pgTable(
 export const dashboardUsers = pgTable('dashboard_users', {
   id: serial('id').primaryKey(),
   username: text('username').unique().notNull(),
-  passwordHash: text('password_hash').notNull(),
+  passwordHash: text('password_hash'), // Nullable for Google-only users
+  googleId: text('google_id').unique(),
+  googleEmail: text('google_email'),
+  authMethod: text('auth_method').notNull().default('password'), // 'password' | 'google' | 'both'
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
 });
 

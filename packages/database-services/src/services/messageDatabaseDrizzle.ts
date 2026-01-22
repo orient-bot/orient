@@ -73,7 +73,10 @@ export interface PermissionAuditEntry {
 export interface DashboardUser {
   id: number;
   username: string;
-  passwordHash: string;
+  passwordHash: string | null;
+  googleId?: string | null;
+  googleEmail?: string | null;
+  authMethod?: 'password' | 'google' | 'both';
   createdAt: Date | null;
 }
 
@@ -216,6 +219,64 @@ export class MessageDatabase {
         )
       `;
 
+    // Add Google OAuth columns if they don't exist
+    await sql`
+        DO $$
+        BEGIN
+          -- Add google_id column
+          IF NOT EXISTS (
+            SELECT 1 FROM information_schema.columns
+            WHERE table_name = 'dashboard_users' AND column_name = 'google_id'
+          ) THEN
+            ALTER TABLE dashboard_users ADD COLUMN google_id TEXT UNIQUE;
+          END IF;
+
+          -- Add google_email column
+          IF NOT EXISTS (
+            SELECT 1 FROM information_schema.columns
+            WHERE table_name = 'dashboard_users' AND column_name = 'google_email'
+          ) THEN
+            ALTER TABLE dashboard_users ADD COLUMN google_email TEXT;
+          END IF;
+
+          -- Add auth_method column
+          IF NOT EXISTS (
+            SELECT 1 FROM information_schema.columns
+            WHERE table_name = 'dashboard_users' AND column_name = 'auth_method'
+          ) THEN
+            ALTER TABLE dashboard_users ADD COLUMN auth_method TEXT NOT NULL DEFAULT 'password'
+              CHECK (auth_method IN ('password', 'google', 'both'));
+          END IF;
+        END $$;
+      `;
+
+    // Make password_hash nullable for Google-only users
+    await sql`ALTER TABLE dashboard_users ALTER COLUMN password_hash DROP NOT NULL`;
+
+    // Drop existing check constraint if it exists (to avoid conflicts)
+    await sql`
+        DO $$
+        BEGIN
+          IF EXISTS (
+            SELECT 1 FROM information_schema.table_constraints
+            WHERE constraint_name = 'check_auth_method' AND table_name = 'dashboard_users'
+          ) THEN
+            ALTER TABLE dashboard_users DROP CONSTRAINT check_auth_method;
+          END IF;
+        END $$;
+      `;
+
+    // Add constraint: users must have either password or google_id
+    await sql`
+        ALTER TABLE dashboard_users
+        ADD CONSTRAINT check_auth_method
+        CHECK (
+          (auth_method = 'password' AND password_hash IS NOT NULL) OR
+          (auth_method = 'google' AND google_id IS NOT NULL) OR
+          (auth_method = 'both' AND password_hash IS NOT NULL AND google_id IS NOT NULL)
+        )
+      `;
+
     // System prompts table
     await sql`
         CREATE TABLE IF NOT EXISTS system_prompts (
@@ -245,6 +306,8 @@ export class MessageDatabase {
     await sql`CREATE INDEX IF NOT EXISTS idx_permission_audit_time ON permission_audit_log(changed_at)`;
     await sql`CREATE INDEX IF NOT EXISTS idx_system_prompts_lookup ON system_prompts(platform, chat_id)`;
     await sql`CREATE INDEX IF NOT EXISTS idx_system_prompts_platform ON system_prompts(platform)`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_dashboard_users_google_id ON dashboard_users(google_id)`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_dashboard_users_google_email ON dashboard_users(google_email)`;
 
     // Full-text search index
     await sql`
@@ -1059,6 +1122,9 @@ export class MessageDatabase {
       id: r.id,
       username: r.username,
       passwordHash: r.passwordHash,
+      googleId: r.googleId,
+      googleEmail: r.googleEmail,
+      authMethod: r.authMethod as 'password' | 'google' | 'both',
       createdAt: r.createdAt,
     };
   }
@@ -1077,8 +1143,84 @@ export class MessageDatabase {
       id: r.id,
       username: r.username,
       passwordHash: r.passwordHash,
+      googleId: r.googleId,
+      googleEmail: r.googleEmail,
+      authMethod: r.authMethod as 'password' | 'google' | 'both',
       createdAt: r.createdAt,
     };
+  }
+
+  async getDashboardUserByGoogleId(googleId: string): Promise<DashboardUser | undefined> {
+    const results = await this.db
+      .select()
+      .from(schema.dashboardUsers)
+      .where(eq(schema.dashboardUsers.googleId, googleId))
+      .limit(1);
+
+    if (results.length === 0) return undefined;
+
+    const r = results[0];
+    return {
+      id: r.id,
+      username: r.username,
+      passwordHash: r.passwordHash,
+      googleId: r.googleId,
+      googleEmail: r.googleEmail,
+      authMethod: r.authMethod as 'password' | 'google' | 'both',
+      createdAt: r.createdAt,
+    };
+  }
+
+  async getDashboardUserByEmail(email: string): Promise<DashboardUser | undefined> {
+    const results = await this.db
+      .select()
+      .from(schema.dashboardUsers)
+      .where(eq(schema.dashboardUsers.username, email))
+      .limit(1);
+
+    if (results.length === 0) return undefined;
+
+    const r = results[0];
+    return {
+      id: r.id,
+      username: r.username,
+      passwordHash: r.passwordHash,
+      googleId: r.googleId,
+      googleEmail: r.googleEmail,
+      authMethod: r.authMethod as 'password' | 'google' | 'both',
+      createdAt: r.createdAt,
+    };
+  }
+
+  async linkGoogleAccount(userId: number, googleId: string, googleEmail: string): Promise<boolean> {
+    const result = await this.db
+      .update(schema.dashboardUsers)
+      .set({
+        googleId,
+        googleEmail,
+        authMethod: 'both',
+      })
+      .where(eq(schema.dashboardUsers.id, userId))
+      .returning({ id: schema.dashboardUsers.id });
+
+    logger.info('Linked Google account to dashboard user', { userId, googleEmail });
+    return result.length > 0;
+  }
+
+  async createDashboardUserWithGoogle(googleId: string, email: string): Promise<number> {
+    const result = await this.db
+      .insert(schema.dashboardUsers)
+      .values({
+        username: email,
+        passwordHash: null,
+        googleId,
+        googleEmail: email,
+        authMethod: 'google',
+      })
+      .returning({ id: schema.dashboardUsers.id });
+
+    logger.info('Created dashboard user with Google', { email, id: result[0].id });
+    return result[0].id;
   }
 
   async createDashboardUser(username: string, passwordHash: string): Promise<number> {

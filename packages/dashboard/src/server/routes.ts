@@ -27,6 +27,7 @@ import {
   createVersionRoutes,
   createFeatureFlagsRoutes,
 } from './routes/index.js';
+import { createGoogleAuthRoutes } from './routes/google-auth.routes.js';
 import { initStorageService } from '../services/storageService.js';
 
 const logger = createServiceLogger('dashboard-routes');
@@ -249,6 +250,9 @@ export function createDashboardRouter(services: DashboardServices): Router {
   // ============================================
   // AUTH ROUTES (public)
   // ============================================
+
+  // Google OAuth routes
+  router.use('/auth/google', createGoogleAuthRoutes(auth, db));
 
   // Login
   router.post('/auth/login', async (req: Request, res: Response) => {
