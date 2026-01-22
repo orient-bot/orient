@@ -24,25 +24,25 @@ describe('Configuration Module', () => {
 
     it('should validate organization config', async () => {
       const { OrganizationSchema } = await import('../src/config/schema.js');
-      
+
       const validOrg = {
         name: 'Test Organization',
         jiraProjectKey: 'TEST',
         jiraComponent: 'TestComponent',
       };
-      
+
       const result = OrganizationSchema.safeParse(validOrg);
       expect(result.success).toBe(true);
     });
 
     it('should reject invalid organization config', async () => {
       const { OrganizationSchema } = await import('../src/config/schema.js');
-      
+
       const invalidOrg = {
         name: '', // Empty name should fail
         jiraProjectKey: 'TEST',
       };
-      
+
       const result = OrganizationSchema.safeParse(invalidOrg);
       expect(result.success).toBe(false);
     });
@@ -59,22 +59,25 @@ describe('Configuration Module', () => {
     it('should export DEFAULT_FEATURES', async () => {
       const { DEFAULT_FEATURES } = await import('../src/config/defaults.js');
       expect(DEFAULT_FEATURES).toBeDefined();
-      expect(DEFAULT_FEATURES.slaMonitoring).toBe(true);
-      expect(DEFAULT_FEATURES.whatsappBot).toBe(false);
+      // All features are disabled by default for pre-launch safety
+      expect(DEFAULT_FEATURES.slaMonitoring.enabled).toBe(false);
+      expect(DEFAULT_FEATURES.whatsappBot.enabled).toBe(false);
+      // Features should have uiStrategy
+      expect(DEFAULT_FEATURES.slaMonitoring.uiStrategy).toBe('hide');
     });
 
     it('should merge with defaults correctly', async () => {
       const { mergeWithDefaults, DEFAULT_FEATURES } = await import('../src/config/defaults.js');
-      
+
       const partial = {
         features: {
-          whatsappBot: true,
+          whatsappBot: { enabled: true, uiStrategy: 'hide' as const },
         },
       };
-      
+
       const merged = mergeWithDefaults(partial);
-      expect(merged.features?.whatsappBot).toBe(true);
-      expect(merged.features?.slaMonitoring).toBe(DEFAULT_FEATURES.slaMonitoring);
+      expect(merged.features?.whatsappBot).toEqual({ enabled: true, uiStrategy: 'hide' });
+      expect(merged.features?.slaMonitoring).toEqual(DEFAULT_FEATURES.slaMonitoring);
     });
   });
 });

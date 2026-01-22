@@ -49,10 +49,10 @@ import {
 import { VersionBanner } from './components/VersionNotification/VersionBanner';
 import { useVersionCheck } from './hooks/useVersionCheck';
 import { ThemeProvider, useTheme } from './context/ThemeContext';
-import { useFeatureFlags } from './context/FeatureFlagsContext';
 import { AppLayout } from './components/Layout/AppLayout';
 import { CommandPalette, useCommandPalette, type Command } from './components/CommandPalette';
 import { useOriActivation } from './hooks/useOriActivation';
+import { ProtectedRoute } from './components/ProtectedRoute';
 
 interface CombinedStats {
   whatsapp: DashboardStats | null;
@@ -107,7 +107,6 @@ function AppContent() {
   const location = useLocation();
   useOriActivation();
   const versionCheck = useVersionCheck();
-  const { isEnabled } = useFeatureFlags();
 
   const {
     globalView,
@@ -1267,54 +1266,58 @@ function AppContent() {
 
       {/* Automation Sub-tabs */}
       {globalView === 'automation' && (
-        <div className="flex gap-1 mb-6 p-1 bg-secondary rounded-lg w-fit border border-border">
-          <Link
-            to={ROUTES.AUTOMATION_SCHEDULES}
-            className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors flex items-center gap-2 ${automationView === 'schedules' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
-          >
-            Schedules
-            {stats.scheduler && stats.scheduler.enabledJobs > 0 && (
-              <span className="px-1.5 py-0.5 text-[10px] font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 rounded-full">
-                {stats.scheduler.enabledJobs}
-              </span>
-            )}
-          </Link>
-          <Link
-            to={ROUTES.AUTOMATION_WEBHOOKS}
-            className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors flex items-center gap-2 ${automationView === 'webhooks' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
-          >
-            Webhooks
-            {stats.webhook && stats.webhook.enabledWebhooks > 0 && (
-              <span className="px-1.5 py-0.5 text-[10px] font-bold bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 rounded-full">
-                {stats.webhook.enabledWebhooks}
-              </span>
-            )}
-          </Link>
-        </div>
+        <ProtectedRoute flagId="automation">
+          <div className="flex gap-1 mb-6 p-1 bg-secondary rounded-lg w-fit border border-border">
+            <Link
+              to={ROUTES.AUTOMATION_SCHEDULES}
+              className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors flex items-center gap-2 ${automationView === 'schedules' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+            >
+              Schedules
+              {stats.scheduler && stats.scheduler.enabledJobs > 0 && (
+                <span className="px-1.5 py-0.5 text-[10px] font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 rounded-full">
+                  {stats.scheduler.enabledJobs}
+                </span>
+              )}
+            </Link>
+            <Link
+              to={ROUTES.AUTOMATION_WEBHOOKS}
+              className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors flex items-center gap-2 ${automationView === 'webhooks' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+            >
+              Webhooks
+              {stats.webhook && stats.webhook.enabledWebhooks > 0 && (
+                <span className="px-1.5 py-0.5 text-[10px] font-bold bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 rounded-full">
+                  {stats.webhook.enabledWebhooks}
+                </span>
+              )}
+            </Link>
+          </div>
+        </ProtectedRoute>
       )}
 
       {/* Operations Sub-tabs */}
       {globalView === 'operations' && (
-        <div className="flex gap-1 mb-6 p-1 bg-secondary rounded-lg w-fit border border-border">
-          <Link
-            to={ROUTES.OPERATIONS_BILLING}
-            className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${operationsView === 'billing' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
-          >
-            Billing
-          </Link>
-          <Link
-            to={ROUTES.OPERATIONS_MONITORING}
-            className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${operationsView === 'monitoring' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
-          >
-            Monitoring
-          </Link>
-          <Link
-            to={ROUTES.OPERATIONS_STORAGE}
-            className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${operationsView === 'storage' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
-          >
-            Storage
-          </Link>
-        </div>
+        <ProtectedRoute flagId="operations">
+          <div className="flex gap-1 mb-6 p-1 bg-secondary rounded-lg w-fit border border-border">
+            <Link
+              to={ROUTES.OPERATIONS_BILLING}
+              className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${operationsView === 'billing' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+            >
+              Billing
+            </Link>
+            <Link
+              to={ROUTES.OPERATIONS_MONITORING}
+              className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${operationsView === 'monitoring' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+            >
+              Monitoring
+            </Link>
+            <Link
+              to={ROUTES.OPERATIONS_STORAGE}
+              className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${operationsView === 'storage' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+            >
+              Storage
+            </Link>
+          </div>
+        </ProtectedRoute>
       )}
 
       {/* Content */}
@@ -1333,31 +1336,47 @@ function AppContent() {
 
         {globalView === 'integrations' && integrationsView === 'providers' && <ProvidersTab />}
 
-        {globalView === 'automation' &&
-          automationView === 'schedules' &&
-          isEnabled('automation.schedules') && <SchedulesTab onUpdate={handleRefresh} />}
-
-        {globalView === 'automation' &&
-          automationView === 'webhooks' &&
-          isEnabled('automation.webhooks') && <WebhooksTab onRefresh={handleRefresh} />}
-
-        {globalView === 'operations' && operationsView === 'billing' && isEnabled('billing') && (
-          <BillingTab />
+        {globalView === 'automation' && automationView === 'schedules' && (
+          <ProtectedRoute flagId="automation_schedules">
+            <SchedulesTab onUpdate={handleRefresh} />
+          </ProtectedRoute>
         )}
 
-        {globalView === 'operations' &&
-          operationsView === 'monitoring' &&
-          isEnabled('monitoring') && <MonitoringTab />}
-
-        {globalView === 'operations' && operationsView === 'storage' && isEnabled('storage') && (
-          <StorageTab />
+        {globalView === 'automation' && automationView === 'webhooks' && (
+          <ProtectedRoute flagId="automation_webhooks">
+            <WebhooksTab onRefresh={handleRefresh} />
+          </ProtectedRoute>
         )}
 
-        {globalView === 'agents' && isEnabled('agent_registry') && (
-          <AgentsTab onUpdate={handleRefresh} />
+        {globalView === 'operations' && operationsView === 'billing' && (
+          <ProtectedRoute flagId="operations_billing">
+            <BillingTab />
+          </ProtectedRoute>
         )}
 
-        {globalView === 'apps' && isEnabled('mini_apps') && <AppsTab />}
+        {globalView === 'operations' && operationsView === 'monitoring' && (
+          <ProtectedRoute flagId="operations_monitoring">
+            <MonitoringTab />
+          </ProtectedRoute>
+        )}
+
+        {globalView === 'operations' && operationsView === 'storage' && (
+          <ProtectedRoute flagId="operations_storage">
+            <StorageTab />
+          </ProtectedRoute>
+        )}
+
+        {globalView === 'agents' && (
+          <ProtectedRoute flagId="agentRegistry">
+            <AgentsTab onUpdate={handleRefresh} />
+          </ProtectedRoute>
+        )}
+
+        {globalView === 'apps' && (
+          <ProtectedRoute flagId="miniApps">
+            <AppsTab />
+          </ProtectedRoute>
+        )}
 
         {globalView === 'settings' && (
           <SettingsLayout currentView={settingsView}>
@@ -1391,9 +1410,9 @@ function AppContent() {
             )}
             {settingsView === 'providers' && <ProvidersTab />}
             {settingsView === 'secrets' && <SecretsTab />}
+            {settingsView === 'feature-flags' && <FeatureFlagsPage />}
             {settingsView === 'appearance' && <AppearancePage />}
             {settingsView === 'updates' && <UpdatesPage />}
-            {settingsView === 'feature-flags' && <FeatureFlagsPage />}
           </SettingsLayout>
         )}
 

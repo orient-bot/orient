@@ -1,140 +1,136 @@
 /**
  * Feature Flags Routes
  *
- * API endpoints for managing feature flags with per-user overrides.
- * Supports hierarchical flag IDs with cascade logic.
+ * API endpoints for managing feature flags and UI visibility.
+ *
+ * Feature flags are resolved with the following priority:
+ * 1. Environment variables (FEATURE_FLAG_<FLAG_ID>=true/false)
+ * 2. Config file values
+ * 3. Pre-launch defaults (all disabled)
  */
 
 import { Router, Request, Response } from 'express';
-import { createServiceLogger } from '@orient/core';
-import { createFeatureFlagsService } from '@orient/database-services';
-import { AuthenticatedRequest } from '../../auth.js';
+import {
+  getConfig,
+  createServiceLogger,
+  resolveFeatureFlags,
+  getFeatureFlagsForApi,
+  getAllFlagIds,
+  getEnvVarName,
+  PRE_LAUNCH_DEFAULTS,
+} from '@orient/core';
 
 const logger = createServiceLogger('feature-flags-routes');
 
-/**
- * Create Feature Flags routes
- */
 export function createFeatureFlagsRoutes(
   requireAuth: (req: Request, res: Response, next: () => void) => void
 ): Router {
   const router = Router();
-  const featureFlagsService = createFeatureFlagsService();
-
-  // ============================================
-  // Feature Flags Endpoints
-  // ============================================
 
   /**
    * GET /api/feature-flags
-   * Get all feature flags with user overrides
+   * Retrieve all feature flags with proper resolution
+   *
+   * Returns resolved flags (env vars > config file > defaults)
    */
-  router.get('/', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+  router.get('/', requireAuth, async (_req: Request, res: Response) => {
     try {
-      if (!req.user) {
-        return res.status(401).json({ error: 'Not authenticated' });
-      }
+      const config = getConfig();
 
-      const flags = await featureFlagsService.getAllFlagsWithOverrides(req.user.userId);
+      // Use centralized resolution (env vars > config > defaults)
+      const resolvedFlags = resolveFeatureFlags(config.features);
+      const flags = getFeatureFlagsForApi(resolvedFlags);
+
       res.json({ flags });
     } catch (error) {
-      logger.error('Failed to get feature flags', {
-        error: error instanceof Error ? error.message : String(error),
-      });
-      res.status(500).json({ error: 'Failed to get feature flags' });
+      logger.error('Failed to retrieve feature flags', { error: String(error) });
+
+      // Fallback to pre-launch defaults if resolution fails
+      // This ensures the UI never breaks, just shows a safe state
+      const fallbackFlags = getFeatureFlagsForApi(PRE_LAUNCH_DEFAULTS);
+      res.json({ flags: fallbackFlags });
     }
   });
 
   /**
-   * GET /api/feature-flags/effective
-   * Get effective flag values as a flat object
-   * Returns: { 'mini_apps': true, 'mini_apps.create': true, ... }
+   * GET /api/feature-flags/documentation
+   * Get documentation about feature flags and their env vars
    */
-  router.get('/effective', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+  router.get('/documentation', requireAuth, async (_req: Request, res: Response) => {
     try {
-      if (!req.user) {
-        return res.status(401).json({ error: 'Not authenticated' });
-      }
+      const flagIds = getAllFlagIds();
+      const documentation = flagIds.map((flagId) => ({
+        flagId,
+        envVar: getEnvVarName(flagId),
+        defaultEnabled:
+          PRE_LAUNCH_DEFAULTS[flagId as keyof typeof PRE_LAUNCH_DEFAULTS]?.enabled ?? false,
+      }));
 
-      const effectiveFlags = await featureFlagsService.getEffectiveFlags(req.user.userId);
-      res.json({ flags: effectiveFlags });
+      res.json({
+        documentation,
+        notes: [
+          'All features are DISABLED by default (pre-launch safe)',
+          'To enable features, use environment variables: FEATURE_FLAG_<FLAG_ID>=true',
+          'Or configure in config.yml under the features section',
+          'Environment variables take highest priority',
+        ],
+      });
     } catch (error) {
-      logger.error('Failed to get effective feature flags', {
-        error: error instanceof Error ? error.message : String(error),
-      });
-      res.status(500).json({ error: 'Failed to get effective feature flags' });
+      logger.error('Failed to get feature flags documentation', { error: String(error) });
+      res.status(500).json({ error: 'Failed to get documentation' });
     }
   });
 
   /**
-   * PUT /api/feature-flags/:flagId/override
-   * Set a user override for a specific flag
+   * PUT /api/feature-flags/:flagId
+   * Update a specific feature flag
+   *
+   * Note: Changes are NOT persisted to config file.
+   * Use environment variables or config.yml for permanent changes.
    */
-  router.put('/:flagId/override', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+  router.put('/:flagId', requireAuth, async (req: Request, res: Response) => {
     try {
-      if (!req.user) {
-        return res.status(401).json({ error: 'Not authenticated' });
+      const { flagId } = req.params;
+      const { enabled, uiStrategy } = req.body;
+
+      // Validate flag ID exists
+      const allFlags = getAllFlagIds();
+      if (!allFlags.includes(flagId)) {
+        return res.status(404).json({
+          error: `Feature flag '${flagId}' not found`,
+          availableFlags: allFlags,
+        });
       }
 
-      const { flagId } = req.params;
-      const { enabled } = req.body;
-
-      if (typeof enabled !== 'boolean') {
+      // Validate inputs
+      if (enabled !== undefined && typeof enabled !== 'boolean') {
         return res.status(400).json({ error: 'enabled must be a boolean' });
       }
 
-      await featureFlagsService.setUserOverride(req.user.userId, flagId, enabled);
+      if (uiStrategy !== undefined && !['hide', 'notify'].includes(uiStrategy)) {
+        return res.status(400).json({ error: 'uiStrategy must be "hide" or "notify"' });
+      }
 
-      // Return updated flags
-      const flags = await featureFlagsService.getAllFlagsWithOverrides(req.user.userId);
-      res.json({ success: true, flags });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      logger.error('Failed to set feature flag override', {
-        error: message,
-        flagId: req.params.flagId,
+      const envVarName = getEnvVarName(flagId);
+
+      logger.info('Feature flag update requested (not persisted)', {
+        flagId,
+        enabled,
+        uiStrategy,
       });
 
-      // Check if it's a "not found" error
-      if (message.includes('does not exist')) {
-        return res.status(404).json({ error: message });
-      }
-
-      res.status(500).json({ error: 'Failed to set feature flag override' });
+      res.json({
+        success: true,
+        message:
+          'Changes are not persisted. To make permanent changes, use environment variables or config.yml.',
+        flagId,
+        hint: `Set environment variable: ${envVarName}=${enabled ? 'true' : 'false'}`,
+      });
+    } catch (error) {
+      logger.error('Failed to update feature flag', { error: String(error) });
+      res.status(500).json({ error: 'Failed to update feature flag' });
     }
   });
-
-  /**
-   * DELETE /api/feature-flags/:flagId/override
-   * Remove a user override (revert to global default)
-   */
-  router.delete(
-    '/:flagId/override',
-    requireAuth,
-    async (req: AuthenticatedRequest, res: Response) => {
-      try {
-        if (!req.user) {
-          return res.status(401).json({ error: 'Not authenticated' });
-        }
-
-        const { flagId } = req.params;
-
-        await featureFlagsService.removeUserOverride(req.user.userId, flagId);
-
-        // Return updated flags
-        const flags = await featureFlagsService.getAllFlagsWithOverrides(req.user.userId);
-        res.json({ success: true, flags });
-      } catch (error) {
-        logger.error('Failed to remove feature flag override', {
-          error: error instanceof Error ? error.message : String(error),
-          flagId: req.params.flagId,
-        });
-        res.status(500).json({ error: 'Failed to remove feature flag override' });
-      }
-    }
-  );
-
-  logger.info('Feature flags routes initialized');
 
   return router;
 }

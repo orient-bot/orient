@@ -26,6 +26,9 @@ export { startConfigPoller, stopConfigPoller } from './poller.js';
 // Export schema and types
 export * from './schema.js';
 
+// Export feature flags service
+export * from './featureFlags.js';
+
 // Export defaults
 export * from './defaults.js';
 

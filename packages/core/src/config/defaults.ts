@@ -47,15 +47,49 @@ export const DEFAULT_CRON_SCHEDULES = {
 
 /**
  * Default feature flags
- * Most features are disabled by default to require explicit opt-in
+ * ALL FEATURES DISABLED by default for pre-launch safety.
+ * Enable via environment variables (FEATURE_FLAG_<NAME>=true) or config.yml.
  */
 export const DEFAULT_FEATURES = {
-  slaMonitoring: true, // Core functionality, enabled
-  weeklyReports: true, // Core functionality, enabled
-  whatsappBot: false, // Requires WhatsApp setup
-  slackBot: false, // Requires Slack setup
-  googleSlides: false, // Requires Google setup
-  mcpServer: true, // Core MCP functionality
+  slaMonitoring: { enabled: false, uiStrategy: 'hide' as const },
+  weeklyReports: { enabled: false, uiStrategy: 'hide' as const },
+  miniApps: {
+    enabled: false,
+    uiStrategy: 'hide' as const,
+    route: '/apps',
+    navSection: 'MANAGEMENT' as const,
+  },
+  miniApps_create: { enabled: false, uiStrategy: 'hide' as const, parentFlag: 'miniApps' },
+  miniApps_editWithAI: { enabled: false, uiStrategy: 'hide' as const, parentFlag: 'miniApps' },
+  miniApps_share: { enabled: false, uiStrategy: 'hide' as const, parentFlag: 'miniApps' },
+  automation: {
+    enabled: false,
+    uiStrategy: 'hide' as const,
+    route: '/automation',
+    navSection: 'MANAGEMENT' as const,
+  },
+  automation_schedules: { enabled: false, uiStrategy: 'hide' as const, parentFlag: 'automation' },
+  automation_webhooks: { enabled: false, uiStrategy: 'hide' as const, parentFlag: 'automation' },
+  agentRegistry: {
+    enabled: false,
+    uiStrategy: 'hide' as const,
+    route: '/agents',
+    navSection: 'MANAGEMENT' as const,
+  },
+  agentRegistry_edit: { enabled: false, uiStrategy: 'hide' as const, parentFlag: 'agentRegistry' },
+  operations: {
+    enabled: false,
+    uiStrategy: 'hide' as const,
+    route: '/operations',
+    navSection: 'MANAGEMENT' as const,
+  },
+  operations_monitoring: { enabled: false, uiStrategy: 'hide' as const, parentFlag: 'operations' },
+  operations_storage: { enabled: false, uiStrategy: 'hide' as const, parentFlag: 'operations' },
+  operations_billing: { enabled: false, uiStrategy: 'hide' as const, parentFlag: 'operations' },
+  whatsappBot: { enabled: false, uiStrategy: 'hide' as const },
+  slackBot: { enabled: false, uiStrategy: 'hide' as const },
+  googleSlides: { enabled: false, uiStrategy: 'hide' as const },
+  mcpServer: { enabled: false, uiStrategy: 'hide' as const },
 } as const;
 
 /**
