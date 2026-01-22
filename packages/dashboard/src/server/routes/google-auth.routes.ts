@@ -12,7 +12,7 @@ import crypto from 'crypto';
 import { DashboardAuth } from '../../auth.js';
 import { MessageDatabase } from '../../services/messageDatabase.js';
 import { createServiceLogger } from '@orient/core';
-import { SecretsService } from '@orient/database-services';
+import { createSecretsService } from '@orient/database-services';
 
 const logger = createServiceLogger('google-auth-routes');
 
@@ -96,7 +96,7 @@ async function getGoogleCredentials(): Promise<{
   clientId: string;
   clientSecret: string;
 } | null> {
-  const secrets = new SecretsService();
+  const secrets = createSecretsService();
 
   try {
     // Try secrets database first
