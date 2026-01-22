@@ -1,24 +1,13 @@
 /**
  * Feature Flags Routes
  *
- * API endpoints for managing feature flags and UI visibility.
- *
- * Feature flags are resolved with the following priority:
- * 1. Environment variables (FEATURE_FLAG_<FLAG_ID>=true/false)
- * 2. Config file values
- * 3. Pre-launch defaults (all disabled)
+ * API endpoints for managing feature flags.
+ * Feature flags are stored in the database and can be toggled from the UI.
  */
 
 import { Router, Request, Response } from 'express';
-import {
-  getConfig,
-  createServiceLogger,
-  resolveFeatureFlags,
-  getFeatureFlagsForApi,
-  getAllFlagIds,
-  getEnvVarName,
-  PRE_LAUNCH_DEFAULTS,
-} from '@orient/core';
+import { createServiceLogger } from '@orient/core';
+import { getDatabase, featureFlags, eq } from '@orient/database';
 
 const logger = createServiceLogger('feature-flags-routes');
 
@@ -26,109 +15,232 @@ export function createFeatureFlagsRoutes(
   requireAuth: (req: Request, res: Response, next: () => void) => void
 ): Router {
   const router = Router();
+  const db = getDatabase();
 
   /**
    * GET /api/feature-flags
-   * Retrieve all feature flags with proper resolution
-   *
-   * Returns resolved flags (env vars > config file > defaults)
+   * Retrieve all feature flags from the database as array with effective values
    */
   router.get('/', requireAuth, async (_req: Request, res: Response) => {
     try {
-      const config = getConfig();
+      const dbFlags = await db.select().from(featureFlags).orderBy(featureFlags.sortOrder);
 
-      // Use centralized resolution (env vars > config > defaults)
-      const resolvedFlags = resolveFeatureFlags(config.features);
-      const flags = getFeatureFlagsForApi(resolvedFlags);
+      // Transform to FeatureFlagWithOverride format expected by frontend
+      const flags = dbFlags.map((flag) => ({
+        id: flag.id,
+        name: flag.name,
+        description: flag.description,
+        enabled: flag.enabled ?? true,
+        category: flag.category ?? 'ui',
+        sortOrder: flag.sortOrder ?? 0,
+        createdAt: flag.createdAt?.toISOString() ?? new Date().toISOString(),
+        updatedAt: flag.updatedAt?.toISOString() ?? new Date().toISOString(),
+        userOverride: null, // No user overrides implemented yet
+        effectiveValue: flag.enabled ?? true,
+      }));
 
       res.json({ flags });
     } catch (error) {
       logger.error('Failed to retrieve feature flags', { error: String(error) });
-
-      // Fallback to pre-launch defaults if resolution fails
-      // This ensures the UI never breaks, just shows a safe state
-      const fallbackFlags = getFeatureFlagsForApi(PRE_LAUNCH_DEFAULTS);
-      res.json({ flags: fallbackFlags });
+      res.status(500).json({ error: 'Failed to retrieve feature flags' });
     }
   });
 
   /**
-   * GET /api/feature-flags/documentation
-   * Get documentation about feature flags and their env vars
+   * GET /api/feature-flags/list
+   * Get detailed list of all flags with metadata
    */
-  router.get('/documentation', requireAuth, async (_req: Request, res: Response) => {
+  router.get('/list', requireAuth, async (_req: Request, res: Response) => {
     try {
-      const flagIds = getAllFlagIds();
-      const documentation = flagIds.map((flagId) => ({
-        flagId,
-        envVar: getEnvVarName(flagId),
-        defaultEnabled:
-          PRE_LAUNCH_DEFAULTS[flagId as keyof typeof PRE_LAUNCH_DEFAULTS]?.enabled ?? false,
-      }));
+      const flags = await db.select().from(featureFlags).orderBy(featureFlags.sortOrder);
 
-      res.json({
-        documentation,
-        notes: [
-          'All features are DISABLED by default (pre-launch safe)',
-          'To enable features, use environment variables: FEATURE_FLAG_<FLAG_ID>=true',
-          'Or configure in config.yml under the features section',
-          'Environment variables take highest priority',
-        ],
-      });
+      res.json({ flags });
     } catch (error) {
-      logger.error('Failed to get feature flags documentation', { error: String(error) });
-      res.status(500).json({ error: 'Failed to get documentation' });
+      logger.error('Failed to list feature flags', { error: String(error) });
+      res.status(500).json({ error: 'Failed to list feature flags' });
+    }
+  });
+
+  /**
+   * GET /api/feature-flags/effective
+   * Get flat map of flag IDs to their effective boolean values
+   */
+  router.get('/effective', requireAuth, async (_req: Request, res: Response) => {
+    try {
+      const dbFlags = await db.select().from(featureFlags).orderBy(featureFlags.sortOrder);
+
+      const flags: Record<string, boolean> = {};
+      for (const flag of dbFlags) {
+        flags[flag.id] = flag.enabled ?? true;
+      }
+
+      res.json({ flags });
+    } catch (error) {
+      logger.error('Failed to retrieve effective flags', { error: String(error) });
+      res.status(500).json({ error: 'Failed to retrieve effective flags' });
     }
   });
 
   /**
    * PUT /api/feature-flags/:flagId
-   * Update a specific feature flag
-   *
-   * Note: Changes are NOT persisted to config file.
-   * Use environment variables or config.yml for permanent changes.
+   * Update a specific feature flag - persisted to database
    */
   router.put('/:flagId', requireAuth, async (req: Request, res: Response) => {
     try {
       const { flagId } = req.params;
-      const { enabled, uiStrategy } = req.body;
+      const { enabled } = req.body;
 
-      // Validate flag ID exists
-      const allFlags = getAllFlagIds();
-      if (!allFlags.includes(flagId)) {
-        return res.status(404).json({
-          error: `Feature flag '${flagId}' not found`,
-          availableFlags: allFlags,
-        });
-      }
-
-      // Validate inputs
-      if (enabled !== undefined && typeof enabled !== 'boolean') {
+      // Validate enabled is a boolean
+      if (typeof enabled !== 'boolean') {
         return res.status(400).json({ error: 'enabled must be a boolean' });
       }
 
-      if (uiStrategy !== undefined && !['hide', 'notify'].includes(uiStrategy)) {
-        return res.status(400).json({ error: 'uiStrategy must be "hide" or "notify"' });
+      // Check if flag exists
+      const existingFlag = await db
+        .select()
+        .from(featureFlags)
+        .where(eq(featureFlags.id, flagId))
+        .limit(1);
+
+      if (existingFlag.length === 0) {
+        return res.status(404).json({
+          error: `Feature flag '${flagId}' not found`,
+        });
       }
 
-      const envVarName = getEnvVarName(flagId);
+      // Update the flag
+      await db
+        .update(featureFlags)
+        .set({
+          enabled,
+          updatedAt: new Date(),
+        })
+        .where(eq(featureFlags.id, flagId));
 
-      logger.info('Feature flag update requested (not persisted)', {
-        flagId,
-        enabled,
-        uiStrategy,
-      });
+      logger.info('Feature flag updated', { flagId, enabled });
+
+      // Return updated flags list
+      const dbFlags = await db.select().from(featureFlags).orderBy(featureFlags.sortOrder);
+
+      const flags = dbFlags.map((flag) => ({
+        id: flag.id,
+        name: flag.name,
+        description: flag.description,
+        enabled: flag.enabled ?? true,
+        category: flag.category ?? 'ui',
+        sortOrder: flag.sortOrder ?? 0,
+        createdAt: flag.createdAt?.toISOString() ?? new Date().toISOString(),
+        updatedAt: flag.updatedAt?.toISOString() ?? new Date().toISOString(),
+        userOverride: null,
+        effectiveValue: flag.enabled ?? true,
+      }));
 
       res.json({
         success: true,
-        message:
-          'Changes are not persisted. To make permanent changes, use environment variables or config.yml.',
-        flagId,
-        hint: `Set environment variable: ${envVarName}=${enabled ? 'true' : 'false'}`,
+        flags,
       });
     } catch (error) {
       logger.error('Failed to update feature flag', { error: String(error) });
       res.status(500).json({ error: 'Failed to update feature flag' });
+    }
+  });
+
+  /**
+   * PUT /api/feature-flags/:flagId/override
+   * Set a user override for a flag (currently updates global flag)
+   */
+  router.put('/:flagId/override', requireAuth, async (req: Request, res: Response) => {
+    try {
+      const { flagId } = req.params;
+      const { enabled } = req.body;
+
+      if (typeof enabled !== 'boolean') {
+        return res.status(400).json({ error: 'enabled must be a boolean' });
+      }
+
+      // Check if flag exists
+      const existingFlag = await db
+        .select()
+        .from(featureFlags)
+        .where(eq(featureFlags.id, flagId))
+        .limit(1);
+
+      if (existingFlag.length === 0) {
+        return res.status(404).json({ error: `Feature flag '${flagId}' not found` });
+      }
+
+      // Update the flag (for now, updates global value)
+      await db
+        .update(featureFlags)
+        .set({ enabled, updatedAt: new Date() })
+        .where(eq(featureFlags.id, flagId));
+
+      logger.info('Feature flag override set', { flagId, enabled });
+
+      // Return updated flags list
+      const dbFlags = await db.select().from(featureFlags).orderBy(featureFlags.sortOrder);
+
+      const flags = dbFlags.map((flag) => ({
+        id: flag.id,
+        name: flag.name,
+        description: flag.description,
+        enabled: flag.enabled ?? true,
+        category: flag.category ?? 'ui',
+        sortOrder: flag.sortOrder ?? 0,
+        createdAt: flag.createdAt?.toISOString() ?? new Date().toISOString(),
+        updatedAt: flag.updatedAt?.toISOString() ?? new Date().toISOString(),
+        userOverride: flag.id === flagId ? enabled : null,
+        effectiveValue: flag.enabled ?? true,
+      }));
+
+      res.json({ success: true, flags });
+    } catch (error) {
+      logger.error('Failed to set feature flag override', { error: String(error) });
+      res.status(500).json({ error: 'Failed to set feature flag override' });
+    }
+  });
+
+  /**
+   * DELETE /api/feature-flags/:flagId/override
+   * Remove a user override (no-op currently, returns current state)
+   */
+  router.delete('/:flagId/override', requireAuth, async (req: Request, res: Response) => {
+    try {
+      const { flagId } = req.params;
+
+      // Check if flag exists
+      const existingFlag = await db
+        .select()
+        .from(featureFlags)
+        .where(eq(featureFlags.id, flagId))
+        .limit(1);
+
+      if (existingFlag.length === 0) {
+        return res.status(404).json({ error: `Feature flag '${flagId}' not found` });
+      }
+
+      logger.info('Feature flag override removed', { flagId });
+
+      // Return current flags list
+      const dbFlags = await db.select().from(featureFlags).orderBy(featureFlags.sortOrder);
+
+      const flags = dbFlags.map((flag) => ({
+        id: flag.id,
+        name: flag.name,
+        description: flag.description,
+        enabled: flag.enabled ?? true,
+        category: flag.category ?? 'ui',
+        sortOrder: flag.sortOrder ?? 0,
+        createdAt: flag.createdAt?.toISOString() ?? new Date().toISOString(),
+        updatedAt: flag.updatedAt?.toISOString() ?? new Date().toISOString(),
+        userOverride: null,
+        effectiveValue: flag.enabled ?? true,
+      }));
+
+      res.json({ success: true, flags });
+    } catch (error) {
+      logger.error('Failed to remove feature flag override', { error: String(error) });
+      res.status(500).json({ error: 'Failed to remove feature flag override' });
     }
   });
 

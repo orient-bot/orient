@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { getFeatureFlags } from '../api';
 
 export interface FeatureFlagDefinition {
   /** Whether the feature is enabled */
@@ -14,40 +15,45 @@ export interface FeatureFlagDefinition {
 }
 
 /**
- * Pre-launch defaults - ALL FEATURES DISABLED
+ * Pre-launch defaults - matches database feature_flags table
+ * IDs use camelCase to match UI expectations (database uses snake_case)
  * This ensures a consistent, safe UI state if the API fails or is unavailable.
- * Matches the server-side PRE_LAUNCH_DEFAULTS.
  */
 const PRE_LAUNCH_DEFAULTS: Record<string, FeatureFlagDefinition> = {
-  slaMonitoring: { enabled: false, uiStrategy: 'hide' },
-  weeklyReports: { enabled: false, uiStrategy: 'hide' },
+  // Mini Apps - disabled by default
   miniApps: { enabled: false, uiStrategy: 'hide', route: '/apps', navSection: 'MANAGEMENT' },
   miniApps_create: { enabled: false, parentFlag: 'miniApps', uiStrategy: 'hide' },
-  miniApps_editWithAI: { enabled: false, parentFlag: 'miniApps', uiStrategy: 'hide' },
+  miniApps_editWithAi: { enabled: false, parentFlag: 'miniApps', uiStrategy: 'hide' },
   miniApps_share: { enabled: false, parentFlag: 'miniApps', uiStrategy: 'hide' },
-  automation: {
+
+  // Monitoring - disabled by default
+  monitoring: {
     enabled: false,
     uiStrategy: 'hide',
-    route: '/automation',
+    route: '/monitoring',
     navSection: 'MANAGEMENT',
   },
-  automation_schedules: { enabled: false, parentFlag: 'automation', uiStrategy: 'hide' },
-  automation_webhooks: { enabled: false, parentFlag: 'automation', uiStrategy: 'hide' },
-  agentRegistry: { enabled: false, uiStrategy: 'hide', route: '/agents', navSection: 'MANAGEMENT' },
-  agentRegistry_edit: { enabled: false, parentFlag: 'agentRegistry', uiStrategy: 'hide' },
-  operations: {
-    enabled: false,
-    uiStrategy: 'hide',
-    route: '/operations',
-    navSection: 'MANAGEMENT',
-  },
+  monitoring_serverHealth: { enabled: false, parentFlag: 'monitoring', uiStrategy: 'hide' },
+
+  // Agent Registry - enabled by default
+  agentRegistry: { enabled: true, uiStrategy: 'hide', route: '/agents', navSection: 'MANAGEMENT' },
+  agentRegistry_edit: { enabled: true, parentFlag: 'agentRegistry', uiStrategy: 'hide' },
+
+  // Automation - enabled by default
+  automation: { enabled: true, uiStrategy: 'hide', route: '/automation', navSection: 'MANAGEMENT' },
+  automation_schedules: { enabled: true, parentFlag: 'automation', uiStrategy: 'hide' },
+  automation_webhooks: { enabled: true, parentFlag: 'automation', uiStrategy: 'hide' },
+
+  // Operations - enabled by default
+  operations: { enabled: true, uiStrategy: 'hide', route: '/operations', navSection: 'MANAGEMENT' },
+  operations_billing: { enabled: true, parentFlag: 'operations', uiStrategy: 'hide' },
+  operations_storage: { enabled: true, parentFlag: 'operations', uiStrategy: 'hide' },
   operations_monitoring: { enabled: false, parentFlag: 'operations', uiStrategy: 'hide' },
-  operations_storage: { enabled: false, parentFlag: 'operations', uiStrategy: 'hide' },
-  operations_billing: { enabled: false, parentFlag: 'operations', uiStrategy: 'hide' },
-  whatsappBot: { enabled: false, uiStrategy: 'hide' },
-  slackBot: { enabled: false, uiStrategy: 'hide' },
-  googleSlides: { enabled: false, uiStrategy: 'hide' },
-  mcpServer: { enabled: false, uiStrategy: 'hide' },
+  operations_monitoring_serverHealth: {
+    enabled: false,
+    parentFlag: 'operations_monitoring',
+    uiStrategy: 'hide',
+  },
 };
 
 export interface UseFeatureFlagsReturn {
@@ -79,17 +85,36 @@ export function useFeatureFlags(): UseFeatureFlagsReturn {
       setLoading(true);
       setError(null);
 
-      const response = await fetch('/api/feature-flags', {
-        credentials: 'include',
-      });
+      // Use authenticated API function
+      const data = await getFeatureFlags();
 
-      if (!response.ok) {
-        throw new Error(`Failed to load feature flags: ${response.statusText}`);
+      // Transform API array to object map expected by UI
+      // API returns: { flags: [{ id: 'mini_apps', enabled: true, ... }] }
+      // UI expects: { miniApps: { enabled: true, uiStrategy: 'hide', ... } }
+      const flagsFromApi: Record<string, FeatureFlagDefinition> = {};
+
+      if (Array.isArray(data.flags)) {
+        for (const flag of data.flags) {
+          // Convert snake_case ID to camelCase for UI compatibility
+          const camelId = flag.id.replace(/_([a-z])/g, (_: string, c: string) => c.toUpperCase());
+          // Also handle dot notation (mini_apps.create -> miniApps_create)
+          const uiId = camelId.replace(/\./g, '_');
+
+          // Determine parent flag from ID hierarchy
+          const parentFlag = flag.id.includes('.')
+            ? flag.id.split('.')[0].replace(/_([a-z])/g, (_: string, c: string) => c.toUpperCase())
+            : undefined;
+
+          flagsFromApi[uiId] = {
+            enabled: flag.effectiveValue ?? flag.enabled ?? false,
+            uiStrategy: 'hide',
+            parentFlag,
+          };
+        }
       }
 
-      const data = await response.json();
       // Merge with defaults to ensure all flags exist
-      setFlags({ ...PRE_LAUNCH_DEFAULTS, ...(data.flags || {}) });
+      setFlags({ ...PRE_LAUNCH_DEFAULTS, ...flagsFromApi });
     } catch (err) {
       // Fallback to pre-launch defaults (all disabled) for safe UI state
       console.warn('Failed to load feature flags, using pre-launch defaults:', err);

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useFeatureFlags, type FeatureFlagDefinition } from '../../hooks/useFeatureFlags';
+import { setFeatureFlagOverride } from '../../api';
 
 export function FeatureFlagsPage() {
   const { flags, refresh, loading } = useFeatureFlags();
@@ -8,24 +9,37 @@ export function FeatureFlagsPage() {
   // Group flags by parent
   const rootFlags = Object.entries(flags).filter(([_, flag]) => !flag.parentFlag);
 
+  // Convert camelCase UI ID to snake_case database ID
+  // Examples:
+  //   miniApps -> mini_apps
+  //   miniApps_create -> mini_apps.create
+  //   monitoring_serverHealth -> monitoring.server_health
+  const toDbId = (uiId: string): string => {
+    // Split on underscore (hierarchy separator)
+    const parts = uiId.split('_');
+
+    // Convert each part from camelCase to snake_case
+    const dbParts = parts.map((part) =>
+      part
+        .replace(/([A-Z])/g, '_$1')
+        .toLowerCase()
+        .replace(/^_/, '')
+    );
+
+    // Join with dot for hierarchy
+    return dbParts.join('.');
+  };
+
   const updateFlag = async (flagId: string, updates: Partial<FeatureFlagDefinition>) => {
     setUpdating(true);
     try {
-      const response = await fetch(`/api/feature-flags/${flagId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(updates),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to update feature flag');
-      }
-
+      const dbId = toDbId(flagId);
+      // Use the authenticated API function
+      await setFeatureFlagOverride(dbId, updates.enabled ?? false);
       await refresh();
     } catch (error) {
       console.error('Failed to update feature flag:', error);
-      alert('Failed to update feature flag. Changes will not persist after server restart.');
+      alert('Failed to update feature flag. Please try again.');
     } finally {
       setUpdating(false);
     }
@@ -46,54 +60,6 @@ export function FeatureFlagsPage() {
         <p className="text-sm text-muted-foreground mt-1">
           Control which features are visible and how they behave when disabled.
         </p>
-      </div>
-
-      <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-        <div className="flex gap-2">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="text-blue-600 dark:text-blue-500 flex-shrink-0"
-          >
-            <circle cx="12" cy="12" r="10" />
-            <path d="M12 16v-4" />
-            <path d="M12 8h.01" />
-          </svg>
-          <div>
-            <p className="text-sm font-medium text-blue-900 dark:text-blue-200">
-              Pre-Launch Configuration
-            </p>
-            <p className="text-sm text-blue-800 dark:text-blue-300 mt-1">
-              All features are <strong>disabled by default</strong> until launch. To enable
-              features:
-            </p>
-            <ul className="text-sm text-blue-800 dark:text-blue-300 mt-2 list-disc list-inside space-y-1">
-              <li>
-                <strong>Environment variable:</strong>{' '}
-                <code className="px-1 py-0.5 bg-blue-100 dark:bg-blue-900/40 rounded text-xs">
-                  FEATURE_FLAG_MINI_APPS=true
-                </code>
-              </li>
-              <li>
-                <strong>Config file:</strong>{' '}
-                <code className="px-1 py-0.5 bg-blue-100 dark:bg-blue-900/40 rounded text-xs">
-                  config.yml
-                </code>{' '}
-                (features section)
-              </li>
-            </ul>
-            <p className="text-xs text-blue-700 dark:text-blue-400 mt-2">
-              Environment variables take priority over config file values.
-            </p>
-          </div>
-        </div>
       </div>
 
       <div className="space-y-4">

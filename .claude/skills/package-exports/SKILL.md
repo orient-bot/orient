@@ -264,6 +264,296 @@ Control what gets published to npm:
 
 This excludes `src/`, tests, and config files from the package.
 
+## Exporting Database Schema Tables (Drizzle ORM)
+
+The `@orient/database` package uses Drizzle ORM and requires explicit exports for schema tables.
+
+### Step 1: Verify Table Definition Exists
+
+Tables are defined in `packages/database/src/schema/index.ts`:
+
+```typescript
+// packages/database/src/schema/index.ts
+import { pgTable, text, boolean, timestamp, integer, index } from 'drizzle-orm/pg-core';
+
+export const featureFlags = pgTable(
+  'feature_flags',
+  {
+    id: text('id').primaryKey(),
+    name: text('name').notNull(),
+    enabled: boolean('enabled').default(true),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  },
+  (table) => [index('idx_feature_flags_name').on(table.name)]
+);
+```
+
+### Step 2: Add Export to Main Package Index
+
+Add the table to the exports in `packages/database/src/index.ts`:
+
+```typescript
+// packages/database/src/index.ts
+
+// Export schema tables directly for convenience
+export {
+  messages,
+  groups,
+  dashboardUsers,
+  // ... existing exports ...
+
+  // Feature Flags tables (NEW)
+  featureFlags,
+  userFeatureFlagOverrides,
+
+  // Enums
+  messageDirectionEnum,
+} from './schema/index.js';
+```
+
+### Step 3: Rebuild Dependent Packages
+
+After adding exports, rebuild the database package and all dependent packages:
+
+```bash
+# Rebuild database package
+pnpm turbo run build --filter=@orient/database
+
+# Rebuild all dependent packages (dashboard depends on database)
+pnpm turbo run build --filter=@orient/dashboard
+```
+
+### Step 4: Use the Export
+
+Now you can import the table in other packages:
+
+```typescript
+// packages/dashboard/src/server/routes/featureFlags.routes.ts
+import { getDatabase, featureFlags, eq } from '@orient/database';
+
+const db = getDatabase();
+
+// Query the table
+const flags = await db.select().from(featureFlags).where(eq(featureFlags.enabled, true));
+
+// Update the table
+await db
+  .update(featureFlags)
+  .set({ enabled: false, updatedAt: new Date() })
+  .where(eq(featureFlags.id, 'mini_apps'));
+```
+
+### Step 5: Add Test for Export
+
+Verify the export works with a contract test:
+
+```typescript
+// packages/database/__tests__/schema.test.ts
+import { describe, it, expect } from 'vitest';
+import { featureFlags } from '../src/index.js';
+
+describe('@orient/database schema exports', () => {
+  it('should export featureFlags table', () => {
+    expect(featureFlags).toBeDefined();
+    expect(featureFlags.id).toBeDefined();
+    expect(featureFlags.enabled).toBeDefined();
+  });
+});
+```
+
+## Verifying Exports at Runtime
+
+### The IDE vs Runtime Gap
+
+A common pitfall: **imports work in your IDE but fail at runtime**. This happens because:
+
+- IDE uses TypeScript path aliases → resolves to source files
+- Runtime uses package exports → resolves to built dist files
+
+### Ensuring Rebuilt Packages Are Picked Up
+
+After modifying exports, follow this sequence:
+
+```bash
+# 1. Rebuild the modified package AND its dependents in order
+pnpm turbo run build --filter=@orient/database
+pnpm turbo run build --filter=@orient/dashboard
+
+# Or rebuild everything that depends on database
+pnpm turbo run build --filter=...@orient/database
+```
+
+**Why turbo?** It handles dependency order automatically. If dashboard depends on database, turbo builds database first.
+
+### Restarting Servers After Rebuilds
+
+Running servers cache module imports. After rebuilding packages:
+
+```bash
+# Find and kill the server process
+lsof -i :4098  # Find dashboard server PID
+kill <PID>
+
+# Or if using ./run.sh dev, it may auto-restart
+# If not, restart the dev environment
+./run.sh stop && ./run.sh dev
+```
+
+### Verifying Runtime Imports
+
+Test that exports work at runtime, not just in IDE:
+
+```bash
+# Quick runtime verification
+node -e "import('@orient/database').then(m => console.log(Object.keys(m)))"
+
+# Or check specific export
+node -e "import('@orient/database').then(m => console.log('featureFlags:', !!m.featureFlags))"
+```
+
+### Debugging Stale Builds
+
+If runtime still fails after rebuilding:
+
+1. **Check dist files exist**:
+
+   ```bash
+   ls packages/database/dist/schema/
+   grep -l "featureFlags" packages/database/dist/*.js
+   ```
+
+2. **Clear turbo cache** (nuclear option):
+
+   ```bash
+   rm -rf .turbo node_modules/.cache
+   pnpm turbo run build --filter=@orient/database --force
+   ```
+
+3. **Check tsbuildinfo isn't stale**:
+   ```bash
+   rm packages/database/tsconfig.tsbuildinfo
+   pnpm turbo run build --filter=@orient/database
+   ```
+
+## Transforming Database Rows to API Responses
+
+When creating API routes that query database tables, you need to transform Drizzle row objects into the format expected by the frontend.
+
+### Type Mapping: Database -> API
+
+```typescript
+// Database row from Drizzle (nullable fields, Date objects)
+const dbRow = {
+  id: 'mini_apps',
+  name: 'Mini Apps',
+  enabled: true, // boolean | null in DB
+  createdAt: Date, // Date object
+  updatedAt: Date, // Date object
+};
+
+// API response format (non-null, ISO strings)
+const apiResponse = {
+  id: dbRow.id,
+  name: dbRow.name,
+  enabled: dbRow.enabled ?? true, // Handle nulls with defaults
+  createdAt: dbRow.createdAt?.toISOString() ?? new Date().toISOString(),
+  updatedAt: dbRow.updatedAt?.toISOString() ?? new Date().toISOString(),
+};
+```
+
+### Date Serialization
+
+Drizzle returns `Date` objects, but JSON APIs need ISO strings:
+
+```typescript
+// ❌ WRONG - Date objects don't serialize correctly
+res.json({ flags: dbFlags });
+
+// ✅ CORRECT - Convert dates to ISO strings
+const flags = dbFlags.map((flag) => ({
+  ...flag,
+  createdAt: flag.createdAt?.toISOString() ?? new Date().toISOString(),
+  updatedAt: flag.updatedAt?.toISOString() ?? new Date().toISOString(),
+}));
+res.json({ flags });
+```
+
+### Adding Computed/Derived Fields
+
+APIs often need fields not in the database:
+
+```typescript
+// Frontend expects FeatureFlagWithOverride
+interface FeatureFlagWithOverride {
+  id: string;
+  name: string;
+  enabled: boolean;
+  userOverride: boolean | null; // Not in DB yet
+  effectiveValue: boolean; // Computed field
+}
+
+// Transform DB row to API format
+const flags = dbFlags.map((flag) => ({
+  id: flag.id,
+  name: flag.name,
+  enabled: flag.enabled ?? true,
+  userOverride: null, // Placeholder until implemented
+  effectiveValue: flag.enabled ?? true, // Computed from enabled
+  createdAt: flag.createdAt?.toISOString(),
+  updatedAt: flag.updatedAt?.toISOString(),
+}));
+```
+
+### Common Error: "flags is not iterable"
+
+```
+Uncaught TypeError: flags is not iterable
+```
+
+**Cause**: API returns object map `{ flags: { id: {...} } }` but frontend expects array `{ flags: [...] }`.
+
+**Fix**: Ensure API returns an array:
+
+```typescript
+// ❌ Returns object map
+const flagsMap: Record<string, any> = {};
+for (const flag of dbFlags) {
+  flagsMap[flag.id] = { enabled: flag.enabled };
+}
+res.json({ flags: flagsMap });
+
+// ✅ Returns array
+const flags = dbFlags.map((flag) => ({
+  id: flag.id,
+  enabled: flag.enabled ?? true,
+}));
+res.json({ flags });
+```
+
+### Common Error: "does not provide an export named"
+
+```
+SyntaxError: The requested module '@orient/database' does not provide an export named 'featureFlags'
+```
+
+**Cause**: Table is defined in `schema/index.ts` but not re-exported from main `index.ts`.
+
+**Fix**:
+
+1. Add the table name to exports in `packages/database/src/index.ts`
+2. Rebuild: `pnpm turbo run build --filter=@orient/database`
+3. Restart any running servers
+
+### Checklist for New Database Tables
+
+- [ ] Define table in `packages/database/src/schema/index.ts`
+- [ ] Add migration in `data/migrations/XXX_add_table.sql`
+- [ ] Export table from `packages/database/src/index.ts`
+- [ ] Export any related types from `packages/database/src/types.ts`
+- [ ] Rebuild: `pnpm turbo run build --filter=@orient/database`
+- [ ] Add schema test in `packages/database/__tests__/schema.test.ts`
+- [ ] Rebuild dependent packages
+
 ## Checklist for New Exports
 
 When adding a new export to a package:
