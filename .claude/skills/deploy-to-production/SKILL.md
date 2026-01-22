@@ -205,13 +205,70 @@ The deployment pipeline:
 
 ### Common CI Failures
 
-| Issue                                  | Cause                     | Fix                             |
-| -------------------------------------- | ------------------------- | ------------------------------- |
-| `Cannot find package`                  | Missing devDependency     | Check pnpm-lock.yaml            |
-| `No test found in suite`               | Eval tests included       | Use `test:ci` instead of `test` |
-| Dockerfile not found                   | Path changed              | Update workflow matrix          |
-| Container name conflict                | V1/V2 name mismatch       | Clean up both names             |
-| `Missing parameter name at index 1: *` | Express 5 breaking change | Use `/{*splat}` not `*`         |
+| Issue                                       | Cause                     | Fix                             |
+| ------------------------------------------- | ------------------------- | ------------------------------- |
+| `Cannot find package`                       | Missing devDependency     | Check pnpm-lock.yaml            |
+| `No test found in suite`                    | Eval tests included       | Use `test:ci` instead of `test` |
+| Dockerfile not found                        | Path changed              | Update workflow matrix          |
+| Container name conflict                     | V1/V2 name mismatch       | Clean up both names             |
+| `Missing parameter name at index 1: *`      | Express 5 breaking change | Use `/{*splat}` not `*`         |
+| `SKILL.md file(s) with invalid frontmatter` | Missing YAML metadata     | Add `---` delimited frontmatter |
+
+### Skill File Validation Failures
+
+The CI pipeline validates all SKILL.md files have proper YAML frontmatter metadata.
+
+**Error Example:**
+
+```
+Error: Found 2 SKILL.md file(s) with invalid frontmatter:
+  - .claude/skills/personal-vite-jsx-caching-fix/SKILL.md: File does not start with frontmatter delimiter (---)
+  - .claude/skills/personal-crypto-secrets-management/SKILL.md: File does not start with frontmatter delimiter (---)
+```
+
+**Required YAML Frontmatter Format:**
+
+```yaml
+---
+name: my-skill-name
+description: "Brief description of what this skill does"
+---
+
+# Skill Title
+... rest of skill content ...
+```
+
+**Common Issues with Multi-Repo Setups:**
+
+When using a personal fork (e.g., `orient-core/orient`) that has additional skills not in the OSS repo (`orient-bot/orient`):
+
+1. **Personal skills are gitignored in OSS** - Files starting with `personal-` are in `.gitignore`
+2. **Tests run on ALL skill files** - Including personal skills that may lack frontmatter
+3. **OSS repo passes, personal repo fails** - Because personal skills weren't tested upstream
+
+**Recovery Workflow:**
+
+```bash
+# 1. Checkout the failing repo's main branch
+git fetch deploy main
+git checkout -B fix-skill-frontmatter deploy/main
+
+# 2. Find skills missing frontmatter
+grep -L "^---" .claude/skills/*/SKILL.md
+
+# 3. Add frontmatter to each file
+# File must START with --- (no content before it)
+
+# 4. Commit and push fix
+git add .claude/skills/
+git commit -m "fix(skills): add YAML frontmatter to skill files"
+git push deploy fix-skill-frontmatter:main
+
+# 5. Re-trigger deployment
+gh workflow run deploy.yml -f force_build_all=true --repo YOUR_ORG/YOUR_REPO
+```
+
+**Validation Test Location:** `tests/config/skill-files.test.ts`
 
 ### Express 5 / path-to-regexp v8 Breaking Changes
 
