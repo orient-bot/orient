@@ -18,17 +18,13 @@ const sidebars: SidebarsConfig = {
     {
       type: 'category',
       label: 'Features',
-      items: [
-        'features/chatting',
-        'features/scheduling',
-        'features/mini-apps',
-      ],
+      items: ['features/chatting', 'features/scheduling', 'features/mini-apps'],
       collapsed: false,
     },
     {
       type: 'category',
       label: 'Help',
-      items: ['help/tips', 'help/faq', 'help/troubleshooting'],
+      items: ['help/tips', 'help/faq', 'help/troubleshooting', 'help/cli'],
       collapsed: false,
     },
   ],

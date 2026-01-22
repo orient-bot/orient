@@ -169,6 +169,44 @@ See [Production Deployment](docs/deployment/production.md) for details.
 | `./run.sh instances`    | List all running instances        |
 | `./run.sh help`         | Show all available commands       |
 
+## 💻 Command-Line Interface (CLI)
+
+For power users who prefer terminal access, Orient includes a CLI for managing schedulers, webhooks, and agents.
+
+### Installation
+
+```bash
+# Build the CLI
+cd packages/cli
+pnpm install
+pnpm build
+
+# Link globally (optional)
+npm link
+```
+
+### Quick Examples
+
+```bash
+# List scheduled jobs
+orient scheduler list
+
+# Create a daily reminder
+orient scheduler create \
+  --name "daily-standup" \
+  --type cron \
+  --cron "0 9 * * 1-5" \
+  --provider slack \
+  --target "#standup" \
+  --message "Daily standup in 10 minutes!"
+
+# Manage webhooks
+orient webhook list
+orient webhook create --name "github-prs" --source github
+```
+
+See the full [CLI documentation](packages/cli/README.md) for all commands and options.
+
 ## 🔒 Privacy & Security
 
 - **Open-source** — MIT licensed, audit the code yourself
