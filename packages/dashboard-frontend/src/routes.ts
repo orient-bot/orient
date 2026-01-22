@@ -183,6 +183,9 @@ export function getRouteState(pathname: string): RouteState {
   if (pathname.startsWith('/settings/updates')) {
     return { ...defaultState, globalView: 'settings', settingsView: 'updates' };
   }
+  if (pathname.startsWith('/settings/feature-flags')) {
+    return { ...defaultState, globalView: 'settings', settingsView: 'feature-flags' };
+  }
   if (pathname.startsWith('/settings')) {
     return {
       ...defaultState,

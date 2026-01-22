@@ -37,21 +37,28 @@ show_help() {
 ║  Orient - Unified Run Script                                     ║
 ╠═══════════════════════════════════════════════════════════════════════════╣
 ║                                                                           ║
+║  UNIVERSAL COMMANDS:                                                      ║
+║    ./run.sh stop             Stop current instance (worktree-aware)       ║
+║    ./run.sh stop --all       Stop ALL instances everywhere                ║
+║    ./run.sh stop --force     Force stop with kill -9                      ║
+║    ./run.sh stop --clean     Stop and remove volumes (fresh start)        ║
+║    ./run.sh status           Show what's running                          ║
+║    ./run.sh instances        List all running instances                   ║
+║                                                                           ║
 ║  SETUP:                                                                   ║
 ║    ./run.sh doctor           Check environment prerequisites              ║
 ║    ./run.sh doctor --fix     Auto-fix issues where possible               ║
 ║                                                                           ║
 ║  DEVELOPMENT (hot-reload):                                                ║
 ║    ./run.sh dev              Start dev environment                        ║
-║    ./run.sh dev stop         Stop all services                            ║
+║    ./run.sh dev stop         Stop dev services only                       ║
 ║    ./run.sh dev logs         View logs                                    ║
 ║    ./run.sh dev status       Show service status                          ║
-║    ./run.sh instances        List all running instances                   ║
 ║                                                                           ║
 ║  TESTING (full Docker):                                                   ║
 ║    ./run.sh test             Start with local builds                      ║
 ║    ./run.sh test pull        Start with ghcr.io images                    ║
-║    ./run.sh test stop        Stop containers                              ║
+║    ./run.sh test stop        Stop test containers only                    ║
 ║    ./run.sh test logs        View container logs                          ║
 ║    ./run.sh test clean       Fresh start (remove volumes)                 ║
 ║                                                                           ║
@@ -120,7 +127,54 @@ show_instances() {
     echo ""
 }
 
+show_status() {
+    echo ""
+    echo -e "${BLUE}═══════════════════════════════════════════════════════════════════════════${NC}"
+    echo -e "${BLUE}  Orient - Service Status${NC}"
+    echo -e "${BLUE}═══════════════════════════════════════════════════════════════════════════${NC}"
+    echo ""
+
+    # Show Docker compose projects
+    echo -e "${YELLOW}Docker Compose Projects:${NC}"
+    docker compose ls 2>/dev/null || echo "  No compose projects found"
+    echo ""
+
+    # Show running containers
+    echo -e "${YELLOW}Running Containers:${NC}"
+    local containers=$(docker ps --filter "name=orienter-" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" 2>/dev/null)
+    if [ -n "$containers" ]; then
+        echo "$containers"
+    else
+        echo "  No orienter containers running"
+    fi
+    echo ""
+
+    # Show key port usage
+    echo -e "${YELLOW}Port Usage:${NC}"
+    local ports=(80 4097 4098 4099 5173 5432 9000 9001)
+    for port in "${ports[@]}"; do
+        local pid=$(lsof -ti ":$port" 2>/dev/null || true)
+        if [ -n "$pid" ]; then
+            local process=$(ps -p "$pid" -o comm= 2>/dev/null || echo "unknown")
+            echo -e "  Port $port: ${GREEN}in use${NC} (PID: $pid, $process)"
+        fi
+    done
+    echo ""
+
+    echo -e "${BLUE}═══════════════════════════════════════════════════════════════════════════${NC}"
+    echo ""
+}
+
 case "$1" in
+    stop)
+        # Universal stop - stops current instance by default, --all for everything
+        exec "$SCRIPT_DIR/scripts/stop.sh" "${@:2}"
+        ;;
+    status)
+        # Show what's currently running
+        show_status
+        exit 0
+        ;;
     dev)
         # Hot-reload development mode
         exec "$SCRIPT_DIR/scripts/dev.sh" "${@:2}"

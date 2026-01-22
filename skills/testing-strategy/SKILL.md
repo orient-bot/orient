@@ -15,7 +15,7 @@ Comprehensive guide for running and interpreting tests in the Orient monorepo. C
 
 | Category    | Files | Command                                        | When to Run                        |
 | ----------- | ----- | ---------------------------------------------- | ---------------------------------- |
-| Unit        | ~24   | `pnpm test:unit`                               | After code changes, before commits |
+| Unit        | ~27   | `pnpm test:unit`                               | After code changes, before commits |
 | Integration | ~1    | `INTEGRATION_TESTS=true pnpm test:integration` | After service changes              |
 | E2E         | ~5    | `E2E_TESTS=true pnpm test:e2e`                 | Before releases, after API changes |
 | Contract    | ~6    | `pnpm vitest run tests/contracts/`             | After package exports change       |
@@ -61,6 +61,495 @@ pnpm vitest run tests/config/
 
 ```bash
 pnpm vitest run tests/services/
+```
+
+## Vitest Mocking Patterns
+
+### Module Mocking with Hoisting Rules
+
+Vitest hoists `vi.mock()` calls to the top of the file before imports. This requires careful setup to avoid initialization order issues.
+
+**CRITICAL RULE**: Variables used in `vi.mock()` factory functions must be declared at module level BEFORE being used in the mock.
+
+#### Pattern 1: Module-Level Mock Objects (Recommended)
+
+```typescript
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+// ✅ CORRECT: Declare mock objects at module level
+const mockQuery = vi.fn();
+const mockPool = {
+  query: mockQuery,
+  connect: vi.fn(),
+  end: vi.fn(),
+  on: vi.fn(),
+  removeListener: vi.fn(),
+};
+
+// ✅ Mock using the module-level objects
+vi.mock('pg', () => ({
+  default: {
+    Pool: class MockPool {
+      query = mockQuery;
+      connect = mockPool.connect;
+      end = mockPool.end;
+      on = mockPool.on;
+      removeListener = mockPool.removeListener;
+    },
+  },
+}));
+
+// Now import the module being tested
+import { SecretsService } from '../src/secretsService.js';
+
+describe('SecretsService', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockQuery.mockReset();
+    mockQuery.mockResolvedValue({ rows: [], rowCount: 0 });
+  });
+
+  it('should query database', async () => {
+    mockQuery.mockResolvedValueOnce({
+      rows: [{ key: 'test', value: 'data' }],
+      rowCount: 1,
+    });
+
+    const service = new SecretsService();
+    const result = await service.getSecret('test');
+
+    expect(mockQuery).toHaveBeenCalledWith(expect.stringContaining('SELECT'), ['test']);
+  });
+});
+```
+
+#### Pattern 2: MockPool Class Pattern
+
+For complex database mocking, use a class-based mock:
+
+```typescript
+// ✅ Module-level mock setup
+const mockQuery = vi.fn();
+const mockPool = {
+  query: mockQuery,
+  connect: vi.fn(),
+  end: vi.fn(),
+};
+
+class MockPool {
+  query = mockQuery;
+  connect = mockPool.connect;
+  end = mockPool.end;
+  on = vi.fn();
+  removeListener = vi.fn();
+}
+
+vi.mock('pg', () => ({
+  default: { Pool: MockPool },
+}));
+```
+
+#### Common Pitfalls and Solutions
+
+**❌ WRONG: Using variables before declaration**
+
+```typescript
+// ❌ This will fail with "Cannot access before initialization"
+vi.mock('@orient/core', () => ({
+  encryptSecret: mockEncryptSecret, // ❌ Used before declaration
+  decryptSecret: mockDecryptSecret,
+}));
+
+const mockEncryptSecret = vi.fn(); // ❌ Declared too late
+const mockDecryptSecret = vi.fn();
+```
+
+**✅ CORRECT: Declare first, then mock**
+
+```typescript
+// ✅ Declare at module level
+const mockEncryptSecret = vi.fn();
+const mockDecryptSecret = vi.fn();
+
+// ✅ Then use in mock
+vi.mock('@orient/core', () => ({
+  encryptSecret: mockEncryptSecret,
+  decryptSecret: mockDecryptSecret,
+  createServiceLogger: () => ({
+    info: vi.fn(),
+    error: vi.fn(),
+  }),
+}));
+```
+
+**❌ WRONG: Factory function returning arrow function**
+
+```typescript
+// ❌ This causes "is not a constructor" errors
+vi.mock('pg', () => ({
+  default: {
+    Pool: () => ({ query: vi.fn() }), // ❌ Arrow function, not constructor
+  },
+}));
+```
+
+**✅ CORRECT: Use class or constructor function**
+
+```typescript
+// ✅ Use a proper class
+vi.mock('pg', () => ({
+  default: {
+    Pool: class MockPool {
+      query = vi.fn();
+      connect = vi.fn();
+    },
+  },
+}));
+```
+
+### Database Mocking (PostgreSQL)
+
+#### Basic pg.Pool Mock
+
+```typescript
+import { vi } from 'vitest';
+
+const mockQuery = vi.fn();
+const mockPool = {
+  query: mockQuery,
+  connect: vi.fn(),
+  end: vi.fn(),
+  on: vi.fn(),
+  removeListener: vi.fn(),
+};
+
+vi.mock('pg', () => ({
+  default: {
+    Pool: class MockPool {
+      query = mockQuery;
+      connect = mockPool.connect;
+      end = mockPool.end;
+      on = mockPool.on;
+      removeListener = mockPool.removeListener;
+    },
+  },
+}));
+
+// In tests
+beforeEach(() => {
+  mockQuery.mockReset();
+  mockQuery.mockResolvedValue({ rows: [], rowCount: 0 });
+});
+
+it('should query database', async () => {
+  mockQuery.mockResolvedValueOnce({
+    rows: [{ id: 1, name: 'test' }],
+    rowCount: 1,
+  });
+
+  // Test code that uses pg.Pool
+});
+```
+
+#### Testing Multiple Query Responses
+
+```typescript
+it('should handle multiple queries', async () => {
+  // First query: INSERT
+  mockQuery.mockResolvedValueOnce({ rows: [], rowCount: 1 });
+
+  // Second query: SELECT
+  mockQuery.mockResolvedValueOnce({
+    rows: [{ id: 1, created_at: '2024-01-01' }],
+    rowCount: 1,
+  });
+
+  // Third query: audit log INSERT
+  mockQuery.mockResolvedValueOnce({ rows: [], rowCount: 1 });
+
+  await service.setSecret('key', 'value', { changedBy: 'admin' });
+
+  expect(mockQuery).toHaveBeenCalledTimes(3);
+  expect(mockQuery).toHaveBeenNthCalledWith(
+    1,
+    expect.stringContaining('INSERT INTO secrets'),
+    expect.any(Array)
+  );
+});
+```
+
+#### Testing Database Errors
+
+```typescript
+it('should handle connection failures', async () => {
+  mockQuery.mockRejectedValueOnce(new Error('Connection refused'));
+
+  await expect(service.getSecret('test')).rejects.toThrow('Connection refused');
+});
+```
+
+### External Service Mocking (fetch, APIs)
+
+#### Basic fetch Mock
+
+```typescript
+const mockFetch = vi.fn();
+global.fetch = mockFetch;
+
+beforeEach(() => {
+  vi.clearAllMocks();
+});
+
+it('should fetch user info', async () => {
+  mockFetch.mockResolvedValueOnce({
+    ok: true,
+    json: () =>
+      Promise.resolve({
+        login: 'testuser',
+        id: 12345,
+        email: 'test@example.com',
+      }),
+  });
+
+  const result = await service.getUserInfo('token');
+
+  expect(mockFetch).toHaveBeenCalledWith(
+    'https://api.github.com/user',
+    expect.objectContaining({
+      headers: expect.objectContaining({
+        Authorization: 'Bearer token',
+      }),
+    })
+  );
+  expect(result.login).toBe('testuser');
+});
+```
+
+#### Testing OAuth Token Exchange
+
+```typescript
+it('should exchange code for tokens', async () => {
+  // Mock token endpoint response
+  mockFetch.mockResolvedValueOnce({
+    ok: true,
+    json: () =>
+      Promise.resolve({
+        access_token: 'gho_abc123',
+        token_type: 'bearer',
+        scope: 'repo,user',
+      }),
+  });
+
+  // Mock user info endpoint response
+  mockFetch.mockResolvedValueOnce({
+    ok: true,
+    json: () =>
+      Promise.resolve({
+        login: 'testuser',
+        id: 12345,
+      }),
+  });
+
+  const result = await service.handleCallback('code', 'state');
+
+  expect(result.success).toBe(true);
+  expect(mockFetch).toHaveBeenCalledTimes(2);
+});
+```
+
+#### Testing API Failures
+
+```typescript
+it('should handle API errors', async () => {
+  mockFetch.mockResolvedValueOnce({
+    ok: false,
+    status: 401,
+    text: () => Promise.resolve('Unauthorized'),
+  });
+
+  await expect(service.fetchData()).rejects.toThrow('Unauthorized');
+});
+```
+
+### File System Mocking
+
+```typescript
+import fs from 'fs';
+
+vi.mock('fs', () => ({
+  default: {
+    existsSync: vi.fn().mockReturnValue(false),
+    readFileSync: vi.fn(),
+    writeFileSync: vi.fn(),
+    mkdirSync: vi.fn(),
+  },
+  existsSync: vi.fn().mockReturnValue(false),
+  readFileSync: vi.fn(),
+  writeFileSync: vi.fn(),
+  mkdirSync: vi.fn(),
+}));
+
+// In tests
+import { readFileSync, writeFileSync } from 'fs';
+
+it('should save tokens to file', () => {
+  const mockWriteFileSync = vi.mocked(writeFileSync);
+
+  service.saveTokens({ access_token: 'token' });
+
+  expect(mockWriteFileSync).toHaveBeenCalledWith(
+    expect.stringContaining('tokens.json'),
+    expect.stringContaining('"access_token":"token"'),
+    'utf-8'
+  );
+});
+```
+
+### Testing Services with Encrypted Data Storage
+
+#### Pattern: Mock Both Database and Crypto
+
+```typescript
+// Module-level mocks
+const mockQuery = vi.fn();
+const mockEncryptSecret = vi.fn();
+const mockDecryptSecret = vi.fn();
+
+vi.mock('pg', () => ({
+  default: {
+    Pool: class MockPool {
+      query = mockQuery;
+    },
+  },
+}));
+
+vi.mock('@orient/core', () => ({
+  encryptSecret: mockEncryptSecret,
+  decryptSecret: mockDecryptSecret,
+  createServiceLogger: () => ({
+    info: vi.fn(),
+    error: vi.fn(),
+  }),
+}));
+
+import { SecretsService } from '../src/secretsService.js';
+import { encryptSecret, decryptSecret } from '@orient/core';
+
+describe('SecretsService with encryption', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockQuery.mockResolvedValue({ rows: [], rowCount: 0 });
+
+    vi.mocked(encryptSecret).mockReturnValue({
+      encrypted: 'enc-data',
+      iv: 'test-iv',
+      authTag: 'test-tag',
+    });
+
+    vi.mocked(decryptSecret).mockReturnValue('decrypted-value');
+  });
+
+  it('should encrypt before storing', async () => {
+    await service.setSecret('key', 'plaintext');
+
+    // Verify encryption was called
+    expect(encryptSecret).toHaveBeenCalledWith('plaintext');
+
+    // Verify encrypted data was stored
+    expect(mockQuery).toHaveBeenCalledWith(
+      expect.stringContaining('INSERT INTO secrets'),
+      expect.arrayContaining(['key', 'enc-data', 'test-iv', 'test-tag'])
+    );
+  });
+
+  it('should decrypt after retrieval', async () => {
+    mockQuery.mockResolvedValueOnce({
+      rows: [
+        {
+          encrypted_value: 'stored-enc',
+          iv: 'stored-iv',
+          auth_tag: 'stored-tag',
+        },
+      ],
+      rowCount: 1,
+    });
+
+    const result = await service.getSecret('key');
+
+    // Verify decryption was called with database values
+    expect(decryptSecret).toHaveBeenCalledWith('stored-enc', 'stored-iv', 'stored-tag');
+    expect(result).toBe('decrypted-value');
+  });
+
+  it('should not expose plaintext in database', async () => {
+    await service.setSecret('password', 'super-secret-123');
+
+    // Verify plaintext never appears in query params
+    expect(mockQuery).toHaveBeenCalled();
+    const queryArgs = mockQuery.mock.calls[0][1];
+    expect(queryArgs).not.toContain('super-secret-123');
+  });
+});
+```
+
+### Test-Utils Package: Reusable Mocks
+
+The `@orient/test-utils` package provides shared mocking utilities:
+
+```typescript
+import { createMockPgPool, setupQueryMock } from '@orient/test-utils/mocks';
+
+describe('Database tests', () => {
+  const pool = createMockPgPool();
+
+  it('should query with custom responses', async () => {
+    setupQueryMock(pool, 'SELECT', {
+      rows: [{ id: 1, name: 'test' }],
+      rowCount: 1,
+    });
+
+    // Use the pool in your tests
+  });
+});
+```
+
+### Best Practices
+
+1. **Always use module-level mock declarations** to avoid hoisting issues
+2. **Reset mocks in beforeEach** to ensure test isolation
+3. **Use mockResolvedValueOnce** for sequential query responses
+4. **Test both success and error paths** for external services
+5. **Verify security properties** (e.g., plaintext never stored)
+6. **Use vi.mocked()** for better TypeScript inference
+7. **Mock only what you need** - don't over-mock internal implementation details
+
+### Common Mock Patterns Reference
+
+```typescript
+// Database query mock
+mockQuery.mockResolvedValueOnce({ rows: [data], rowCount: 1 });
+
+// API fetch mock
+mockFetch.mockResolvedValueOnce({
+  ok: true,
+  json: () => Promise.resolve(data),
+});
+
+// Error simulation
+mockQuery.mockRejectedValueOnce(new Error('Connection failed'));
+
+// Multiple return values
+mockFn.mockReturnValueOnce('first').mockReturnValueOnce('second').mockReturnValueOnce('third');
+
+// Clear all mock state
+vi.clearAllMocks();
+
+// Reset implementation
+mockQuery.mockReset();
+
+// Assert call order
+expect(mockQuery).toHaveBeenNthCalledWith(1, 'SELECT ...', ['param1']);
+expect(mockQuery).toHaveBeenNthCalledWith(2, 'INSERT ...', ['param2']);
 ```
 
 ## Environment Variable Passing to Test Runners
@@ -349,7 +838,7 @@ When using `--isolated` flag, the worktree gets its own database:
 ./run.sh dev start --no-whatsapp --no-slack
 
 # Run all test categories
-pnpm test:unit                                    # ~246 tests
+pnpm test:unit                                    # ~313 tests (+67 security tests)
 INTEGRATION_TESTS=true pnpm test:integration      # ~43 tests
 E2E_TESTS=true pnpm test:e2e                      # ~34 tests (some may timeout)
 pnpm vitest run tests/contracts/                  # ~62 tests
@@ -369,18 +858,27 @@ curl -s http://localhost:4098/health | jq .
 curl -s http://localhost:4097/health | jq .
 ```
 
-## Expected Baseline Results (v0.1.0)
+## Expected Baseline Results (v0.1.0 + Security Tests)
 
 | Category    | Tests Passed | Skipped | Notes                         |
 | ----------- | ------------ | ------- | ----------------------------- |
-| Unit        | ~246         | ~34     |                               |
+| Unit        | ~313         | ~34     | +67 security/crypto tests     |
 | Integration | ~43          | 0       |                               |
 | E2E         | ~34          | ~39     | 4 timeout failures acceptable |
 | Contract    | ~62          | ~12     | Dashboard exports skipped     |
 | Config      | ~22          | 0       |                               |
 | Services    | ~22          | ~2      |                               |
 | Slack Live  | ~9           | 0       | Requires credential export    |
-| **Total**   | **~438**     | **~87** |                               |
+| **Total**   | **~505**     | **~87** |                               |
+
+### New Test Coverage (Critical Security Paths)
+
+| Test File                                                     | Tests  | Coverage Area                         |
+| ------------------------------------------------------------- | ------ | ------------------------------------- |
+| `packages/core/__tests__/crypto.test.ts`                      | 26     | Encryption, master key, IV validation |
+| `packages/database-services/__tests__/secretsService.test.ts` | 22     | Secret storage with encryption        |
+| `packages/integrations/__tests__/github-oauth.test.ts`        | 19     | OAuth flow, token exchange            |
+| **Security Tests Total**                                      | **67** | **Critical security components**      |
 
 E2E timeout failures are expected due to OpenCode server load:
 
