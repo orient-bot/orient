@@ -46,6 +46,7 @@ describe('Frontend URL Routing', () => {
       expect(ROUTES.SETTINGS_SECRETS).toBe('/settings/secrets');
       expect(ROUTES.SETTINGS_APPEARANCE).toBe('/settings/appearance');
       expect(ROUTES.SETTINGS_UPDATES).toBe('/settings/updates');
+      expect(ROUTES.SETTINGS_FEATURE_FLAGS).toBe('/settings/feature-flags');
     });
   });
 
@@ -274,6 +275,12 @@ describe('Frontend URL Routing', () => {
         expect(state.globalView).toBe('settings');
         expect(state.settingsView).toBe('updates');
       });
+
+      it('should match /settings/feature-flags path', () => {
+        const state = getRouteState('/settings/feature-flags');
+        expect(state.globalView).toBe('settings');
+        expect(state.settingsView).toBe('feature-flags');
+      });
     });
 
     describe('path prefix matching', () => {
@@ -387,6 +394,12 @@ describe('Frontend URL Routing', () => {
       it('should return updates path when specified', () => {
         expect(getRoutePath('settings', 'whatsapp', 'updates')).toBe('/settings/updates');
       });
+
+      it('should return feature-flags path when specified', () => {
+        expect(getRoutePath('settings', 'whatsapp', 'feature-flags')).toBe(
+          '/settings/feature-flags'
+        );
+      });
     });
 
     describe('service routes', () => {
@@ -468,6 +481,13 @@ describe('Frontend URL Routing', () => {
       const state = getRouteState(path);
       expect(state.globalView).toBe('settings');
       expect(state.settingsView).toBe('updates');
+    });
+
+    it('should have matching getRouteState and getRoutePath for settings/feature-flags', () => {
+      const path = getRoutePath('settings', 'whatsapp', 'feature-flags');
+      const state = getRouteState(path);
+      expect(state.globalView).toBe('settings');
+      expect(state.settingsView).toBe('feature-flags');
     });
   });
 });
