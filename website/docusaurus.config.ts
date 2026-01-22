@@ -184,6 +184,23 @@ const config: Config = {
             },
           ],
         },
+        {
+          title: 'Legal',
+          items: [
+            {
+              label: 'Privacy Policy',
+              to: '/privacy',
+            },
+            {
+              label: 'Terms & Conditions',
+              to: '/terms',
+            },
+            {
+              label: 'MIT License',
+              href: 'https://github.com/orient-bot/orient/blob/main/LICENSE',
+            },
+          ],
+        },
       ],
       copyright: `Copyright © ${new Date().getFullYear()} Orient. Open-source under MIT license.`,
     },
