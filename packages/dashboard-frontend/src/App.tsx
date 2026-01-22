@@ -40,10 +40,16 @@ import ProvidersTab from './components/ProvidersTab';
 import IntegrationCatalog from './components/IntegrationCatalog';
 import OnboarderBubble from './components/OnboarderBubble';
 import OnboarderChat from './components/OnboarderChat';
-import { SettingsLayout, AppearancePage, UpdatesPage } from './components/Settings';
+import {
+  SettingsLayout,
+  AppearancePage,
+  UpdatesPage,
+  FeatureFlagsPage,
+} from './components/Settings';
 import { VersionBanner } from './components/VersionNotification/VersionBanner';
 import { useVersionCheck } from './hooks/useVersionCheck';
 import { ThemeProvider, useTheme } from './context/ThemeContext';
+import { useFeatureFlags } from './context/FeatureFlagsContext';
 import { AppLayout } from './components/Layout/AppLayout';
 import { CommandPalette, useCommandPalette, type Command } from './components/CommandPalette';
 import { useOriActivation } from './hooks/useOriActivation';
@@ -101,6 +107,7 @@ function AppContent() {
   const location = useLocation();
   useOriActivation();
   const versionCheck = useVersionCheck();
+  const { isEnabled } = useFeatureFlags();
 
   const {
     globalView,
@@ -1326,23 +1333,31 @@ function AppContent() {
 
         {globalView === 'integrations' && integrationsView === 'providers' && <ProvidersTab />}
 
-        {globalView === 'automation' && automationView === 'schedules' && (
-          <SchedulesTab onUpdate={handleRefresh} />
+        {globalView === 'automation' &&
+          automationView === 'schedules' &&
+          isEnabled('automation.schedules') && <SchedulesTab onUpdate={handleRefresh} />}
+
+        {globalView === 'automation' &&
+          automationView === 'webhooks' &&
+          isEnabled('automation.webhooks') && <WebhooksTab onRefresh={handleRefresh} />}
+
+        {globalView === 'operations' && operationsView === 'billing' && isEnabled('billing') && (
+          <BillingTab />
         )}
 
-        {globalView === 'automation' && automationView === 'webhooks' && (
-          <WebhooksTab onRefresh={handleRefresh} />
+        {globalView === 'operations' &&
+          operationsView === 'monitoring' &&
+          isEnabled('monitoring') && <MonitoringTab />}
+
+        {globalView === 'operations' && operationsView === 'storage' && isEnabled('storage') && (
+          <StorageTab />
         )}
 
-        {globalView === 'operations' && operationsView === 'billing' && <BillingTab />}
+        {globalView === 'agents' && isEnabled('agent_registry') && (
+          <AgentsTab onUpdate={handleRefresh} />
+        )}
 
-        {globalView === 'operations' && operationsView === 'monitoring' && <MonitoringTab />}
-
-        {globalView === 'operations' && operationsView === 'storage' && <StorageTab />}
-
-        {globalView === 'agents' && <AgentsTab onUpdate={handleRefresh} />}
-
-        {globalView === 'apps' && <AppsTab />}
+        {globalView === 'apps' && isEnabled('mini_apps') && <AppsTab />}
 
         {globalView === 'settings' && (
           <SettingsLayout currentView={settingsView}>
@@ -1378,6 +1393,7 @@ function AppContent() {
             {settingsView === 'secrets' && <SecretsTab />}
             {settingsView === 'appearance' && <AppearancePage />}
             {settingsView === 'updates' && <UpdatesPage />}
+            {settingsView === 'feature-flags' && <FeatureFlagsPage />}
           </SettingsLayout>
         )}
 

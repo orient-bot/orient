@@ -25,6 +25,7 @@ import {
   createIntegrationsRoutes,
   createStorageRoutes,
   createVersionRoutes,
+  createFeatureFlagsRoutes,
 } from './routes/index.js';
 import { initStorageService } from '../services/storageService.js';
 
@@ -238,6 +239,9 @@ export function createDashboardRouter(services: DashboardServices): Router {
 
   // Version check routes (always available)
   router.use('/version', createVersionRoutes(requireAuth));
+
+  // Feature flags routes (always available)
+  router.use('/feature-flags', createFeatureFlagsRoutes(requireAuth));
 
   // Onboarder routes (always available - uses db for session persistence)
   router.use('/onboarder', createOnboarderRoutes(db, requireAuth));

@@ -2175,6 +2175,64 @@ export async function checkVersionNow(): Promise<VersionCheckResult> {
 }
 
 // ============================================
+// FEATURE FLAGS API
+// ============================================
+
+export interface FeatureFlag {
+  id: string;
+  name: string;
+  description: string | null;
+  enabled: boolean;
+  category: string;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface FeatureFlagWithOverride extends FeatureFlag {
+  userOverride: boolean | null;
+  effectiveValue: boolean;
+}
+
+/**
+ * Get all feature flags with user overrides
+ */
+export async function getFeatureFlags(): Promise<{ flags: FeatureFlagWithOverride[] }> {
+  return apiRequest('/feature-flags');
+}
+
+/**
+ * Get effective flag values as a flat object
+ */
+export async function getEffectiveFeatureFlags(): Promise<{ flags: Record<string, boolean> }> {
+  return apiRequest('/feature-flags/effective');
+}
+
+/**
+ * Set a user override for a specific flag
+ */
+export async function setFeatureFlagOverride(
+  flagId: string,
+  enabled: boolean
+): Promise<{ success: boolean; flags: FeatureFlagWithOverride[] }> {
+  return apiRequest(`/feature-flags/${encodeURIComponent(flagId)}/override`, {
+    method: 'PUT',
+    body: JSON.stringify({ enabled }),
+  });
+}
+
+/**
+ * Remove a user override (revert to global default)
+ */
+export async function removeFeatureFlagOverride(
+  flagId: string
+): Promise<{ success: boolean; flags: FeatureFlagWithOverride[] }> {
+  return apiRequest(`/feature-flags/${encodeURIComponent(flagId)}/override`, {
+    method: 'DELETE',
+  });
+}
+
+// ============================================
 // UI REFRESH EVENTS
 // ============================================
 
