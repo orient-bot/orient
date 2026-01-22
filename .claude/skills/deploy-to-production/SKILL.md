@@ -701,6 +701,97 @@ orienter-dashboard      Up X minutes (healthy)
 orienter-postgres       Up X minutes (healthy)
 ```
 
+### Worktree Checkout Conflicts
+
+When working in a git worktree, you may encounter branch checkout conflicts when trying to merge PRs.
+
+**Error:**
+
+```
+fatal: 'main' is already used by worktree at '/path/to/other-worktree'
+```
+
+**Cause:** Git prevents checking out a branch that's already checked out in another worktree. This happens when:
+
+- You try to run `gh pr merge` which attempts to checkout the target branch (main)
+- Another worktree already has the `main` branch checked out
+- Git's safety mechanism prevents conflicts between worktrees
+
+**Workaround Options:**
+
+**Option 1: Use GitHub API (Recommended)**
+
+Merge PRs without checking out the target branch:
+
+```bash
+# Merge PR with squash
+gh api repos/orient-bot/orient/pulls/PR_NUMBER/merge -X PUT \
+  -f merge_method=squash \
+  -f commit_title="Your commit title (#PR_NUMBER)"
+
+# Example
+gh api repos/orient-bot/orient/pulls/50/merge -X PUT \
+  -f merge_method=squash \
+  -f commit_title="docs(website): add Privacy Policy and Terms pages (#50)"
+```
+
+**Option 2: Use Auto-Merge**
+
+Enable auto-merge and let GitHub merge when checks pass:
+
+```bash
+gh pr merge PR_NUMBER --auto --squash
+```
+
+**Option 3: Switch to Main Worktree**
+
+Navigate to the worktree that has `main` checked out:
+
+```bash
+# Find which worktree has main
+git worktree list | grep main
+
+# Navigate to that worktree
+cd /path/to/main-worktree
+
+# Merge from there
+gh pr merge PR_NUMBER --squash --delete-branch
+```
+
+**Option 4: Merge from GitHub Web UI**
+
+When automation fails, use the GitHub web interface:
+
+1. Navigate to the PR on GitHub
+2. Click "Squash and merge" button
+3. Confirm the merge
+
+**Prevention:**
+
+When creating worktrees for feature branches, avoid checking out `main` in multiple worktrees:
+
+```bash
+# Good - each worktree has its own branch
+git worktree add ~/worktrees/feature-a -b feature-a
+git worktree add ~/worktrees/feature-b -b feature-b
+
+# Avoid - multiple worktrees with main
+git worktree add ~/worktrees/work-1 main  # First is OK
+git worktree add ~/worktrees/work-2 main  # This will fail
+```
+
+**Why This Matters:**
+
+This worktree limitation only affects the merge operation itself. You can:
+
+- ✅ Create PRs from worktree branches
+- ✅ Push changes from worktrees
+- ✅ Review and approve PRs
+- ✅ Run CI/CD workflows
+- ❌ Merge PRs using `gh pr merge` when main is checked out elsewhere
+
+The GitHub API workaround bypasses the local git checkout, making it the most reliable option when working with worktrees.
+
 ## Quick Commands
 
 ```bash
