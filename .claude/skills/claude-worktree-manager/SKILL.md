@@ -286,17 +286,20 @@ When specified, the model is configured in the worktree's `.claude/settings.loca
 
 ### Ghostty Integration (Automatic)
 
-After creating a worktree, check if running in Ghostty terminal and automatically open a new tab with Claude:
+The script automatically opens a new Ghostty tab when running in Ghostty terminal. Use the `--goal` flag to set a task description:
 
 ```bash
-# The worktree script outputs the path on its last line
-WORKTREE_PATH=$(.claude/skills/claude-worktree-manager/scripts/worktree.sh create <name> | tail -1)
-
-# If in Ghostty, open new tab with Claude (--no-enter types but doesn't execute)
-if [ "$TERM_PROGRAM" = "ghostty" ]; then
-    ghostty-tab -d "$WORKTREE_PATH" --no-enter "claude '<goal-prompt>'"
-fi
+# Creates worktree and opens Ghostty tab with Claude
+.claude/skills/claude-worktree-manager/scripts/worktree.sh create my-feature --goal "Add dark mode toggle"
 ```
+
+The script will:
+
+1. Create the worktree with all setup
+2. Detect if running in Ghostty (`$TERM_PROGRAM = ghostty`)
+3. Open a new tab using `ghostty-tab`
+4. Navigate to the worktree directory
+5. Type the Claude command (without executing, so you can review)
 
 **Goal Prompt Guidelines:**
 
@@ -307,18 +310,55 @@ fi
 
 **Examples:**
 
-- "Refactor the project to support multi-tenant architecture"
-- "Fix the authentication redirect bug in login flow"
-- "Add OAuth2 support with Google and GitHub providers"
-- "Implement dark mode toggle with system preference detection"
+```bash
+.claude/skills/claude-worktree-manager/scripts/worktree.sh create fix-auth --goal "Fix authentication redirect bug"
+.claude/skills/claude-worktree-manager/scripts/worktree.sh create oauth --goal "Add OAuth2 support with Google and GitHub"
+.claude/skills/claude-worktree-manager/scripts/worktree.sh create refactor --goal "Refactor to multi-tenant architecture"
+```
+
+### Script Configuration
+
+The script has configurable variables at the top. **To customize, edit the script directly:**
+
+```bash
+# Edit the script
+nano .claude/skills/claude-worktree-manager/scripts/worktree.sh
+```
+
+**Configuration variables:**
+
+| Variable               | Default                        | Description                                             |
+| ---------------------- | ------------------------------ | ------------------------------------------------------- |
+| `DEFAULT_MAX_AGE_DAYS` | `7`                            | Days before worktrees are considered stale for cleanup  |
+| `WORKTREE_BASE`        | `$HOME/claude-worktrees`       | Base directory for all worktrees                        |
+| `DEFAULT_MODEL`        | `sonnet`                       | Model saved to worktree's `.claude/settings.local.json` |
+| `CLAUDE_CMD`           | `cc`                           | Command to run Claude (use your shell alias)            |
+| `GHOSTTY_TAB`          | `$HOME/.local/bin/ghostty-tab` | Path to ghostty-tab binary                              |
+
+**Recommended: Configure your shell alias instead**
+
+Rather than editing script variables, configure your Claude alias in `~/.zshrc`:
+
+```bash
+# Claude Code alias with default model
+alias cc="claude --dangerously-skip-permissions --model sonnet"
+```
+
+This way, all Claude sessions (not just worktrees) use your preferred defaults.
+
+**Plan Mode:** When you provide a `--goal`, the script automatically wraps it as:
+
+```
+enter plan mode to work on: <your goal>
+```
+
+This instructs Claude to enter plan mode and begin planning the task.
 
 **Important:** The `ghostty-tab` command is at `~/.local/bin/ghostty-tab` and uses AppleScript to open a new Ghostty tab. It accepts:
 
 - `-d <path>` - Directory to cd into
 - `--no-enter` - Type the command but don't press enter (lets user review before executing)
 - `"<command>"` - Command to type/run after cd
-
-This automatically opens a new Ghostty tab, navigates to the worktree, and starts Claude with the goal context.
 
 ### List Worktrees
 
