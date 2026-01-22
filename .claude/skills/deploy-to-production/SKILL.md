@@ -76,7 +76,64 @@ The `detect-changes` job analyzes which files changed and sets build flags:
 | ----------------------------------- | ------------ | ------------ |
 | Single package change               | ~20 min      | ~5-8 min     |
 | Config-only change (nginx, compose) | ~20 min      | ~3 min       |
+| Website-only change (Docusaurus)    | ~20 min      | ~2-3 min     |
 | All packages change                 | ~20 min      | ~20 min      |
+
+### Website-Only Deployments
+
+When you modify only website files (Docusaurus documentation), the deployment is extremely fast because:
+
+**What Gets Skipped:**
+
+- No Docker image builds (OpenCode, WhatsApp, Dashboard)
+- No image pushes to GHCR
+- No container recreation on the server
+
+**What Still Runs:**
+
+1. **Detect Changes** (~8s) - Identifies website-only changes
+2. **Run Tests** (~40s) - Runs test suite
+3. **Deploy to Oracle Cloud** (~2min) - Only syncs website files and restarts nginx
+
+**Files That Trigger Website-Only Deployment:**
+
+- `website/docs/**` - Documentation markdown files
+- `website/src/**` - Custom React pages (e.g., privacy.tsx, terms.tsx)
+- `website/docusaurus.config.ts` - Site configuration
+- `website/static/**` - Static assets
+- `website/sidebars.ts` - Navigation configuration
+
+**Example Deployment:**
+
+```bash
+# Change detection output for website-only changes
+changes_opencode: false
+changes_whatsapp: false
+changes_dashboard: false
+changes_website: true
+
+# Build jobs are skipped
+Build OpenCode Image: skipped
+Build WhatsApp Bot Image: skipped
+Build Dashboard Image: skipped
+
+# Deploy job syncs website files
+Deploy to Oracle Cloud: success (2min)
+```
+
+**What Gets Deployed:**
+The deploy job syncs the `website/` directory to the server and runs:
+
+```bash
+# Build static Docusaurus site
+cd ~/orient/website && npm run build
+
+# Nginx serves the built site from website/build/
+# No container restarts needed (except nginx reload for config changes)
+```
+
+**Quick Website Updates:**
+For documentation or content changes, this means you can deploy in under 3 minutes total - perfect for rapid iterations on privacy policies, terms, blog posts, or documentation updates.
 
 ### Workflow Jobs
 
