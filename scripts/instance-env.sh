@@ -60,6 +60,8 @@ configure_instance() {
   export MINIO_API_PORT=$(calculate_port 9000 $AI_INSTANCE_ID)
   export MINIO_CONSOLE_PORT=$(calculate_port 9001 $AI_INSTANCE_ID)
   export NGINX_PORT=$(calculate_port 80 $AI_INSTANCE_ID)
+  export NGINX_SSL_PORT=$(calculate_port 443 $AI_INSTANCE_ID)
+  export API_GATEWAY_PORT=$(calculate_port 4100 $AI_INSTANCE_ID)
 
   # Docker compose project name (for container isolation)
   export COMPOSE_PROJECT_NAME="orienter-instance-${AI_INSTANCE_ID}"
@@ -103,9 +105,22 @@ configure_instance() {
 
 # Display instance information
 display_instance_info() {
+  # Get git info
+  local git_sha=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+  local git_branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
+  local git_msg=$(git log -1 --pretty=format:'%s' 2>/dev/null | head -c 50)
+  local git_behind=$(git rev-list --count HEAD..@{upstream} 2>/dev/null || echo "?")
+
   echo "=========================================="
   echo "  Orient - Instance ${AI_INSTANCE_ID}"
   echo "=========================================="
+  echo ""
+  echo "Git Info:"
+  echo "  Branch:           ${git_branch}"
+  echo "  Commit:           ${git_sha} - ${git_msg}"
+  if [ "$git_behind" != "0" ] && [ "$git_behind" != "?" ]; then
+    echo "  ⚠️  Behind remote:  ${git_behind} commit(s) - run 'git pull' to update"
+  fi
   echo ""
   echo "Instance Configuration:"
   echo "  Instance ID:      ${AI_INSTANCE_ID}"
@@ -121,9 +136,11 @@ display_instance_info() {
   echo ""
   echo "Infrastructure Ports:"
   echo "  Nginx:            http://localhost:${NGINX_PORT}"
+  echo "  Nginx SSL:        https://localhost:${NGINX_SSL_PORT}"
   echo "  PostgreSQL:       localhost:${POSTGRES_PORT}"
   echo "  MinIO Console:    http://localhost:${MINIO_CONSOLE_PORT}"
   echo "  MinIO API:        http://localhost:${MINIO_API_PORT}"
+  echo "  API Gateway:      http://localhost:${API_GATEWAY_PORT}"
   echo ""
   echo "Instance Directories:"
   echo "  Data:             ${DATA_DIR}"

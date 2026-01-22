@@ -118,24 +118,13 @@ stop_current_instance() {
 
 stop_instance_containers() {
     local instance_id="$1"
-    local suffix=""
-
-    # Instance 0 has no suffix, others have -N suffix
-    if [ "$instance_id" != "0" ]; then
-        suffix="-$instance_id"
-    fi
 
     log_step "Stopping containers for instance $instance_id..."
 
-    # Get containers for this instance
+    # Get containers for this instance - all instances use -N suffix (orienter-postgres-0, orienter-nginx-0, etc.)
     local containers
-    if [ "$instance_id" = "0" ]; then
-        # Instance 0: match containers without instance suffix (orienter-nginx, not orienter-nginx-1)
-        containers=$(docker ps -a --filter "name=orienter-" --format "{{.Names}}" 2>/dev/null | grep -E "^orienter-[a-z]+-?$" | grep -v -- "-[0-9]$" || true)
-    else
-        # Other instances: match containers with specific suffix
-        containers=$(docker ps -a --filter "name=orienter-" --format "{{.Names}}" 2>/dev/null | grep -- "-${instance_id}$" || true)
-    fi
+    containers=$(docker ps -a --filter "name=orienter-" --format "{{.Names}}" 2>/dev/null | grep -- "-${instance_id}$" || true)
+
 
     if [ -z "$containers" ]; then
         log_info "No containers found for instance $instance_id"
@@ -374,15 +363,33 @@ kill_port() {
     local pids=$(lsof -ti ":$port" 2>/dev/null || true)
 
     if [ -n "$pids" ]; then
-        log_warn "Killing process(es) on port $port: $pids"
-        if [ "$FORCE_STOP" = true ]; then
-            echo "$pids" | xargs kill -9 2>/dev/null || true
-        else
-            echo "$pids" | xargs kill -TERM 2>/dev/null || true
-            sleep 0.3
-            local remaining=$(lsof -ti ":$port" 2>/dev/null || true)
-            if [ -n "$remaining" ]; then
-                echo "$remaining" | xargs kill -9 2>/dev/null || true
+        # Filter out Docker processes to avoid crashing Docker Desktop
+        local safe_pids=""
+        for pid in $pids; do
+            local cmd=$(ps -p "$pid" -o comm= 2>/dev/null || true)
+            if [[ "$cmd" == *"docker"* ]] || [[ "$cmd" == *"com.docker"* ]] || [[ "$cmd" == *"vpnkit"* ]]; then
+                log_info "Skipping Docker process on port $port (PID: $pid, cmd: $cmd)"
+            else
+                safe_pids="$safe_pids $pid"
+            fi
+        done
+
+        if [ -n "$safe_pids" ]; then
+            log_warn "Killing process(es) on port $port:$safe_pids"
+            if [ "$FORCE_STOP" = true ]; then
+                echo "$safe_pids" | xargs kill -9 2>/dev/null || true
+            else
+                echo "$safe_pids" | xargs kill -TERM 2>/dev/null || true
+                sleep 0.3
+                local remaining=""
+                for pid in $safe_pids; do
+                    if kill -0 "$pid" 2>/dev/null; then
+                        remaining="$remaining $pid"
+                    fi
+                done
+                if [ -n "$remaining" ]; then
+                    echo "$remaining" | xargs kill -9 2>/dev/null || true
+                fi
             fi
         fi
     fi
