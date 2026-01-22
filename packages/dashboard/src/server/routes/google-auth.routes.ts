@@ -2,7 +2,8 @@
  * Google OAuth Authentication Routes
  *
  * Handles Google OAuth flow for dashboard authentication.
- * Uses minimal scopes (email and profile only) for authentication.
+ * Now uses full integration scopes to also set up Google services (Calendar, Gmail, etc.)
+ * when signing in with Google.
  */
 
 import { Router, Request, Response } from 'express';
@@ -13,14 +14,12 @@ import { DashboardAuth } from '../../auth.js';
 import { MessageDatabase } from '../../services/messageDatabase.js';
 import { createServiceLogger } from '@orient/core';
 import { createSecretsService } from '@orient/database-services';
+import { getGoogleOAuthService, DEFAULT_SCOPES } from '@orient/integrations/google';
 
 const logger = createServiceLogger('google-auth-routes');
 
-// Minimal scopes for authentication only
-const AUTH_SCOPES = [
-  'https://www.googleapis.com/auth/userinfo.email',
-  'https://www.googleapis.com/auth/userinfo.profile',
-];
+// Use full integration scopes - signing in with Google also sets up the integration
+const AUTH_SCOPES = DEFAULT_SCOPES;
 
 const CALLBACK_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
 
@@ -336,6 +335,35 @@ export function createGoogleAuthRoutes(auth: DashboardAuth, db: MessageDatabase)
         if (!loginResult) {
           throw new Error('Failed to login after creating user');
         }
+      }
+
+      // Store OAuth tokens for Google integration (Calendar, Gmail, etc.)
+      // This allows the user to use Google services immediately after sign-in
+      if (tokens.refresh_token) {
+        try {
+          const oauthService = getGoogleOAuthService();
+          oauthService.addAccountFromTokens({
+            email,
+            displayName: userInfo.data.name || undefined,
+            accessToken: tokens.access_token!,
+            refreshToken: tokens.refresh_token,
+            expiresAt: tokens.expiry_date || Date.now() + 3600 * 1000,
+            scopes: AUTH_SCOPES,
+          });
+          logger.info('Google integration tokens stored after sign-in', { email });
+        } catch (integrationError) {
+          // Don't fail sign-in if token storage fails
+          logger.warn('Failed to store Google integration tokens', {
+            error:
+              integrationError instanceof Error
+                ? integrationError.message
+                : String(integrationError),
+          });
+        }
+      } else {
+        logger.warn('No refresh token received - user may need to reconnect for full integration', {
+          email,
+        });
       }
 
       // Clean up pending state

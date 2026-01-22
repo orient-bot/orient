@@ -2935,6 +2935,8 @@ export function getToolExecutorRegistry(): ToolExecutorRegistry {
     registerMediaToolHandlers(executorInstance);
     // Register config tool handlers
     registerConfigToolHandlers(executorInstance);
+    // Register Google tool handlers (Calendar, Gmail, Tasks, OAuth)
+    registerGoogleToolHandlers(executorInstance);
   }
   return executorInstance;
 }
@@ -3170,4 +3172,265 @@ export function createToolError(error: string | Error): ToolExecutionResult {
     content: [{ type: 'text', text: `Error: ${errorMessage}` }],
     isError: true,
   };
+}
+
+/**
+ * Registers Google tool handlers (Calendar, Gmail, Tasks, OAuth)
+ * These tools access personal Google accounts via OAuth
+ *
+ * Uses lazy imports inside each handler to ensure synchronous registration
+ * while deferring the actual service loading until the handler is called.
+ */
+function registerGoogleToolHandlers(registry: ToolExecutorRegistry): void {
+  // Google OAuth Status
+  registry.registerHandler('google_oauth_status', async () => {
+    try {
+      const { getGoogleOAuthService } = await import('@orient/integrations/google');
+      const oauthService = getGoogleOAuthService();
+      const accounts = oauthService.getConnectedAccounts();
+      const defaultAccount = oauthService.getDefaultAccount();
+
+      return createToolResult(
+        JSON.stringify(
+          {
+            connected: accounts.length > 0,
+            accounts: accounts.map((a) => ({
+              email: a.email,
+              displayName: a.displayName,
+              scopes: a.scopes,
+              connectedAt: new Date(a.connectedAt).toISOString(),
+            })),
+            defaultAccount,
+          },
+          null,
+          2
+        )
+      );
+    } catch (error) {
+      return createToolError(
+        `Failed to get OAuth status: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  });
+
+  // Google Calendar - List Events
+  registry.registerHandler('google_calendar_list_events', async (args: Record<string, unknown>) => {
+    const { calendarId, days, maxResults, query, accountEmail } = args as {
+      calendarId?: string;
+      days?: number;
+      maxResults?: number;
+      query?: string;
+      accountEmail?: string;
+    };
+
+    try {
+      const { getCalendarService } = await import('@orient/integrations/google');
+      const calendar = getCalendarService();
+      const daysAhead = days || 7;
+      const now = new Date();
+      const timeMax = new Date(now.getTime() + daysAhead * 24 * 60 * 60 * 1000);
+
+      const events = await calendar.listEvents(
+        {
+          calendarId: calendarId || 'primary',
+          timeMin: now,
+          timeMax: timeMax,
+          maxResults: maxResults || 50,
+          query: query,
+          singleEvents: true,
+        },
+        accountEmail
+      );
+
+      return createToolResult(
+        JSON.stringify(
+          {
+            count: events.length,
+            events: events.map((e) => ({
+              id: e.id,
+              title: e.title,
+              startTime: e.startTime.toISOString(),
+              endTime: e.endTime.toISOString(),
+              location: e.location,
+              isAllDay: e.isAllDay,
+              meetingLink: e.meetingLink,
+              attendees: e.attendees.length,
+            })),
+          },
+          null,
+          2
+        )
+      );
+    } catch (error) {
+      return createToolError(
+        `Failed to list events: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  });
+
+  // Google Calendar - Create Event
+  registry.registerHandler(
+    'google_calendar_create_event',
+    async (args: Record<string, unknown>) => {
+      const {
+        title,
+        startTime,
+        endTime,
+        description,
+        location,
+        attendees,
+        createMeetingLink,
+        calendarId,
+        accountEmail,
+      } = args as {
+        title: string;
+        startTime: string;
+        endTime: string;
+        description?: string;
+        location?: string;
+        attendees?: string[];
+        createMeetingLink?: boolean;
+        calendarId?: string;
+        accountEmail?: string;
+      };
+
+      try {
+        const { getCalendarService } = await import('@orient/integrations/google');
+        const calendar = getCalendarService();
+        const event = await calendar.createEvent(
+          {
+            title,
+            startTime: new Date(startTime),
+            endTime: new Date(endTime),
+            description,
+            location,
+            attendees,
+            createMeetingLink,
+            calendarId,
+          },
+          accountEmail
+        );
+
+        return createToolResult(
+          JSON.stringify(
+            {
+              success: true,
+              message: `Event created: ${event.title}`,
+              event: {
+                id: event.id,
+                title: event.title,
+                startTime: event.startTime.toISOString(),
+                endTime: event.endTime.toISOString(),
+                htmlLink: event.htmlLink,
+                meetingLink: event.meetingLink,
+              },
+            },
+            null,
+            2
+          )
+        );
+      } catch (error) {
+        return createToolError(
+          `Failed to create event: ${error instanceof Error ? error.message : String(error)}`
+        );
+      }
+    }
+  );
+
+  // Google Calendar - Update Event
+  registry.registerHandler(
+    'google_calendar_update_event',
+    async (args: Record<string, unknown>) => {
+      const { eventId, calendarId, accountEmail, ...updates } = args as {
+        eventId: string;
+        calendarId?: string;
+        accountEmail?: string;
+        title?: string;
+        startTime?: string;
+        endTime?: string;
+        description?: string;
+        location?: string;
+      };
+
+      try {
+        const { getCalendarService } = await import('@orient/integrations/google');
+        const calendar = getCalendarService();
+        const updateOptions = {
+          eventId,
+          calendarId: calendarId || 'primary',
+          ...(updates.title && { title: updates.title }),
+          ...(updates.startTime && { startTime: new Date(updates.startTime) }),
+          ...(updates.endTime && { endTime: new Date(updates.endTime) }),
+          ...(updates.description && { description: updates.description }),
+          ...(updates.location && { location: updates.location }),
+        };
+
+        const event = await calendar.updateEvent(updateOptions, accountEmail);
+
+        return createToolResult(
+          JSON.stringify(
+            {
+              success: true,
+              message: `Event updated: ${event.title}`,
+              event: {
+                id: event.id,
+                title: event.title,
+                startTime: event.startTime.toISOString(),
+                endTime: event.endTime.toISOString(),
+              },
+            },
+            null,
+            2
+          )
+        );
+      } catch (error) {
+        return createToolError(
+          `Failed to update event: ${error instanceof Error ? error.message : String(error)}`
+        );
+      }
+    }
+  );
+
+  // Google Calendar - Delete Event
+  registry.registerHandler(
+    'google_calendar_delete_event',
+    async (args: Record<string, unknown>) => {
+      const { eventId, calendarId, accountEmail } = args as {
+        eventId: string;
+        calendarId?: string;
+        accountEmail?: string;
+      };
+
+      try {
+        const { getCalendarService } = await import('@orient/integrations/google');
+        const calendar = getCalendarService();
+        await calendar.deleteEvent(eventId, calendarId || 'primary', accountEmail);
+
+        return createToolResult(
+          JSON.stringify(
+            {
+              success: true,
+              message: `Event ${eventId} deleted successfully`,
+            },
+            null,
+            2
+          )
+        );
+      } catch (error) {
+        return createToolError(
+          `Failed to delete event: ${error instanceof Error ? error.message : String(error)}`
+        );
+      }
+    }
+  );
+
+  logger.info('Google tool handlers registered synchronously', {
+    tools: [
+      'google_oauth_status',
+      'google_calendar_list_events',
+      'google_calendar_create_event',
+      'google_calendar_update_event',
+      'google_calendar_delete_event',
+    ],
+  });
 }
