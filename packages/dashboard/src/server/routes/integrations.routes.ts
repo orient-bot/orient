@@ -29,7 +29,7 @@ async function getLoaderModule(): Promise<{
 // Lazy-loaded OAuth modules - using 'any' type because these are dynamically imported
 // and TypeScript can't verify the module structure at compile time
 
-// Google OAuth service from @orient/integrations/google
+// Google OAuth service from @orient/integrations
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let googleOAuthServiceModule: any = null;
 
@@ -67,7 +67,7 @@ async function getGoogleOAuthModule() {
 
   if (!googleOAuthServiceModule) {
     try {
-      googleOAuthServiceModule = await import('@orient/integrations/google');
+      googleOAuthServiceModule = await import('@orient/integrations');
     } catch (error) {
       throw new Error(
         `Failed to load Google OAuth service: ${error instanceof Error ? error.message : String(error)}`

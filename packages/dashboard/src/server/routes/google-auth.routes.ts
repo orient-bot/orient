@@ -14,7 +14,7 @@ import { DashboardAuth } from '../../auth.js';
 import { MessageDatabase } from '../../services/messageDatabase.js';
 import { createServiceLogger } from '@orient/core';
 import { createSecretsService } from '@orient/database-services';
-import { getGoogleOAuthService, DEFAULT_SCOPES } from '@orient/integrations/google';
+import { getGoogleOAuthService, DEFAULT_SCOPES } from '@orient/integrations';
 
 const logger = createServiceLogger('google-auth-routes');
 

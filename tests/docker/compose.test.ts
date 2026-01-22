@@ -97,11 +97,19 @@ describe('Docker Compose Configuration', () => {
       expect(compose.services['nginx']).toBeDefined();
     });
 
-    it('should define correct container names', () => {
+    it('should define instance-aware container names for multi-instance support', () => {
+      // Container names use ${AI_INSTANCE_ID:-0} suffix to allow running multiple
+      // isolated instances (e.g., dev on instance 0, test on instance 9)
       const compose = parseYaml(path.join(dockerDir, 'docker-compose.v2.yml'));
-      expect(compose.services['bot-whatsapp'].container_name).toBe('orienter-bot-whatsapp');
-      expect(compose.services['bot-slack'].container_name).toBe('orienter-bot-slack');
-      expect(compose.services['opencode'].container_name).toBe('orienter-opencode');
+      expect(compose.services['bot-whatsapp'].container_name).toBe(
+        'orienter-bot-whatsapp-${AI_INSTANCE_ID:-0}'
+      );
+      expect(compose.services['bot-slack'].container_name).toBe(
+        'orienter-bot-slack-${AI_INSTANCE_ID:-0}'
+      );
+      expect(compose.services['opencode'].container_name).toBe(
+        'orienter-opencode-${AI_INSTANCE_ID:-0}'
+      );
     });
 
     it('should have correct dependency chain', () => {
@@ -130,10 +138,12 @@ describe('Docker Compose Configuration', () => {
       expect(compose.volumes['opencode-data']).toBeDefined();
     });
 
-    it('should use container name in DATABASE_URL to avoid DNS conflicts with staging', () => {
-      // CRITICAL: When staging and production share the same network, both postgres
-      // containers have the DNS alias "postgres". Using the container name
-      // "orienter-postgres" ensures production services connect to the correct database.
+    it('should use service name in DATABASE_URL for network isolation', () => {
+      // For multi-instance support, each compose project has its own isolated network.
+      // Using the service name "postgres" is correct because it resolves to the
+      // postgres container within that project's network, avoiding conflicts.
+      // Production deployments use docker-compose.prod.yml which can override this
+      // if needed for shared network scenarios.
       const compose = parseYaml(path.join(dockerDir, 'docker-compose.v2.yml'));
 
       const servicesWithDb = ['opencode', 'bot-whatsapp', 'bot-slack', 'api-gateway', 'dashboard'];
@@ -143,8 +153,8 @@ describe('Docker Compose Configuration', () => {
         if (service?.environment) {
           const dbUrl = service.environment.find((env: string) => env.startsWith('DATABASE_URL='));
           if (dbUrl) {
-            expect(dbUrl).toContain('@orienter-postgres:');
-            expect(dbUrl).not.toMatch(/@postgres:/);
+            // Service name "postgres" for network isolation
+            expect(dbUrl).toContain('@postgres:');
           }
         }
       }
