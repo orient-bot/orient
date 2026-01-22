@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { ROUTES } from '../../routes';
 import { getOpenCodeUrl, assetUrl, type OpenCodeConfig } from '../../api';
+import { useFeatureFlags } from '../../hooks/useFeatureFlags';
 
 type GlobalView = 'integrations' | 'automation' | 'agents' | 'apps' | 'operations' | 'settings';
 
@@ -25,6 +26,7 @@ export function Sidebar({
 }: SidebarProps) {
   const location = useLocation();
   const [openCodeConfig, setOpenCodeConfig] = useState<OpenCodeConfig | null>(null);
+  const { shouldHide, shouldNotify } = useFeatureFlags();
 
   useEffect(() => {
     getOpenCodeUrl()
@@ -47,6 +49,28 @@ export function Sidebar({
 
   const isGlobalActive = (view: GlobalView) => {
     return location.pathname.startsWith(`/${view}`);
+  };
+
+  const renderNavItem = (flagId: string, content: React.ReactNode): React.ReactNode | null => {
+    if (shouldHide(flagId)) {
+      return null; // Don't render at all
+    }
+
+    if (shouldNotify(flagId)) {
+      return (
+        <div className="relative">
+          {content}
+          <div className="absolute inset-0 bg-muted/80 backdrop-blur-sm flex items-center justify-center rounded-md">
+            <div className="text-center px-2">
+              <span className="text-xs text-muted-foreground font-medium">Feature disabled</span>
+              <p className="text-[10px] text-muted-foreground/70 mt-0.5">Enable in Settings</p>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    return content;
   };
 
   return (
@@ -169,15 +193,59 @@ export function Sidebar({
               Settings
             </Link>
 
-            <Link
-              to={ROUTES.AUTOMATION}
-              className={`w-full flex items-center justify-between px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-                isGlobalActive('automation')
-                  ? 'bg-primary text-primary-foreground'
-                  : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
-              }`}
-            >
-              <div className="flex items-center gap-2">
+            {renderNavItem(
+              'automation',
+              <Link
+                to={ROUTES.AUTOMATION}
+                className={`w-full flex items-center justify-between px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                  isGlobalActive('automation')
+                    ? 'bg-primary text-primary-foreground'
+                    : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <circle cx="12" cy="12" r="3" />
+                    <path d="M12 2v3" />
+                    <path d="M12 19v3" />
+                    <path d="M4.22 4.22l2.12 2.12" />
+                    <path d="M17.66 17.66l2.12 2.12" />
+                    <path d="M2 12h3" />
+                    <path d="M19 12h3" />
+                    <path d="M4.22 19.78l2.12-2.12" />
+                    <path d="M17.66 6.34l2.12-2.12" />
+                  </svg>
+                  Automation
+                </div>
+                {(stats.scheduler?.enabledJobs || 0) + (stats.webhook?.enabledWebhooks || 0) >
+                  0 && (
+                  <span className="flex items-center justify-center w-5 h-5 text-[10px] font-bold bg-secondary text-secondary-foreground rounded-full">
+                    {(stats.scheduler?.enabledJobs || 0) + (stats.webhook?.enabledWebhooks || 0)}
+                  </span>
+                )}
+              </Link>
+            )}
+
+            {renderNavItem(
+              'agentRegistry',
+              <Link
+                to={ROUTES.AGENTS}
+                className={`w-full flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                  isGlobalActive('agents')
+                    ? 'bg-primary text-primary-foreground'
+                    : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+                }`}
+              >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   width="16"
@@ -189,104 +257,73 @@ export function Sidebar({
                   strokeLinecap="round"
                   strokeLinejoin="round"
                 >
-                  <circle cx="12" cy="12" r="3" />
-                  <path d="M12 2v3" />
-                  <path d="M12 19v3" />
-                  <path d="M4.22 4.22l2.12 2.12" />
-                  <path d="M17.66 17.66l2.12 2.12" />
-                  <path d="M2 12h3" />
-                  <path d="M19 12h3" />
-                  <path d="M4.22 19.78l2.12-2.12" />
-                  <path d="M17.66 6.34l2.12-2.12" />
+                  <path d="M12 8V4H8" />
+                  <rect width="16" height="12" x="4" y="8" rx="2" />
+                  <path d="M2 14h2" />
+                  <path d="M20 14h2" />
+                  <path d="M15 13v2" />
+                  <path d="M9 13v2" />
                 </svg>
-                Automation
-              </div>
-              {(stats.scheduler?.enabledJobs || 0) + (stats.webhook?.enabledWebhooks || 0) > 0 && (
-                <span className="flex items-center justify-center w-5 h-5 text-[10px] font-bold bg-secondary text-secondary-foreground rounded-full">
-                  {(stats.scheduler?.enabledJobs || 0) + (stats.webhook?.enabledWebhooks || 0)}
-                </span>
-              )}
-            </Link>
+                Agents
+              </Link>
+            )}
 
-            <Link
-              to={ROUTES.AGENTS}
-              className={`w-full flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-                isGlobalActive('agents')
-                  ? 'bg-primary text-primary-foreground'
-                  : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
-              }`}
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
+            {renderNavItem(
+              'miniApps',
+              <Link
+                to={ROUTES.APPS}
+                className={`w-full flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                  isGlobalActive('apps')
+                    ? 'bg-primary text-primary-foreground'
+                    : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+                }`}
               >
-                <path d="M12 8V4H8" />
-                <rect width="16" height="12" x="4" y="8" rx="2" />
-                <path d="M2 14h2" />
-                <path d="M20 14h2" />
-                <path d="M15 13v2" />
-                <path d="M9 13v2" />
-              </svg>
-              Agents
-            </Link>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <rect width="7" height="7" x="3" y="3" rx="1" />
+                  <rect width="7" height="7" x="14" y="3" rx="1" />
+                  <rect width="7" height="7" x="14" y="14" rx="1" />
+                  <rect width="7" height="7" x="3" y="14" rx="1" />
+                </svg>
+                Mini-Apps
+              </Link>
+            )}
 
-            <Link
-              to={ROUTES.APPS}
-              className={`w-full flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-                isGlobalActive('apps')
-                  ? 'bg-primary text-primary-foreground'
-                  : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
-              }`}
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
+            {renderNavItem(
+              'operations',
+              <Link
+                to={ROUTES.OPERATIONS}
+                className={`w-full flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                  isGlobalActive('operations')
+                    ? 'bg-primary text-primary-foreground'
+                    : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+                }`}
               >
-                <rect width="7" height="7" x="3" y="3" rx="1" />
-                <rect width="7" height="7" x="14" y="3" rx="1" />
-                <rect width="7" height="7" x="14" y="14" rx="1" />
-                <rect width="7" height="7" x="3" y="14" rx="1" />
-              </svg>
-              Mini-Apps
-            </Link>
-
-            <Link
-              to={ROUTES.OPERATIONS}
-              className={`w-full flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-                isGlobalActive('operations')
-                  ? 'bg-primary text-primary-foreground'
-                  : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
-              }`}
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
-              </svg>
-              Operations
-            </Link>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+                </svg>
+                Operations
+              </Link>
+            )}
           </div>
         </div>
 

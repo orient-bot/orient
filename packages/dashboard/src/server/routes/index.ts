@@ -18,3 +18,4 @@ export { createOnboarderRoutes } from './onboarder.routes.js';
 export { createIntegrationsRoutes } from './integrations.routes.js';
 export { createStorageRoutes } from './storage.routes.js';
 export { createVersionRoutes } from './version.routes.js';
+export { createFeatureFlagsRoutes } from './featureFlags.routes.js';
