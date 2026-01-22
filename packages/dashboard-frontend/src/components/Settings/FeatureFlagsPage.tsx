@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useFeatureFlags, type FeatureFlagDefinition } from '../../hooks/useFeatureFlags';
 
 export function FeatureFlagsPage() {
