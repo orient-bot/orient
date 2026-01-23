@@ -186,4 +186,45 @@ describe('Authenticated API Enforcement', () => {
       expect(fileNames).toContain('api.ts');
     });
   });
+
+  describe('Groups API functions', () => {
+    it('api.ts should export getGroup function', () => {
+      const apiFile = path.join(srcDir, 'api.ts');
+      const content = fs.readFileSync(apiFile, 'utf-8');
+
+      // Check that getGroup is exported
+      expect(content).toMatch(/export async function getGroup/);
+    });
+
+    it('getGroup should use apiRequest helper', () => {
+      const apiFile = path.join(srcDir, 'api.ts');
+      const content = fs.readFileSync(apiFile, 'utf-8');
+
+      // Find the getGroup function and verify it uses apiRequest
+      const getGroupMatch = content.match(
+        /export async function getGroup[\s\S]*?return result\.data;[\s\S]*?catch/
+      );
+      expect(getGroupMatch).toBeTruthy();
+      expect(getGroupMatch?.[0]).toMatch(/apiRequest/);
+    });
+
+    it('getGroup should encode groupId in URL', () => {
+      const apiFile = path.join(srcDir, 'api.ts');
+      const content = fs.readFileSync(apiFile, 'utf-8');
+
+      // Check that getGroup encodes the groupId
+      expect(content).toMatch(/\/groups\/\$\{encodeURIComponent\(groupId\)\}/);
+    });
+
+    it('getGroup should return null on error', () => {
+      const apiFile = path.join(srcDir, 'api.ts');
+      const content = fs.readFileSync(apiFile, 'utf-8');
+
+      // Find the getGroup function and verify error handling
+      const getGroupMatch = content.match(
+        /export async function getGroup[\s\S]*?catch[\s\S]*?return null/
+      );
+      expect(getGroupMatch).toBeTruthy();
+    });
+  });
 });

@@ -639,6 +639,32 @@ export function createDashboardRouter(services: DashboardServices): Router {
     }
   });
 
+  router.get('/groups/:groupId', requireAuth, async (req: Request, res: Response) => {
+    try {
+      const { groupId } = req.params;
+      const decodedGroupId = decodeURIComponent(groupId);
+      const group = await db.getGroup(decodedGroupId);
+
+      if (!group) {
+        return res.status(404).json({
+          success: false,
+          error: 'Group not found',
+        });
+      }
+
+      res.json({
+        success: true,
+        data: group,
+      });
+    } catch (error) {
+      logger.error('Get group error', { error: String(error) });
+      res.status(500).json({
+        success: false,
+        error: 'Failed to get group',
+      });
+    }
+  });
+
   // ============================================
   // AGENT CAPABILITIES
   // ============================================
