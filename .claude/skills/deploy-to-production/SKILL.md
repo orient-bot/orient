@@ -758,6 +758,110 @@ orienter-dashboard      Up X minutes (healthy)
 orienter-postgres       Up X minutes (healthy)
 ```
 
+### ESM Module Import Resolution Issues
+
+When running tests in CI or locally, you may encounter module resolution errors for subpath exports.
+
+#### Subpath Export Resolution Failures
+
+**Error**: `Cannot find package '@orient/integrations/google' imported from '...'`
+
+**Cause**: Vitest/tsx may not correctly resolve package subpath exports (e.g., `@orient/integrations/google`) even when the `exports` field in package.json is properly configured.
+
+**Fix**: Use the main export instead of subpath exports:
+
+```typescript
+// BROKEN - subpath export may not resolve in vitest
+import { getGoogleOAuthService } from '@orient/integrations/google';
+
+// FIXED - use main export (re-exports all submodules)
+import { getGoogleOAuthService } from '@orient/integrations';
+```
+
+**Why This Happens**: The package.json exports field specifies `./dist/...` paths for subpath exports. While Node.js resolves these correctly at runtime, vitest/tsx running TypeScript directly may fail to resolve them during tests.
+
+#### Stray .js Files in Source Directories
+
+**Error**: Tests fail with old code even after fixing TypeScript source files.
+
+**Cause**: Compiled `.js` files accidentally exist in `src/` directories alongside `.ts` files. Vitest may load the stale compiled files instead of the updated TypeScript sources.
+
+**Diagnosis**:
+
+```bash
+# Find stray .js files in source directories
+find packages/*/src -name "*.js" -type f
+
+# Check if the error points to a .js file in src/
+grep -r "integrations/google" packages/*/src/*.js
+```
+
+**Fix**:
+
+```bash
+# Remove stray compiled files from source directories
+rm packages/dashboard/src/server/routes/*.js
+rm packages/dashboard/src/server/routes/*.js.map
+
+# These should only exist in dist/, not src/
+```
+
+**Prevention**: Add to `.gitignore`:
+
+```
+# Ignore compiled JS in source directories
+packages/*/src/**/*.js
+packages/*/src/**/*.js.map
+```
+
+#### Test Failure Diagnosis Workflow
+
+When CI tests fail with import errors across multiple service files:
+
+1. **Check the actual error location**:
+
+   ```bash
+   gh run view RUN_ID --log-failed | grep -A5 "Cannot find"
+   ```
+
+2. **Verify the import in source files**:
+
+   ```bash
+   grep -r "integrations/google" packages/*/src/
+   ```
+
+3. **Look for stray compiled files**:
+
+   ```bash
+   find packages -path "*/src/*.js" -type f
+   ```
+
+4. **Rebuild after fixing**:
+   ```bash
+   pnpm turbo build --filter=@orient/dashboard
+   pnpm test:ci
+   ```
+
+#### Docker Compose Test Updates for Multi-Instance Support
+
+When container naming schemes change (e.g., adding instance IDs for multi-instance support), existing docker compose tests may fail.
+
+**Error**: `expected 'orienter-bot-whatsapp-${AI_INSTANCE_ID:-0}' to be 'orienter-bot-whatsapp'`
+
+**Cause**: Tests expect fixed container names but compose files now use instance-aware naming.
+
+**Fix**: Update `tests/docker/compose.test.ts` to expect the new naming pattern:
+
+```typescript
+// OLD - fixed names
+expect(compose.services['bot-whatsapp'].container_name).toBe('orienter-bot-whatsapp');
+
+// NEW - instance-aware names
+expect(compose.services['bot-whatsapp'].container_name).toBe(
+  'orienter-bot-whatsapp-${AI_INSTANCE_ID:-0}'
+);
+```
+
 ### Worktree Checkout Conflicts
 
 When working in a git worktree, you may encounter branch checkout conflicts when trying to merge PRs.
