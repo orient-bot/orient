@@ -143,6 +143,8 @@ export class WhatsAppService extends EventEmitter {
   private qrCodeUpdatedAt: Date | null = null; // Track when QR was last updated
   private readonly PAIRING_MODE_MARKER = '.pairing-mode'; // Marker file to indicate pairing mode
   private qrGenerationPaused: boolean = false; // True when max reconnect attempts reached in pairing mode
+  private syncState: 'idle' | 'syncing' | 'ready' = 'idle'; // Track initial sync state after connection
+  private syncProgress = { chatsReceived: 0, isLatest: false }; // Track sync progress
 
   constructor(config: WhatsAppConfig) {
     super();
@@ -280,6 +282,8 @@ export class WhatsAppService extends EventEmitter {
           });
 
           this.isConnected = false;
+          this.syncState = 'idle';
+          this.syncProgress = { chatsReceived: 0, isLatest: false };
           this.stopKeepAlive();
           this.emit('disconnected', DisconnectReason[reason] || String(reason));
 
@@ -320,6 +324,9 @@ export class WhatsAppService extends EventEmitter {
           this.qrCodeUpdatedAt = null;
           // Exit pairing mode - now allow normal S3 session sync
           this.exitPairingMode();
+          // Start syncing state - will transition to 'ready' when history sync completes
+          this.syncState = 'syncing';
+          this.syncProgress = { chatsReceived: 0, isLatest: false };
 
           // Capture our LID for group message matching
           // The LID format is like "164677636071544:73@lid" - we need just the number before ":"
@@ -378,12 +385,22 @@ export class WhatsAppService extends EventEmitter {
 
       // Handle history sync (when linking a new device)
       this.socket.ev.on('messaging-history.set', ({ messages, isLatest }) => {
+        // Track sync progress - isLatest can be undefined, default to false
+        const isLatestSync = isLatest ?? false;
+        this.syncProgress.isLatest = isLatestSync;
+        if (isLatestSync && this.syncState === 'syncing') {
+          this.syncState = 'ready';
+          logger.info('Initial sync completed', {
+            totalChatsReceived: this.syncProgress.chatsReceived,
+          });
+        }
+
         if (messages.length > 0) {
           logger.info('Received history sync', {
             messageCount: messages.length,
-            isLatest,
+            isLatest: isLatestSync,
           });
-          this.emit('history_sync', { messages, isLatest });
+          this.emit('history_sync', { messages, isLatest: isLatestSync });
         }
       });
 
@@ -393,6 +410,9 @@ export class WhatsAppService extends EventEmitter {
 
       ev.on('chats.set', ({ chats }: any) => {
         if (chats && chats.length > 0) {
+          // Track sync progress
+          this.syncProgress.chatsReceived += chats.length;
+
           const chatData = chats.map((chat: any) => ({
             id: chat.id,
             name: chat.name,
@@ -1470,6 +1490,32 @@ export class WhatsAppService extends EventEmitter {
    */
   getQrCodeUpdatedAt(): Date | null {
     return this.qrCodeUpdatedAt;
+  }
+
+  /**
+   * Get the current sync state
+   */
+  getSyncState(): 'idle' | 'syncing' | 'ready' {
+    return this.syncState;
+  }
+
+  /**
+   * Get the current sync progress
+   */
+  getSyncProgress(): { chatsReceived: number; isLatest: boolean } {
+    return this.syncProgress;
+  }
+
+  /**
+   * Get the connected user's phone number from the socket
+   * Format: "972501234567:52@s.whatsapp.net" or "972501234567@s.whatsapp.net"
+   * Returns just the phone number digits (e.g., "972501234567")
+   */
+  getUserPhone(): string | null {
+    if (!this.socket?.user?.id) return null;
+    const jid = this.socket.user.id;
+    const match = jid.match(/^(\d+)/);
+    return match ? match[1] : null;
   }
 
   /**
