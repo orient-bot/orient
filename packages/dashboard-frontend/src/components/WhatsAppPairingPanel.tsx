@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { saveWhatsAppAdminPhone } from '../api';
+import { saveWhatsAppAdminPhone, COUNTRY_CODES } from '../api';
 
 interface WhatsAppQrStatus {
   needsQrScan: boolean;
@@ -10,6 +10,9 @@ interface WhatsAppQrStatus {
   updatedAt?: string;
   adminPhone?: string | null;
   qrGenerationPaused?: boolean;
+  syncState?: 'idle' | 'syncing' | 'ready';
+  syncProgress?: { chatsReceived: number; isLatest: boolean };
+  userPhone?: string | null;
 }
 
 interface WhatsAppPairingPanelProps {
@@ -21,7 +24,7 @@ export default function WhatsAppPairingPanel({ onConnected }: WhatsAppPairingPan
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'qr' | 'pairing'>('qr');
-  const [phonePrefix, setPhonePrefix] = useState('+');
+  const [phonePrefix, setPhonePrefix] = useState(''); // Country code without +
   const [phoneNumber, setPhoneNumber] = useState('');
   const [pairingCode, setPairingCode] = useState<string | null>(null);
   const [isPairingLoading, setIsPairingLoading] = useState(false);
@@ -31,7 +34,7 @@ export default function WhatsAppPairingPanel({ onConnected }: WhatsAppPairingPan
 
   // Phone confirmation state (shown after QR pairing)
   const [needsPhoneConfirmation, setNeedsPhoneConfirmation] = useState(false);
-  const [confirmPhonePrefix, setConfirmPhonePrefix] = useState('+');
+  const [confirmPhonePrefix, setConfirmPhonePrefix] = useState(''); // Country code without +
   const [confirmPhoneNumber, setConfirmPhoneNumber] = useState('');
   const [isSavingPhone, setIsSavingPhone] = useState(false);
   const [phoneConfirmError, setPhoneConfirmError] = useState<string | null>(null);
@@ -100,10 +103,36 @@ export default function WhatsAppPairingPanel({ onConnected }: WhatsAppPairingPan
               setPhoneConfirmSuccess(true);
               localStorage.setItem('whatsapp_phone_saved', Date.now().toString());
             } catch (err) {
-              // Failed to save, show confirmation form
+              // Failed to save, show confirmation form with pre-filled data
               setNeedsPhoneConfirmation(true);
-              setConfirmPhonePrefix('+');
-              setConfirmPhoneNumber(phoneToSave.slice(3)); // Remove country code prefix
+              // Find matching country code
+              const matchingCode = COUNTRY_CODES.find((c) => phoneToSave.startsWith(c.code));
+              if (matchingCode) {
+                setConfirmPhonePrefix(matchingCode.code);
+                setConfirmPhoneNumber(phoneToSave.slice(matchingCode.code.length));
+              } else {
+                setConfirmPhoneNumber(phoneToSave);
+              }
+            }
+          } else if (data.userPhone && !data.adminPhone && !hasRecentSave) {
+            // Phone available from connection metadata - try to auto-save
+            try {
+              await saveWhatsAppAdminPhone(data.userPhone);
+              setPhoneConfirmSuccess(true);
+              localStorage.setItem('whatsapp_phone_saved', Date.now().toString());
+            } catch (err) {
+              // Failed to auto-save, pre-fill for manual confirmation
+              const phone = data.userPhone;
+              // Find matching country code (sorted by length desc to match longest first)
+              const sortedCodes = [...COUNTRY_CODES].sort((a, b) => b.code.length - a.code.length);
+              const matchingCode = sortedCodes.find((c) => phone.startsWith(c.code));
+              if (matchingCode) {
+                setConfirmPhonePrefix(matchingCode.code);
+                setConfirmPhoneNumber(phone.slice(matchingCode.code.length));
+              } else {
+                setConfirmPhoneNumber(phone);
+              }
+              setNeedsPhoneConfirmation(true);
             }
           } else if (!data.adminPhone && !hasRecentSave) {
             // QR code pairing or initial load without phone - need to ask for phone
@@ -160,9 +189,14 @@ export default function WhatsAppPairingPanel({ onConnected }: WhatsAppPairingPan
   };
 
   const requestPairingCode = async () => {
-    const prefix = phonePrefix.replace(/[^0-9]/g, '');
+    const prefix = phonePrefix; // Already just digits from dropdown
     const number = phoneNumber.replace(/[^0-9]/g, '');
     const fullNumber = prefix + number;
+
+    if (!prefix) {
+      setPairingError('Please select a country code');
+      return;
+    }
 
     if (fullNumber.length < 10 || fullNumber.length > 15) {
       setPairingError('Please enter a valid phone number (10-15 digits with country code)');
@@ -196,9 +230,14 @@ export default function WhatsAppPairingPanel({ onConnected }: WhatsAppPairingPan
   };
 
   const savePhoneConfirmation = async () => {
-    const prefix = confirmPhonePrefix.replace(/[^0-9]/g, '');
+    const prefix = confirmPhonePrefix; // Already just digits from dropdown
     const number = confirmPhoneNumber.replace(/[^0-9]/g, '');
     const fullNumber = prefix + number;
+
+    if (!prefix) {
+      setPhoneConfirmError('Please select a country code');
+      return;
+    }
 
     if (fullNumber.length < 10 || fullNumber.length > 15) {
       setPhoneConfirmError('Please enter a valid phone number (10-15 digits with country code)');
@@ -316,6 +355,32 @@ export default function WhatsAppPairingPanel({ onConnected }: WhatsAppPairingPan
     );
   }
 
+  // Syncing state - show after pairing accepted, before fully ready
+  if (status?.isConnected && status?.syncState === 'syncing') {
+    return (
+      <div className="rounded-lg border border-border bg-card p-6 text-center">
+        <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-blue-500/10 flex items-center justify-center">
+          <div className="w-6 h-6 border-2 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />
+        </div>
+        <p className="text-sm font-medium text-foreground mb-1">Syncing WhatsApp Data</p>
+        <p className="text-xs text-muted-foreground mb-4">
+          Initial sync in progress. This may take a moment for accounts with many chats.
+        </p>
+        <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
+          <p className="text-xs text-amber-700 dark:text-amber-400">
+            <strong>Please keep this page open</strong> and don't close WhatsApp on your phone until
+            sync completes.
+          </p>
+        </div>
+        {status.syncProgress && status.syncProgress.chatsReceived > 0 && (
+          <p className="text-xs text-muted-foreground mt-3 font-mono">
+            {status.syncProgress.chatsReceived} chats synced...
+          </p>
+        )}
+      </div>
+    );
+  }
+
   // Connected state
   if (status?.isConnected) {
     // Show phone confirmation form if needed (after QR scan)
@@ -341,14 +406,33 @@ export default function WhatsAppPairingPanel({ onConnected }: WhatsAppPairingPan
 
           <div className="space-y-3">
             <div className="flex gap-2">
-              <input
-                type="text"
-                value={confirmPhonePrefix}
-                onChange={(e) => setConfirmPhonePrefix(e.target.value)}
-                placeholder="+1"
-                maxLength={5}
-                className="input w-16 text-center font-mono"
-              />
+              <div className="relative">
+                <select
+                  value={confirmPhonePrefix}
+                  onChange={(e) => setConfirmPhonePrefix(e.target.value)}
+                  className="input w-28 appearance-none pr-8 cursor-pointer font-mono text-sm"
+                >
+                  <option value="">+?</option>
+                  {COUNTRY_CODES.map(({ code, flag }) => (
+                    <option key={code} value={code}>
+                      {flag} +{code}
+                    </option>
+                  ))}
+                </select>
+                <svg
+                  className="w-4 h-4 text-muted-foreground absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M19 9l-7 7-7-7"
+                  />
+                </svg>
+              </div>
               <input
                 type="tel"
                 value={confirmPhoneNumber}
@@ -456,7 +540,20 @@ export default function WhatsAppPairingPanel({ onConnected }: WhatsAppPairingPan
               </button>
             </div>
             <ol className="text-xs text-muted-foreground space-y-2 list-decimal list-inside">
-              <li>Create a WhatsApp group with just yourself (name it "Orient")</li>
+              <li>
+                <strong className="text-foreground">Create a private group:</strong>
+                <ul className="ml-5 mt-1 space-y-1 list-disc list-inside text-muted-foreground/80">
+                  <li>
+                    In WhatsApp, tap <strong className="text-foreground">New Group</strong>
+                  </li>
+                  <li>Add any contact temporarily</li>
+                  <li>Name the group "Orient" and create it</li>
+                  <li>
+                    Open group info and{' '}
+                    <strong className="text-foreground">remove the other person</strong>
+                  </li>
+                </ul>
+              </li>
               <li>Send any message to that group</li>
               <li>
                 Go to{' '}
@@ -620,14 +717,33 @@ export default function WhatsAppPairingPanel({ onConnected }: WhatsAppPairingPan
                   Enter your phone number to receive an 8-character pairing code
                 </p>
                 <div className="flex gap-2 mb-3">
-                  <input
-                    type="text"
-                    value={phonePrefix}
-                    onChange={(e) => setPhonePrefix(e.target.value)}
-                    placeholder="+1"
-                    maxLength={5}
-                    className="input w-16 text-center font-mono"
-                  />
+                  <div className="relative">
+                    <select
+                      value={phonePrefix}
+                      onChange={(e) => setPhonePrefix(e.target.value)}
+                      className="input w-28 appearance-none pr-8 cursor-pointer font-mono text-sm"
+                    >
+                      <option value="">+?</option>
+                      {COUNTRY_CODES.map(({ code, flag }) => (
+                        <option key={code} value={code}>
+                          {flag} +{code}
+                        </option>
+                      ))}
+                    </select>
+                    <svg
+                      className="w-4 h-4 text-muted-foreground absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M19 9l-7 7-7-7"
+                      />
+                    </svg>
+                  </div>
                   <input
                     type="tel"
                     value={phoneNumber}

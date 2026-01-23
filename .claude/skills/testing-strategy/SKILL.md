@@ -160,23 +160,25 @@ orienter/
 
 ## Decision Tree - Which Tests to Run
 
-| Modified Package/File                           | Tests to Run               | Command                                                 |
-| ----------------------------------------------- | -------------------------- | ------------------------------------------------------- |
-| `packages/core/src/**`                          | Core unit tests            | `pnpm --filter @orient/core test`                       |
-| `packages/database/src/**`                      | Database tests             | `pnpm --filter @orient/database test`                   |
-| `packages/database/src/schema/**`               | Database E2E               | `pnpm --filter @orient/database test:e2e`               |
-| `packages/mcp-tools/src/**`                     | MCP Tools tests            | `pnpm --filter @orient/mcp-tools test`                  |
-| `packages/dashboard-frontend/src/routes.ts`     | Frontend routing tests     | `pnpm --filter dashboard-frontend test -- routes`       |
-| `packages/dashboard-frontend/src/components/**` | Frontend component tests   | `pnpm --filter dashboard-frontend test`                 |
-| `packages/dashboard-frontend/src/App.tsx`       | Frontend integration tests | `pnpm --filter dashboard-frontend test`                 |
-| `src/services/*.ts`                             | Service unit tests         | `npm test -- src/services/__tests__/<name>.test.ts`     |
-| `src/services/openCode*.ts`                     | OpenCode E2E               | `npx vitest run tests/e2e/opencode-session.e2e.test.ts` |
-| `src/tools/*.ts`                                | Tool tests                 | `npm run test:tools`                                    |
-| `src/db/*.ts`                                   | E2E database tests         | `npm run test:e2e`                                      |
-| `packages/*/Dockerfile`                         | Docker tests               | `pnpm test:docker:files`                                |
-| `docker/docker-compose*.yml`                    | Docker compose tests       | `pnpm test:docker:files`                                |
-| `packages/*/src/main.ts`                        | Entry point + Docker tests | Package test + `pnpm test:docker:files`                 |
-| Multiple files                                  | All tests                  | `npm run test:ci`                                       |
+| Modified Package/File                           | Tests to Run               | Command                                                   |
+| ----------------------------------------------- | -------------------------- | --------------------------------------------------------- |
+| `packages/core/src/**`                          | Core unit tests            | `pnpm --filter @orient/core test`                         |
+| `packages/database/src/**`                      | Database tests             | `pnpm --filter @orient/database test`                     |
+| `packages/database/src/schema/**`               | Database E2E               | `pnpm --filter @orient/database test:e2e`                 |
+| `packages/mcp-tools/src/**`                     | MCP Tools tests            | `pnpm --filter @orient/mcp-tools test`                    |
+| `packages/dashboard-frontend/src/routes.ts`     | Frontend routing tests     | `pnpm --filter @orient/dashboard-frontend test -- routes` |
+| `packages/dashboard-frontend/src/components/**` | Frontend component tests   | `pnpm --filter @orient/dashboard-frontend test`           |
+| `packages/dashboard-frontend/src/api.ts`        | API client + constants     | `pnpm --filter @orient/dashboard-frontend test`           |
+| `packages/dashboard-frontend/src/App.tsx`       | Frontend integration tests | `pnpm --filter @orient/dashboard-frontend test`           |
+| `packages/bot-whatsapp/src/services/**`         | WhatsApp service tests     | `pnpm --filter @orient/bot-whatsapp test`                 |
+| `src/services/*.ts`                             | Service unit tests         | `npm test -- src/services/__tests__/<name>.test.ts`       |
+| `src/services/openCode*.ts`                     | OpenCode E2E               | `npx vitest run tests/e2e/opencode-session.e2e.test.ts`   |
+| `src/tools/*.ts`                                | Tool tests                 | `npm run test:tools`                                      |
+| `src/db/*.ts`                                   | E2E database tests         | `npm run test:e2e`                                        |
+| `packages/*/Dockerfile`                         | Docker tests               | `pnpm test:docker:files`                                  |
+| `docker/docker-compose*.yml`                    | Docker compose tests       | `pnpm test:docker:files`                                  |
+| `packages/*/src/main.ts`                        | Entry point + Docker tests | Package test + `pnpm test:docker:files`                   |
+| Multiple files                                  | All tests                  | `npm run test:ci`                                         |
 
 ## Writing New Tests
 
@@ -296,6 +298,347 @@ describe('Frontend URL Routing', () => {
 ```bash
 pnpm --filter dashboard-frontend test
 pnpm --filter dashboard-frontend test -- __tests__/routes.test.ts
+```
+
+### Frontend Component Tests (React/Vitest)
+
+Test React components with mocking strategies for async state management, fetch calls, and browser APIs:
+
+```typescript
+/**
+ * Component Tests with Async State Management
+ * Location: packages/dashboard-frontend/__tests__/MyComponent.test.tsx
+ */
+
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { BrowserRouter } from 'react-router-dom';
+import MyComponent from '../src/components/MyComponent';
+
+// Mock the API module
+vi.mock('../src/api', async () => {
+  const actual = await vi.importActual('../src/api');
+  return {
+    ...actual,
+    saveData: vi.fn(),
+    fetchData: vi.fn(),
+  };
+});
+
+import { saveData, fetchData } from '../src/api';
+const mockSaveData = saveData as ReturnType<typeof vi.fn>;
+const mockFetchData = fetchData as ReturnType<typeof vi.fn>;
+
+// Mock fetch for direct API calls
+const mockFetch = vi.fn();
+global.fetch = mockFetch;
+
+// Wrapper component for router context
+function TestWrapper({ children }: { children: React.ReactNode }) {
+  return <BrowserRouter>{children}</BrowserRouter>;
+}
+
+describe('MyComponent', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    localStorage.clear();
+    mockFetch.mockReset();
+  });
+
+  afterEach(() => {
+    localStorage.clear();
+  });
+
+  describe('Loading State', () => {
+    it('should show loading state initially', () => {
+      // Mock fetch that never resolves to keep loading state
+      mockFetch.mockImplementation(() => new Promise(() => {}));
+
+      render(
+        <TestWrapper>
+          <MyComponent />
+        </TestWrapper>
+      );
+
+      expect(screen.getByText('Loading...')).toBeInTheDocument();
+    });
+  });
+
+  describe('Async Data Fetching', () => {
+    it('should fetch and display data', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ items: ['a', 'b', 'c'] }),
+      });
+
+      render(
+        <TestWrapper>
+          <MyComponent />
+        </TestWrapper>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText('a')).toBeInTheDocument();
+      });
+    });
+
+    it('should handle fetch errors gracefully', async () => {
+      mockFetch.mockResolvedValue({
+        ok: false,
+        status: 500,
+        json: () => Promise.resolve({ error: 'Server error' }),
+      });
+
+      render(
+        <TestWrapper>
+          <MyComponent />
+        </TestWrapper>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText(/error/i)).toBeInTheDocument();
+      });
+    });
+  });
+
+  describe('Polling Behavior', () => {
+    it('should poll for updates', async () => {
+      let callCount = 0;
+      mockFetch.mockImplementation(() => {
+        callCount++;
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({
+            status: callCount === 1 ? 'pending' : 'complete',
+            data: callCount > 1 ? 'result' : null,
+          }),
+        });
+      });
+
+      render(
+        <TestWrapper>
+          <MyComponent />
+        </TestWrapper>
+      );
+
+      // Wait for transition from pending to complete
+      await waitFor(() => {
+        expect(screen.getByText('result')).toBeInTheDocument();
+      }, { timeout: 5000 });
+
+      expect(callCount).toBeGreaterThanOrEqual(2);
+    });
+  });
+
+  describe('LocalStorage Interaction', () => {
+    it('should persist state to localStorage', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ success: true }),
+      });
+
+      render(
+        <TestWrapper>
+          <MyComponent />
+        </TestWrapper>
+      );
+
+      fireEvent.click(screen.getByText('Save'));
+
+      await waitFor(() => {
+        expect(localStorage.getItem('my_key')).toBeTruthy();
+      });
+    });
+
+    it('should restore state from localStorage', () => {
+      localStorage.setItem('my_key', 'saved_value');
+
+      render(
+        <TestWrapper>
+          <MyComponent />
+        </TestWrapper>
+      );
+
+      expect(screen.getByDisplayValue('saved_value')).toBeInTheDocument();
+    });
+  });
+
+  describe('Form Submission', () => {
+    it('should validate and submit form', async () => {
+      mockSaveData.mockResolvedValue({ success: true });
+
+      render(
+        <TestWrapper>
+          <MyComponent />
+        </TestWrapper>
+      );
+
+      // Fill form
+      fireEvent.change(screen.getByLabelText('Name'), {
+        target: { value: 'Test Value' },
+      });
+
+      // Submit
+      fireEvent.click(screen.getByText('Submit'));
+
+      await waitFor(() => {
+        expect(mockSaveData).toHaveBeenCalledWith('Test Value');
+      });
+    });
+
+    it('should show validation error for invalid input', async () => {
+      render(
+        <TestWrapper>
+          <MyComponent />
+        </TestWrapper>
+      );
+
+      // Submit without filling required field
+      fireEvent.click(screen.getByText('Submit'));
+
+      await waitFor(() => {
+        expect(screen.getByText('Name is required')).toBeInTheDocument();
+      });
+    });
+  });
+});
+```
+
+**Key patterns for React component tests:**
+
+1. **Mock fetch globally** - Use `global.fetch = vi.fn()` for direct API calls
+2. **Mock API modules** - Use `vi.mock('../src/api')` for imported API functions
+3. **Router context** - Wrap components in `BrowserRouter` when using `<Link>` or `useNavigate`
+4. **localStorage cleanup** - Clear in `beforeEach` and `afterEach` to prevent test pollution
+5. **Polling tests** - Use `callCount` tracking and `waitFor` with timeout
+6. **Form testing** - Use `fireEvent.change` for inputs, `fireEvent.click` for buttons
+
+### Testing Select/Dropdown Components
+
+```typescript
+import { COUNTRY_CODES } from '../src/api';
+
+describe('Country Code Dropdown', () => {
+  it('should have correct structure for all entries', () => {
+    COUNTRY_CODES.forEach((country) => {
+      expect(country).toHaveProperty('code');
+      expect(country).toHaveProperty('name');
+      expect(country).toHaveProperty('flag');
+    });
+  });
+
+  it('should match longest prefix first', () => {
+    const phone = '972501234567';
+
+    // Sort by length descending (longer codes first)
+    const sortedCodes = [...COUNTRY_CODES].sort(
+      (a, b) => b.code.length - a.code.length
+    );
+
+    const match = sortedCodes.find((c) => phone.startsWith(c.code));
+    expect(match?.code).toBe('972'); // Matches 972, not 97 or 9
+  });
+
+  it('should select option in dropdown', async () => {
+    render(<TestWrapper><MyForm /></TestWrapper>);
+
+    const select = screen.getByRole('combobox');
+    fireEvent.change(select, { target: { value: '44' } });
+
+    expect(select).toHaveValue('44');
+  });
+});
+```
+
+### Testing UI State Transitions
+
+```typescript
+describe('UI State Transitions', () => {
+  it('should transition through states correctly', async () => {
+    let callCount = 0;
+    mockFetch.mockImplementation(() => {
+      callCount++;
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({
+          isConnected: callCount > 1,
+          syncState: callCount === 2 ? 'syncing' : callCount > 2 ? 'ready' : 'idle',
+          syncProgress: { chatsReceived: callCount * 10, isLatest: callCount > 2 },
+        }),
+      });
+    });
+
+    render(<TestWrapper><StatusPanel /></TestWrapper>);
+
+    // Initial loading
+    expect(screen.getByText('Loading...')).toBeInTheDocument();
+
+    // After first fetch - not connected
+    await waitFor(() => {
+      expect(screen.getByText('Not Connected')).toBeInTheDocument();
+    });
+
+    // Simulate connection event (via polling)
+    await waitFor(() => {
+      expect(screen.getByText('Syncing...')).toBeInTheDocument();
+    }, { timeout: 5000 });
+
+    // Final state - ready
+    await waitFor(() => {
+      expect(screen.getByText('Connected')).toBeInTheDocument();
+    }, { timeout: 5000 });
+  });
+});
+```
+
+### Mocking Browser APIs
+
+```typescript
+// Mock window.confirm
+const mockConfirm = vi.fn();
+window.confirm = mockConfirm;
+
+describe('Confirmation Dialogs', () => {
+  it('should show confirmation before destructive action', async () => {
+    mockConfirm.mockReturnValue(true);
+
+    render(<TestWrapper><DangerButton /></TestWrapper>);
+    fireEvent.click(screen.getByText('Delete'));
+
+    expect(mockConfirm).toHaveBeenCalledWith(
+      expect.stringContaining('Are you sure')
+    );
+  });
+
+  it('should cancel action if user declines', async () => {
+    mockConfirm.mockReturnValue(false);
+    mockFetch.mockClear();
+
+    render(<TestWrapper><DangerButton /></TestWrapper>);
+    fireEvent.click(screen.getByText('Delete'));
+
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+});
+
+// Mock window.open for OAuth flows
+const mockOpen = vi.fn();
+window.open = mockOpen;
+
+// Mock navigator.clipboard
+const mockClipboard = {
+  writeText: vi.fn().mockResolvedValue(undefined),
+  readText: vi.fn().mockResolvedValue(''),
+};
+Object.assign(navigator, { clipboard: mockClipboard });
+```
+
+**Run frontend component tests:**
+
+```bash
+pnpm --filter @orient/dashboard-frontend test
+pnpm --filter @orient/dashboard-frontend test -- __tests__/MyComponent.test.tsx
+pnpm --filter @orient/dashboard-frontend test -- --testNamePattern="state transition"
 ```
 
 ### Cross-Package Integration Test Template

@@ -580,6 +580,9 @@ export class WhatsAppApiServer {
         qrDataUrl,
         updatedAt: updatedAt?.toISOString() || null,
         qrGenerationPaused,
+        syncState: this.whatsappService.getSyncState(),
+        syncProgress: this.whatsappService.getSyncProgress(),
+        userPhone: this.whatsappService.getUserPhone(),
       })
     );
   }
