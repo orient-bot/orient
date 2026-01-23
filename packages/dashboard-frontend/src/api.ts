@@ -510,6 +510,17 @@ export async function getGroups(): Promise<{ groups: StoredGroup[] }> {
   return apiRequest('/groups');
 }
 
+export async function getGroup(groupId: string): Promise<StoredGroup | null> {
+  try {
+    const result = await apiRequest<{ success: boolean; data: StoredGroup }>(
+      `/groups/${encodeURIComponent(groupId)}`
+    );
+    return result.data;
+  } catch {
+    return null; // Group not found or error
+  }
+}
+
 export async function searchGroups(query: string): Promise<{ groups: StoredGroup[] }> {
   return apiRequest(`/groups/search?q=${encodeURIComponent(query)}`);
 }
