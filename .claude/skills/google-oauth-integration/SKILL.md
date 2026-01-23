@@ -1,3 +1,8 @@
+---
+name: google-oauth-integration
+description: 'Complete Google OAuth integration architecture including token storage and debugging'
+---
+
 # Google OAuth Integration
 
 This skill documents the complete Google OAuth integration architecture in Orient, including token storage, tool registration, and debugging procedures.

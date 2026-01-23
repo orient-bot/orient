@@ -1,3 +1,8 @@
+---
+name: fresh-install-testing
+description: 'Test Orient from a clean clone to validate the full development setup and test suite'
+---
+
 # Fresh Install Testing
 
 Test Orient from a clean clone to validate the full development setup and test suite.

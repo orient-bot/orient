@@ -1,3 +1,8 @@
+---
+name: tool-executor-registry-migration
+description: 'Guide for migrating tools from legacy switch statements to ToolExecutorRegistry handlers in Orient'
+---
+
 # Tool Executor Registry Migration
 
 This skill documents the migration pattern from legacy switch-statement tools to ToolExecutorRegistry handlers in Orient.
