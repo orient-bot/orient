@@ -38,10 +38,12 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Tag image with version
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Tag image with version (platform-independent)
         run: |
           VERSION=${{ github.ref_name }}
-          docker pull ${{ env.IMAGE_PREFIX }}/${{ matrix.image }}:latest
-          docker tag ${{ env.IMAGE_PREFIX }}/${{ matrix.image }}:latest \
-                     ${{ env.IMAGE_PREFIX }}/${{ matrix.image }}:$VERSION
-          docker push ${{ env.IMAGE_PREFIX }}/${{ matrix.image }}:$VERSION
+          docker buildx imagetools create \
+            --tag ${{ env.IMAGE_PREFIX }}/${{ matrix.image }}:$VERSION \
+            ${{ env.IMAGE_PREFIX }}/${{ matrix.image }}:latest
