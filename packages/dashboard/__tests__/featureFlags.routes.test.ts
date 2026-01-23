@@ -1,45 +1,71 @@
 /**
  * Tests for Feature Flags Routes
  *
- * Tests the config-based feature flags API endpoints.
+ * Tests the database-backed feature flags API endpoints.
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { Request, Response } from 'express';
 
-// Use vi.hoisted to ensure mock values are available for hoisted vi.mock calls
-const {
-  mockGetConfig,
-  mockResolveFeatureFlags,
-  mockGetFeatureFlagsForApi,
-  mockGetAllFlagIds,
-  mockGetEnvVarName,
-  mockPRE_LAUNCH_DEFAULTS,
-} = vi.hoisted(() => ({
-  mockGetConfig: vi.fn(),
-  mockResolveFeatureFlags: vi.fn(),
-  mockGetFeatureFlagsForApi: vi.fn(),
-  mockGetAllFlagIds: vi.fn(),
-  mockGetEnvVarName: vi.fn(),
-  mockPRE_LAUNCH_DEFAULTS: {
-    miniApps: { enabled: false, uiStrategy: 'hide' },
-    automation: { enabled: false, uiStrategy: 'hide' },
+// Mock database
+const mockSelect = vi.fn();
+const mockFrom = vi.fn();
+const mockWhere = vi.fn();
+const mockLimit = vi.fn();
+const mockOrderBy = vi.fn();
+const mockUpdate = vi.fn();
+const mockSet = vi.fn();
+
+const mockDb = {
+  select: () => {
+    mockSelect();
+    return {
+      from: (table: unknown) => {
+        mockFrom(table);
+        return {
+          where: (condition: unknown) => {
+            mockWhere(condition);
+            return {
+              limit: (n: number) => {
+                mockLimit(n);
+                return Promise.resolve([]);
+              },
+            };
+          },
+          orderBy: (field: unknown) => {
+            mockOrderBy(field);
+            return Promise.resolve([]);
+          },
+        };
+      },
+    };
   },
+  update: (table: unknown) => {
+    mockUpdate(table);
+    return {
+      set: (values: unknown) => {
+        mockSet(values);
+        return {
+          where: () => Promise.resolve(),
+        };
+      },
+    };
+  },
+};
+
+vi.mock('@orient/database', () => ({
+  getDatabase: () => mockDb,
+  featureFlags: { id: 'id', sortOrder: 'sortOrder' },
+  eq: vi.fn((a, b) => ({ a, b })),
 }));
 
 vi.mock('@orient/core', () => ({
-  getConfig: () => mockGetConfig(),
   createServiceLogger: () => ({
     info: vi.fn(),
     error: vi.fn(),
     warn: vi.fn(),
     debug: vi.fn(),
   }),
-  resolveFeatureFlags: (flags: unknown) => mockResolveFeatureFlags(flags),
-  getFeatureFlagsForApi: (flags: unknown) => mockGetFeatureFlagsForApi(flags),
-  getAllFlagIds: () => mockGetAllFlagIds(),
-  getEnvVarName: (flagId: string) => mockGetEnvVarName(flagId),
-  PRE_LAUNCH_DEFAULTS: mockPRE_LAUNCH_DEFAULTS,
 }));
 
 import { createFeatureFlagsRoutes } from '../src/server/routes/featureFlags.routes.js';
@@ -61,6 +87,19 @@ const createMockReqRes = () => {
   return { req, res };
 };
 
+// Helper to get route handler from express router
+const getHandler = (
+  router: ReturnType<typeof createFeatureFlagsRoutes>,
+  path: string,
+  method: 'get' | 'put' | 'delete'
+) => {
+  const route = router.stack.find(
+    (layer) => layer.route?.path === path && layer.route?.methods?.[method]
+  );
+  // Handler is after the auth middleware (index 1)
+  return route?.route?.stack[1]?.handle;
+};
+
 describe('Feature Flags Routes', () => {
   let router: ReturnType<typeof createFeatureFlagsRoutes>;
 
@@ -74,147 +113,184 @@ describe('Feature Flags Routes', () => {
   });
 
   describe('GET /', () => {
-    it('should return resolved feature flags', async () => {
-      const mockConfig = {
-        features: { miniApps: { enabled: true, uiStrategy: 'hide' } },
-      };
-      const mockResolved = {
-        miniApps: { enabled: true, uiStrategy: 'hide' },
-        automation: { enabled: false, uiStrategy: 'hide' },
-      };
-      const mockApiFlags = { ...mockResolved };
+    it('should return feature flags from database', async () => {
+      const mockFlags = [
+        {
+          id: 'miniApps',
+          name: 'Mini Apps',
+          description: 'Enable mini apps feature',
+          enabled: true,
+          category: 'ui',
+          sortOrder: 0,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      ];
 
-      mockGetConfig.mockReturnValue(mockConfig);
-      mockResolveFeatureFlags.mockReturnValue(mockResolved);
-      mockGetFeatureFlagsForApi.mockReturnValue(mockApiFlags);
-
-      const { req, res } = createMockReqRes();
-      const route = router.stack.find(
-        (layer) => layer.route?.path === '/' && layer.route?.methods?.get
-      );
-      const handler = route?.route?.stack[1]?.handle;
-
-      await handler(req, res, () => {});
-
-      expect(mockGetConfig).toHaveBeenCalled();
-      expect(mockResolveFeatureFlags).toHaveBeenCalledWith(mockConfig.features);
-      expect(res.json).toHaveBeenCalledWith({ flags: mockApiFlags });
-    });
-
-    it('should return fallback flags on error', async () => {
-      mockGetConfig.mockImplementation(() => {
-        throw new Error('Config error');
+      // Override the mock to return flags
+      mockDb.select = () => ({
+        from: () => ({
+          orderBy: () => Promise.resolve(mockFlags),
+        }),
       });
-      mockGetFeatureFlagsForApi.mockReturnValue(mockPRE_LAUNCH_DEFAULTS);
 
       const { req, res } = createMockReqRes();
-      const route = router.stack.find(
-        (layer) => layer.route?.path === '/' && layer.route?.methods?.get
-      );
-      const handler = route?.route?.stack[1]?.handle;
+      const handler = getHandler(router, '/', 'get');
 
-      await handler(req, res, () => {});
+      if (handler) {
+        await handler(req, res, () => {});
+      }
 
-      expect(res.json).toHaveBeenCalledWith({ flags: mockPRE_LAUNCH_DEFAULTS });
-    });
-  });
-
-  describe('GET /documentation', () => {
-    it('should return flag documentation', async () => {
-      const mockFlagIds = ['miniApps', 'automation'];
-      mockGetAllFlagIds.mockReturnValue(mockFlagIds);
-      mockGetEnvVarName.mockImplementation((id: string) => `FEATURE_FLAG_${id.toUpperCase()}`);
-
-      const { req, res } = createMockReqRes();
-      const route = router.stack.find((layer) => layer.route?.path === '/documentation');
-      const handler = route?.route?.stack[1]?.handle;
-
-      await handler(req, res, () => {});
-
-      expect(mockGetAllFlagIds).toHaveBeenCalled();
       expect(res.json).toHaveBeenCalledWith({
-        documentation: [
-          { flagId: 'miniApps', envVar: 'FEATURE_FLAG_MINIAPPS', defaultEnabled: false },
-          { flagId: 'automation', envVar: 'FEATURE_FLAG_AUTOMATION', defaultEnabled: false },
-        ],
-        notes: expect.any(Array),
+        flags: expect.arrayContaining([
+          expect.objectContaining({
+            id: 'miniApps',
+            name: 'Mini Apps',
+            enabled: true,
+          }),
+        ]),
+      });
+    });
+
+    it('should return 500 on database error', async () => {
+      mockDb.select = () => ({
+        from: () => ({
+          orderBy: () => Promise.reject(new Error('Database error')),
+        }),
+      });
+
+      const { req, res } = createMockReqRes();
+      const handler = getHandler(router, '/', 'get');
+
+      if (handler) {
+        await handler(req, res, () => {});
+      }
+
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.json).toHaveBeenCalledWith({
+        error: 'Failed to retrieve feature flags',
       });
     });
   });
 
   describe('PUT /:flagId', () => {
-    it('should accept valid flag update request', async () => {
-      mockGetAllFlagIds.mockReturnValue(['miniApps', 'automation']);
-      mockGetEnvVarName.mockReturnValue('FEATURE_FLAG_MINI_APPS');
+    it('should update a feature flag', async () => {
+      const mockFlags = [
+        {
+          id: 'miniApps',
+          name: 'Mini Apps',
+          description: 'Enable mini apps feature',
+          enabled: true,
+          category: 'ui',
+          sortOrder: 0,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      ];
+
+      // Mock finding the flag and then returning updated list
+      let selectCallCount = 0;
+      mockDb.select = () => ({
+        from: () => ({
+          where: () => ({
+            limit: () => {
+              selectCallCount++;
+              // First call checks if flag exists, second call returns updated list
+              if (selectCallCount === 1) {
+                return Promise.resolve([mockFlags[0]]);
+              }
+              return Promise.resolve(mockFlags);
+            },
+          }),
+          orderBy: () => Promise.resolve(mockFlags),
+        }),
+      });
+
+      mockDb.update = () => ({
+        set: () => ({
+          where: () => Promise.resolve(),
+        }),
+      });
 
       const { req, res } = createMockReqRes();
       req.params = { flagId: 'miniApps' };
-      req.body = { enabled: true, uiStrategy: 'notify' };
+      req.body = { enabled: true };
 
-      const route = router.stack.find(
-        (layer) => layer.route?.path === '/:flagId' && layer.route?.methods?.put
-      );
-      const handler = route?.route?.stack[1]?.handle;
+      const handler = getHandler(router, '/:flagId', 'put');
 
-      await handler(req, res, () => {});
+      if (handler) {
+        await handler(req, res, () => {});
+      }
 
       expect(res.json).toHaveBeenCalledWith({
         success: true,
-        message: expect.stringContaining('not persisted'),
-        flagId: 'miniApps',
-        hint: expect.stringContaining('FEATURE_FLAG_MINI_APPS'),
+        flags: expect.any(Array),
       });
     });
 
     it('should return 404 for unknown flag', async () => {
-      mockGetAllFlagIds.mockReturnValue(['miniApps', 'automation']);
+      mockDb.select = () => ({
+        from: () => ({
+          where: () => ({
+            limit: () => Promise.resolve([]),
+          }),
+        }),
+      });
 
       const { req, res } = createMockReqRes();
       req.params = { flagId: 'unknownFlag' };
       req.body = { enabled: true };
 
-      const route = router.stack.find(
-        (layer) => layer.route?.path === '/:flagId' && layer.route?.methods?.put
-      );
-      const handler = route?.route?.stack[1]?.handle;
+      const handler = getHandler(router, '/:flagId', 'put');
 
-      await handler(req, res, () => {});
+      if (handler) {
+        await handler(req, res, () => {});
+      }
 
       expect(res.status).toHaveBeenCalledWith(404);
     });
 
     it('should return 400 for invalid enabled value', async () => {
-      mockGetAllFlagIds.mockReturnValue(['miniApps']);
-
       const { req, res } = createMockReqRes();
       req.params = { flagId: 'miniApps' };
       req.body = { enabled: 'invalid' };
 
-      const route = router.stack.find(
-        (layer) => layer.route?.path === '/:flagId' && layer.route?.methods?.put
-      );
-      const handler = route?.route?.stack[1]?.handle;
+      const handler = getHandler(router, '/:flagId', 'put');
 
-      await handler(req, res, () => {});
+      if (handler) {
+        await handler(req, res, () => {});
+      }
 
       expect(res.status).toHaveBeenCalledWith(400);
     });
+  });
 
-    it('should return 400 for invalid uiStrategy', async () => {
-      mockGetAllFlagIds.mockReturnValue(['miniApps']);
+  describe('GET /effective', () => {
+    it('should return flat flag values', async () => {
+      const mockFlags = [
+        { id: 'miniApps', enabled: true },
+        { id: 'automation', enabled: false },
+      ];
+
+      mockDb.select = () => ({
+        from: () => ({
+          orderBy: () => Promise.resolve(mockFlags),
+        }),
+      });
 
       const { req, res } = createMockReqRes();
-      req.params = { flagId: 'miniApps' };
-      req.body = { uiStrategy: 'invalid' };
+      const handler = getHandler(router, '/effective', 'get');
 
-      const route = router.stack.find(
-        (layer) => layer.route?.path === '/:flagId' && layer.route?.methods?.put
-      );
-      const handler = route?.route?.stack[1]?.handle;
+      if (handler) {
+        await handler(req, res, () => {});
+      }
 
-      await handler(req, res, () => {});
-
-      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith({
+        flags: {
+          miniApps: true,
+          automation: false,
+        },
+      });
     });
   });
 });
