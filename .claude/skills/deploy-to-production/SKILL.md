@@ -391,6 +391,72 @@ sudo docker compose ${COMPOSE_FILES} up -d
 
 ## Troubleshooting
 
+### Multi-Repository Deployment (Self-Hosted Runners)
+
+#### Jobs Stuck in "Queued" State
+
+**Error**: Docker build jobs show "queued" status for 10+ minutes without starting.
+
+**Cause**: The workflow requires self-hosted ARM64 runners (`runs-on: [self-hosted, linux, arm64]`), but you triggered the workflow on a repository that doesn't have the runner registered.
+
+**Diagnosis**:
+
+```bash
+# Check your git remotes
+git remote -v
+
+# Example output showing two repos:
+# deploy	https://github.com/orient-core/orient.git (fetch/push)  ← Has self-hosted runner
+# origin	https://github.com/orient-bot/orient.git (fetch/push)   ← OSS repo, no runner
+
+# Check which repo the runner is registered to
+ssh opc@152.70.172.33 "systemctl status actions.runner.* 2>/dev/null | head -5"
+# Look for: actions.runner.orient-core-orient.oracle-arm64.service
+#                          ^^^^^^^^^^^^ This shows the org/repo
+```
+
+**Fix**: Trigger the workflow on the repository that has the self-hosted runner:
+
+```bash
+# Cancel the stuck workflow
+gh run cancel <run_id> --repo orient-bot/orient
+
+# Trigger on the correct repo (orient-core/orient has the runner)
+gh workflow run deploy.yml -f force_build_all=true --repo orient-core/orient
+
+# Monitor the new workflow
+gh run list --repo orient-core/orient --limit 3
+gh run watch <new_run_id> --repo orient-core/orient --exit-status
+```
+
+**Understanding the Two Repositories**:
+
+| Repository           | Remote   | Purpose                 | Self-Hosted Runner |
+| -------------------- | -------- | ----------------------- | ------------------ |
+| `orient-bot/orient`  | `origin` | Open source repo        | ❌ No              |
+| `orient-core/orient` | `deploy` | Private deployment repo | ✅ Yes (ARM64)     |
+
+**Key Points**:
+
+- The OSS repo (`orient-bot/orient`) doesn't have self-hosted runners - Docker builds will never start
+- Production deployments must be triggered on `orient-core/orient` where the ARM64 runner is registered
+- The runner is running on the Oracle Cloud server as a systemd service
+- GitHub-hosted runners won't work because the workflow specifies `[self-hosted, linux, arm64]`
+
+**Verifying Runner Status**:
+
+```bash
+# Check if the runner service is running on the server
+ssh opc@152.70.172.33 "systemctl status actions.runner.orient-core-orient.oracle-arm64.service"
+
+# Should show:
+# Active: active (running)
+# ... Listening for Jobs
+
+# Check recent job history
+ssh opc@152.70.172.33 "journalctl -u actions.runner.orient-core-orient.oracle-arm64.service --since '1 hour ago' | grep -E '(Running job|completed)'"
+```
+
 ### GitHub Actions SSH Authentication
 
 #### OCI_SSH_PRIVATE_KEY Secret
