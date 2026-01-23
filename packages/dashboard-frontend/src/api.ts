@@ -241,6 +241,52 @@ export async function saveWhatsAppAdminPhone(phoneNumber: string): Promise<Setup
   return applySetup({ WHATSAPP_ADMIN_PHONE: phoneNumber });
 }
 
+/**
+ * Country codes for WhatsApp phone number input
+ */
+export const COUNTRY_CODES = [
+  { code: '1', name: 'US/Canada', flag: '\u{1F1FA}\u{1F1F8}' },
+  { code: '44', name: 'UK', flag: '\u{1F1EC}\u{1F1E7}' },
+  { code: '49', name: 'Germany', flag: '\u{1F1E9}\u{1F1EA}' },
+  { code: '33', name: 'France', flag: '\u{1F1EB}\u{1F1F7}' },
+  { code: '39', name: 'Italy', flag: '\u{1F1EE}\u{1F1F9}' },
+  { code: '34', name: 'Spain', flag: '\u{1F1EA}\u{1F1F8}' },
+  { code: '972', name: 'Israel', flag: '\u{1F1EE}\u{1F1F1}' },
+  { code: '91', name: 'India', flag: '\u{1F1EE}\u{1F1F3}' },
+  { code: '86', name: 'China', flag: '\u{1F1E8}\u{1F1F3}' },
+  { code: '81', name: 'Japan', flag: '\u{1F1EF}\u{1F1F5}' },
+  { code: '82', name: 'South Korea', flag: '\u{1F1F0}\u{1F1F7}' },
+  { code: '55', name: 'Brazil', flag: '\u{1F1E7}\u{1F1F7}' },
+  { code: '52', name: 'Mexico', flag: '\u{1F1F2}\u{1F1FD}' },
+  { code: '61', name: 'Australia', flag: '\u{1F1E6}\u{1F1FA}' },
+  { code: '64', name: 'New Zealand', flag: '\u{1F1F3}\u{1F1FF}' },
+  { code: '27', name: 'South Africa', flag: '\u{1F1FF}\u{1F1E6}' },
+  { code: '971', name: 'UAE', flag: '\u{1F1E6}\u{1F1EA}' },
+  { code: '966', name: 'Saudi Arabia', flag: '\u{1F1F8}\u{1F1E6}' },
+  { code: '7', name: 'Russia', flag: '\u{1F1F7}\u{1F1FA}' },
+  { code: '48', name: 'Poland', flag: '\u{1F1F5}\u{1F1F1}' },
+  { code: '31', name: 'Netherlands', flag: '\u{1F1F3}\u{1F1F1}' },
+  { code: '46', name: 'Sweden', flag: '\u{1F1F8}\u{1F1EA}' },
+  { code: '47', name: 'Norway', flag: '\u{1F1F3}\u{1F1F4}' },
+  { code: '45', name: 'Denmark', flag: '\u{1F1E9}\u{1F1F0}' },
+  { code: '358', name: 'Finland', flag: '\u{1F1EB}\u{1F1EE}' },
+  { code: '41', name: 'Switzerland', flag: '\u{1F1E8}\u{1F1ED}' },
+  { code: '43', name: 'Austria', flag: '\u{1F1E6}\u{1F1F9}' },
+  { code: '32', name: 'Belgium', flag: '\u{1F1E7}\u{1F1EA}' },
+  { code: '351', name: 'Portugal', flag: '\u{1F1F5}\u{1F1F9}' },
+  { code: '30', name: 'Greece', flag: '\u{1F1EC}\u{1F1F7}' },
+  { code: '90', name: 'Turkey', flag: '\u{1F1F9}\u{1F1F7}' },
+  { code: '62', name: 'Indonesia', flag: '\u{1F1EE}\u{1F1E9}' },
+  { code: '60', name: 'Malaysia', flag: '\u{1F1F2}\u{1F1FE}' },
+  { code: '65', name: 'Singapore', flag: '\u{1F1F8}\u{1F1EC}' },
+  { code: '66', name: 'Thailand', flag: '\u{1F1F9}\u{1F1ED}' },
+  { code: '63', name: 'Philippines', flag: '\u{1F1F5}\u{1F1ED}' },
+  { code: '84', name: 'Vietnam', flag: '\u{1F1FB}\u{1F1F3}' },
+  { code: '20', name: 'Egypt', flag: '\u{1F1EA}\u{1F1EC}' },
+  { code: '234', name: 'Nigeria', flag: '\u{1F1F3}\u{1F1EC}' },
+  { code: '254', name: 'Kenya', flag: '\u{1F1F0}\u{1F1EA}' },
+] as const;
+
 export async function checkSetupRequired(): Promise<{ setupRequired: boolean }> {
   return apiRequest('/auth/setup-required');
 }
@@ -508,6 +554,17 @@ export interface StoredGroup {
 
 export async function getGroups(): Promise<{ groups: StoredGroup[] }> {
   return apiRequest('/groups');
+}
+
+export async function getGroup(groupId: string): Promise<StoredGroup | null> {
+  try {
+    const result = await apiRequest<{ success: boolean; data: StoredGroup }>(
+      `/groups/${encodeURIComponent(groupId)}`
+    );
+    return result.data;
+  } catch {
+    return null; // Group not found or error
+  }
 }
 
 export async function searchGroups(query: string): Promise<{ groups: StoredGroup[] }> {

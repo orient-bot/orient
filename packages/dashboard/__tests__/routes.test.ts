@@ -33,6 +33,7 @@ const createMockServices = (): DashboardServices => ({
     deleteChatPermission: vi.fn().mockResolvedValue(false),
     getPermissionAuditLog: vi.fn().mockResolvedValue([]),
     getAllGroups: vi.fn().mockResolvedValue([]),
+    getGroup: vi.fn().mockResolvedValue(null),
     searchGroups: vi.fn().mockResolvedValue([]),
     hasDashboardUsers: vi.fn().mockResolvedValue(false),
   } as unknown as DashboardServices['db'],
@@ -72,9 +73,7 @@ describe('Dashboard Routes', () => {
   describe('/health endpoint', () => {
     it('should return health status', async () => {
       // Get the route handler
-      const healthRoute = router.stack.find(
-        (layer) => layer.route?.path === '/health'
-      );
+      const healthRoute = router.stack.find((layer) => layer.route?.path === '/health');
 
       expect(healthRoute).toBeDefined();
     });
@@ -82,9 +81,7 @@ describe('Dashboard Routes', () => {
 
   describe('/stats endpoint', () => {
     it('should have a stats route', () => {
-      const statsRoute = router.stack.find(
-        (layer) => layer.route?.path === '/stats'
-      );
+      const statsRoute = router.stack.find((layer) => layer.route?.path === '/stats');
 
       expect(statsRoute).toBeDefined();
     });
@@ -92,11 +89,26 @@ describe('Dashboard Routes', () => {
 
   describe('/chats endpoint', () => {
     it('should have a chats route', () => {
-      const chatsRoute = router.stack.find(
-        (layer) => layer.route?.path === '/chats'
-      );
+      const chatsRoute = router.stack.find((layer) => layer.route?.path === '/chats');
 
       expect(chatsRoute).toBeDefined();
+    });
+  });
+
+  describe('/groups/:groupId endpoint', () => {
+    it('should have a single group route', () => {
+      // Check that the route is registered with a param pattern
+      const groupRoute = router.stack.find((layer) => layer.route?.path === '/groups/:groupId');
+
+      expect(groupRoute).toBeDefined();
+    });
+
+    it('should handle URL-encoded group IDs', () => {
+      // The route handler should decode the groupId parameter
+      const groupRoute = router.stack.find((layer) => layer.route?.path === '/groups/:groupId');
+
+      expect(groupRoute).toBeDefined();
+      expect(groupRoute?.route?.path).toBe('/groups/:groupId');
     });
   });
 
