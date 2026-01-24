@@ -24,7 +24,7 @@ const sidebars: SidebarsConfig = {
     {
       type: 'category',
       label: 'Help',
-      items: ['help/tips', 'help/faq', 'help/troubleshooting', 'help/cli'],
+      items: ['help/tips', 'help/faq', 'help/troubleshooting', 'help/cli', 'help/feature-flags'],
       collapsed: false,
     },
   ],

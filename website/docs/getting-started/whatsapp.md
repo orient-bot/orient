@@ -19,15 +19,17 @@ Get started with Orient on WhatsApp in just a few minutes.
 
 ## Step 1: Create a Bot Group
 
-Before pairing, create a dedicated WhatsApp group for the bot:
+Before pairing, create a dedicated WhatsApp group for the bot. This needs to be a **single-person group** (just you):
 
 1. Open **WhatsApp** on your phone
-2. Create a **new group** with only yourself
-3. Name it something like **"Ori Bot"** or **"Orient Assistant"**
-4. This group will be where you interact with the bot
+2. Tap **New Group**
+3. Add any contact temporarily (you'll remove them in step 5)
+4. Name the group **"Orient"** or **"Ori Bot"** and create it
+5. Open the group info and **remove the other person** — you should be the only member
+6. This private group will be where you interact with the bot
 
-:::info Why a dedicated group?
-Orient uses a permission system where the bot can only send messages to explicitly approved chats. Having a dedicated group keeps bot interactions organized and separate from your regular chats.
+:::info Why a single-person group?
+Orient uses a permission system where the bot only responds in explicitly approved chats. By creating a single-person group, you ensure the bot only responds to you. If you enable write access on a multi-member group, the bot will respond to everyone — which may not be what you want.
 :::
 
 ## Step 2: Open the Dashboard
@@ -48,9 +50,10 @@ You have two options:
 
 ### Option A: Pairing Code (Recommended)
 
-1. Enter your phone number with country code (e.g., `+1 555 123 4567`)
-2. Click **Get Pairing Code**
-3. You'll receive an 8-character code (e.g., `ABCD-1234`)
+1. Select your **country code** from the dropdown (e.g., 🇺🇸 +1, 🇮🇱 +972)
+2. Enter your **phone number** without the country code
+3. Click **Get Pairing Code**
+4. You'll receive an 8-character code (e.g., `ABCD-1234`)
 
 <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
   <img
@@ -88,13 +91,19 @@ On your phone:
    - **Pairing Code**: Tap **Link with phone number instead** and enter the code
    - **QR Code**: Scan the QR code displayed on the dashboard
 
-## Step 5: Verify Connection
+## Step 5: Wait for Sync
 
-Once linked, the dashboard will show **Connected** status.
+After scanning the QR code or entering the pairing code:
 
-{/* TODO: Add screenshot - WhatsApp Connected */}
+1. **Syncing**: You'll see a "Syncing WhatsApp Data" message with a progress indicator
+2. **Keep the page open** and don't close WhatsApp on your phone until sync completes
+3. For accounts with many chats, this may take a moment
 
-## Step 6: Activate the Bot Group
+## Step 6: Verify Connection
+
+Once sync completes, the dashboard will show **Connected** status. Your phone number will be automatically detected and saved.
+
+## Step 7: Activate the Bot Group
 
 Now you need to give the bot write permission to your group:
 
@@ -106,7 +115,13 @@ Now you need to give the bot write permission to your group:
 
 The bot is now live and will respond to your messages!
 
-{/* TODO: Add screenshot - WhatsApp Approve Permissions */}
+<div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+  <img
+    src="/img/screenshots/getting-started/whatsapp-chats-permissions.png"
+    alt="WhatsApp Chat Permissions"
+    style={{ maxWidth: '100%', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }}
+  />
+</div>
 
 :::tip Permission Levels
 
@@ -114,6 +129,10 @@ The bot is now live and will respond to your messages!
 - **Read Only**: Messages are stored but bot does not respond
 - **Read and Write**: Bot will respond to messages in this chat
   :::
+
+:::warning Multi-Member Group Warning
+If you try to enable **Read and Write** on a group with multiple members, you'll see a warning dialog. Orient will respond to **anyone** who sends a message to that group — not just you. For private bot conversations, use a single-person group.
+:::
 
 ---
 
