@@ -594,6 +594,30 @@ export function createIntegrationsRoutes(
       if (name === 'google') {
         try {
           const oauthModule = await getGoogleOAuthModule();
+
+          // Check if proxy mode is enabled
+          if (oauthModule.isProxyModeEnabled && oauthModule.isProxyModeEnabled()) {
+            // Use proxy mode for OAuth
+            const proxyClient = oauthModule.getGoogleOAuthProxyClient();
+            const { authUrl, sessionId, state } = await proxyClient.startOAuthFlow(
+              oauthModule.DEFAULT_SCOPES
+            );
+
+            logger.info('Google OAuth proxy flow started', { name, sessionId });
+
+            return res.json({
+              success: true,
+              name,
+              authUrl,
+              proxyMode: true,
+              sessionId,
+              oauthState: state,
+              instructions:
+                'Complete authorization in the popup window. Return to your terminal when done.',
+            });
+          }
+
+          // Standard OAuth flow
           const googleOAuthService = oauthModule.getGoogleOAuthService();
 
           // Check if already connected
@@ -908,6 +932,74 @@ export function createIntegrationsRoutes(
         error: error instanceof Error ? error.message : String(error),
       });
       res.status(500).json({ error: 'Failed to connect integration' });
+    }
+  });
+
+  // Poll for OAuth proxy completion (local instance calls this)
+  router.post('/connect/:name/proxy-poll', requireAuth, async (req: Request, res: Response) => {
+    try {
+      const { name } = req.params;
+      const { sessionId } = req.body as { sessionId?: string };
+
+      if (name !== 'google') {
+        return res.status(400).json({ error: 'Proxy mode only supported for Google' });
+      }
+
+      if (!sessionId) {
+        return res.status(400).json({ error: 'sessionId is required' });
+      }
+
+      const oauthModule = await getGoogleOAuthModule();
+
+      // Check if proxy mode is enabled
+      if (!oauthModule.isProxyModeEnabled || !oauthModule.isProxyModeEnabled()) {
+        return res.status(400).json({ error: 'Proxy mode is not enabled' });
+      }
+
+      const proxyClient = oauthModule.getGoogleOAuthProxyClient();
+
+      try {
+        // Poll for tokens (this will wait until tokens are available or timeout)
+        const tokens = await proxyClient.pollForTokens(sessionId);
+
+        // Store tokens locally
+        const googleOAuthService = oauthModule.getGoogleOAuthService();
+        googleOAuthService.addAccountFromTokens({
+          email: tokens.email,
+          accessToken: tokens.accessToken,
+          refreshToken: tokens.refreshToken,
+          expiresAt: tokens.expiresAt,
+          scopes: tokens.scopes,
+        });
+
+        logger.info('Google OAuth proxy flow completed', { email: tokens.email });
+
+        return res.json({
+          success: true,
+          name,
+          connected: true,
+          email: tokens.email,
+        });
+      } catch (pollError) {
+        const errorMsg = pollError instanceof Error ? pollError.message : String(pollError);
+
+        if (errorMsg.includes('pending') || errorMsg.includes('timeout')) {
+          // Still waiting for user to complete consent
+          return res.json({
+            success: false,
+            status: 'pending',
+            message: 'Waiting for user to complete authorization',
+          });
+        }
+
+        logger.error('OAuth proxy poll failed', { error: errorMsg });
+        return res.status(500).json({ error: `Proxy poll failed: ${errorMsg}` });
+      }
+    } catch (error) {
+      logger.error('Failed to poll proxy', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      res.status(500).json({ error: 'Failed to poll proxy' });
     }
   });
 
