@@ -75,17 +75,17 @@ function getCallbackUrl(): string {
 
   // Production: Use HTTPS with app domain
   if (isProduction && appDomain) {
-    return `https://${appDomain}/auth/google/callback`;
+    return `https://${appDomain}/api/auth/google/callback`;
   }
 
   // Staging: Use HTTPS with staging domain (if exists)
   if (nodeEnv === 'staging' && appDomain) {
-    return `https://staging.${appDomain}/auth/google/callback`;
+    return `https://staging.${appDomain}/api/auth/google/callback`;
   }
 
   // Local/Development: Use localhost with dashboard port
   const port = process.env.DASHBOARD_PORT || '4098';
-  return `http://localhost:${port}/auth/google/callback`;
+  return `http://localhost:${port}/api/auth/google/callback`;
 }
 
 /**
@@ -381,8 +381,37 @@ export function createGoogleAuthRoutes(auth: DashboardAuth, db: MessageDatabase)
 
       logger.info('User authenticated with Google', { username: loginResult.username });
 
-      // Redirect to dashboard with success
-      res.redirect('/?google_auth=success');
+      // Return HTML that closes the popup and refreshes the parent window
+      res.send(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>Sign-in Successful</title>
+          <style>
+            body { font-family: system-ui, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background: #f5f5f5; }
+            .container { text-align: center; padding: 2rem; background: white; border-radius: 0.5rem; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+            h1 { color: #22c55e; margin-bottom: 1rem; }
+            p { color: #666; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <h1>✓ Sign-in Successful</h1>
+            <p>Redirecting...</p>
+          </div>
+          <script>
+            // If opened in a popup, close it and refresh the parent
+            if (window.opener) {
+              window.opener.location.href = '/?google_auth=success';
+              window.close();
+            } else {
+              // If not in a popup, redirect normally
+              window.location.href = '/?google_auth=success';
+            }
+          </script>
+        </body>
+        </html>
+      `);
     } catch (error) {
       // Clean up pending state on error
       pendingStates.delete(state);

@@ -55,6 +55,7 @@ export type { PresentationInfo, TextReplacement as TextReplacementOAuth } from '
 
 // Service implementations
 export * from './oauth.js';
+export * from './oauth-proxy.js';
 export * from './gmail.js';
 export * from './calendar.js';
 export * from './tasks.js';
