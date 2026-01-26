@@ -37,7 +37,7 @@ export async function generateMetadata({ params }: PageProps) {
   return {
     title: kolName
       ? `Invited by ${kolName} | The Shift`
-      : 'The Shift | AI Builders Summit 2025',
+      : 'The Shift | AI Builders Summit 2026',
     description: 'Press Shift to change everything. Apply to attend.',
   }
 }

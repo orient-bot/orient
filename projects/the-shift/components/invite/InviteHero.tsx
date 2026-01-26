@@ -27,7 +27,7 @@ export default function InviteHero({ kolName }: InviteHeroProps) {
       </h1>
 
       <p className="text-text-secondary text-sm mb-2">
-        AI Builders Summit 2025 — Tel Aviv
+        AI Builders Summit 2026 | Tel Aviv
       </p>
 
       {kolName && (

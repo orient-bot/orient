@@ -2,10 +2,10 @@ import type { Metadata } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'The Shift | AI Builders Summit 2025',
+  title: 'The Shift | AI Builders Summit 2026',
   description: 'Press Shift to change everything. An exclusive event for Israel\'s tech leaders.',
   openGraph: {
-    title: 'The Shift | AI Builders Summit 2025',
+    title: 'The Shift | AI Builders Summit 2026',
     description: 'Press Shift to change everything. An exclusive event for Israel\'s tech leaders.',
     type: 'website',
   },
