@@ -17,7 +17,7 @@ const speakers = [
     key: 'W',
     name: 'Yosi Taguri',
     handle: '@yosit',
-    role: 'Entrepreneur',
+    role: 'Pizzaiolo',
     url: 'https://x.com/yosit',
     imageUrl: 'https://pbs.twimg.com/profile_images/1990193514022318081/73JkXeBv_400x400.jpg',
   },
