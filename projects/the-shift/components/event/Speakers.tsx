@@ -107,15 +107,6 @@ const speakers = [
   },
 ]
 
-const organizer = {
-  key: '⇧',
-  name: 'Tom Bensimhon',
-  handle: '@tombensim',
-  role: 'Head of Innovation @Franklin',
-  url: 'https://x.com/tombensim',
-  companyUrl: 'https://x.com/just_Frankln_It',
-  imageUrl: 'https://pbs.twimg.com/profile_images/977938852307447809/3SzRNJrM_400x400.jpg',
-}
 
 export default function Speakers() {
   const [pressedKey, setPressedKey] = useState<string | null>(null)
@@ -129,7 +120,7 @@ export default function Speakers() {
   }, [])
 
   return (
-    <section className="py-20 px-4">
+    <section className="py-12 px-4">
       <div className="max-w-4xl mx-auto">
         <div className="text-center mb-12">
           <div className="flex justify-center mb-4">
@@ -218,59 +209,6 @@ export default function Speakers() {
         <p className="text-center text-text-muted text-sm font-mono mt-8">
           // click a key to visit their profile
         </p>
-
-        {/* Organizer - positioned to the side */}
-        <div className="mt-12 flex justify-center">
-          <button
-            onClick={() => handleKeyPress(organizer.key, organizer.url)}
-            className={`
-              key key-interactive key-ripple
-              p-4 text-center relative group max-w-[200px]
-              ${pressedKey === organizer.key ? 'key-animate ripple-active' : ''}
-            `}
-          >
-            <span className="keycap-legend text-lg">{organizer.key}</span>
-
-            <div
-              className={`
-                w-16 h-16 mx-auto mb-3 key key-interactive overflow-hidden
-                flex items-center justify-center
-                ${pressedKey === organizer.key ? 'key-animate' : ''}
-              `}
-            >
-              <Image
-                src={organizer.imageUrl}
-                alt={organizer.name}
-                width={64}
-                height={64}
-                className="w-full h-full object-cover"
-                unoptimized
-              />
-            </div>
-
-            <h3 className="font-semibold text-text-primary mb-1 text-sm">
-              {organizer.name}
-            </h3>
-
-            <p className="font-mono text-xs text-text-muted mb-1">
-              {organizer.handle}
-            </p>
-
-            <p className="text-xs text-text-secondary">
-              {organizer.role}
-            </p>
-
-            <span className="absolute top-2 left-2 bg-text-muted/20 text-[10px] px-1.5 py-0.5 rounded font-mono text-text-secondary">
-              CURATOR
-            </span>
-
-            <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-              <svg className="w-4 h-4 text-text-muted" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-              </svg>
-            </div>
-          </button>
-        </div>
       </div>
     </section>
   )

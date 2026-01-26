@@ -102,7 +102,7 @@ export default function EventAgenda() {
   }, [])
 
   return (
-    <section className="py-20 px-4 bg-bg-secondary">
+    <section className="py-12 px-4 bg-bg-secondary">
       <div className="max-w-3xl mx-auto">
         <div className="text-center mb-12">
           <div className="flex justify-center mb-4">

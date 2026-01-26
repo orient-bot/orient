@@ -15,7 +15,7 @@ export default function CallToAction() {
   }
 
   return (
-    <section className="py-24 px-4 bg-bg-secondary">
+    <section className="py-12 px-4 bg-bg-secondary">
       <div className="max-w-2xl mx-auto text-center">
         <div className="flex justify-center mb-4">
           <ModeIndicator mode="act" />

@@ -33,7 +33,7 @@ export default function EventDetails() {
   }, [])
 
   return (
-    <section className="py-20 px-4">
+    <section className="py-12 px-4">
       <div className="max-w-4xl mx-auto">
         <div className="flex justify-center mb-4">
           <ModeIndicator mode="agent" />
