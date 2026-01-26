@@ -19,8 +19,8 @@ export default function EventPage() {
       <main className="min-h-screen pt-20 pb-40">
         <EventHero />
         <EventDetails />
-        <EventAgenda />
         <Speakers />
+        <EventAgenda />
         <CallToAction />
       </main>
     </VimController>
