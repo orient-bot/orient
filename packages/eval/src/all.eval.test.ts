@@ -2,7 +2,9 @@
  * All Evals Test Suite
  *
  * Runs all eval cases as Vitest tests.
- * Use: npm run test:eval
+ * Use: ANTHROPIC_API_KEY=xxx npm run test:eval
+ *
+ * Without ANTHROPIC_API_KEY, this test passes with a skip message.
  */
 
 import * as path from 'path';

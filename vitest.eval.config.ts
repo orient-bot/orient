@@ -10,7 +10,7 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
-    include: ['src/eval/**/*.eval.test.ts'],
+    include: ['packages/eval/src/**/*.eval.test.ts'],
     // Longer timeout for LLM calls
     testTimeout: 120000,
     hookTimeout: 30000,
@@ -18,7 +18,7 @@ export default defineConfig({
     sequence: {
       concurrent: false,
     },
-    setupFiles: ['./src/eval/setup.ts'],
+    setupFiles: ['./packages/eval/src/setup.ts'],
     mockReset: true,
     restoreMocks: true,
   },
