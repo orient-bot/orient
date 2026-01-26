@@ -140,7 +140,7 @@ mkdir -p .dev-data/instance-0
 **Error:**
 
 ```
-SyntaxError: The requested module '@orient/database-services' does not provide an export named 'X'
+SyntaxError: The requested module '@orientbot/database-services' does not provide an export named 'X'
 ```
 
 **Cause:** Package dist files are stale or missing.
@@ -148,10 +148,10 @@ SyntaxError: The requested module '@orient/database-services' does not provide a
 **Solution:** Rebuild packages in dependency order:
 
 ```bash
-pnpm --filter @orient/core build
-pnpm --filter @orient/database build
-pnpm --filter @orient/database-services build
-pnpm --filter @orient/integrations build
+pnpm --filter @orientbot/core build
+pnpm --filter @orientbot/database build
+pnpm --filter @orientbot/database-services build
+pnpm --filter @orientbot/integrations build
 ```
 
 ### 3. Missing Database Table
@@ -164,7 +164,7 @@ SqliteError: no such table: user_version_preferences
 
 **Solution:**
 
-1. Push schema: `pnpm --filter @orient/database run db:push:sqlite`
+1. Push schema: `pnpm --filter @orientbot/database run db:push:sqlite`
 2. Or restart: `./run.sh dev stop && ./run.sh dev`
 
 ### 4. Container Name Conflict
@@ -206,10 +206,10 @@ lsof -i :4098
 When ESM errors occur, rebuild in this order:
 
 ```bash
-pnpm --filter @orient/core build
-pnpm --filter @orient/database build
-pnpm --filter @orient/database-services build
-pnpm --filter @orient/integrations build
+pnpm --filter @orientbot/core build
+pnpm --filter @orientbot/database build
+pnpm --filter @orientbot/database-services build
+pnpm --filter @orientbot/integrations build
 ```
 
 ## Database Management
@@ -222,7 +222,7 @@ SQLite database file: `.dev-data/instance-N/orient.db`
 
 ```bash
 # Push schema changes
-pnpm --filter @orient/database run db:push:sqlite
+pnpm --filter @orientbot/database run db:push:sqlite
 
 # Or via run.sh (done automatically)
 ./run.sh dev

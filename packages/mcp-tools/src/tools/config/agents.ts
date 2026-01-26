@@ -204,7 +204,7 @@ export const configListAgents: MCPTool = createTool({
  * Helper: Get agent configuration
  */
 async function getAgentConfig(agentId: string) {
-  const { getDatabase, agents, agentSkills, agentTools, eq } = await import('@orient/database');
+  const { getDatabase, agents, agentSkills, agentTools, eq } = await import('@orientbot/database');
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = (await getDatabase()) as any;
 
@@ -252,7 +252,7 @@ async function getAgentConfig(agentId: string) {
  * Helper: List all agents
  */
 async function listAllAgents(enabledOnly?: boolean) {
-  const { getDatabase, agents, eq } = await import('@orient/database');
+  const { getDatabase, agents, eq } = await import('@orientbot/database');
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = (await getDatabase()) as any;
 

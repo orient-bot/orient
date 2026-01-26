@@ -10,7 +10,7 @@ During the migration, several tool implementations were stubbed out to allow the
 
 ---
 
-## 1. Agent Tools (`@orient/mcp-tools`)
+## 1. Agent Tools (`@orientbot/mcp-tools`)
 
 **Location**: `packages/mcp-tools/src/tools/agents/index.ts`
 
@@ -37,7 +37,7 @@ export const getAgentContextTool = {
 
 **Implementation Notes**:
 
-- Import `getAgentRegistry` from `@orient/agents`
+- Import `getAgentRegistry` from `@orientbot/agents`
 - Call `registry.getAgentContext(platform, chatId)`
 - Return agent ID, skills, tool permissions
 
@@ -62,7 +62,7 @@ export const listAgentsTool = {
 
 **Implementation Notes**:
 
-- Import `getAgentRegistry` from `@orient/agents`
+- Import `getAgentRegistry` from `@orientbot/agents`
 - Call `registry.listAgents(includeDetails: boolean)`
 - Return array of agent summaries
 
@@ -87,14 +87,14 @@ export const handoffToAgentTool = {
 
 **Implementation Notes**:
 
-- Import agent handoff service from `@orient/agents`
+- Import agent handoff service from `@orientbot/agents`
 - Create sub-session with target agent
 - Execute task and return result
 - Parameters: `{ agent: string, task: string, context?: string, waitForCompletion?: boolean }`
 
 ---
 
-## 2. Context Tools (`@orient/mcp-tools`)
+## 2. Context Tools (`@orientbot/mcp-tools`)
 
 **Location**: `packages/mcp-tools/src/tools/context/index.ts`
 
@@ -152,7 +152,7 @@ export const updateContextTool = {
 
 ---
 
-## 3. Apps Service Stubs (`@orient/apps`)
+## 3. Apps Service Stubs (`@orientbot/apps`)
 
 **Location**: `packages/apps/src/services/appRuntimeService.ts`
 
@@ -202,14 +202,14 @@ interface WebhookService {
 - [ ] Migrate `listAgentsTool` from `src/tools/agents/list-agents.ts`
 - [ ] Migrate `handoffToAgentTool` from `src/tools/agents/handoff-to-agent.ts`
 - [ ] Add tests for agent tools
-- [ ] Update exports in `@orient/mcp-tools`
+- [ ] Update exports in `@orientbot/mcp-tools`
 
 ### Context Tools
 
 - [ ] Migrate `readContextTool` from `src/tools/context/read-context.ts`
 - [ ] Migrate `updateContextTool` from `src/tools/context/update-context.ts`
 - [ ] Add tests for context tools
-- [ ] Update exports in `@orient/mcp-tools`
+- [ ] Update exports in `@orientbot/mcp-tools`
 
 ### Apps Services
 
@@ -224,11 +224,11 @@ interface WebhookService {
 
 1. **Find the original file** in `src/tools/` directory
 2. **Copy the implementation** to the appropriate package
-3. **Update imports** to use package aliases (`@orient/core`, etc.)
+3. **Update imports** to use package aliases (`@orientbot/core`, etc.)
 4. **Update the export** in `packages/mcp-tools/src/index.ts`
 5. **Remove the stub** from the index file
 6. **Add tests** for the migrated tool
-7. **Build and verify** with `pnpm build --filter=@orient/mcp-tools`
+7. **Build and verify** with `pnpm build --filter=@orientbot/mcp-tools`
 
 ---
 

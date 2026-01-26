@@ -158,7 +158,7 @@ private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T
 Always use the service logger:
 
 ```typescript
-import { createServiceLogger } from '@orient/core';
+import { createServiceLogger } from '@orientbot/core';
 
 const logger = createServiceLogger('integration-name');
 

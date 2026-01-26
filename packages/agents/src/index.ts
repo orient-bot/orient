@@ -1,5 +1,5 @@
 /**
- * @orient/agents
+ * @orientbot/agents
  *
  * AI agent services for the Orient.
  *
@@ -15,7 +15,7 @@
  *   AgentContext,
  *   ToolCallingConfig,
  *   ToolCallingResult,
- * } from '@orient/agents';
+ * } from '@orientbot/agents';
  */
 
 // Export all types

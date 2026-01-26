@@ -6,9 +6,9 @@
  */
 
 import crypto from 'crypto';
-import { createServiceLogger } from '@orient/core';
-import { getDatabase, eq, desc, and, lt, sql, count, schema } from '@orient/database';
-import type { Database } from '@orient/database';
+import { createServiceLogger } from '@orientbot/core';
+import { getDatabase, eq, desc, and, lt, sql, count, schema } from '@orientbot/database';
+import type { Database } from '@orientbot/database';
 import {
   Webhook,
   WebhookEvent,

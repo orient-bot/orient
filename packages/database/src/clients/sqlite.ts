@@ -7,7 +7,7 @@
 
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import Database from 'better-sqlite3';
-import { createServiceLogger } from '@orient/core';
+import { createServiceLogger } from '@orientbot/core';
 import * as schema from '../schema/sqlite/index.js';
 import type { DatabaseConfig, DatabaseClient, Database as DrizzleDatabase } from './types.js';
 import { getDefaultSqlitePath } from './types.js';

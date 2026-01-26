@@ -164,7 +164,7 @@ Before pushing changes, always verify locally:
 pnpm run test:ci
 
 # Run Docker validation tests
-pnpm turbo test --filter @orient/core...
+pnpm turbo test --filter @orientbot/core...
 
 # Validate Docker compose syntax
 cd docker
@@ -758,18 +758,18 @@ When running tests in CI or locally, you may encounter module resolution errors 
 
 #### Subpath Export Resolution Failures
 
-**Error**: `Cannot find package '@orient/integrations/google' imported from '...'`
+**Error**: `Cannot find package '@orientbot/integrations/google' imported from '...'`
 
-**Cause**: Vitest/tsx may not correctly resolve package subpath exports (e.g., `@orient/integrations/google`) even when the `exports` field in package.json is properly configured.
+**Cause**: Vitest/tsx may not correctly resolve package subpath exports (e.g., `@orientbot/integrations/google`) even when the `exports` field in package.json is properly configured.
 
 **Fix**: Use the main export instead of subpath exports:
 
 ```typescript
 // BROKEN - subpath export may not resolve in vitest
-import { getGoogleOAuthService } from '@orient/integrations/google';
+import { getGoogleOAuthService } from '@orientbot/integrations/google';
 
 // FIXED - use main export (re-exports all submodules)
-import { getGoogleOAuthService } from '@orient/integrations';
+import { getGoogleOAuthService } from '@orientbot/integrations';
 ```
 
 **Why This Happens**: The package.json exports field specifies `./dist/...` paths for subpath exports. While Node.js resolves these correctly at runtime, vitest/tsx running TypeScript directly may fail to resolve them during tests.
@@ -832,7 +832,7 @@ When CI tests fail with import errors across multiple service files:
 
 4. **Rebuild after fixing**:
    ```bash
-   pnpm turbo build --filter=@orient/dashboard
+   pnpm turbo build --filter=@orientbot/dashboard
    pnpm test:ci
    ```
 

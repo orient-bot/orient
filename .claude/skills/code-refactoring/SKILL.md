@@ -92,7 +92,7 @@ Consumers pass their own tool executor while benefiting from shared guardrails.
    ```
 
 2. **Define Package Dependencies**
-   - Use `"@orient/core": "workspace:*"` for internal deps
+   - Use `"@orientbot/core": "workspace:*"` for internal deps
    - Keep dependencies minimal
    - Avoid circular dependencies
 
@@ -102,7 +102,7 @@ Consumers pass their own tool executor while benefiting from shared guardrails.
    {
      "compilerOptions": {
        "paths": {
-         "@orient/[package]": ["./packages/[package]/src/index.ts"]
+         "@orientbot/[package]": ["./packages/[package]/src/index.ts"]
        }
      }
    }
@@ -116,11 +116,11 @@ Consumers pass their own tool executor while benefiting from shared guardrails.
 
 5. **Verify Package Builds**
    ```bash
-   pnpm --filter @orient/[package] build
-   pnpm --filter @orient/[package] test
+   pnpm --filter @orientbot/[package] build
+   pnpm --filter @orientbot/[package] test
    ```
 
-### Example: @orient/database-services
+### Example: @orientbot/database-services
 
 ```typescript
 // packages/database-services/src/index.ts
@@ -152,14 +152,14 @@ export * from './types/index.js';
 3. **Create Drizzle Helpers**
 
    ```typescript
-   // In @orient/database
+   // In @orientbot/database
    export async function executeRaw<T>(sql: string, params?: unknown[]): Promise<T[]>;
    export async function executeRawOne<T>(sql: string, params?: unknown[]): Promise<T | null>;
    ```
 
 4. **Migrate Services One at a Time**
    - Start with services that already use Drizzle partially
-   - Update imports to use @orient/database
+   - Update imports to use @orientbot/database
    - Run comparison tests after each migration
 
 5. **Deprecate Old Patterns**
@@ -245,7 +245,7 @@ Before changing any imports, audit the current state:
 grep -r "from '.*oldModule'" packages/ src/ --include="*.ts"
 
 # Count imports by pattern
-grep -r "from '@orient/old" packages/ --include="*.ts" | wc -l
+grep -r "from '@orientbot/old" packages/ --include="*.ts" | wc -l
 
 # Find files importing from dist (should be zero)
 grep -r "from '.*dist/" packages/ src/ --include="*.ts"
@@ -256,7 +256,7 @@ grep -r "from '.*dist/" packages/ src/ --include="*.ts"
 1. **Build the target package first**
 
    ```bash
-   pnpm --filter @orient/new-package build
+   pnpm --filter @orientbot/new-package build
    ls packages/new-package/dist/  # Verify dist exists
    ```
 
@@ -265,7 +265,7 @@ grep -r "from '.*dist/" packages/ src/ --include="*.ts"
    ```json
    {
      "dependencies": {
-       "@orient/new-package": "workspace:*"
+       "@orientbot/new-package": "workspace:*"
      }
    }
    ```
@@ -277,14 +277,14 @@ grep -r "from '.*dist/" packages/ src/ --include="*.ts"
    import { Service } from '../../old/path/service.js';
 
    // After
-   import { Service } from '@orient/new-package';
+   import { Service } from '@orientbot/new-package';
    ```
 
 4. **Verify after each file**
 
    ```bash
-   pnpm --filter @orient/consumer-package build
-   pnpm --filter @orient/consumer-package test
+   pnpm --filter @orientbot/consumer-package build
+   pnpm --filter @orientbot/consumer-package test
    ```
 
 5. **Check for runtime issues**
@@ -297,7 +297,7 @@ grep -r "from '.*dist/" packages/ src/ --include="*.ts"
 | --------------------------------- | ----------------------------- |
 | Same package, same directory      | `./file.js`                   |
 | Same package, different directory | `../other/file.js`            |
-| Different package (production)    | `@orient/package`             |
+| Different package (production)    | `@orientbot/package`          |
 | Different package (dev, no build) | Path alias resolves to source |
 | Legacy src/ code                  | `../../services/file.js`      |
 
@@ -308,10 +308,10 @@ grep -r "from '.*dist/" packages/ src/ --include="*.ts"
 ```typescript
 // ❌ Wrong - brittle, breaks on rebuild
 import { X } from '../../../packages/core/dist/index.js';
-import { X } from '@orient/core/dist/something.js';
+import { X } from '@orientbot/core/dist/something.js';
 
 // ✅ Correct - uses package exports
-import { X } from '@orient/core';
+import { X } from '@orientbot/core';
 ```
 
 Add this test to prevent regressions:
@@ -340,7 +340,7 @@ For large migrations, use a script:
 # migrate-imports.sh
 
 OLD_IMPORT="from '../../old/service"
-NEW_IMPORT="from '@orient/new-package"
+NEW_IMPORT="from '@orientbot/new-package"
 
 find packages/ src/ -name "*.ts" -exec \
   sed -i '' "s|${OLD_IMPORT}|${NEW_IMPORT}|g" {} \;
@@ -368,15 +368,15 @@ grep -r "old/import/path" packages/ src/ --include="*.ts"
 ## Package Dependency Graph
 
 ```
-@orient/core (foundation)
-    ├── @orient/database (Drizzle ORM)
-    ├── @orient/database-services (MessageDB, SlackDB, etc.)
-    ├── @orient/integrations (JIRA, Google)
-    ├── @orient/mcp-tools (tool implementations)
-    ├── @orient/bot-whatsapp
-    ├── @orient/bot-slack
-    ├── @orient/api-gateway
-    └── @orient/dashboard
+@orientbot/core (foundation)
+    ├── @orientbot/database (Drizzle ORM)
+    ├── @orientbot/database-services (MessageDB, SlackDB, etc.)
+    ├── @orientbot/integrations (JIRA, Google)
+    ├── @orientbot/mcp-tools (tool implementations)
+    ├── @orientbot/bot-whatsapp
+    ├── @orientbot/bot-slack
+    ├── @orientbot/api-gateway
+    └── @orientbot/dashboard
 ```
 
 ## Migration Status Tracking
@@ -384,9 +384,9 @@ grep -r "old/import/path" packages/ src/ --include="*.ts"
 Use this template to track migration progress:
 
 ```markdown
-| Component          | Status   | Package                   | Notes                           |
-| ------------------ | -------- | ------------------------- | ------------------------------- |
-| jiraService        | partial  | @orient/integrations      | Types exported, service pending |
-| messageDatabase    | complete | @orient/database-services |                                 |
-| toolCallingService | complete | src/services/             | Shared between agents           |
+| Component          | Status   | Package                      | Notes                           |
+| ------------------ | -------- | ---------------------------- | ------------------------------- |
+| jiraService        | partial  | @orientbot/integrations      | Types exported, service pending |
+| messageDatabase    | complete | @orientbot/database-services |                                 |
+| toolCallingService | complete | src/services/                | Shared between agents           |
 ```

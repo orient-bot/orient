@@ -6,7 +6,7 @@
 
 import type { Tool } from '@modelcontextprotocol/sdk/types.js';
 import type { Version3Client } from 'jira.js';
-import type { AppConfig } from '@orient/core';
+import type { AppConfig } from '@orientbot/core';
 
 /**
  * Tool categories for organizing tools by domain

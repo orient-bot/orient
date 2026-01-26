@@ -5,14 +5,17 @@ import {
   configListPermissions,
   configSetPermission,
 } from '../../src/tools/config/permissions.js';
-import { getPendingActionsStore, resetPendingActionsStore } from '../../src/tools/config/pending-store.js';
+import {
+  getPendingActionsStore,
+  resetPendingActionsStore,
+} from '../../src/tools/config/pending-store.js';
 
 const context = { config: {}, correlationId: 'test' } as ToolContext;
 
 let getChatPermissionSpy: ReturnType<typeof vi.fn>;
 let getAllChatPermissionsSpy: ReturnType<typeof vi.fn>;
 
-vi.mock('@orient/database-services', () => ({
+vi.mock('@orientbot/database-services', () => ({
   createMessageDatabase: () => ({
     getChatPermission: getChatPermissionSpy,
     getAllChatPermissions: getAllChatPermissionsSpy,

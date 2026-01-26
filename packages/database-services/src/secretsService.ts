@@ -4,9 +4,9 @@
  * Stores encrypted secrets in SQLite with audit logging using Drizzle ORM.
  */
 
-import { createServiceLogger, decryptSecret, encryptSecret } from '@orient/core';
-import { getDatabase, eq, schema } from '@orient/database';
-import type { Database } from '@orient/database';
+import { createServiceLogger, decryptSecret, encryptSecret } from '@orientbot/core';
+import { getDatabase, eq, schema } from '@orientbot/database';
+import type { Database } from '@orientbot/database';
 
 const logger = createServiceLogger('secrets-service');
 

@@ -323,7 +323,7 @@ console.log('DB ID:', toDbId(uiId));
 - [ ] Add flag to database migration
 - [ ] Run migration: `./run.sh dev` (auto-runs migrations)
 - [ ] Add to PRE_LAUNCH_DEFAULTS in `useFeatureFlags.ts` (if needs default)
-- [ ] Export from `@orient/database` if queried server-side
+- [ ] Export from `@orientbot/database` if queried server-side
 - [ ] Add ProtectedRoute wrapper if flag controls route access
 - [ ] Update navigation to conditionally show/hide based on flag
 - [ ] Test toggle in UI persists to database

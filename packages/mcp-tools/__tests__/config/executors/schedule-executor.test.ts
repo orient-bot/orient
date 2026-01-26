@@ -1,12 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { getPendingActionsStore, resetPendingActionsStore } from '../../../src/tools/config/pending-store.js';
+import {
+  getPendingActionsStore,
+  resetPendingActionsStore,
+} from '../../../src/tools/config/pending-store.js';
 import { registerScheduleExecutor } from '../../../src/tools/config/executors/schedule-executor.js';
 
 let createJobSpy: ReturnType<typeof vi.fn>;
 let updateJobSpy: ReturnType<typeof vi.fn>;
 let deleteJobSpy: ReturnType<typeof vi.fn>;
 
-vi.mock('@orient/database-services', () => ({
+vi.mock('@orientbot/database-services', () => ({
   createSchedulerDatabase: () => ({
     createJob: createJobSpy,
     updateJob: updateJobSpy,

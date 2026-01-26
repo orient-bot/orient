@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
-import { createServiceLogger, invalidateConfigCache, setSecretOverrides } from '@orient/core';
-import { createSecretsService, createMessageDatabase } from '@orient/database-services';
+import { createServiceLogger, invalidateConfigCache, setSecretOverrides } from '@orientbot/core';
+import { createSecretsService, createMessageDatabase } from '@orientbot/database-services';
 
 const logger = createServiceLogger('setup-wizard');
 const secretsService = createSecretsService();

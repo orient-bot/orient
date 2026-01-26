@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { ToolContext } from '@orient/mcp-tools';
-import { getIssueTool, getAllIssuesTool, getInProgressTool } from '@orient/mcp-tools';
+import type { ToolContext } from '@orientbot/mcp-tools';
+import { getIssueTool, getAllIssuesTool, getInProgressTool } from '@orientbot/mcp-tools';
 
 const baseContext = {
   config: {

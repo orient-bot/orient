@@ -83,7 +83,7 @@ build:
 Apps can create scheduled jobs (reminders, notifications):
 
 ```tsx
-import { bridge } from '@orient/app-runtime';
+import { bridge } from '@orientbot/app-runtime';
 
 await bridge.scheduler.createJob({
   name: 'reminder',
@@ -100,7 +100,7 @@ await bridge.scheduler.createJob({
 Apps can register webhook endpoints:
 
 ```tsx
-import { bridge } from '@orient/app-runtime';
+import { bridge } from '@orientbot/app-runtime';
 
 const webhookUrl = await bridge.webhooks.getEndpointUrl('form-submit');
 // Use this URL in external forms

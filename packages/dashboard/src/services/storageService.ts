@@ -7,8 +7,8 @@
 
 import fs from 'fs';
 import path from 'path';
-import { createServiceLogger } from '@orient/core';
-import type { MessageDatabase, SlackDatabase } from '@orient/database-services';
+import { createServiceLogger } from '@orientbot/core';
+import type { MessageDatabase, SlackDatabase } from '@orientbot/database-services';
 import { getBillingService } from './billingService.js';
 
 const logger = createServiceLogger('storage-service');

@@ -1,5 +1,5 @@
 /**
- * Contract Tests for @orient/bot-whatsapp
+ * Contract Tests for @orientbot/bot-whatsapp
  *
  * These tests verify that the bot-whatsapp package exports all expected
  * types and classes. They serve as a contract that must not break
@@ -29,7 +29,7 @@ vi.mock('qrcode-terminal', () => ({
   generate: () => {},
 }));
 
-describe('@orient/bot-whatsapp Contract Tests', () => {
+describe('@orientbot/bot-whatsapp Contract Tests', () => {
   describe('Type Exports', () => {
     it('should export ConnectionState type', async () => {
       const module = await import('../../packages/bot-whatsapp/src/types.ts');

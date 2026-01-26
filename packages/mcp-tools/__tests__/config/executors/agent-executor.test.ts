@@ -9,7 +9,7 @@ let updateSpy: ReturnType<typeof vi.fn>;
 let setSpy: ReturnType<typeof vi.fn>;
 let whereSpy: ReturnType<typeof vi.fn>;
 
-vi.mock('@orient/database', () => ({
+vi.mock('@orientbot/database', () => ({
   getDatabase: () => ({
     update: updateSpy,
   }),

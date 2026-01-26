@@ -4,14 +4,14 @@
  * Central registry for all MCP tools with metadata, categories, and search capabilities.
  * Implements the "Tool Search Tool" pattern from Anthropic's advanced tool use guide.
  *
- * Exported via @orient/mcp-tools package.
+ * Exported via @orientbot/mcp-tools package.
  *
  * @see https://www.anthropic.com/engineering/advanced-tool-use
  */
 
 import { Tool } from '@modelcontextprotocol/sdk/types.js';
-import { createServiceLogger } from '@orient/core';
-import type { ToolContext } from '@orient/mcp-tools';
+import { createServiceLogger } from '@orientbot/core';
+import type { ToolContext } from '@orientbot/mcp-tools';
 
 const logger = createServiceLogger('tool-registry');
 
@@ -2948,7 +2948,7 @@ function registerConfigToolHandlers(registry: ToolExecutorRegistry): void {
   // Import config tools and register their handlers
   const registerHandlers = async () => {
     try {
-      const mcpToolsModule = await import('@orient/mcp-tools');
+      const mcpToolsModule = await import('@orientbot/mcp-tools');
 
       const {
         confirmationTools,
@@ -3048,7 +3048,7 @@ function registerMediaToolHandlers(registry: ToolExecutorRegistry): void {
 
       if (transparent) {
         // Use OpenAI for transparent backgrounds
-        const { getEnvWithSecrets } = await import('@orient/core');
+        const { getEnvWithSecrets } = await import('@orientbot/core');
         const apiKey = getEnvWithSecrets('OPENAI_API_KEY');
         if (!apiKey) {
           return createToolError(
@@ -3087,7 +3087,7 @@ CRITICAL: Generate PNG with TRANSPARENT background. Keep same cartoon style with
       } else {
         // Use Gemini for regular images
         const { createGeminiService, initializeGeminiClient, isGeminiInitialized } =
-          await import('@orient/integrations/gemini');
+          await import('@orientbot/integrations/gemini');
 
         if (!isGeminiInitialized()) {
           const geminiKey = process.env.GEMINI_API_KEY;
@@ -3185,7 +3185,7 @@ function registerGoogleToolHandlers(registry: ToolExecutorRegistry): void {
   // Google OAuth Status
   registry.registerHandler('google_oauth_status', async () => {
     try {
-      const { getGoogleOAuthService } = await import('@orient/integrations/google');
+      const { getGoogleOAuthService } = await import('@orientbot/integrations/google');
       const oauthService = getGoogleOAuthService();
       const accounts = oauthService.getConnectedAccounts();
       const defaultAccount = oauthService.getDefaultAccount();
@@ -3224,7 +3224,7 @@ function registerGoogleToolHandlers(registry: ToolExecutorRegistry): void {
     };
 
     try {
-      const { getCalendarService } = await import('@orient/integrations/google');
+      const { getCalendarService } = await import('@orientbot/integrations/google');
       const calendar = getCalendarService();
       const daysAhead = days || 7;
       const now = new Date();
@@ -3295,7 +3295,7 @@ function registerGoogleToolHandlers(registry: ToolExecutorRegistry): void {
       };
 
       try {
-        const { getCalendarService } = await import('@orient/integrations/google');
+        const { getCalendarService } = await import('@orientbot/integrations/google');
         const calendar = getCalendarService();
         const event = await calendar.createEvent(
           {
@@ -3353,7 +3353,7 @@ function registerGoogleToolHandlers(registry: ToolExecutorRegistry): void {
       };
 
       try {
-        const { getCalendarService } = await import('@orient/integrations/google');
+        const { getCalendarService } = await import('@orientbot/integrations/google');
         const calendar = getCalendarService();
         const updateOptions = {
           eventId,
@@ -3402,7 +3402,7 @@ function registerGoogleToolHandlers(registry: ToolExecutorRegistry): void {
       };
 
       try {
-        const { getCalendarService } = await import('@orient/integrations/google');
+        const { getCalendarService } = await import('@orientbot/integrations/google');
         const calendar = getCalendarService();
         await calendar.deleteEvent(eventId, calendarId || 'primary', accountEmail);
 

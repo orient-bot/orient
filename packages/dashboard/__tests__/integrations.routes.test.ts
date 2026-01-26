@@ -4,7 +4,7 @@
  * Tests for the integration catalog and OAuth connection routes.
  *
  * NOTE: These tests are currently skipped due to complex mock requirements
- * with the route handler extraction pattern and @orient/database-services
+ * with the route handler extraction pattern and @orientbot/database-services
  * module resolution issues. The functionality is covered by manual testing.
  */
 
@@ -59,7 +59,7 @@ const {
 }));
 
 // Mock core
-vi.mock('@orient/core', () => ({
+vi.mock('@orientbot/core', () => ({
   createServiceLogger: () => ({
     info: vi.fn(),
     error: vi.fn(),
@@ -69,12 +69,12 @@ vi.mock('@orient/core', () => ({
 }));
 
 // Mock database-services
-vi.mock('@orient/database-services', () => ({
+vi.mock('@orientbot/database-services', () => ({
   createSecretsService: () => mockSecretsService,
 }));
 
 // Mock manifest loader
-vi.mock('@orient/integrations/catalog/loader', () => ({
+vi.mock('@orientbot/integrations/catalog/loader', () => ({
   loadIntegrationManifests: vi.fn().mockResolvedValue([
     {
       name: 'google',
@@ -137,29 +137,29 @@ vi.mock('@orient/integrations/catalog/loader', () => ({
 }));
 
 // Mock Google OAuth module
-vi.mock('@orient/integrations/google', () => ({
+vi.mock('@orientbot/integrations/google', () => ({
   getGoogleOAuthService: () => mockGoogleOAuthService,
   DEFAULT_SCOPES: ['email', 'profile'],
   IS_GOOGLE_OAUTH_PRODUCTION: false,
 }));
 
 // Mock GitHub OAuth module
-vi.mock('@orient/integrations/catalog/github', () => ({
+vi.mock('@orientbot/integrations/catalog/github', () => ({
   getGitHubOAuthService: () => mockGitHubOAuthService,
 }));
 
 // Mock Linear OAuth module
-vi.mock('@orient/integrations/catalog/linear', () => ({
+vi.mock('@orientbot/integrations/catalog/linear', () => ({
   getLinearOAuthService: () => mockLinearOAuthService,
 }));
 
 // Mock JIRA OAuth module
-vi.mock('@orient/integrations/catalog/jira', () => ({
+vi.mock('@orientbot/integrations/catalog/jira', () => ({
   getJiraOAuthService: () => mockJiraOAuthService,
 }));
 
 // Mock Atlassian OAuth module
-vi.mock('@orient/mcp-servers/oauth', () => ({
+vi.mock('@orientbot/mcp-servers/oauth', () => ({
   setSuppressBrowserOpen: vi.fn(),
   IS_PRODUCTION_OAUTH: false,
   OAUTH_CALLBACK_URL: 'http://localhost:8766/oauth/atlassian/callback',

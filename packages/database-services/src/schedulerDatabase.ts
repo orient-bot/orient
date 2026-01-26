@@ -5,9 +5,20 @@
  * Supports cron, recurring, and one-time schedules with timezone support.
  */
 
-import { createServiceLogger } from '@orient/core';
-import { getDatabase, eq, desc, and, or, lte, isNull, sql, count, schema } from '@orient/database';
-import type { Database } from '@orient/database';
+import { createServiceLogger } from '@orientbot/core';
+import {
+  getDatabase,
+  eq,
+  desc,
+  and,
+  or,
+  lte,
+  isNull,
+  sql,
+  count,
+  schema,
+} from '@orientbot/database';
+import type { Database } from '@orientbot/database';
 import {
   ScheduledJob,
   ScheduledJobRun,

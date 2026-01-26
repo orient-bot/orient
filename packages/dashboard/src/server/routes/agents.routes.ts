@@ -2,11 +2,11 @@
  * Agents Routes
  *
  * API endpoints for agent registry management.
- * Uses @orient/database for Drizzle ORM integration.
+ * Uses @orientbot/database for Drizzle ORM integration.
  */
 
 import { Router, Request, Response } from 'express';
-import { createServiceLogger } from '@orient/core';
+import { createServiceLogger } from '@orientbot/core';
 import {
   getDatabase,
   agents,
@@ -16,7 +16,7 @@ import {
   eq,
   and,
   desc,
-} from '@orient/database';
+} from '@orientbot/database';
 import { AuthenticatedRequest } from '../../auth.js';
 
 const logger = createServiceLogger('agents-routes');

@@ -176,7 +176,7 @@ stop_instance_native_processes() {
         # Main repo processes
         kill_by_pattern "tsx.*watch.*packages/bot-whatsapp" "WhatsApp tsx"
         kill_by_pattern "tsx.*watch.*packages/bot-slack" "Slack tsx"
-        kill_by_pattern "pnpm.*@orient/dashboard.*dev" "Dashboard"
+        kill_by_pattern "pnpm.*@orientbot/dashboard.*dev" "Dashboard"
         kill_by_pattern "vite.*dashboard-frontend" "Vite"
         kill_by_pattern "opencode.*serve.*--port.*4099" "OpenCode"
     fi

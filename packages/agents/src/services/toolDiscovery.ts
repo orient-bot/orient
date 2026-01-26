@@ -4,7 +4,7 @@
  * Provides intelligent tool discovery through category browsing and semantic search.
  * Implements the "Tool Search Tool" pattern from Anthropic's advanced tool use guide.
  *
- * Exported via @orient/mcp-tools package.
+ * Exported via @orientbot/mcp-tools package.
  *
  * @see https://www.anthropic.com/engineering/advanced-tool-use
  */
@@ -17,7 +17,7 @@ import {
   CategoryInfo,
   getToolRegistry,
 } from './toolRegistry.js';
-import { createServiceLogger } from '@orient/core';
+import { createServiceLogger } from '@orientbot/core';
 
 const logger = createServiceLogger('tool-discovery');
 

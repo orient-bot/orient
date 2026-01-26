@@ -10,9 +10,9 @@ The `feat/complete-src-migration` branch completes the migration from `src/` to 
 
 ## Priority 1: Fix Build Errors
 
-### 1.1 Missing Type Exports from @orient/database
+### 1.1 Missing Type Exports from @orientbot/database
 
-Several packages import types that aren't exported from `@orient/database`. Add these exports:
+Several packages import types that aren't exported from `@orientbot/database`. Add these exports:
 
 ```bash
 # Files affected:
@@ -20,7 +20,7 @@ packages/database-services/src/services/messageDatabaseDrizzle.ts
 packages/database-services/src/services/slackDatabaseDrizzle.ts
 ```
 
-**Types to export from `@orient/database`:**
+**Types to export from `@orientbot/database`:**
 
 - `Message`, `NewMessage`, `Group`, `NewGroup`
 - `ChatPermissionRecord`, `NewChatPermission`
@@ -41,7 +41,7 @@ Several migrated files have implicit `any` type errors due to strict mode. Fix t
 
 ```bash
 # Run to find all implicit any errors:
-pnpm --filter @orient/database-services build 2>&1 | grep "TS7006"
+pnpm --filter @orientbot/database-services build 2>&1 | grep "TS7006"
 ```
 
 Common pattern - add explicit types to callbacks:
@@ -58,7 +58,7 @@ Common pattern - add explicit types to callbacks:
 
 Add subpath exports to `package.json` files for packages that need them:
 
-**@orient/integrations/package.json:**
+**@orientbot/integrations/package.json:**
 
 ```json
 {
@@ -71,7 +71,7 @@ Add subpath exports to `package.json` files for packages that need them:
 }
 ```
 
-**@orient/apps/package.json:**
+**@orientbot/apps/package.json:**
 
 ```json
 {
@@ -98,9 +98,9 @@ grep -r "from '\.\./db/" packages/*/src/ --include="*.ts"
 
 Replace with package imports:
 
-- `../utils/logger.js` → `@orient/core`
-- `../db/index.js` → `@orient/database`
-- `../services/jiraService.js` → `@orient/integrations/jira`
+- `../utils/logger.js` → `@orientbot/core`
+- `../db/index.js` → `@orientbot/database`
+- `../services/jiraService.js` → `@orientbot/integrations/jira`
 
 ### 2.2 Fix .js Extensions
 
@@ -160,19 +160,19 @@ Check `.github/workflows/` for any `src/` references.
 
 ## Priority 5: New Package Setup
 
-### 5.1 @orient/eval Package
+### 5.1 @orientbot/eval Package
 
 The eval package was created but needs:
 
-- [ ] Update imports to use `@orient/*` packages
+- [ ] Update imports to use `@orientbot/*` packages
 - [ ] Add to workspace in root `package.json`
 - [ ] Test that eval framework works
 
-### 5.2 @orient/cli Package
+### 5.2 @orientbot/cli Package
 
 The CLI package was created but needs:
 
-- [ ] Update imports to use `@orient/*` packages
+- [ ] Update imports to use `@orientbot/*` packages
 - [ ] Add bin scripts to package.json
 - [ ] Test CLI commands work
 

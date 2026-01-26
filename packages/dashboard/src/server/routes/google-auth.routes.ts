@@ -11,10 +11,10 @@ import { google, Auth } from 'googleapis';
 import { CodeChallengeMethod } from 'google-auth-library';
 import crypto from 'crypto';
 import { DashboardAuth } from '../../auth.js';
-import type { MessageDatabase } from '@orient/database-services';
-import { createServiceLogger } from '@orient/core';
-import { createSecretsService } from '@orient/database-services';
-import { getGoogleOAuthService, DEFAULT_SCOPES } from '@orient/integrations';
+import type { MessageDatabase } from '@orientbot/database-services';
+import { createServiceLogger } from '@orientbot/core';
+import { createSecretsService } from '@orientbot/database-services';
+import { getGoogleOAuthService, DEFAULT_SCOPES } from '@orientbot/integrations';
 
 const logger = createServiceLogger('google-auth-routes');
 

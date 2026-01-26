@@ -8,13 +8,13 @@
  * - CRUD operations for agents, skills, tools, and context rules
  * - Context-based agent resolution (platform, chat, environment)
  *
- * Exported via @orient/agents package.
+ * Exported via @orientbot/agents package.
  * - Filesystem sync for OpenCode compatibility
  */
 
-import { getDatabase, eq, and, desc, sql } from '@orient/database';
-import { agents, agentSkills, agentTools, contextRules } from '@orient/database';
-import { createServiceLogger } from '@orient/core';
+import { getDatabase, eq, and, desc, sql } from '@orientbot/database';
+import { agents, agentSkills, agentTools, contextRules } from '@orientbot/database';
+import { createServiceLogger } from '@orientbot/core';
 import fs from 'fs/promises';
 import path from 'path';
 

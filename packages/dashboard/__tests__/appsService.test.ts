@@ -4,8 +4,8 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-// Mock @orient/core
-vi.mock('@orient/core', () => ({
+// Mock @orientbot/core
+vi.mock('@orientbot/core', () => ({
   createServiceLogger: () => ({
     info: vi.fn(),
     error: vi.fn(),
@@ -18,8 +18,8 @@ vi.mock('@orient/core', () => ({
   }),
 }));
 
-// Mock @orient/apps
-vi.mock('@orient/apps', () => ({
+// Mock @orientbot/apps
+vi.mock('@orientbot/apps', () => ({
   validateAppManifest: vi.fn((data) => ({
     valid: true,
     data: {

@@ -20,7 +20,7 @@ tests/
 └── integration/   → Cross-package integration tests
 ```
 
-## Using @orient/test-utils
+## Using @orientbot/test-utils
 
 Always use the shared test utilities package:
 
@@ -32,7 +32,7 @@ import {
   createWhatsAppMessage,
   expectAsyncError,
   skipIfNoDatabase,
-} from '@orient/test-utils';
+} from '@orientbot/test-utils';
 ```
 
 ## Package Unit Test Template
@@ -43,11 +43,11 @@ Use this template for testing package-level logic:
 /**
  * Unit Tests for [ServiceName]
  *
- * @package @orient/[package-name]
+ * @package @orientbot/[package-name]
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { createMockLogger, createMockConfig } from '@orient/test-utils';
+import { createMockLogger, createMockConfig } from '@orientbot/test-utils';
 
 // Import module under test
 import { ServiceName } from '../serviceName.js';
@@ -93,7 +93,7 @@ Use this to verify package API stability:
 
 ```typescript
 /**
- * Contract Tests for @orient/[package-name]
+ * Contract Tests for @orientbot/[package-name]
  *
  * These tests verify that the public API remains stable.
  * If any of these tests fail, it indicates a breaking change.
@@ -101,17 +101,17 @@ Use this to verify package API stability:
 
 import { describe, it, expect } from 'vitest';
 
-describe('@orient/[package-name] Public API Contract', () => {
+describe('@orientbot/[package-name] Public API Contract', () => {
   describe('Exported Functions', () => {
     it('should export functionName', async () => {
-      const { functionName } = await import('@orient/[package-name]');
+      const { functionName } = await import('@orientbot/[package-name]');
       expect(typeof functionName).toBe('function');
     });
   });
 
   describe('Exported Classes', () => {
     it('should export ClassName', async () => {
-      const { ClassName } = await import('@orient/[package-name]');
+      const { ClassName } = await import('@orientbot/[package-name]');
       expect(ClassName).toBeDefined();
       expect(typeof ClassName).toBe('function');
     });
@@ -119,7 +119,7 @@ describe('@orient/[package-name] Public API Contract', () => {
 
   describe('Functionality', () => {
     it('should maintain expected behavior', async () => {
-      const { functionName } = await import('@orient/[package-name]');
+      const { functionName } = await import('@orientbot/[package-name]');
       const result = functionName('input');
       expect(result).toMatchObject({ expectedKey: expect.any(String) });
     });
@@ -135,11 +135,11 @@ Use this for testing MCP tool handlers:
 /**
  * Tests for [ToolName] MCP Tool
  *
- * @package @orient/mcp-tools
+ * @package @orientbot/mcp-tools
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { createMockLogger, createJiraIssue } from '@orient/test-utils';
+import { createMockLogger, createJiraIssue } from '@orientbot/test-utils';
 
 // Mock external dependencies
 vi.mock('jira.js', () => ({
@@ -206,7 +206,7 @@ Use this for end-to-end system tests:
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { skipIfNoDatabase, getTestDatabaseUrl } from '@orient/test-utils';
+import { skipIfNoDatabase, getTestDatabaseUrl } from '@orientbot/test-utils';
 
 const skipTests = skipIfNoDatabase();
 
@@ -243,11 +243,11 @@ Use this for database operations:
 /**
  * Database Tests for [Entity]
  *
- * @package @orient/database
+ * @package @orientbot/database
  */
 
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
-import { skipIfNoDatabase, createMockDatabase } from '@orient/test-utils';
+import { skipIfNoDatabase, createMockDatabase } from '@orientbot/test-utils';
 
 const SKIP_DB_TESTS = skipIfNoDatabase();
 
@@ -287,7 +287,7 @@ describe.skipIf(SKIP_DB_TESTS)('[Entity] Database Operations (Real)', () => {
 ### Creating Test Data
 
 ```typescript
-import { createJiraIssue, createWhatsAppMessage, createSlackMessage } from '@orient/test-utils';
+import { createJiraIssue, createWhatsAppMessage, createSlackMessage } from '@orientbot/test-utils';
 
 // Create with defaults
 const issue = createJiraIssue();
@@ -311,7 +311,7 @@ const issues = [
 
 ```typescript
 import { vi } from 'vitest';
-import { createMockLogger, createMockServiceLogger } from '@orient/test-utils';
+import { createMockLogger, createMockServiceLogger } from '@orientbot/test-utils';
 
 // Basic logger mock
 const logger = createMockLogger();
@@ -360,7 +360,11 @@ describe('AsyncService', () => {
 ## Custom Assertions
 
 ```typescript
-import { expectAsyncError, expectHasKeys, expectArrayContainsObjectWith } from '@orient/test-utils';
+import {
+  expectAsyncError,
+  expectHasKeys,
+  expectArrayContainsObjectWith,
+} from '@orientbot/test-utils';
 
 // Assert async error
 await expectAsyncError(() => service.failingMethod(), 'Expected error message');
@@ -379,9 +383,9 @@ expectArrayContainsObjectWith(users, { email: 'test@example.com' });
 npm run test:ci
 
 # Package tests
-pnpm --filter @orient/core test
-pnpm --filter @orient/database test
-pnpm --filter @orient/mcp-tools test
+pnpm --filter @orientbot/core test
+pnpm --filter @orientbot/database test
+pnpm --filter @orientbot/mcp-tools test
 
 # Contract tests
 npx vitest run tests/contracts/

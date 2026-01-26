@@ -30,7 +30,7 @@ COPY packages/mcp-tools/package.json ./packages/mcp-tools/
 # Install dependencies for this package and its dependencies
 # Use BuildKit cache mount for faster rebuilds
 RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
-    pnpm install --frozen-lockfile --filter @orient/mcp-tools...
+    pnpm install --frozen-lockfile --filter @orientbot/mcp-tools...
 
 # ============================================
 # Build Stage
@@ -43,7 +43,7 @@ COPY packages/mcp-tools ./packages/mcp-tools
 COPY tsconfig.json ./
 
 # Build the package and its dependencies
-RUN pnpm --filter @orient/mcp-tools... build
+RUN pnpm --filter @orientbot/mcp-tools... build
 
 # ============================================
 # Production Stage
@@ -71,7 +71,7 @@ COPY --from=builder /app/packages/mcp-tools/package.json ./packages/mcp-tools/
 # Install production dependencies only
 # Use BuildKit cache mount for faster rebuilds
 RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
-    pnpm install --frozen-lockfile --prod --filter @orient/mcp-tools...
+    pnpm install --frozen-lockfile --prod --filter @orientbot/mcp-tools...
 
 # Create directories
 RUN mkdir -p /app/logs /app/data && \

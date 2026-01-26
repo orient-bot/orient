@@ -26,6 +26,7 @@ import { logsCommand } from './commands/logs.js';
 import { doctorCommand } from './commands/doctor.js';
 import { configCommand } from './commands/config.js';
 import { upgradeCommand } from './commands/upgrade.js';
+import { uninstallCommand } from './commands/uninstall.js';
 
 const program = new Command();
 
@@ -44,6 +45,7 @@ program.addCommand(logsCommand);
 program.addCommand(doctorCommand);
 program.addCommand(configCommand);
 program.addCommand(upgradeCommand);
+program.addCommand(uninstallCommand);
 
 // Parse arguments
 program.parse();

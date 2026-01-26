@@ -4,12 +4,12 @@
  * Bridges the AgentRegistry with runtime agent services.
  * Provides context-aware configuration loading for Slack and WhatsApp agents.
  *
- * Exported via @orient/agents package.
+ * Exported via @orientbot/agents package.
  */
 
 import { getAgentRegistry, AgentContext } from './agentRegistry.js';
 import { getContextService, Platform } from './contextService.js';
-import { createServiceLogger } from '@orient/core';
+import { createServiceLogger } from '@orientbot/core';
 import fs from 'fs/promises';
 import path from 'path';
 

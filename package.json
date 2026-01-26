@@ -44,8 +44,8 @@
     "slack": "node dist/slack-bot.js",
     "slack:dev": "tsx packages/bot-slack/src/main.ts",
     "dashboard:admin": "tsx src/cli/dashboard-admin.ts",
-    "dashboard:build": "pnpm --filter @orient/dashboard-frontend run build && mkdir -p dist/dashboard/frontend && cp -r packages/dashboard-frontend/dist dist/dashboard/frontend/",
-    "dashboard:dev": "pnpm --filter @orient/dashboard-frontend run dev",
+    "dashboard:build": "pnpm --filter @orientbot/dashboard-frontend run build && mkdir -p dist/dashboard/frontend && cp -r packages/dashboard-frontend/dist dist/dashboard/frontend/",
+    "dashboard:dev": "pnpm --filter @orientbot/dashboard-frontend run dev",
     "agents:sync": "npx tsx scripts/sync-agent-config.ts",
     "agents:seed": "npx tsx data/seeds/agents.ts",
     "agents:seed:force": "npx tsx data/seeds/agents.ts --force",
@@ -86,7 +86,10 @@
     "eval:watch": "vitest --config vitest.eval.config.ts",
     "prepare": "husky",
     "commit:temp": "TEMP_COMMIT=1 git commit",
-    "commit:wip": "git commit --no-verify -m '[wip] Work in progress'"
+    "commit:wip": "git commit --no-verify -m '[wip] Work in progress'",
+    "changeset": "changeset",
+    "changeset:version": "changeset version",
+    "changeset:publish": "pnpm run build:all && changeset publish"
   },
   "lint-staged": {
     "*.{ts,tsx}": [
@@ -112,12 +115,12 @@
     "@anthropic-ai/sdk": "0.39.0",
     "@hapi/boom": "^10.0.1",
     "@modelcontextprotocol/sdk": "^1.24.3",
-    "@orient/agents": "workspace:*",
-    "@orient/core": "workspace:*",
-    "@orient/database": "workspace:*",
-    "@orient/database-services": "workspace:*",
-    "@orient/integrations": "workspace:*",
-    "@orient/mcp-tools": "workspace:*",
+    "@orientbot/agents": "workspace:*",
+    "@orientbot/core": "workspace:*",
+    "@orientbot/database": "workspace:*",
+    "@orientbot/database-services": "workspace:*",
+    "@orientbot/integrations": "workspace:*",
+    "@orientbot/mcp-tools": "workspace:*",
     "@slack/bolt": "^3.18.0",
     "@slack/web-api": "^7.0.0",
     "@types/hapi__boom": "^9.0.1",
@@ -149,6 +152,7 @@
     "zod": "^4.1.13"
   },
   "devDependencies": {
+    "@changesets/cli": "^2.29.8",
     "@types/bcryptjs": "^2.4.6",
     "@types/better-sqlite3": "^7.6.13",
     "@types/cors": "^2.8.19",

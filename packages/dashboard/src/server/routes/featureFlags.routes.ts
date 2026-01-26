@@ -6,8 +6,8 @@
  */
 
 import { Router, Request, Response } from 'express';
-import { createServiceLogger } from '@orient/core';
-import { getDatabase, featureFlags, eq } from '@orient/database';
+import { createServiceLogger } from '@orientbot/core';
+import { getDatabase, featureFlags, eq } from '@orientbot/database';
 
 const logger = createServiceLogger('feature-flags-routes');
 

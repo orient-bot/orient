@@ -10,9 +10,9 @@
  */
 
 import { Router, Request, Response } from 'express';
-import { createServiceLogger } from '@orient/core';
+import { createServiceLogger } from '@orientbot/core';
 import { getVersionCheckService } from '../../services/versionCheckService.js';
-import { createVersionPreferencesService } from '@orient/database-services';
+import { createVersionPreferencesService } from '@orientbot/database-services';
 import { AuthenticatedRequest } from '../../auth.js';
 
 const logger = createServiceLogger('version-routes');

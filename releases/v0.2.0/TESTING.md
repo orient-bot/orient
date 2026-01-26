@@ -325,14 +325,14 @@ sqlite3 data/sqlite/orient.db "SELECT * FROM drizzle_migrations LIMIT 5;"
 
 ## Test Coverage by Package
 
-| Package                     | Tests | Critical Paths                    |
-| --------------------------- | ----- | --------------------------------- |
-| `@orient/core`              | 26    | Crypto, config                    |
-| `@orient/database-services` | 120+  | Feature flags, secrets, scheduler |
-| `@orient/dashboard`         | 50+   | Routes, agents, integrations      |
-| `@orient/bot-whatsapp`      | 30+   | Messaging, QR, connection         |
-| `@orient/bot-slack`         | 25+   | Messaging, pending actions        |
-| `@orient/integrations`      | 20+   | OAuth flows, JIRA, Linear         |
+| Package                        | Tests | Critical Paths                    |
+| ------------------------------ | ----- | --------------------------------- |
+| `@orientbot/core`              | 26    | Crypto, config                    |
+| `@orientbot/database-services` | 120+  | Feature flags, secrets, scheduler |
+| `@orientbot/dashboard`         | 50+   | Routes, agents, integrations      |
+| `@orientbot/bot-whatsapp`      | 30+   | Messaging, QR, connection         |
+| `@orientbot/bot-slack`         | 25+   | Messaging, pending actions        |
+| `@orientbot/integrations`      | 20+   | OAuth flows, JIRA, Linear         |
 
 ### Key Test Files
 

@@ -14,6 +14,20 @@ import { randomBytes } from 'crypto';
 
 const ORIENT_HOME = process.env.ORIENT_HOME || join(homedir(), '.orient');
 
+async function promptYesNo(question: string): Promise<boolean> {
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
+
+  return new Promise((resolve) => {
+    rl.question(`${question} [Y/n] `, (answer) => {
+      rl.close();
+      resolve(answer.toLowerCase() !== 'n');
+    });
+  });
+}
+
 export const onboardCommand = new Command('onboard')
   .description('Interactive setup wizard for Orient')
   .option('--skip-prompts', 'Skip interactive prompts and use defaults')
@@ -28,7 +42,7 @@ export const onboardCommand = new Command('onboard')
 
     // Check prerequisites
     console.log('Checking prerequisites...');
-    if (!checkPrerequisites()) {
+    if (!(await checkPrerequisites())) {
       process.exit(1);
     }
 
@@ -46,7 +60,7 @@ export const onboardCommand = new Command('onboard')
     // Setup PM2
     console.log('');
     console.log('Setting up PM2 process manager...');
-    setupPM2();
+    await setupPM2();
 
     // Initialize database
     console.log('');
@@ -66,11 +80,20 @@ export const onboardCommand = new Command('onboard')
     console.log('    orient logs       # View logs');
     console.log('');
     console.log('  Dashboard: http://localhost:4098');
-    console.log('  WhatsApp:  http://localhost:4097/qr');
+    console.log('  WhatsApp:  http://localhost:4098/qr');
     console.log('');
+
+    // Auto-open browser
+    console.log('Opening dashboard in browser...');
+    try {
+      const { default: open } = await import('open');
+      await open('http://localhost:4098');
+    } catch {
+      console.log('  Could not auto-open browser. Please open http://localhost:4098 manually.');
+    }
   });
 
-function checkPrerequisites(): boolean {
+async function checkPrerequisites(): Promise<boolean> {
   let success = true;
 
   // Check Node.js
@@ -93,8 +116,16 @@ function checkPrerequisites(): boolean {
     const pnpmVersion = execSync('pnpm -v', { encoding: 'utf8' }).trim();
     console.log(`  ✓ pnpm ${pnpmVersion}`);
   } catch {
-    console.log('  ✗ pnpm not found (install with: npm install -g pnpm)');
-    success = false;
+    console.log('  ✗ pnpm not found');
+    const install = await promptYesNo('  pnpm is required. Install it?');
+    if (install) {
+      console.log('  Installing pnpm...');
+      execSync('npm install -g pnpm', { stdio: 'inherit' });
+      console.log(`  ✓ pnpm installed`);
+    } else {
+      console.log('  Cannot proceed without pnpm');
+      success = false;
+    }
   }
 
   // Check git
@@ -130,7 +161,6 @@ function createDirectories(): void {
 interface OrientConfig {
   databaseType: 'sqlite';
   storageType: 'local' | 's3';
-  anthropicKey?: string;
   masterKey: string;
   jwtSecret: string;
 }
@@ -170,15 +200,11 @@ async function promptForConfig(options: {
   const stType = await question(`Storage type [local/s3] (${options.storage}): `);
   const storageType = (stType.trim() || options.storage) as 'local' | 's3';
 
-  // Anthropic API key
-  const anthropicKey = await question('Anthropic API key (optional, for AI features): ');
-
   rl.close();
 
   return {
     databaseType,
     storageType,
-    anthropicKey: anthropicKey.trim() || undefined,
     masterKey: randomBytes(32).toString('hex'),
     jwtSecret: randomBytes(32).toString('hex'),
   };
@@ -221,8 +247,8 @@ DASHBOARD_JWT_SECRET=${config.jwtSecret}
 DASHBOARD_PORT=4098
 BASE_URL=http://localhost:4098
 
-# AI Provider
-${config.anthropicKey ? `ANTHROPIC_API_KEY=${config.anthropicKey}` : '# ANTHROPIC_API_KEY=your-api-key'}
+# AI Provider (Configure via dashboard)
+# ANTHROPIC_API_KEY=
 `;
 
   writeFileSync(envPath, envContent);
@@ -230,13 +256,18 @@ ${config.anthropicKey ? `ANTHROPIC_API_KEY=${config.anthropicKey}` : '# ANTHROPI
   console.log(`  Configuration written to ${envPath}`);
 }
 
-function setupPM2(): void {
+async function setupPM2(): Promise<void> {
   // Check if PM2 is installed
   try {
     execSync('pm2 -v', { encoding: 'utf8' });
   } catch {
-    console.log('  Installing PM2...');
-    execSync('npm install -g pm2', { stdio: 'inherit' });
+    const install = await promptYesNo('  PM2 (process manager) is required. Install it?');
+    if (install) {
+      console.log('  Installing PM2...');
+      execSync('npm install -g pm2', { stdio: 'inherit' });
+    } else {
+      throw new Error('Cannot proceed without PM2');
+    }
   }
 
   // Create ecosystem config
