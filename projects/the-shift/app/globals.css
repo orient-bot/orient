@@ -1,0 +1,467 @@
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Light mode - white keyboard */
+  --bg-primary: #f5f5f5;
+  --bg-secondary: #e8e8e8;
+  --bg-key: #ffffff;
+  --bg-key-hover: #fafafa;
+  --bg-key-pressed: #f0f0f0;
+  --border-key: #d4d4d4;
+  --border-key-shadow: #a3a3a3;
+  --text-primary: #171717;
+  --text-secondary: #525252;
+  --text-muted: #737373;
+  --accent: #171717;
+  --accent-hover: #404040;
+}
+
+.dark {
+  /* Dark mode - black keyboard */
+  --bg-primary: #0a0a0a;
+  --bg-secondary: #141414;
+  --bg-key: #1f1f1f;
+  --bg-key-hover: #2a2a2a;
+  --bg-key-pressed: #141414;
+  --border-key: #333333;
+  --border-key-shadow: #000000;
+  --text-primary: #fafafa;
+  --text-secondary: #a3a3a3;
+  --text-muted: #737373;
+  --accent: #fafafa;
+  --accent-hover: #d4d4d4;
+}
+
+* {
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+}
+
+html {
+  color-scheme: light dark;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  transition: background-color 0.2s, color 0.2s;
+}
+
+/* Monospace for keyboard elements */
+.font-mono {
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* Keyboard key base styles */
+.key {
+  background: var(--bg-key);
+  border: 1px solid var(--border-key);
+  border-radius: 8px;
+  box-shadow:
+    0 2px 0 0 var(--border-key-shadow),
+    0 3px 6px rgba(0, 0, 0, 0.08);
+  transition: all 0.1s ease;
+  position: relative;
+}
+
+.key::before {
+  content: '';
+  position: absolute;
+  inset: 2px;
+  border-radius: 6px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.1) 0%, transparent 50%);
+  pointer-events: none;
+}
+
+.key:hover {
+  background: var(--bg-key-hover);
+  transform: translateY(-1px);
+  box-shadow:
+    0 3px 0 0 var(--border-key-shadow),
+    0 5px 10px rgba(0, 0, 0, 0.12);
+}
+
+.key:active,
+.key-pressed {
+  background: var(--bg-key-pressed);
+  transform: translateY(2px);
+  box-shadow:
+    0 0 0 0 var(--border-key-shadow),
+    0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+/* Shift key - the hero */
+.key-shift {
+  background: var(--text-primary);
+  color: var(--bg-primary);
+  border: none;
+  border-radius: 10px;
+  box-shadow:
+    0 4px 0 0 var(--border-key-shadow),
+    0 6px 20px rgba(0, 0, 0, 0.25);
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.key-shift::before {
+  background: linear-gradient(180deg, rgba(255,255,255,0.15) 0%, transparent 40%);
+}
+
+.key-shift:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 6px 0 0 var(--border-key-shadow),
+    0 10px 30px rgba(0, 0, 0, 0.3);
+}
+
+/* Small decorative keys */
+.key-small {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+/* Form inputs styled as keys */
+.input-key {
+  background: var(--bg-key);
+  border: 1px solid var(--border-key);
+  border-radius: 8px;
+  padding: 14px 16px;
+  color: var(--text-primary);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 14px;
+  width: 100%;
+  box-shadow:
+    0 2px 0 0 var(--border-key-shadow),
+    inset 0 1px 2px rgba(0, 0, 0, 0.05);
+  transition: all 0.15s ease;
+}
+
+.input-key::placeholder {
+  color: var(--text-muted);
+  font-family: 'Inter', sans-serif;
+}
+
+.input-key:focus {
+  outline: none;
+  border-color: var(--text-primary);
+  box-shadow:
+    0 2px 0 0 var(--border-key-shadow),
+    0 0 0 3px rgba(0, 0, 0, 0.1);
+}
+
+.dark .input-key:focus {
+  box-shadow:
+    0 2px 0 0 var(--border-key-shadow),
+    0 0 0 3px rgba(255, 255, 255, 0.1);
+}
+
+/* Button styled as key */
+.btn-key {
+  background: var(--text-primary);
+  color: var(--bg-primary);
+  border: none;
+  border-radius: 8px;
+  padding: 16px 32px;
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 600;
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  box-shadow:
+    0 3px 0 0 var(--border-key-shadow),
+    0 4px 12px rgba(0, 0, 0, 0.2);
+  transition: all 0.1s ease;
+}
+
+.btn-key:hover {
+  transform: translateY(-1px);
+  box-shadow:
+    0 4px 0 0 var(--border-key-shadow),
+    0 6px 16px rgba(0, 0, 0, 0.25);
+}
+
+.btn-key:active {
+  transform: translateY(2px);
+  box-shadow:
+    0 1px 0 0 var(--border-key-shadow),
+    0 2px 4px rgba(0, 0, 0, 0.15);
+}
+
+.btn-key:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Secondary button */
+.btn-key-secondary {
+  background: var(--bg-key);
+  color: var(--text-primary);
+  border: 1px solid var(--border-key);
+}
+
+/* Card styled as keyboard plate */
+.card-keyboard {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-key);
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow:
+    0 4px 20px rgba(0, 0, 0, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+/* Keyboard container */
+.keyboard-container {
+  background: var(--bg-secondary);
+  border-radius: 20px;
+  padding: 20px;
+  box-shadow:
+    0 8px 40px rgba(0, 0, 0, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.1);
+}
+
+/* Keyboard row styling */
+.keyboard-row {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-secondary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-key);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+/* RTL Support */
+[dir="rtl"] {
+  text-align: right;
+}
+
+/* Theme toggle animation */
+.theme-toggle {
+  transition: transform 0.3s ease;
+}
+
+.theme-toggle:hover {
+  transform: rotate(15deg);
+}
+
+/* Keycap legend styling */
+.keycap-legend {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: var(--text-muted);
+  position: absolute;
+  top: 4px;
+  left: 6px;
+}
+
+.keycap-main {
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 600;
+}
+
+/* ===== ANIMATIONS ===== */
+
+/* Key press animation */
+@keyframes keyPress {
+  0% { transform: translateY(0); }
+  50% { transform: translateY(3px); }
+  100% { transform: translateY(0); }
+}
+
+@keyframes keyGlow {
+  0% { box-shadow: 0 2px 0 0 var(--border-key-shadow), 0 3px 6px rgba(0, 0, 0, 0.08); }
+  50% { box-shadow: 0 1px 0 0 var(--border-key-shadow), 0 0 20px rgba(255, 255, 255, 0.3); }
+  100% { box-shadow: 0 2px 0 0 var(--border-key-shadow), 0 3px 6px rgba(0, 0, 0, 0.08); }
+}
+
+.dark @keyframes keyGlow {
+  0% { box-shadow: 0 2px 0 0 var(--border-key-shadow), 0 3px 6px rgba(0, 0, 0, 0.08); }
+  50% { box-shadow: 0 1px 0 0 var(--border-key-shadow), 0 0 25px rgba(255, 255, 255, 0.2); }
+  100% { box-shadow: 0 2px 0 0 var(--border-key-shadow), 0 3px 6px rgba(0, 0, 0, 0.08); }
+}
+
+.key-animate {
+  animation: keyPress 0.15s ease-out, keyGlow 0.3s ease-out;
+}
+
+/* Ripple effect for keys */
+.key-ripple {
+  position: relative;
+  overflow: hidden;
+}
+
+.key-ripple::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  background: radial-gradient(circle, rgba(255,255,255,0.4) 0%, transparent 70%);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.key-ripple.ripple-active::after {
+  animation: ripple 0.4s ease-out forwards;
+}
+
+@keyframes ripple {
+  0% {
+    width: 0;
+    height: 0;
+    opacity: 0.5;
+  }
+  100% {
+    width: 200%;
+    height: 200%;
+    opacity: 0;
+  }
+}
+
+/* Shift key special glow */
+@keyframes shiftGlow {
+  0% {
+    box-shadow: 0 4px 0 0 var(--border-key-shadow), 0 6px 20px rgba(0, 0, 0, 0.25);
+  }
+  50% {
+    box-shadow: 0 2px 0 0 var(--border-key-shadow), 0 0 40px rgba(255, 255, 255, 0.4), 0 0 60px rgba(255, 255, 255, 0.2);
+  }
+  100% {
+    box-shadow: 0 4px 0 0 var(--border-key-shadow), 0 6px 20px rgba(0, 0, 0, 0.25);
+  }
+}
+
+.key-shift-animate {
+  animation: keyPress 0.15s ease-out, shiftGlow 0.4s ease-out;
+}
+
+/* Entrance animations */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.5s ease-out forwards;
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.4s ease-out forwards;
+}
+
+.animate-scale-in {
+  animation: scaleIn 0.3s ease-out forwards;
+}
+
+/* Staggered animation delays */
+.animation-delay-100 { animation-delay: 0.1s; opacity: 0; }
+.animation-delay-200 { animation-delay: 0.2s; opacity: 0; }
+.animation-delay-300 { animation-delay: 0.3s; opacity: 0; }
+.animation-delay-400 { animation-delay: 0.4s; opacity: 0; }
+.animation-delay-500 { animation-delay: 0.5s; opacity: 0; }
+
+/* Keyboard typing cursor */
+@keyframes blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+
+.cursor-blink {
+  animation: blink 1s step-end infinite;
+}
+
+/* Floating animation for hero elements */
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+/* Pulse animation for CTA */
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 4px 0 0 var(--border-key-shadow), 0 6px 20px rgba(0, 0, 0, 0.25);
+  }
+  50% {
+    transform: scale(1.02);
+    box-shadow: 0 6px 0 0 var(--border-key-shadow), 0 10px 30px rgba(0, 0, 0, 0.3);
+  }
+}
+
+.animate-pulse-subtle {
+  animation: pulse 2s ease-in-out infinite;
+}
+
+/* Keyboard key hover lift */
+.key-interactive {
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.key-interactive:active {
+  transform: translateY(2px);
+  transition: transform 0.05s ease;
+}
