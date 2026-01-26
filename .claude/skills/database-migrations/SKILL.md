@@ -199,6 +199,76 @@ pm2 restart orient-opencode orient-slack --update-env
 
 **Note:** `--update-env` tells PM2 to capture the current shell environment.
 
+## E2E Test Database Setup
+
+E2E tests require their own database with the schema initialized. Without this, tests fail with "no such table" errors.
+
+### Initialize Test Database
+
+```bash
+# 1. Create the test data directory
+mkdir -p data
+
+# 2. Push schema to test database (from project root)
+SQLITE_DATABASE="/full/path/to/project/data/orient.db" \
+  pnpm --filter @orientbot/database run db:push:sqlite
+```
+
+### Using SQLITE_DATABASE Environment Variable
+
+When running E2E tests, set the `SQLITE_DATABASE` environment variable:
+
+```bash
+# Run E2E tests with test database
+SQLITE_DATABASE="$(pwd)/data/orient.db" pnpm test:e2e
+
+# Or export for the session
+export SQLITE_DATABASE="$(pwd)/data/orient.db"
+pnpm test:e2e
+```
+
+### Troubleshooting "No Such Table" in E2E Tests
+
+If you see errors like:
+
+```
+SqliteError: no such table: messages
+SqliteError: no such table: slack_messages
+```
+
+**Solution:**
+
+1. Create the test database directory:
+
+   ```bash
+   mkdir -p data
+   ```
+
+2. Push the schema with an absolute path:
+
+   ```bash
+   SQLITE_DATABASE="$(pwd)/data/orient.db" \
+     pnpm --filter @orientbot/database run db:push:sqlite
+   ```
+
+3. Re-run E2E tests:
+   ```bash
+   SQLITE_DATABASE="$(pwd)/data/orient.db" pnpm test:e2e
+   ```
+
+### CI E2E Test Database
+
+In CI workflows, the test database should be initialized before running E2E tests:
+
+```yaml
+# .github/workflows/test.yml
+- name: Initialize test database
+  run: |
+    mkdir -p data
+    SQLITE_DATABASE="${{ github.workspace }}/data/orient.db" \
+      pnpm --filter @orientbot/database run db:push:sqlite
+```
+
 ## Worktree Database Setup
 
 When working in git worktrees, you have two database strategies:

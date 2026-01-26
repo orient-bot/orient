@@ -109,7 +109,8 @@ async function checkMcpStatus(): Promise<Record<string, { status: string }> | nu
 }
 
 describeOrSkip('OpenCode MCP Tools E2E Tests', () => {
-  let testSessionId: string | null = null;
+  // Track all created sessions for cleanup
+  const createdSessionIds: string[] = [];
 
   beforeAll(async () => {
     // Check OpenCode is running
@@ -124,10 +125,12 @@ describeOrSkip('OpenCode MCP Tools E2E Tests', () => {
   });
 
   afterAll(async () => {
-    // Cleanup test sessions
-    if (testSessionId) {
+    // Cleanup ALL test sessions
+    console.log(`[MCP E2E] Cleaning up ${createdSessionIds.length} test sessions`);
+    for (const sessionId of createdSessionIds) {
       try {
-        await openCodeApi(`/session/${testSessionId}`, { method: 'DELETE' });
+        await openCodeApi(`/session/${sessionId}`, { method: 'DELETE' });
+        console.log(`[MCP E2E] Deleted session: ${sessionId}`);
       } catch {
         // Ignore cleanup errors
       }
@@ -164,7 +167,7 @@ describeOrSkip('OpenCode MCP Tools E2E Tests', () => {
         // Create session with pm-assistant agent
         const session = await createSession('MCP Tools Discovery Test', 'pm-assistant');
         expect(session).not.toBeNull();
-        testSessionId = session!.id;
+        createdSessionIds.push(session!.id);
 
         // Ask about available tools
         const response = await sendMessage(
@@ -198,6 +201,7 @@ describeOrSkip('OpenCode MCP Tools E2E Tests', () => {
         // Create a new session for this test
         const session = await createSession('MCP Tool Invocation Test', 'pm-assistant');
         expect(session).not.toBeNull();
+        createdSessionIds.push(session!.id);
 
         // Ask something that might trigger a tool
         const response = await sendMessage(session!.id, 'Check the health status of the system');
@@ -224,9 +228,6 @@ describeOrSkip('OpenCode MCP Tools E2E Tests', () => {
           text.toLowerCase().includes('running');
 
         expect(usedHealthTool || describedStatus).toBe(true);
-
-        // Cleanup
-        await openCodeApi(`/session/${session!.id}`, { method: 'DELETE' });
       },
       TIMEOUT
     );
@@ -238,6 +239,7 @@ describeOrSkip('OpenCode MCP Tools E2E Tests', () => {
       async () => {
         const session = await createSession('Conversation Context Test', 'pm-assistant');
         expect(session).not.toBeNull();
+        createdSessionIds.push(session!.id);
 
         // First message - introduce a topic
         const msg1 = await sendMessage(
@@ -255,9 +257,6 @@ describeOrSkip('OpenCode MCP Tools E2E Tests', () => {
 
         // Should remember the name from first message
         expect(text.toLowerCase()).toContain('testuser');
-
-        // Cleanup
-        await openCodeApi(`/session/${session!.id}`, { method: 'DELETE' });
       },
       TIMEOUT
     );
