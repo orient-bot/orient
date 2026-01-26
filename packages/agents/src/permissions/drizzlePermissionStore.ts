@@ -49,15 +49,21 @@ function mapPolicy(row: typeof permissionPolicies.$inferSelect): PermissionPolic
 }
 
 export class DrizzlePermissionStore implements PermissionStore {
-  private db = getDatabase();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private async getDb(): Promise<any> {
+    return await getDatabase();
+  }
 
   async listPolicies(): Promise<PermissionPolicy[]> {
-    const rows = await this.db.select().from(permissionPolicies);
+    const db = await this.getDb();
+    const rows = await db.select().from(permissionPolicies);
     return rows.map(mapPolicy);
   }
 
   async createApprovalRequest(input: ApprovalRequestCreateInput): Promise<ApprovalRequest> {
-    await this.db
+    await (
+      await this.getDb()
+    )
       .insert(approvalRequests)
       .values({
         id: input.id,
@@ -108,7 +114,7 @@ export class DrizzlePermissionStore implements PermissionStore {
       return this.getApprovalRequest(id);
     }
 
-    const rows = await this.db
+    const rows = await (await this.getDb())
       .update(approvalRequests)
       .set(updateData)
       .where(eq(approvalRequests.id, id))
@@ -120,7 +126,10 @@ export class DrizzlePermissionStore implements PermissionStore {
   }
 
   async getApprovalRequest(id: string): Promise<ApprovalRequest | null> {
-    const rows = await this.db.select().from(approvalRequests).where(eq(approvalRequests.id, id));
+    const rows = await (await this.getDb())
+      .select()
+      .from(approvalRequests)
+      .where(eq(approvalRequests.id, id));
     const row = rows[0];
     if (!row) return null;
     return this.mapApprovalRequest(row);
@@ -136,11 +145,13 @@ export class DrizzlePermissionStore implements PermissionStore {
     if (filter.status) conditions.push(eq(approvalRequests.status, filter.status));
 
     const rows = conditions.length
-      ? await this.db
+      ? await (
+          await this.getDb()
+        )
           .select()
           .from(approvalRequests)
           .where(and(...conditions))
-      : await this.db.select().from(approvalRequests);
+      : await (await this.getDb()).select().from(approvalRequests);
 
     const mapped = [];
     for (const row of rows) {
@@ -161,11 +172,14 @@ export class DrizzlePermissionStore implements PermissionStore {
       conditions.push(eq(approvalGrants.grantValue, filter.grantValue));
     }
 
-    const rows = await this.db
+    const rows = await (
+      await this.getDb()
+    )
       .select()
       .from(approvalGrants)
       .where(and(...conditions));
-    return rows.map((row) => ({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return rows.map((row: any) => ({
       id: row.id,
       sessionId: row.sessionId,
       userId: row.userId,
@@ -179,7 +193,9 @@ export class DrizzlePermissionStore implements PermissionStore {
   async createApprovalGrant(
     grant: Omit<ApprovalGrant, 'id' | 'createdAt'>
   ): Promise<ApprovalGrant> {
-    const rows = await this.db
+    const rows = await (
+      await this.getDb()
+    )
       .insert(approvalGrants)
       .values({
         sessionId: grant.sessionId,
@@ -213,7 +229,9 @@ export class DrizzlePermissionStore implements PermissionStore {
     if (filter.grantValue) {
       conditions.push(eq(approvalGrants.grantValue, filter.grantValue));
     }
-    const rows = await this.db
+    const rows = await (
+      await this.getDb()
+    )
       .delete(approvalGrants)
       .where(and(...conditions))
       .returning();
@@ -225,7 +243,7 @@ export class DrizzlePermissionStore implements PermissionStore {
   ): Promise<ApprovalRequest> {
     let policy: PermissionPolicy | undefined;
     if (row.policyId) {
-      const policyRows = await this.db
+      const policyRows = await (await this.getDb())
         .select()
         .from(permissionPolicies)
         .where(eq(permissionPolicies.id, row.policyId));

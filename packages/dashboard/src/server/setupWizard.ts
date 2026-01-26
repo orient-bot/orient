@@ -376,17 +376,14 @@ async function checkAndTriggerSlackOnboarding(
       });
 
       await service.sendOnboardingDM();
-      await db.markOnboardingCompleted('slack', 'system', { dm_sent: true });
+      await db.markOnboardingCompleted('slack');
       logger.info('Slack onboarding DM sent successfully');
     } catch (error) {
       logger.warn('Slack onboarding DM failed, dashboard notification will be shown', {
         error: String(error),
       });
       // Still mark as completed so we don't retry
-      await db.markOnboardingCompleted('slack', 'system', {
-        dm_sent: false,
-        error: String(error),
-      });
+      await db.markOnboardingCompleted('slack');
     }
   } catch (error) {
     logger.error('Failed to check/trigger Slack onboarding', { error: String(error) });

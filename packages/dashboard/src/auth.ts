@@ -8,7 +8,7 @@
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import { Request, Response, NextFunction } from 'express';
-import { MessageDatabase } from './services/messageDatabase.js';
+import type { MessageDatabase } from '@orient/database-services';
 import { createServiceLogger } from '@orient/core';
 
 const logger = createServiceLogger('dashboard-auth');

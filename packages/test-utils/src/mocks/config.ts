@@ -70,7 +70,7 @@ export function createMockConfig(overrides: Partial<AppConfig> = {}): AppConfig 
       dashboardPort: 4099,
     },
     database: {
-      url: 'postgresql://test:test@localhost:5432/test',
+      type: 'sqlite',
       migrationsPath: './migrations',
     },
     features: {

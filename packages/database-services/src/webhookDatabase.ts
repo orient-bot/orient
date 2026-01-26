@@ -1,13 +1,14 @@
 /**
  * Webhook Database Service
  *
- * PostgreSQL persistence layer for webhook configurations and event history.
+ * SQLite persistence layer for webhook configurations and event history using Drizzle ORM.
  * Manages the webhooks and webhook_events tables.
  */
 
-import pg from 'pg';
 import crypto from 'crypto';
 import { createServiceLogger } from '@orient/core';
+import { getDatabase, eq, desc, and, lt, sql, count, schema } from '@orient/database';
+import type { Database } from '@orient/database';
 import {
   Webhook,
   WebhookEvent,
@@ -20,93 +21,23 @@ import {
 const logger = createServiceLogger('webhook-db');
 
 /**
- * Database configuration
- */
-export interface WebhookDatabaseConfig {
-  connectionString: string;
-}
-
-/**
- * WebhookDatabase - PostgreSQL persistence for webhooks
+ * WebhookDatabase - SQLite persistence for webhooks
  */
 export class WebhookDatabase {
-  private pool: pg.Pool;
+  private _db: Database | null = null;
 
-  constructor(pool: pg.Pool) {
-    this.pool = pool;
-    logger.info('Webhook database pool created', {
-      connectionString: this.maskConnectionString(pool.options.connectionString || ''),
-    });
-  }
-
-  private maskConnectionString(connectionString: string): string {
-    return connectionString.replace(/:([^:@]+)@/, ':****@');
+  private get db(): Database {
+    if (!this._db) {
+      this._db = getDatabase();
+    }
+    return this._db;
   }
 
   /**
-   * Initialize database tables
+   * Initialize database (no-op for SQLite - schema managed via migrations)
    */
-  async initializeTables(): Promise<void> {
-    const client = await this.pool.connect();
-    try {
-      // Create webhooks table
-      await client.query(`
-        CREATE TABLE IF NOT EXISTS webhooks (
-          id SERIAL PRIMARY KEY,
-          name TEXT NOT NULL UNIQUE,
-          description TEXT,
-          
-          -- Authentication
-          token TEXT NOT NULL,
-          signature_header TEXT,
-          
-          -- Source configuration
-          source_type TEXT NOT NULL CHECK (source_type IN ('github', 'calendar', 'jira', 'custom')),
-          event_filter TEXT[],
-          
-          -- Delivery configuration
-          provider TEXT NOT NULL CHECK (provider IN ('whatsapp', 'slack')),
-          target TEXT NOT NULL,
-          message_template TEXT,
-          
-          -- Status
-          enabled BOOLEAN DEFAULT TRUE,
-          last_triggered_at TIMESTAMPTZ,
-          trigger_count INTEGER DEFAULT 0,
-          
-          created_at TIMESTAMPTZ DEFAULT NOW(),
-          updated_at TIMESTAMPTZ DEFAULT NOW()
-        )
-      `);
-
-      // Create webhook_events table
-      await client.query(`
-        CREATE TABLE IF NOT EXISTS webhook_events (
-          id SERIAL PRIMARY KEY,
-          webhook_id INTEGER REFERENCES webhooks(id) ON DELETE CASCADE,
-          received_at TIMESTAMPTZ DEFAULT NOW(),
-          event_type TEXT,
-          payload JSONB,
-          status TEXT CHECK (status IN ('processed', 'filtered', 'failed', 'pending')),
-          error TEXT,
-          message_sent TEXT,
-          processing_time_ms INTEGER
-        )
-      `);
-
-      // Create indexes
-      await client.query(`
-        CREATE INDEX IF NOT EXISTS idx_webhook_events_webhook_id ON webhook_events(webhook_id);
-        CREATE INDEX IF NOT EXISTS idx_webhook_events_received_at ON webhook_events(received_at);
-        CREATE INDEX IF NOT EXISTS idx_webhook_events_status ON webhook_events(status);
-        CREATE INDEX IF NOT EXISTS idx_webhooks_name ON webhooks(name);
-        CREATE INDEX IF NOT EXISTS idx_webhooks_enabled ON webhooks(enabled);
-      `);
-
-      logger.info('Webhook database tables initialized');
-    } finally {
-      client.release();
-    }
+  async initialize(): Promise<void> {
+    logger.info('Webhook database initialized (SQLite)');
   }
 
   /**
@@ -116,46 +47,64 @@ export class WebhookDatabase {
     return crypto.randomBytes(32).toString('hex');
   }
 
+  private parseEventFilter(json: string | null): string[] | undefined {
+    if (!json) return undefined;
+    try {
+      return JSON.parse(json);
+    } catch {
+      return undefined;
+    }
+  }
+
+  private parsePayload(json: string | null): Record<string, unknown> {
+    if (!json) return {};
+    try {
+      return JSON.parse(json);
+    } catch {
+      return {};
+    }
+  }
+
   /**
    * Map database row to Webhook object
    */
-  private rowToWebhook(row: Record<string, unknown>): Webhook {
+  private rowToWebhook(row: typeof schema.webhooks.$inferSelect): Webhook {
     return {
-      id: row.id as number,
-      name: row.name as string,
-      description: row.description as string | undefined,
-      token: row.token as string,
-      signatureHeader: row.signature_header as string | undefined,
-      sourceType: row.source_type as Webhook['sourceType'],
-      eventFilter: row.event_filter as string[] | undefined,
+      id: row.id,
+      name: row.name,
+      description: row.description || undefined,
+      token: row.token,
+      signatureHeader: row.signatureHeader || undefined,
+      sourceType: row.sourceType as Webhook['sourceType'],
+      eventFilter: this.parseEventFilter(row.eventFilter),
       provider: row.provider as Webhook['provider'],
-      target: row.target as string,
-      messageTemplate: row.message_template as string | undefined,
-      enabled: row.enabled as boolean,
-      lastTriggeredAt: row.last_triggered_at
-        ? new Date(row.last_triggered_at as string)
-        : undefined,
-      triggerCount: row.trigger_count as number,
-      createdAt: new Date(row.created_at as string),
-      updatedAt: new Date(row.updated_at as string),
+      target: row.target,
+      messageTemplate: row.messageTemplate || undefined,
+      enabled: row.enabled ?? true,
+      lastTriggeredAt: row.lastTriggeredAt || undefined,
+      triggerCount: row.triggerCount || 0,
+      createdAt: row.createdAt || new Date(),
+      updatedAt: row.updatedAt || new Date(),
     };
   }
 
   /**
    * Map database row to WebhookEvent object
    */
-  private rowToWebhookEvent(row: Record<string, unknown>): WebhookEvent {
+  private rowToWebhookEvent(
+    row: Partial<typeof schema.webhookEvents.$inferSelect> & { webhookName?: string }
+  ): WebhookEvent {
     return {
-      id: row.id as number,
-      webhookId: row.webhook_id as number,
-      receivedAt: new Date(row.received_at as string),
-      eventType: row.event_type as string | undefined,
-      payload: row.payload as Record<string, unknown>,
+      id: row.id!,
+      webhookId: row.webhookId!,
+      receivedAt: row.receivedAt || new Date(),
+      eventType: row.eventType || undefined,
+      payload: this.parsePayload(row.payload ?? null),
       status: row.status as WebhookEventStatus,
-      error: row.error as string | undefined,
-      messageSent: row.message_sent as string | undefined,
-      processingTimeMs: row.processing_time_ms as number | undefined,
-      webhookName: row.webhook_name as string | undefined,
+      error: row.error || undefined,
+      messageSent: row.messageSent || undefined,
+      processingTimeMs: row.processingTimeMs || undefined,
+      webhookName: row.webhookName,
     };
   }
 
@@ -169,28 +118,23 @@ export class WebhookDatabase {
   async createWebhook(input: CreateWebhookInput): Promise<Webhook> {
     const token = input.token || this.generateToken();
 
-    const result = await this.pool.query(
-      `INSERT INTO webhooks (
-        name, description, token, signature_header,
-        source_type, event_filter, provider, target,
-        message_template, enabled
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-      RETURNING *`,
-      [
-        input.name,
-        input.description || null,
+    const result = await this.db
+      .insert(schema.webhooks)
+      .values({
+        name: input.name,
+        description: input.description || null,
         token,
-        input.signatureHeader || null,
-        input.sourceType,
-        input.eventFilter || null,
-        input.provider,
-        input.target,
-        input.messageTemplate || null,
-        input.enabled !== false,
-      ]
-    );
+        signatureHeader: input.signatureHeader || null,
+        sourceType: input.sourceType,
+        eventFilter: input.eventFilter ? JSON.stringify(input.eventFilter) : null,
+        provider: input.provider,
+        target: input.target,
+        messageTemplate: input.messageTemplate || null,
+        enabled: input.enabled !== false,
+      })
+      .returning();
 
-    const webhook = this.rowToWebhook(result.rows[0]);
+    const webhook = this.rowToWebhook(result[0]);
     logger.info('Created webhook', {
       id: webhook.id,
       name: webhook.name,
@@ -203,115 +147,91 @@ export class WebhookDatabase {
    * Get a webhook by ID
    */
   async getWebhook(id: number): Promise<Webhook | null> {
-    const result = await this.pool.query('SELECT * FROM webhooks WHERE id = $1', [id]);
+    const result = await this.db
+      .select()
+      .from(schema.webhooks)
+      .where(eq(schema.webhooks.id, id))
+      .limit(1);
 
-    if (result.rows.length === 0) {
+    if (result.length === 0) {
       return null;
     }
 
-    return this.rowToWebhook(result.rows[0]);
+    return this.rowToWebhook(result[0]);
   }
 
   /**
    * Get a webhook by name
    */
   async getWebhookByName(name: string): Promise<Webhook | null> {
-    const result = await this.pool.query('SELECT * FROM webhooks WHERE name = $1', [name]);
+    const result = await this.db
+      .select()
+      .from(schema.webhooks)
+      .where(eq(schema.webhooks.name, name))
+      .limit(1);
 
-    if (result.rows.length === 0) {
+    if (result.length === 0) {
       return null;
     }
 
-    return this.rowToWebhook(result.rows[0]);
+    return this.rowToWebhook(result[0]);
   }
 
   /**
    * Get all webhooks
    */
   async getAllWebhooks(): Promise<Webhook[]> {
-    const result = await this.pool.query('SELECT * FROM webhooks ORDER BY created_at DESC');
+    const result = await this.db
+      .select()
+      .from(schema.webhooks)
+      .orderBy(desc(schema.webhooks.createdAt));
 
-    return result.rows.map((row) => this.rowToWebhook(row));
+    return result.map((row) => this.rowToWebhook(row));
   }
 
   /**
    * Get enabled webhooks by source type
    */
   async getEnabledWebhooksBySource(sourceType: string): Promise<Webhook[]> {
-    const result = await this.pool.query(
-      'SELECT * FROM webhooks WHERE source_type = $1 AND enabled = TRUE',
-      [sourceType]
-    );
+    const result = await this.db
+      .select()
+      .from(schema.webhooks)
+      .where(and(eq(schema.webhooks.sourceType, sourceType), eq(schema.webhooks.enabled, true)));
 
-    return result.rows.map((row) => this.rowToWebhook(row));
+    return result.map((row) => this.rowToWebhook(row));
   }
 
   /**
    * Update a webhook
    */
   async updateWebhook(id: number, input: UpdateWebhookInput): Promise<Webhook | null> {
-    const updates: string[] = [];
-    const values: unknown[] = [];
-    let paramIndex = 1;
+    const updateData: Record<string, unknown> = {
+      updatedAt: new Date(),
+    };
 
-    if (input.name !== undefined) {
-      updates.push(`name = $${paramIndex++}`);
-      values.push(input.name);
-    }
-    if (input.description !== undefined) {
-      updates.push(`description = $${paramIndex++}`);
-      values.push(input.description);
-    }
-    if (input.token !== undefined) {
-      updates.push(`token = $${paramIndex++}`);
-      values.push(input.token);
-    }
-    if (input.signatureHeader !== undefined) {
-      updates.push(`signature_header = $${paramIndex++}`);
-      values.push(input.signatureHeader);
-    }
-    if (input.sourceType !== undefined) {
-      updates.push(`source_type = $${paramIndex++}`);
-      values.push(input.sourceType);
-    }
-    if (input.eventFilter !== undefined) {
-      updates.push(`event_filter = $${paramIndex++}`);
-      values.push(input.eventFilter);
-    }
-    if (input.provider !== undefined) {
-      updates.push(`provider = $${paramIndex++}`);
-      values.push(input.provider);
-    }
-    if (input.target !== undefined) {
-      updates.push(`target = $${paramIndex++}`);
-      values.push(input.target);
-    }
-    if (input.messageTemplate !== undefined) {
-      updates.push(`message_template = $${paramIndex++}`);
-      values.push(input.messageTemplate);
-    }
-    if (input.enabled !== undefined) {
-      updates.push(`enabled = $${paramIndex++}`);
-      values.push(input.enabled);
-    }
+    if (input.name !== undefined) updateData.name = input.name;
+    if (input.description !== undefined) updateData.description = input.description;
+    if (input.token !== undefined) updateData.token = input.token;
+    if (input.signatureHeader !== undefined) updateData.signatureHeader = input.signatureHeader;
+    if (input.sourceType !== undefined) updateData.sourceType = input.sourceType;
+    if (input.eventFilter !== undefined)
+      updateData.eventFilter = input.eventFilter ? JSON.stringify(input.eventFilter) : null;
+    if (input.provider !== undefined) updateData.provider = input.provider;
+    if (input.target !== undefined) updateData.target = input.target;
+    if (input.messageTemplate !== undefined) updateData.messageTemplate = input.messageTemplate;
+    if (input.enabled !== undefined) updateData.enabled = input.enabled;
 
-    if (updates.length === 0) {
-      return this.getWebhook(id);
-    }
+    const result = await this.db
+      .update(schema.webhooks)
+      .set(updateData)
+      .where(eq(schema.webhooks.id, id))
+      .returning();
 
-    updates.push(`updated_at = NOW()`);
-    values.push(id);
-
-    const result = await this.pool.query(
-      `UPDATE webhooks SET ${updates.join(', ')} WHERE id = $${paramIndex} RETURNING *`,
-      values
-    );
-
-    if (result.rows.length === 0) {
+    if (result.length === 0) {
       return null;
     }
 
-    const webhook = this.rowToWebhook(result.rows[0]);
+    const webhook = this.rowToWebhook(result[0]);
     logger.info('Updated webhook', { id: webhook.id, name: webhook.name });
     return webhook;
   }
@@ -320,9 +240,12 @@ export class WebhookDatabase {
    * Delete a webhook
    */
   async deleteWebhook(id: number): Promise<boolean> {
-    const result = await this.pool.query('DELETE FROM webhooks WHERE id = $1', [id]);
+    const result = await this.db
+      .delete(schema.webhooks)
+      .where(eq(schema.webhooks.id, id))
+      .returning({ id: schema.webhooks.id });
 
-    const deleted = (result.rowCount ?? 0) > 0;
+    const deleted = result.length > 0;
     if (deleted) {
       logger.info('Deleted webhook', { id });
     }
@@ -357,14 +280,17 @@ export class WebhookDatabase {
     payload: Record<string, unknown>,
     status: WebhookEventStatus = 'pending'
   ): Promise<WebhookEvent> {
-    const result = await this.pool.query(
-      `INSERT INTO webhook_events (webhook_id, event_type, payload, status)
-       VALUES ($1, $2, $3, $4)
-       RETURNING *`,
-      [webhookId, eventType, JSON.stringify(payload), status]
-    );
+    const result = await this.db
+      .insert(schema.webhookEvents)
+      .values({
+        webhookId,
+        eventType: eventType || null,
+        payload: JSON.stringify(payload),
+        status,
+      })
+      .returning();
 
-    return this.rowToWebhookEvent(result.rows[0]);
+    return this.rowToWebhookEvent(result[0]);
   }
 
   /**
@@ -379,75 +305,95 @@ export class WebhookDatabase {
       processingTimeMs?: number;
     } = {}
   ): Promise<void> {
-    await this.pool.query(
-      `UPDATE webhook_events 
-       SET status = $1, error = $2, message_sent = $3, processing_time_ms = $4
-       WHERE id = $5`,
-      [
+    await this.db
+      .update(schema.webhookEvents)
+      .set({
         status,
-        options.error || null,
-        options.messageSent || null,
-        options.processingTimeMs || null,
-        eventId,
-      ]
-    );
+        error: options.error || null,
+        messageSent: options.messageSent || null,
+        processingTimeMs: options.processingTimeMs || null,
+      })
+      .where(eq(schema.webhookEvents.id, eventId));
   }
 
   /**
    * Update webhook trigger stats
    */
   async recordTrigger(webhookId: number): Promise<void> {
-    await this.pool.query(
-      `UPDATE webhooks 
-       SET last_triggered_at = NOW(), trigger_count = trigger_count + 1, updated_at = NOW()
-       WHERE id = $1`,
-      [webhookId]
-    );
+    const webhook = await this.getWebhook(webhookId);
+    await this.db
+      .update(schema.webhooks)
+      .set({
+        lastTriggeredAt: new Date(),
+        triggerCount: (webhook?.triggerCount || 0) + 1,
+        updatedAt: new Date(),
+      })
+      .where(eq(schema.webhooks.id, webhookId));
   }
 
   /**
    * Get events for a specific webhook
    */
   async getWebhookEvents(webhookId: number, limit: number = 50): Promise<WebhookEvent[]> {
-    const result = await this.pool.query(
-      `SELECT we.*, w.name as webhook_name
-       FROM webhook_events we
-       JOIN webhooks w ON we.webhook_id = w.id
-       WHERE we.webhook_id = $1
-       ORDER BY we.received_at DESC
-       LIMIT $2`,
-      [webhookId, limit]
-    );
+    const result = await this.db
+      .select({
+        id: schema.webhookEvents.id,
+        webhookId: schema.webhookEvents.webhookId,
+        receivedAt: schema.webhookEvents.receivedAt,
+        eventType: schema.webhookEvents.eventType,
+        payload: schema.webhookEvents.payload,
+        status: schema.webhookEvents.status,
+        error: schema.webhookEvents.error,
+        messageSent: schema.webhookEvents.messageSent,
+        processingTimeMs: schema.webhookEvents.processingTimeMs,
+        webhookName: schema.webhooks.name,
+      })
+      .from(schema.webhookEvents)
+      .innerJoin(schema.webhooks, eq(schema.webhookEvents.webhookId, schema.webhooks.id))
+      .where(eq(schema.webhookEvents.webhookId, webhookId))
+      .orderBy(desc(schema.webhookEvents.receivedAt))
+      .limit(limit);
 
-    return result.rows.map((row) => this.rowToWebhookEvent(row));
+    return result.map((row) => this.rowToWebhookEvent(row));
   }
 
   /**
    * Get recent events across all webhooks
    */
   async getRecentEvents(limit: number = 50): Promise<WebhookEvent[]> {
-    const result = await this.pool.query(
-      `SELECT we.*, w.name as webhook_name
-       FROM webhook_events we
-       JOIN webhooks w ON we.webhook_id = w.id
-       ORDER BY we.received_at DESC
-       LIMIT $1`,
-      [limit]
-    );
+    const result = await this.db
+      .select({
+        id: schema.webhookEvents.id,
+        webhookId: schema.webhookEvents.webhookId,
+        receivedAt: schema.webhookEvents.receivedAt,
+        eventType: schema.webhookEvents.eventType,
+        payload: schema.webhookEvents.payload,
+        status: schema.webhookEvents.status,
+        error: schema.webhookEvents.error,
+        messageSent: schema.webhookEvents.messageSent,
+        processingTimeMs: schema.webhookEvents.processingTimeMs,
+        webhookName: schema.webhooks.name,
+      })
+      .from(schema.webhookEvents)
+      .innerJoin(schema.webhooks, eq(schema.webhookEvents.webhookId, schema.webhooks.id))
+      .orderBy(desc(schema.webhookEvents.receivedAt))
+      .limit(limit);
 
-    return result.rows.map((row) => this.rowToWebhookEvent(row));
+    return result.map((row) => this.rowToWebhookEvent(row));
   }
 
   /**
    * Clean up old events (keep last N days)
    */
   async cleanupOldEvents(retentionDays: number = 30): Promise<number> {
-    const result = await this.pool.query(
-      `DELETE FROM webhook_events 
-       WHERE received_at < NOW() - INTERVAL '${retentionDays} days'`
-    );
+    const cutoffDate = new Date(Date.now() - retentionDays * 24 * 60 * 60 * 1000);
 
-    const deleted = result.rowCount ?? 0;
+    const result = await this.db
+      .delete(schema.webhookEvents)
+      .where(lt(schema.webhookEvents.receivedAt, cutoffDate))
+      .returning({ id: schema.webhookEvents.id });
+
+    const deleted = result.length;
     if (deleted > 0) {
       logger.info('Cleaned up old webhook events', { deleted, retentionDays });
     }
@@ -462,86 +408,97 @@ export class WebhookDatabase {
    * Get webhook statistics
    */
   async getStats(): Promise<WebhookStats> {
-    const client = await this.pool.connect();
-    try {
-      // Get webhook counts
-      const webhookStats = await client.query(`
-        SELECT 
-          COUNT(*) as total,
-          COUNT(*) FILTER (WHERE enabled = TRUE) as enabled,
-          COUNT(*) FILTER (WHERE source_type = 'github') as github,
-          COUNT(*) FILTER (WHERE source_type = 'calendar') as calendar,
-          COUNT(*) FILTER (WHERE source_type = 'jira') as jira,
-          COUNT(*) FILTER (WHERE source_type = 'custom') as custom,
-          COUNT(*) FILTER (WHERE provider = 'whatsapp') as whatsapp,
-          COUNT(*) FILTER (WHERE provider = 'slack') as slack
-        FROM webhooks
-      `);
+    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
-      // Get event counts
-      const eventStats = await client.query(`
-        SELECT 
-          COUNT(*) as total,
-          COUNT(*) FILTER (WHERE received_at > NOW() - INTERVAL '24 hours' AND status = 'processed') as processed_24h,
-          COUNT(*) FILTER (WHERE received_at > NOW() - INTERVAL '24 hours' AND status = 'filtered') as filtered_24h,
-          COUNT(*) FILTER (WHERE received_at > NOW() - INTERVAL '24 hours' AND status = 'failed') as failed_24h
-        FROM webhook_events
-      `);
+    // Get webhook counts
+    const [totalResult, enabledResult, bySourceResult, byProviderResult, totalEventsResult] =
+      await Promise.all([
+        this.db.select({ count: count() }).from(schema.webhooks),
+        this.db
+          .select({ count: count() })
+          .from(schema.webhooks)
+          .where(eq(schema.webhooks.enabled, true)),
+        this.db
+          .select({
+            sourceType: schema.webhooks.sourceType,
+            count: count(),
+          })
+          .from(schema.webhooks)
+          .groupBy(schema.webhooks.sourceType),
+        this.db
+          .select({
+            provider: schema.webhooks.provider,
+            count: count(),
+          })
+          .from(schema.webhooks)
+          .groupBy(schema.webhooks.provider),
+        this.db.select({ count: count() }).from(schema.webhookEvents),
+      ]);
 
-      const ws = webhookStats.rows[0];
-      const es = eventStats.rows[0];
+    // Get recent event counts
+    const [processedResult, filteredResult, failedResult] = await Promise.all([
+      this.db
+        .select({ count: count() })
+        .from(schema.webhookEvents)
+        .where(
+          and(
+            eq(schema.webhookEvents.status, 'processed'),
+            sql`${schema.webhookEvents.receivedAt} > ${twentyFourHoursAgo.getTime() / 1000}`
+          )
+        ),
+      this.db
+        .select({ count: count() })
+        .from(schema.webhookEvents)
+        .where(
+          and(
+            eq(schema.webhookEvents.status, 'filtered'),
+            sql`${schema.webhookEvents.receivedAt} > ${twentyFourHoursAgo.getTime() / 1000}`
+          )
+        ),
+      this.db
+        .select({ count: count() })
+        .from(schema.webhookEvents)
+        .where(
+          and(
+            eq(schema.webhookEvents.status, 'failed'),
+            sql`${schema.webhookEvents.receivedAt} > ${twentyFourHoursAgo.getTime() / 1000}`
+          )
+        ),
+    ]);
 
-      return {
-        totalWebhooks: parseInt(ws.total, 10),
-        enabledWebhooks: parseInt(ws.enabled, 10),
-        bySourceType: {
-          github: parseInt(ws.github, 10),
-          calendar: parseInt(ws.calendar, 10),
-          jira: parseInt(ws.jira, 10),
-          custom: parseInt(ws.custom, 10),
-        },
-        byProvider: {
-          whatsapp: parseInt(ws.whatsapp, 10),
-          slack: parseInt(ws.slack, 10),
-        },
-        totalEvents: parseInt(es.total, 10),
-        last24Hours: {
-          processed: parseInt(es.processed_24h, 10),
-          filtered: parseInt(es.filtered_24h, 10),
-          failed: parseInt(es.failed_24h, 10),
-        },
-      };
-    } finally {
-      client.release();
-    }
+    return {
+      totalWebhooks: totalResult[0]?.count || 0,
+      enabledWebhooks: enabledResult[0]?.count || 0,
+      bySourceType: {
+        github: bySourceResult.find((r) => r.sourceType === 'github')?.count || 0,
+        calendar: bySourceResult.find((r) => r.sourceType === 'calendar')?.count || 0,
+        jira: bySourceResult.find((r) => r.sourceType === 'jira')?.count || 0,
+        custom: bySourceResult.find((r) => r.sourceType === 'custom')?.count || 0,
+      },
+      byProvider: {
+        whatsapp: byProviderResult.find((r) => r.provider === 'whatsapp')?.count || 0,
+        slack: byProviderResult.find((r) => r.provider === 'slack')?.count || 0,
+      },
+      totalEvents: totalEventsResult[0]?.count || 0,
+      last24Hours: {
+        processed: processedResult[0]?.count || 0,
+        filtered: filteredResult[0]?.count || 0,
+        failed: failedResult[0]?.count || 0,
+      },
+    };
   }
 
   /**
-   * Close database connection
+   * Close database connection (no-op for SQLite singleton)
    */
   async close(): Promise<void> {
-    await this.pool.end();
-    logger.info('Webhook database connection pool closed');
+    logger.info('Webhook database connection closed');
   }
 }
 
 /**
  * Create a WebhookDatabase instance
  */
-export function createWebhookDatabase(config: WebhookDatabaseConfig): WebhookDatabase {
-  const pool = new pg.Pool({
-    connectionString: config.connectionString,
-    max: 10,
-    idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 5000,
-  });
-
-  return new WebhookDatabase(pool);
-}
-
-/**
- * Create WebhookDatabase from existing pool
- */
-export function createWebhookDatabaseFromPool(pool: pg.Pool): WebhookDatabase {
-  return new WebhookDatabase(pool);
+export function createWebhookDatabase(): WebhookDatabase {
+  return new WebhookDatabase();
 }

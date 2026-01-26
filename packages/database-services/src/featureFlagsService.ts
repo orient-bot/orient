@@ -3,12 +3,14 @@
  *
  * Manages hierarchical feature flags with per-user overrides.
  * Supports dot-notation hierarchy (e.g., 'mini_apps.edit_with_ai').
+ *
+ * Uses Drizzle ORM with SQLite.
  */
 
-import pg from 'pg';
 import { createServiceLogger } from '@orient/core';
+import { getDatabase, closeDatabase, eq, and, asc, schema } from '@orient/database';
+import type { Database } from '@orient/database';
 
-const { Pool } = pg;
 const logger = createServiceLogger('feature-flags-service');
 
 // ============================================
@@ -40,48 +42,41 @@ export interface SetOverrideInput {
 // ============================================
 
 export class FeatureFlagsService {
-  private pool: pg.Pool;
+  private _db: Database | null = null;
 
-  constructor(connectionString?: string) {
-    const dbUrl =
-      connectionString ||
-      process.env.DATABASE_URL ||
-      'postgresql://aibot:aibot123@localhost:5432/whatsapp_bot_0';
+  constructor() {
+    // SQLite path is configured via SQLITE_DATABASE env var or defaults
+  }
 
-    this.pool = new Pool({
-      connectionString: dbUrl,
-      max: 10,
-      idleTimeoutMillis: 30000,
-    });
+  /**
+   * Get the database instance (synchronous for SQLite)
+   */
+  private get db(): Database {
+    if (!this._db) {
+      this._db = getDatabase();
+    }
+    return this._db;
   }
 
   /**
    * Get all feature flags (global values only)
    */
   async getAllFlags(): Promise<FeatureFlag[]> {
-    const result = await this.pool.query(
-      `SELECT
-        id,
-        name,
-        description,
-        enabled,
-        category,
-        sort_order,
-        created_at,
-        updated_at
-       FROM feature_flags
-       ORDER BY sort_order ASC, id ASC`
-    );
+    const results = await this.db
+      .select()
+      .from(schema.featureFlags)
+      .orderBy(asc(schema.featureFlags.sortOrder), asc(schema.featureFlags.id));
 
-    return result.rows.map((row) => ({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return results.map((row: any) => ({
       id: row.id,
       name: row.name,
       description: row.description,
-      enabled: row.enabled,
-      category: row.category,
-      sortOrder: row.sort_order,
-      createdAt: row.created_at,
-      updatedAt: row.updated_at,
+      enabled: row.enabled ?? true,
+      category: row.category ?? 'ui',
+      sortOrder: row.sortOrder ?? 0,
+      createdAt: row.createdAt ?? new Date(),
+      updatedAt: row.updatedAt ?? new Date(),
     }));
   }
 
@@ -89,36 +84,41 @@ export class FeatureFlagsService {
    * Get all flags with user overrides applied
    */
   async getAllFlagsWithOverrides(userId: number): Promise<FeatureFlagWithOverride[]> {
-    const result = await this.pool.query(
-      `SELECT
-        f.id,
-        f.name,
-        f.description,
-        f.enabled,
-        f.category,
-        f.sort_order,
-        f.created_at,
-        f.updated_at,
-        o.enabled as user_override
-       FROM feature_flags f
-       LEFT JOIN user_feature_flag_overrides o
-         ON f.id = o.flag_id AND o.user_id = $1
-       ORDER BY f.sort_order ASC, f.id ASC`,
-      [userId]
-    );
+    // Get all flags
+    const flagResults = await this.db
+      .select()
+      .from(schema.featureFlags)
+      .orderBy(asc(schema.featureFlags.sortOrder), asc(schema.featureFlags.id));
 
-    const flags = result.rows.map((row) => ({
-      id: row.id,
-      name: row.name,
-      description: row.description,
-      enabled: row.enabled,
-      category: row.category,
-      sortOrder: row.sort_order,
-      createdAt: row.created_at,
-      updatedAt: row.updated_at,
-      userOverride: row.user_override,
-      effectiveValue: row.user_override !== null ? row.user_override : row.enabled,
-    }));
+    // Get user overrides
+    const overrideResults = await this.db
+      .select()
+      .from(schema.userFeatureFlagOverrides)
+      .where(eq(schema.userFeatureFlagOverrides.userId, userId));
+
+    // Build override map
+    const overrideMap = new Map<string, boolean>();
+    for (const override of overrideResults) {
+      overrideMap.set(override.flagId, override.enabled);
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const flags: FeatureFlagWithOverride[] = flagResults.map((row: any) => {
+      const userOverride = overrideMap.has(row.id) ? overrideMap.get(row.id)! : null;
+      const baseEnabled = row.enabled ?? true;
+      return {
+        id: row.id,
+        name: row.name,
+        description: row.description,
+        enabled: baseEnabled,
+        category: row.category ?? 'ui',
+        sortOrder: row.sortOrder ?? 0,
+        createdAt: row.createdAt ?? new Date(),
+        updatedAt: row.updatedAt ?? new Date(),
+        userOverride,
+        effectiveValue: userOverride !== null ? userOverride : baseEnabled,
+      };
+    });
 
     // Build a map for quick lookup
     const flagMap = new Map<string, FeatureFlagWithOverride>();
@@ -154,21 +154,31 @@ export class FeatureFlagsService {
    */
   async setUserOverride(userId: number, flagId: string, enabled: boolean): Promise<void> {
     // Verify the flag exists
-    const flagExists = await this.pool.query('SELECT id FROM feature_flags WHERE id = $1', [
-      flagId,
-    ]);
+    const flagExists = await this.db
+      .select({ id: schema.featureFlags.id })
+      .from(schema.featureFlags)
+      .where(eq(schema.featureFlags.id, flagId))
+      .limit(1);
 
-    if (flagExists.rows.length === 0) {
+    if (flagExists.length === 0) {
       throw new Error(`Feature flag '${flagId}' does not exist`);
     }
 
-    await this.pool.query(
-      `INSERT INTO user_feature_flag_overrides (user_id, flag_id, enabled, updated_at)
-       VALUES ($1, $2, $3, NOW())
-       ON CONFLICT (user_id, flag_id)
-       DO UPDATE SET enabled = $3, updated_at = NOW()`,
-      [userId, flagId, enabled]
-    );
+    await this.db
+      .insert(schema.userFeatureFlagOverrides)
+      .values({
+        userId,
+        flagId,
+        enabled,
+        updatedAt: new Date(),
+      })
+      .onConflictDoUpdate({
+        target: [schema.userFeatureFlagOverrides.userId, schema.userFeatureFlagOverrides.flagId],
+        set: {
+          enabled,
+          updatedAt: new Date(),
+        },
+      });
 
     logger.info('Set user feature flag override', { userId, flagId, enabled });
   }
@@ -177,11 +187,14 @@ export class FeatureFlagsService {
    * Remove a user override (revert to global default)
    */
   async removeUserOverride(userId: number, flagId: string): Promise<void> {
-    await this.pool.query(
-      `DELETE FROM user_feature_flag_overrides
-       WHERE user_id = $1 AND flag_id = $2`,
-      [userId, flagId]
-    );
+    await this.db
+      .delete(schema.userFeatureFlagOverrides)
+      .where(
+        and(
+          eq(schema.userFeatureFlagOverrides.userId, userId),
+          eq(schema.userFeatureFlagOverrides.flagId, flagId)
+        )
+      );
 
     logger.info('Removed user feature flag override', { userId, flagId });
   }
@@ -239,7 +252,7 @@ export class FeatureFlagsService {
    * Close the database connection pool
    */
   async close(): Promise<void> {
-    await this.pool.end();
+    await closeDatabase();
   }
 }
 
@@ -247,6 +260,6 @@ export class FeatureFlagsService {
 // Factory
 // ============================================
 
-export function createFeatureFlagsService(connectionString?: string): FeatureFlagsService {
-  return new FeatureFlagsService(connectionString);
+export function createFeatureFlagsService(): FeatureFlagsService {
+  return new FeatureFlagsService();
 }
