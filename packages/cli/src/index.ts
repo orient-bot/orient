@@ -1,5 +1,5 @@
 /**
- * @orient/cli
+ * @orientbot/cli
  *
  * Command-line tools for Orient.
  *

@@ -10,12 +10,12 @@ import {
   WhatsAppConnection,
   createWhatsAppRouter,
   TranscriptionService,
-} from '@orient/bot-whatsapp';
-import { createServiceLogger, loadConfig, getConfig, startConfigPoller } from '@orient/core';
-import { MessageDatabase, createChatPermissionService } from '@orient/database-services';
-import { createOpenCodeClient } from '@orient/agents';
+} from '@orientbot/bot-whatsapp';
+import { createServiceLogger, loadConfig, getConfig, startConfigPoller } from '@orientbot/core';
+import { MessageDatabase, createChatPermissionService } from '@orientbot/database-services';
+import { createOpenCodeClient } from '@orientbot/agents';
 import { downloadMediaMessage } from 'baileys';
-import type { WhatsAppBotConfig } from '@orient/bot-whatsapp';
+import type { WhatsAppBotConfig } from '@orientbot/bot-whatsapp';
 
 const logger = createServiceLogger('whatsapp-integration');
 

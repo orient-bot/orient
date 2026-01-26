@@ -5,7 +5,7 @@
  */
 
 import { Router, Request, Response } from 'express';
-import { createServiceLogger } from '@orient/core';
+import { createServiceLogger } from '@orientbot/core';
 import { SchedulerService } from '../../services/schedulerService.js';
 import { CreateScheduledJobInput, UpdateScheduledJobInput } from '../../types/scheduler.js';
 

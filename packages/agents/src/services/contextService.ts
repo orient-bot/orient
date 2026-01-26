@@ -7,15 +7,15 @@
  * Key responsibilities:
  * - CRUD operations for chat context
  *
- * Exported via @orient/agents package.
+ * Exported via @orientbot/agents package.
  * - Deep merge updates for partial context changes
  * - Activity history management with capping
  * - Format context for system prompt injection
  */
 
-import { getDatabase, eq, and } from '@orient/database';
-import { chatContext } from '@orient/database';
-import { createServiceLogger } from '@orient/core';
+import { getDatabase, eq, and } from '@orientbot/database';
+import { chatContext } from '@orientbot/database';
+import { createServiceLogger } from '@orientbot/core';
 
 const logger = createServiceLogger('context-service');
 

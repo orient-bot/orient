@@ -35,7 +35,7 @@ COPY packages/bot-slack/package.json ./packages/bot-slack/
 # Install dependencies for this package and its dependencies
 # Use BuildKit cache mount for faster rebuilds
 RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
-    pnpm install --frozen-lockfile --filter @orient/bot-slack...
+    pnpm install --frozen-lockfile --filter @orientbot/bot-slack...
 
 # ============================================
 # Build Stage
@@ -53,7 +53,7 @@ COPY packages/bot-slack ./packages/bot-slack
 COPY tsconfig.json turbo.json ./
 
 # Build the package and its dependencies using turbo for correct ordering
-RUN pnpm turbo run build --filter='@orient/bot-slack...'
+RUN pnpm turbo run build --filter='@orientbot/bot-slack...'
 
 # ============================================
 # Production Stage
@@ -91,7 +91,7 @@ COPY --chown=nodejs:nodejs --from=builder /app/packages/bot-slack/package.json .
 # Install production dependencies only
 # Use BuildKit cache mount for faster rebuilds
 RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
-    pnpm install --frozen-lockfile --prod --ignore-scripts --filter @orient/bot-slack...
+    pnpm install --frozen-lockfile --prod --ignore-scripts --filter @orientbot/bot-slack...
 
 # Create directories
 RUN mkdir -p /app/logs && \

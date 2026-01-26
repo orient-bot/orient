@@ -1,13 +1,13 @@
 /**
  * Tests for API Gateway Entry Point
- * 
+ *
  * Verifies the main.ts module structure and startup logic.
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // Mock dependencies before imports
-vi.mock('@orient/core', () => ({
+vi.mock('@orientbot/core', () => ({
   createServiceLogger: () => ({
     info: vi.fn(),
     error: vi.fn(),
@@ -71,24 +71,24 @@ describe('API Gateway Entry Point', () => {
   describe('SchedulerService', () => {
     it('should start and stop cleanly', async () => {
       const { SchedulerService } = await import('../src/scheduler/service.js');
-      
+
       const scheduler = new SchedulerService();
-      
+
       expect(scheduler.getIsRunning()).toBe(false);
-      
+
       await scheduler.start();
       expect(scheduler.getIsRunning()).toBe(true);
-      
+
       await scheduler.stop();
       expect(scheduler.getIsRunning()).toBe(false);
     });
 
     it('should manage jobs', async () => {
       const { SchedulerService } = await import('../src/scheduler/service.js');
-      
+
       const scheduler = new SchedulerService();
       await scheduler.start();
-      
+
       const job = await scheduler.scheduleMessage({
         id: 1,
         name: 'Test Job',
@@ -100,15 +100,15 @@ describe('API Gateway Entry Point', () => {
         createdAt: new Date(),
         updatedAt: new Date(),
       });
-      
+
       expect(job.id).toBe('1');
       expect(job.name).toBe('Test Job');
       expect(scheduler.getJobs().length).toBe(1);
-      
+
       const cancelled = await scheduler.cancelMessage(1);
       expect(cancelled).toBe(true);
       expect(scheduler.getJobs().length).toBe(0);
-      
+
       await scheduler.stop();
     });
   });
@@ -116,17 +116,17 @@ describe('API Gateway Entry Point', () => {
   describe('HealthMonitor', () => {
     it('should register and run health checks', async () => {
       const { HealthMonitor } = await import('../src/health/monitor.js');
-      
+
       const monitor = new HealthMonitor();
-      
+
       monitor.registerCheck('test-service', async () => ({
         service: 'test-service',
         status: 'healthy',
         lastCheck: new Date(),
       }));
-      
+
       const health = await monitor.runChecks();
-      
+
       expect(health.status).toBe('healthy');
       expect(health.checks.length).toBe(1);
       expect(health.checks[0].service).toBe('test-service');
@@ -134,29 +134,29 @@ describe('API Gateway Entry Point', () => {
 
     it('should report unhealthy when checks fail', async () => {
       const { HealthMonitor } = await import('../src/health/monitor.js');
-      
+
       const monitor = new HealthMonitor();
-      
+
       monitor.registerCheck('failing-service', async () => ({
         service: 'failing-service',
         status: 'unhealthy',
         lastCheck: new Date(),
         details: { error: 'Connection refused' },
       }));
-      
+
       const health = await monitor.runChecks();
-      
+
       expect(health.status).toBe('unhealthy');
     });
 
     it('should track uptime', async () => {
       const { HealthMonitor } = await import('../src/health/monitor.js');
-      
+
       const monitor = new HealthMonitor();
-      
+
       // Small delay to ensure uptime > 0
-      await new Promise(resolve => setTimeout(resolve, 10));
-      
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
       expect(monitor.getUptime()).toBeGreaterThan(0);
     });
   });

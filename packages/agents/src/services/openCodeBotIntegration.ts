@@ -4,11 +4,11 @@
  * This module demonstrates how to integrate OpenCode as the AI backend
  * for WhatsApp and Slack bots. The pattern can be adapted for any messaging platform.
  *
- * Exported via @orient/agents package.
+ * Exported via @orientbot/agents package.
  */
 
 import { OpenCodeClient, createOpenCodeClient } from './openCodeClient.js';
-import { createServiceLogger } from '@orient/core';
+import { createServiceLogger } from '@orientbot/core';
 
 const logger = createServiceLogger('opencode-bot');
 

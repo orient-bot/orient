@@ -1,5 +1,5 @@
 /**
- * @orient/bot-slack
+ * @orientbot/bot-slack
  *
  * Slack bot service for the Orient.
  *

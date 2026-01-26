@@ -7,7 +7,7 @@
  *
  * Follows the same pattern as GitWorktreeService but for apps.
  *
- * Exported via @orient/apps package.
+ * Exported via @orientbot/apps package.
  */
 
 import { exec } from 'child_process';
@@ -15,7 +15,7 @@ import { promisify } from 'util';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import { createServiceLogger } from '@orient/core';
+import { createServiceLogger } from '@orientbot/core';
 import { AppManifest, serializeManifestToYaml } from '../types.js';
 
 const execAsync = promisify(exec);

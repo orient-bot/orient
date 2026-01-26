@@ -5,8 +5,8 @@
  * It can be used by WhatsApp/Slack bots to leverage OpenCode as their AI processing backend.
  */
 
-import { createServiceLogger, AVAILABLE_MODELS, parseModelName } from '@orient/core';
-import type { ModelKey } from '@orient/core';
+import { createServiceLogger, AVAILABLE_MODELS, parseModelName } from '@orientbot/core';
+import type { ModelKey } from '@orientbot/core';
 
 // Re-export model types and functions for backward compatibility
 export { AVAILABLE_MODELS, parseModelName };

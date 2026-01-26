@@ -7,8 +7,8 @@
 
 import { Version3Client } from 'jira.js';
 import type { ToolContext } from '../types.js';
-import type { AppConfig } from '@orient/core';
-import { createServiceLogger } from '@orient/core';
+import type { AppConfig } from '@orientbot/core';
+import { createServiceLogger } from '@orientbot/core';
 
 const logger = createServiceLogger('tool-context');
 

@@ -9,7 +9,7 @@ description: Guide for creating and managing database migrations. Use when addin
 
 ```bash
 # Push schema to SQLite database
-pnpm --filter @orient/database run db:push:sqlite
+pnpm --filter @orientbot/database run db:push:sqlite
 
 # Open Drizzle Studio to inspect database
 pnpm db:studio
@@ -70,10 +70,10 @@ export const yourTable = sqliteTable('your_table', {
 
 ```bash
 # Push schema changes to SQLite
-pnpm --filter @orient/database run db:push:sqlite
+pnpm --filter @orientbot/database run db:push:sqlite
 
 # Or using environment variables
-DATABASE_TYPE=sqlite SQLITE_DATABASE=./data/orient.db pnpm --filter @orient/database run db:push:sqlite
+DATABASE_TYPE=sqlite SQLITE_DATABASE=./data/orient.db pnpm --filter @orientbot/database run db:push:sqlite
 ```
 
 ### Step 3: Verify Changes
@@ -102,7 +102,7 @@ const REQUIRED_TABLES = [
 Before merging a PR with database changes:
 
 - [ ] Schema updated in `packages/database/src/schema/`
-- [ ] Schema pushed locally: `pnpm --filter @orient/database run db:push:sqlite`
+- [ ] Schema pushed locally: `pnpm --filter @orientbot/database run db:push:sqlite`
 - [ ] Schema validation test updated if needed
 - [ ] Integration tests pass: `pnpm test:integration`
 - [ ] Seed data created if needed (e.g., `data/seeds/`)
@@ -136,7 +136,7 @@ SQLite schema push is idempotent. If this happens:
 Schema mismatch between code and database:
 
 1. Check `packages/database/src/schema/` matches your expectations
-2. Run `pnpm --filter @orient/database run db:push:sqlite` to apply pending changes
+2. Run `pnpm --filter @orientbot/database run db:push:sqlite` to apply pending changes
 3. Verify with `sqlite3 your.db ".schema tablename"`
 
 ### Integration tests fail in CI but pass locally
@@ -228,7 +228,7 @@ SQLite uses different types than PostgreSQL:
 SQLite transactions work slightly differently:
 
 ```typescript
-import { db } from '@orient/database';
+import { db } from '@orientbot/database';
 
 await db.transaction(async (tx) => {
   await tx.insert(yourTable).values({ ... });

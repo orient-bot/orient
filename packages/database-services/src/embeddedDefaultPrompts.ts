@@ -5,9 +5,9 @@
  * These are used as fallbacks when no custom prompt is configured in the database.
  *
  * This is the single source of truth for default prompts across all packages:
- * - @orient/agents
- * - @orient/dashboard
- * - @orient/mcp-tools
+ * - @orientbot/agents
+ * - @orientbot/dashboard
+ * - @orientbot/mcp-tools
  */
 
 import type { PromptPlatform } from './types/index.js';

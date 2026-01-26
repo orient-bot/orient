@@ -10,7 +10,7 @@ import express, { Application, Router } from 'express';
 import cors from 'cors';
 import path from 'path';
 import fs from 'fs';
-import { createServiceLogger } from '@orient/core';
+import { createServiceLogger } from '@orientbot/core';
 import {
   ensureAgentsSeeded,
   MessageDatabase,
@@ -25,7 +25,7 @@ import {
   createStorageDatabase,
   PromptService,
   createPromptService,
-} from '@orient/database-services';
+} from '@orientbot/database-services';
 import { SchedulerService } from '../services/schedulerService.js';
 import { WebhookService } from '../services/webhookService.js';
 import { MonitoringService, createMonitoringService } from '../services/monitoringService.js';
@@ -35,11 +35,11 @@ import { createSetupRouter } from './setupRoutes.js';
 import { createSetupAuthRouter } from './setupAuthRoutes.js';
 // Apps service for mini-apps listing
 import { AppsService, createAppsService } from '../services/appsService.js';
-// Miniapp editor imports from @orient/apps and @orient/agents
-import { createMiniappEditService, MiniappEditService } from '@orient/apps';
-import { createMiniappEditDatabase } from '@orient/apps';
-import { createAppGitService } from '@orient/apps';
-import { createOpenCodeClient } from '@orient/agents';
+// Miniapp editor imports from @orientbot/apps and @orientbot/agents
+import { createMiniappEditService, MiniappEditService } from '@orientbot/apps';
+import { createMiniappEditDatabase } from '@orientbot/apps';
+import { createAppGitService } from '@orientbot/apps';
+import { createOpenCodeClient } from '@orientbot/agents';
 
 const logger = createServiceLogger('dashboard-server');
 

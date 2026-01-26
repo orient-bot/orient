@@ -1,5 +1,5 @@
 {
-  "name": "@orient/mcp-tools",
+  "name": "@orientbot/mcp-tools",
   "version": "1.0.0",
   "description": "Portable MCP tools and registry for Orient",
   "type": "module",
@@ -47,9 +47,9 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@orient/core": "workspace:*",
-    "@orient/database-services": "workspace:*",
-    "@orient/integrations": "workspace:*",
+    "@orientbot/core": "workspace:*",
+    "@orientbot/database-services": "workspace:*",
+    "@orientbot/integrations": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.24.3",
     "jira.js": "^4.0.1",
     "openai": "^4.77.0",
@@ -77,5 +77,9 @@
   "files": [
     "dist",
     "README.md"
-  ]
+  ],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  }
 }

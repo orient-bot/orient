@@ -12,7 +12,7 @@ description: Configure TypeScript for the Orient monorepo packages. Use when cre
 pnpm turbo build
 
 # Build specific package and its dependencies
-pnpm --filter @orient/package-name... build
+pnpm --filter @orientbot/package-name... build
 
 # Type check without building
 pnpm turbo typecheck
@@ -77,7 +77,7 @@ When a package imports from another package at compile time, add project referen
 ### When to Use References
 
 - ✅ Package directly imports types from another package
-- ✅ Package uses workspace dependency (`"@orient/core": "workspace:*"`)
+- ✅ Package uses workspace dependency (`"@orientbot/core": "workspace:*"`)
 - ❌ Package only uses runtime exports (no compile-time dependency)
 
 ## Build Order with Turbo
@@ -99,13 +99,13 @@ Turbo automatically builds dependencies first via `dependsOn: ["^build"]`:
 ### Build Order
 
 ```
-1. @orient/core (no dependencies)
-2. @orient/database (depends on core)
-3. @orient/database-services (depends on database)
-4. @orient/integrations (depends on core, database)
-5. @orient/agents (depends on database-services)
-6. @orient/mcp-tools (depends on agents, integrations)
-7. @orient/bot-* (depends on mcp-tools, agents)
+1. @orientbot/core (no dependencies)
+2. @orientbot/database (depends on core)
+3. @orientbot/database-services (depends on database)
+4. @orientbot/integrations (depends on core, database)
+5. @orientbot/agents (depends on database-services)
+6. @orientbot/mcp-tools (depends on agents, integrations)
+7. @orientbot/bot-* (depends on mcp-tools, agents)
 ```
 
 ## Root tsconfig.json Path Aliases
@@ -117,9 +117,9 @@ The root `tsconfig.json` defines path aliases for development:
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
-      "@orient/core": ["./packages/core/src/index"],
-      "@orient/database": ["./packages/database/src/index"],
-      "@orient/agents": ["./packages/agents/src/index"]
+      "@orientbot/core": ["./packages/core/src/index"],
+      "@orientbot/database": ["./packages/database/src/index"],
+      "@orientbot/agents": ["./packages/agents/src/index"]
     }
   }
 }
@@ -173,7 +173,7 @@ pnpm run build:packages
 
 ## Common Build Errors
 
-### "Cannot find module '@orient/package'" (TS2307)
+### "Cannot find module '@orientbot/package'" (TS2307)
 
 **Most common cause**: Prerequisite package didn't build (empty dist/).
 
@@ -198,7 +198,7 @@ Tests don't use project references. Add vitest path aliases:
 export default defineConfig({
   resolve: {
     alias: {
-      '@orient/core': resolve(__dirname, '../core/src'),
+      '@orientbot/core': resolve(__dirname, '../core/src'),
     },
   },
 });
@@ -241,7 +241,7 @@ Check `references` in tsconfig files. Package A cannot reference B if B referenc
 
    ```json
    {
-     "name": "@orient/new-package",
+     "name": "@orientbot/new-package",
      "version": "1.0.0",
      "type": "module",
      "main": "./dist/index.js",
@@ -266,26 +266,26 @@ Check `references` in tsconfig files. Package A cannot reference B if B referenc
    ```json
    {
      "dependencies": {
-       "@orient/new-package": "workspace:*"
+       "@orientbot/new-package": "workspace:*"
      }
    }
    ```
 
 5. Add path alias to root `tsconfig.json`
 
-6. Build: `pnpm --filter @orient/new-package build`
+6. Build: `pnpm --filter @orientbot/new-package build`
 
 ## Debugging Build Issues
 
 ```bash
 # Verbose TypeScript output
-pnpm --filter @orient/package tsc --listFiles
+pnpm --filter @orientbot/package tsc --listFiles
 
 # Check what files are included
-pnpm --filter @orient/package tsc --listFilesOnly
+pnpm --filter @orientbot/package tsc --listFilesOnly
 
 # Trace module resolution
-pnpm --filter @orient/package tsc --traceResolution
+pnpm --filter @orientbot/package tsc --traceResolution
 
 # Show build dependency graph
 pnpm turbo build --graph

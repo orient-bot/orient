@@ -14,13 +14,13 @@ Orient is a **pnpm monorepo** implementing an AI-powered project management syst
 │                              Messaging Frontends                             │
 │   ┌─────────────────┐                         ┌─────────────────┐           │
 │   │  WhatsApp Bot   │                         │   Slack Bot     │           │
-│   │ (@orient/bot-wp)│                         │ (@orient/bot-sl)│           │
+│   │ (@orientbot/bot-wp)│                         │ (@orientbot/bot-sl)│           │
 │   └────────┬────────┘                         └────────┬────────┘           │
 │            └──────────────────┬────────────────────────┘                     │
 │                               ▼                                              │
 │   ┌─────────────────────────────────────────────────────────────────────┐   │
 │   │                      Agent Registry                                  │   │
-│   │   (@orient/agents) - Context resolution, tool permissions, skills   │   │
+│   │   (@orientbot/agents) - Context resolution, tool permissions, skills   │   │
 │   └──────────────────────────────┬──────────────────────────────────────┘   │
 │                                  ▼                                           │
 │   ┌─────────────────────────────────────────────────────────────────────┐   │
@@ -66,21 +66,21 @@ orient/
 
 ## Package Descriptions
 
-| Package                     | Status     | Description                                                                |
-| --------------------------- | ---------- | -------------------------------------------------------------------------- |
-| `@orient/core`              | Stable     | Config loading, logging (`winston`), base types                            |
-| `@orient/database`          | Stable     | Drizzle ORM schemas, SQLite client                                         |
-| `@orient/database-services` | Stable     | `MessageDatabase`, `SlackDatabase`, `SchedulerDatabase`, `WebhookDatabase` |
-| `@orient/agents`            | Stable     | Agent registry, skills service, prompts, tool permissions                  |
-| `@orient/apps`              | Stable     | Mini-apps manifests, types, validation, edit sessions                      |
-| `@orient/mcp-servers`       | Types Only | MCP server type definitions (impl in `src/mcp-servers/`)                   |
-| `@orient/mcp-tools`         | Stable     | MCP tool registry & definitions                                            |
-| `@orient/integrations`      | Stable     | JIRA, GitHub, Google (Sheets, Slides, Gmail, Calendar)                     |
-| `@orient/bot-whatsapp`      | Stable     | WhatsApp bot using Baileys (integrated into Dashboard)                     |
-| `@orient/bot-slack`         | Stable     | Slack bot using Bolt                                                       |
-| `@orient/api-gateway`       | Stable     | REST API, webhooks                                                         |
-| `@orient/dashboard`         | Stable     | Admin dashboard (React + Express) + WhatsApp API routes                    |
-| `@orient/test-utils`        | Stable     | Test factories, mocks, DB helpers                                          |
+| Package                        | Status     | Description                                                                |
+| ------------------------------ | ---------- | -------------------------------------------------------------------------- |
+| `@orientbot/core`              | Stable     | Config loading, logging (`winston`), base types                            |
+| `@orientbot/database`          | Stable     | Drizzle ORM schemas, SQLite client                                         |
+| `@orientbot/database-services` | Stable     | `MessageDatabase`, `SlackDatabase`, `SchedulerDatabase`, `WebhookDatabase` |
+| `@orientbot/agents`            | Stable     | Agent registry, skills service, prompts, tool permissions                  |
+| `@orientbot/apps`              | Stable     | Mini-apps manifests, types, validation, edit sessions                      |
+| `@orientbot/mcp-servers`       | Types Only | MCP server type definitions (impl in `src/mcp-servers/`)                   |
+| `@orientbot/mcp-tools`         | Stable     | MCP tool registry & definitions                                            |
+| `@orientbot/integrations`      | Stable     | JIRA, GitHub, Google (Sheets, Slides, Gmail, Calendar)                     |
+| `@orientbot/bot-whatsapp`      | Stable     | WhatsApp bot using Baileys (integrated into Dashboard)                     |
+| `@orientbot/bot-slack`         | Stable     | Slack bot using Bolt                                                       |
+| `@orientbot/api-gateway`       | Stable     | REST API, webhooks                                                         |
+| `@orientbot/dashboard`         | Stable     | Admin dashboard (React + Express) + WhatsApp API routes                    |
+| `@orientbot/test-utils`        | Stable     | Test factories, mocks, DB helpers                                          |
 
 ## Multi-MCP-Server Architecture
 
@@ -105,7 +105,7 @@ npm run start:mcp:core
 
 ## Agent Registry
 
-Agents are managed via the **Dashboard UI** and stored in SQLite. The `@orient/agents` package provides the runtime.
+Agents are managed via the **Dashboard UI** and stored in SQLite. The `@orientbot/agents` package provides the runtime.
 
 ```
 ┌─────────────────────────────────────────┐
@@ -146,7 +146,7 @@ In Slack or WhatsApp, prefix message with `@agent-id` to override default agent:
 @explorer find the auth config
 ```
 
-## Mini-Apps System (`@orient/apps`)
+## Mini-Apps System (`@orientbot/apps`)
 
 Allows generating small React apps via AI prompts, managed through Git worktrees.
 
@@ -222,7 +222,7 @@ npm run dev:mcp             # Run coding MCP server in dev mode
 npm run dev:infra           # Start Docker infrastructure (MinIO, Nginx)
 
 # Database
-pnpm --filter @orient/database run db:push:sqlite  # Push schema
+pnpm --filter @orientbot/database run db:push:sqlite  # Push schema
 pnpm run db:seed:all        # Seed all data
 pnpm run agents:seed        # Seed default agents
 
@@ -256,7 +256,7 @@ npm run build:all           # Build packages + root + dashboard
 
 1. **New Agent**: Add via Dashboard UI, seed via `data/seeds/agents.ts`
 2. **New MCP Tool**: Add to `packages/mcp-tools/` or `src/tools/`
-3. **New Integration**: Add to `@orient/integrations`
+3. **New Integration**: Add to `@orientbot/integrations`
 4. **New Bot Platform**: Follow `bot-whatsapp` / `bot-slack` pattern
 
 ### Database Schema Patterns

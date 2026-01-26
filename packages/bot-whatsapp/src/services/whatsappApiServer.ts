@@ -6,7 +6,7 @@
  *
  * Also provides a web interface for QR code scanning at the root URL.
  *
- * Exported via @orient/bot-whatsapp package.
+ * Exported via @orientbot/bot-whatsapp package.
  */
 
 import http from 'http';
@@ -14,9 +14,9 @@ import QRCode from 'qrcode';
 import { WhatsAppService, WritePermissionDeniedError } from './whatsappService.js';
 import { WhatsAppCloudApiService, WebhookPayload } from './whatsappCloudApiService.js';
 import { OpenCodeWhatsAppHandler } from './openCodeWhatsAppHandler.js';
-import { createDedicatedServiceLogger } from '@orient/core';
-import { WebhookForwardingService, getWebhookForwardingService } from '@orient/api-gateway';
-import { SkillsService } from '@orient/agents';
+import { createDedicatedServiceLogger } from '@orientbot/core';
+import { WebhookForwardingService, getWebhookForwardingService } from '@orientbot/api-gateway';
+import { SkillsService } from '@orientbot/agents';
 
 const logger = createDedicatedServiceLogger('whatsapp', {
   maxSize: '20m',

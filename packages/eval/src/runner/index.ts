@@ -4,7 +4,7 @@
  * Main orchestrator for running agent evaluations.
  */
 
-import { createServiceLogger } from '@orient/core';
+import { createServiceLogger } from '@orientbot/core';
 import { EvalServer, startEvalServer } from '../http-wrapper/server.js';
 import { AgentInvokeRequest } from '../http-wrapper/types.js';
 import { LLMJudge } from '../judge/index.js';

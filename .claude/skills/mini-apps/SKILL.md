@@ -714,7 +714,7 @@ Use better-sqlite3 for synchronous SQLite operations:
 
 ```typescript
 import Database from 'better-sqlite3';
-import { createServiceLogger } from '@orient/core';
+import { createServiceLogger } from '@orientbot/core';
 
 const logger = createServiceLogger('storage-db');
 
@@ -916,7 +916,7 @@ Here's the full pattern used by the storage capability:
 
 ```typescript
 import Database from 'better-sqlite3';
-import { createServiceLogger } from '@orient/core';
+import { createServiceLogger } from '@orientbot/core';
 
 const logger = createServiceLogger('storage-db');
 
@@ -1557,7 +1557,7 @@ Create a new file `myFeatureDatabase.ts`:
 
 ```typescript
 import Database from 'better-sqlite3';
-import { createServiceLogger } from '@orient/core';
+import { createServiceLogger } from '@orientbot/core';
 
 const logger = createServiceLogger('myfeature-db');
 
@@ -1782,4 +1782,4 @@ When adding a new bridge capability, ensure you have:
 - [ ] Added permission checking for the new capability
 - [ ] Written tests for database service and bridge API
 - [ ] Updated skill documentation with usage examples
-- [ ] Rebuilt the `@orient/apps` package (`pnpm --filter @orient/apps exec tsc`)
+- [ ] Rebuilt the `@orientbot/apps` package (`pnpm --filter @orientbot/apps exec tsc`)

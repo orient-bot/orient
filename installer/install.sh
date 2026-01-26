@@ -44,6 +44,22 @@ info() {
     echo -e "${BLUE}[orient]${NC} $1"
 }
 
+# Prompt user before installing a package
+prompt_install() {
+    local package_name=$1
+    local install_cmd=$2
+    echo ""
+    read -p "$(echo -e "${YELLOW}[orient]${NC}") $package_name is required. Install it? [Y/n] " response
+    case "$response" in
+        [nN])
+            error "Cannot proceed without $package_name"
+            ;;
+        *)
+            eval "$install_cmd"
+            ;;
+    esac
+}
+
 # ============================================
 # PREREQUISITE CHECKS
 # ============================================
@@ -67,10 +83,9 @@ check_prerequisites() {
     fi
     log "Node.js $(node -v) ✓"
 
-    # pnpm
+    # pnpm - PROMPT before install
     if ! command -v pnpm &>/dev/null; then
-        warn "pnpm not found. Installing..."
-        npm install -g pnpm
+        prompt_install "pnpm" "npm install -g pnpm"
     fi
     log "pnpm $(pnpm -v) ✓"
 
@@ -79,6 +94,41 @@ check_prerequisites() {
         error "git not found. Install with: brew install git"
     fi
     log "git ✓"
+}
+
+# ============================================
+# OPENCODE CHECK
+# ============================================
+
+check_opencode() {
+    local required_version=$(cat "$INSTALL_DIR/orient/installer/opencode-version.json" 2>/dev/null | grep '"required"' | cut -d'"' -f4)
+    required_version="${required_version:-1.1.27}"  # fallback
+
+    if command -v opencode &>/dev/null; then
+        local current_version=$(opencode --version 2>/dev/null | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')
+
+        if [[ "$current_version" == "$required_version" ]]; then
+            log "OpenCode $current_version ✓"
+        else
+            warn "OpenCode version mismatch: have $current_version, need $required_version"
+            echo ""
+            read -p "$(echo -e "${YELLOW}[orient]${NC}") Update OpenCode to $required_version? [Y/n] " response
+            if [[ "$response" != "n" && "$response" != "N" ]]; then
+                curl -fsSL https://opencode.ai/install.sh | bash
+            else
+                error "Orient requires OpenCode $required_version. Cannot proceed."
+            fi
+        fi
+    else
+        warn "OpenCode is not installed (required for AI features)"
+        echo ""
+        read -p "$(echo -e "${YELLOW}[orient]${NC}") Install OpenCode $required_version? (Required) [Y/n] " response
+        if [[ "$response" != "n" && "$response" != "N" ]]; then
+            curl -fsSL https://opencode.ai/install.sh | bash
+        else
+            error "Orient requires OpenCode. Cannot proceed."
+        fi
+    fi
 }
 
 # ============================================
@@ -110,11 +160,7 @@ install_orient() {
 
     # Build packages
     log "Building packages..."
-    pnpm run build
-
-    # Build dashboard frontend
-    log "Building dashboard..."
-    pnpm run dashboard:build
+    pnpm run build:all
 }
 
 # ============================================
@@ -140,12 +186,6 @@ configure_orient() {
     echo ""
     log "Let's configure Orient..."
     echo ""
-
-    # Prompt for Anthropic API key
-    read -p "Anthropic API key (required for AI features): " anthropic_key
-    if [[ -z "$anthropic_key" ]]; then
-        warn "No API key provided - AI features will not work until you add one"
-    fi
 
     # Write configuration
     cat > "$env_file" << EOF
@@ -194,9 +234,9 @@ DASHBOARD_PORT=4098
 BASE_URL=http://localhost:4098
 
 # =============================================================================
-# AI Provider
+# AI Provider (Configure via dashboard)
 # =============================================================================
-ANTHROPIC_API_KEY=$anthropic_key
+# ANTHROPIC_API_KEY=
 
 # =============================================================================
 # WhatsApp (optional)
@@ -220,10 +260,9 @@ EOF
 # ============================================
 
 setup_pm2() {
-    # Install PM2 if not present
+    # PM2 - PROMPT before install
     if ! command -v pm2 &>/dev/null; then
-        log "Installing PM2..."
-        npm install -g pm2
+        prompt_install "PM2 (process manager)" "npm install -g pm2"
     fi
     log "PM2 $(pm2 -v) ✓"
 
@@ -238,23 +277,21 @@ module.exports = {
     {
       name: 'orient',
       cwd: path.join(ORIENT_HOME, 'orient'),
-      script: 'dist/packages/dashboard/src/main.js',
+      script: 'packages/dashboard/dist/main.js',
       env_file: path.join(ORIENT_HOME, '.env'),
       error_file: path.join(ORIENT_HOME, 'logs/orient-error.log'),
       out_file: path.join(ORIENT_HOME, 'logs/orient-out.log'),
       max_memory_restart: '750M',
-      node_args: '--experimental-specifier-resolution=node',
       // Unified server handles Dashboard + WhatsApp on port 4098
     },
     {
       name: 'orient-slack',
       cwd: path.join(ORIENT_HOME, 'orient'),
-      script: 'dist/packages/bot-slack/src/main.js',
+      script: 'packages/bot-slack/dist/main.js',
       env_file: path.join(ORIENT_HOME, '.env'),
       error_file: path.join(ORIENT_HOME, 'logs/slack-error.log'),
       out_file: path.join(ORIENT_HOME, 'logs/slack-out.log'),
       max_memory_restart: '500M',
-      node_args: '--experimental-specifier-resolution=node',
       autorestart: false,  // Don't auto-restart Slack bot (optional service)
     },
   ],
@@ -395,21 +432,62 @@ case "$1" in
         git checkout main
         git pull origin main
         pnpm install --frozen-lockfile
-        pnpm run build
-        pnpm run dashboard:build
+        pnpm run build:all
         echo -e "${GREEN}Upgrade complete. Run 'orient restart' to apply changes.${NC}"
         ;;
     uninstall)
-        echo -e "${RED}This will remove Orient and all data. Are you sure?${NC}"
-        read -p "Type 'yes' to confirm: " confirm
-        if [[ "$confirm" == "yes" ]]; then
-            pm2 stop all 2>/dev/null || true
-            pm2 delete all 2>/dev/null || true
-            rm -rf "$ORIENT_HOME"
-            echo -e "${GREEN}Orient has been uninstalled.${NC}"
-        else
-            echo "Uninstall cancelled."
+        KEEP_DATA=false
+        FORCE=false
+        shift
+        while [[ $# -gt 0 ]]; do
+            case "$1" in
+                --keep-data) KEEP_DATA=true ;;
+                --force) FORCE=true ;;
+            esac
+            shift
+        done
+
+        if [[ "$FORCE" != "true" ]]; then
+            if [[ "$KEEP_DATA" == "true" ]]; then
+                echo -e "${YELLOW}This will remove Orient but keep your data and configuration.${NC}"
+            else
+                echo -e "${RED}This will remove Orient and ALL data. Are you sure?${NC}"
+            fi
+            read -p "Type 'yes' to confirm: " confirm
+            if [[ "$confirm" != "yes" ]]; then
+                echo "Uninstall cancelled."
+                exit 0
+            fi
         fi
+
+        # Stop PM2 processes
+        pm2 stop all 2>/dev/null || true
+        pm2 delete all 2>/dev/null || true
+
+        if [[ "$KEEP_DATA" == "true" ]]; then
+            # Keep data - only remove code and binaries
+            echo -e "${YELLOW}Removing Orient but preserving data...${NC}"
+            rm -rf "$ORIENT_HOME/orient"
+            rm -rf "$ORIENT_HOME/bin"
+            rm -rf "$ORIENT_HOME/logs"
+            rm -f "$ORIENT_HOME/ecosystem.config.cjs"
+            rm -f "$ORIENT_HOME/.orient-version"
+            echo -e "${GREEN}Orient has been uninstalled. Data preserved in $ORIENT_HOME/data${NC}"
+        else
+            # Full wipe
+            rm -rf "$ORIENT_HOME"
+            echo -e "${GREEN}Orient has been completely uninstalled.${NC}"
+        fi
+
+        # Clean shell profile
+        for rc_file in "$HOME/.zshrc" "$HOME/.bashrc" "$HOME/.profile"; do
+            if [[ -f "$rc_file" ]]; then
+                # Remove Orient PATH additions (create backup first)
+                sed -i.bak '/# Orient/d' "$rc_file" 2>/dev/null || true
+                sed -i.bak '/ORIENT_HOME/d' "$rc_file" 2>/dev/null || true
+                rm -f "${rc_file}.bak"
+            fi
+        done
         ;;
     version)
         if [[ -f "$ORIENT_HOME/.orient-version" ]]; then
@@ -433,6 +511,8 @@ case "$1" in
         echo "  config     Edit configuration"
         echo "  upgrade    Update to latest version"
         echo "  uninstall  Remove Orient installation"
+        echo "             --keep-data  Preserve database and config"
+        echo "             --force      Skip confirmation prompts"
         echo "  version    Show installed version"
         echo ""
         echo "Services:"
@@ -484,11 +564,11 @@ initialize_database() {
 
         # Push schema to SQLite
         log "Creating SQLite schema..."
-        pnpm --filter @orient/database run db:push:sqlite 2>/dev/null || warn "Schema push skipped (may already exist)"
+        pnpm --filter @orientbot/database run db:push:sqlite 2>/dev/null || warn "Schema push skipped (may already exist)"
     else
         # PostgreSQL migration
         log "Running PostgreSQL migrations..."
-        pnpm --filter @orient/database run db:push 2>/dev/null || warn "Migration skipped (may already exist)"
+        pnpm --filter @orientbot/database run db:push 2>/dev/null || warn "Migration skipped (may already exist)"
     fi
 }
 
@@ -514,6 +594,7 @@ main() {
 
     check_prerequisites
     install_orient
+    check_opencode
     configure_orient
     setup_pm2
     setup_cli
@@ -544,6 +625,25 @@ main() {
     echo "    orient doctor      # Run diagnostics"
     echo "    orient config      # Edit configuration"
     echo ""
+
+    # Source the shell profile to make orient command available
+    export PATH="$INSTALL_DIR/bin:$PATH"
+
+    # Start services
+    log "Starting Orient services..."
+    "$INSTALL_DIR/bin/orient" start
+
+    # Wait for server to be ready
+    log "Waiting for dashboard to start..."
+    sleep 3
+
+    # Auto-open browser
+    log "Opening browser for configuration..."
+    if command -v open &>/dev/null; then
+        open "http://localhost:4098"
+    elif command -v xdg-open &>/dev/null; then
+        xdg-open "http://localhost:4098"
+    fi
 }
 
 # Run main function

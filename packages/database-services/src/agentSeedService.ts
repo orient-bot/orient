@@ -5,8 +5,15 @@
  * Only seeds if no agents exist (unless force is specified).
  */
 
-import { getDatabase, eq, agents, agentSkills, agentTools, contextRules } from '@orient/database';
-import { createServiceLogger } from '@orient/core';
+import {
+  getDatabase,
+  eq,
+  agents,
+  agentSkills,
+  agentTools,
+  contextRules,
+} from '@orientbot/database';
+import { createServiceLogger } from '@orientbot/core';
 
 const logger = createServiceLogger('agent-seed');
 

@@ -12,7 +12,7 @@
  *   eval "$(npx tsx scripts/load-secrets.ts --category slack)"
  */
 
-import { createSecretsService } from '@orient/database-services';
+import { createSecretsService } from '@orientbot/database-services';
 
 async function loadSecrets() {
   const category = process.argv.includes('--category')

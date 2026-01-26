@@ -4,7 +4,7 @@
  * Executes confirmed agent configuration actions.
  */
 
-import { createServiceLogger } from '@orient/core';
+import { createServiceLogger } from '@orientbot/core';
 import { getPendingActionsStore } from '../pending-store.js';
 import type { PendingAction, ActionExecutionResult } from '../pending-store.js';
 
@@ -21,7 +21,7 @@ async function executeAgentAction(action: PendingAction): Promise<ActionExecutio
   });
 
   try {
-    const { getDatabase, agents, eq } = await import('@orient/database');
+    const { getDatabase, agents, eq } = await import('@orientbot/database');
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const db = (await getDatabase()) as any;
 

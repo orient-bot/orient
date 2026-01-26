@@ -11,14 +11,14 @@
  * - Tracks pairing state to prevent duplicate requests
  * - Persists state to database for recovery after restarts
  *
- * Exported via @orient/bot-whatsapp package.
+ * Exported via @orientbot/bot-whatsapp package.
  */
 
 import { EventEmitter } from 'events';
 import { WebClient } from '@slack/web-api';
 import { WhatsAppService } from './whatsappService.js';
-import { MessageDatabase } from '@orient/database-services';
-import { createDedicatedServiceLogger } from '@orient/core';
+import { MessageDatabase } from '@orientbot/database-services';
+import { createDedicatedServiceLogger } from '@orientbot/core';
 
 const logger = createDedicatedServiceLogger('whatsapp-health', {
   maxSize: '10m',

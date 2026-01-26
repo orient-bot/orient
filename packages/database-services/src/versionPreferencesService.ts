@@ -5,9 +5,9 @@
  * Handles notification settings, dismissed versions, and remind-later timestamps.
  */
 
-import { createServiceLogger } from '@orient/core';
-import { getDatabase, eq, and, lt, schema, sql } from '@orient/database';
-import type { Database } from '@orient/database';
+import { createServiceLogger } from '@orientbot/core';
+import { getDatabase, eq, and, lt, schema, sql } from '@orientbot/database';
+import type { Database } from '@orientbot/database';
 
 const logger = createServiceLogger('version-preferences-service');
 

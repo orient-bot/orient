@@ -4,13 +4,13 @@
  * Handles audio transcription with support for multiple languages,
  * including Hebrew and English.
  *
- * Exported via @orient/bot-whatsapp package.
+ * Exported via @orientbot/bot-whatsapp package.
  */
 
 import fs from 'fs';
 import path from 'path';
-import { createServiceLogger } from '@orient/core';
-import { getEnvWithSecrets } from '@orient/core';
+import { createServiceLogger } from '@orientbot/core';
+import { getEnvWithSecrets } from '@orientbot/core';
 
 const logger = createServiceLogger('transcription');
 

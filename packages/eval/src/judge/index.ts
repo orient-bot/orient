@@ -5,7 +5,7 @@
  */
 
 import Anthropic from '@anthropic-ai/sdk';
-import { createServiceLogger } from '@orient/core';
+import { createServiceLogger } from '@orientbot/core';
 import { JudgeConfig, JudgeScore, LLMJudgeConfig, ToolCall } from '../types.js';
 import { buildJudgePrompt, parseJudgeResponse } from './prompts.js';
 

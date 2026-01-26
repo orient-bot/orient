@@ -225,7 +225,7 @@ test_initialize_database() {
     mkdir -p "$(dirname "$SQLITE_DATABASE")"
 
     # Try to push schema
-    if pnpm --filter @orient/database run db:push:sqlite 2>&1; then
+    if pnpm --filter @orientbot/database run db:push:sqlite 2>&1; then
         success "SQLite schema created"
     else
         warn "Schema push had issues (may be expected if schema already exists)"

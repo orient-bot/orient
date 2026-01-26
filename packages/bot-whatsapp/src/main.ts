@@ -13,13 +13,13 @@ import {
   getConfig,
   setSecretOverrides,
   startConfigPoller,
-} from '@orient/core';
+} from '@orientbot/core';
 import {
   createSecretsService,
   MessageDatabase,
   createChatPermissionService,
-} from '@orient/database-services';
-import { createOpenCodeClient } from '@orient/agents';
+} from '@orientbot/database-services';
+import { createOpenCodeClient } from '@orientbot/agents';
 import { downloadMediaMessage } from 'baileys';
 import { TranscriptionService } from './services/index.js';
 import type { WhatsAppBotConfig } from './types.js';

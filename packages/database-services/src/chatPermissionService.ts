@@ -20,7 +20,7 @@
  * - checkWritePermission(): For outgoing messages - strict database check only
  */
 
-import { createServiceLogger } from '@orient/core';
+import { createServiceLogger } from '@orientbot/core';
 import type { ChatPermission, ChatType, ChatPermissionRecord } from './types/index.js';
 
 const logger = createServiceLogger('chat-permission');
