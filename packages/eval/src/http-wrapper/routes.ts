@@ -28,7 +28,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 // OpenCode server configuration
 const OPENCODE_BASE_URL = process.env.OPENCODE_URL || 'http://localhost:4099';
-const OPENCODE_DEFAULT_MODEL = process.env.OPENCODE_MODEL || 'opencode/grok-code'; // Free Grok model
+const OPENCODE_DEFAULT_MODEL = process.env.OPENCODE_MODEL || 'openai/gpt-4o-mini'; // Free Grok model
 
 const logger = createServiceLogger('eval-routes');
 

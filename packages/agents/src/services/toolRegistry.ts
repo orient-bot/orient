@@ -2542,7 +2542,7 @@ function registerConfigTools(registry: ToolRegistry): void {
           },
           model_default: {
             type: 'string',
-            description: 'Default model ID (e.g., opencode/grok-code, anthropic/claude-sonnet-4)',
+            description: 'Default model ID (e.g., openai/gpt-4o-mini, anthropic/claude-sonnet-4)',
           },
           model_fallback: {
             type: 'string',

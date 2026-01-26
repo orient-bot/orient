@@ -179,7 +179,7 @@ export async function initializeWhatsAppIntegration(): Promise<WhatsAppIntegrati
     process.env.OPENCODE_URL || `http://localhost:${process.env.OPENCODE_PORT || 4099}`;
 
   // Initialize OpenCode client
-  const openCodeClient = createOpenCodeClient(openCodeUrl, 'opencode/grok-code');
+  const openCodeClient = createOpenCodeClient(openCodeUrl, 'openai/gpt-4o-mini');
   logger.info('OpenCode client initialized', { url: openCodeUrl });
 
   // Initialize transcription service

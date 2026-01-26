@@ -124,6 +124,46 @@ The CI pipeline automatically:
 
 ## Troubleshooting
 
+### "Directory does not exist" error
+
+When running `db:push:sqlite`, you may see:
+
+```
+TypeError: Cannot open database because the directory does not exist
+```
+
+**Cause:** Drizzle uses a relative path (`./data/orient.db`) but runs from the package directory.
+
+**Solution:** Use the `SQLITE_DATABASE` env var with the full path:
+
+```bash
+# From packages/database directory
+cd packages/database
+SQLITE_DATABASE="$HOME/.orient/orient/data/orient.db" pnpm run db:push:sqlite
+
+# Or from monorepo root
+SQLITE_DATABASE="/full/path/to/orient.db" pnpm --filter @orientbot/database run db:push:sqlite
+```
+
+### "No such table" error at runtime
+
+The database file exists but tables weren't created:
+
+```
+SqliteError: no such table: slack_channel_permissions
+```
+
+**Solution:** Push the schema to create all tables:
+
+```bash
+# Ensure database directory exists
+mkdir -p ~/.orient/orient/data
+
+# Push schema with explicit path
+SQLITE_DATABASE="$HOME/.orient/orient/data/orient.db" \
+  pnpm --filter @orientbot/database run db:push:sqlite
+```
+
 ### "Table already exists" error
 
 SQLite schema push is idempotent. If this happens:
@@ -144,6 +184,20 @@ Schema mismatch between code and database:
 - Schema may not be pushing in CI
 - Check `.github/workflows/test.yml` for schema push step
 - Ensure schema files are committed to git
+
+### PM2 processes missing environment variables
+
+When services like OpenCode or Slack bot fail because they can't find API keys:
+
+```bash
+# Restart with environment from .env file
+cd ~/.orient/orient
+export OPENAI_API_KEY=$(grep OPENAI_API_KEY .env | cut -d= -f2)
+export ANTHROPIC_API_KEY=$(grep ANTHROPIC_API_KEY .env | cut -d= -f2)
+pm2 restart orient-opencode orient-slack --update-env
+```
+
+**Note:** `--update-env` tells PM2 to capture the current shell environment.
 
 ## Worktree Database Setup
 
