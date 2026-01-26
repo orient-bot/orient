@@ -79,6 +79,19 @@ check_prerequisites() {
         npm install -g pm2
     fi
     log "PM2 $(pm2 -v) ✓"
+
+    # OpenCode CLI (for AI agent capabilities)
+    if ! command -v opencode &>/dev/null; then
+        # Check common installation locations
+        if [[ -x "$HOME/.opencode/bin/opencode" ]]; then
+            log "OpenCode found at ~/.opencode/bin/opencode ✓"
+        else
+            warn "OpenCode CLI not found. AI agent features will be disabled."
+            warn "Install with: curl -fsSL https://opencode.ai/install.sh | bash"
+        fi
+    else
+        log "OpenCode $(opencode --version 2>/dev/null || echo 'installed') ✓"
+    fi
 }
 
 # ============================================
@@ -93,12 +106,20 @@ install_orient() {
     # Create directory structure
     mkdir -p "$INSTALL_DIR"/{data/sqlite,data/media,data/whatsapp-auth,logs,bin}
 
-    # Build source first (if not already built)
-    if [[ ! -d "$SOURCE_DIR/packages/dashboard/dist" ]]; then
-        log "Building source packages first..."
-        cd "$SOURCE_DIR"
-        pnpm run build:all
-    fi
+    # Clean and rebuild to ensure fresh builds with correct imports
+    log "Cleaning previous builds..."
+    cd "$SOURCE_DIR"
+    # Remove all dist folders, tsbuildinfo files, and turbo cache to ensure clean build
+    find packages -name "dist" -type d -maxdepth 2 -exec rm -rf {} + 2>/dev/null || true
+    find packages -name "tsconfig.tsbuildinfo" -type f -delete 2>/dev/null || true
+    rm -rf .turbo node_modules/.cache 2>/dev/null || true
+
+    # Ensure workspace symlinks are set up before building
+    log "Setting up workspace dependencies..."
+    pnpm install --reporter=silent 2>/dev/null || pnpm install
+
+    log "Building packages (this may take a moment)..."
+    pnpm run build:all
 
     # Copy from local source (including dist, excluding node_modules)
     log "Copying source files..."
@@ -155,6 +176,9 @@ DASHBOARD_JWT_SECRET=$jwt_secret
 # Dashboard
 DASHBOARD_PORT=4098
 BASE_URL=http://localhost:4098
+
+# OpenCode (AI Agent Server)
+OPENCODE_PORT=4099
 EOF
 
     chmod 600 "$env_file"
@@ -166,9 +190,20 @@ EOF
 # ============================================
 
 setup_pm2() {
-    cat > "$INSTALL_DIR/ecosystem.config.cjs" << 'ECOSYSTEM'
+    # Find opencode binary path
+    local opencode_bin=""
+    if command -v opencode &>/dev/null; then
+        opencode_bin=$(which opencode)
+    elif [[ -x "$HOME/.opencode/bin/opencode" ]]; then
+        opencode_bin="$HOME/.opencode/bin/opencode"
+    fi
+
+    cat > "$INSTALL_DIR/ecosystem.config.cjs" << ECOSYSTEM
 const path = require('path');
-const ORIENT_HOME = process.env.ORIENT_HOME || `${process.env.HOME}/.orient`;
+const ORIENT_HOME = process.env.ORIENT_HOME || \`\${process.env.HOME}/.orient\`;
+
+// OpenCode binary location (detected during install)
+const OPENCODE_BIN = '${opencode_bin}' || process.env.HOME + '/.opencode/bin/opencode';
 
 module.exports = {
   apps: [
@@ -181,11 +216,37 @@ module.exports = {
       out_file: path.join(ORIENT_HOME, 'logs/orient-out.log'),
       max_memory_restart: '750M',
     },
+    {
+      name: 'orient-opencode',
+      script: OPENCODE_BIN,
+      args: 'serve --port 4099 --hostname 0.0.0.0',
+      cwd: path.join(ORIENT_HOME, 'orient'),
+      env_file: path.join(ORIENT_HOME, '.env'),
+      error_file: path.join(ORIENT_HOME, 'logs/opencode-error.log'),
+      out_file: path.join(ORIENT_HOME, 'logs/opencode-out.log'),
+      max_memory_restart: '500M',
+      env: {
+        OPENCODE_CONFIG: path.join(ORIENT_HOME, 'orient', 'opencode.json'),
+      },
+    },
+    {
+      name: 'orient-slack',
+      cwd: path.join(ORIENT_HOME, 'orient'),
+      script: 'packages/bot-slack/dist/main.js',
+      env_file: path.join(ORIENT_HOME, '.env'),
+      error_file: path.join(ORIENT_HOME, 'logs/slack-error.log'),
+      out_file: path.join(ORIENT_HOME, 'logs/slack-out.log'),
+      max_memory_restart: '500M',
+      autorestart: false, // Don't auto-restart if not configured
+      env: {
+        OPENCODE_URL: 'http://localhost:4099',
+      },
+    },
   ],
 };
 ECOSYSTEM
 
-    log "PM2 configuration created ✓"
+    log "PM2 configuration created (Dashboard + OpenCode + Slack) ✓"
 }
 
 # ============================================
@@ -216,29 +277,50 @@ case "$1" in
         echo -e "${GREEN}Starting Orient...${NC}"
         pm2 start "$ORIENT_HOME/ecosystem.config.cjs" --silent
         pm2 save --silent
-        sleep 2
-        # Check if actually running
-        if pm2 jlist 2>/dev/null | grep -q '"status":"online"'; then
-            echo ""
-            echo -e "${GREEN}✓ Orient is running${NC}"
-            echo ""
-            echo "  Dashboard:  http://localhost:4098"
-            echo "  WhatsApp:   http://localhost:4098/qr"
-            echo ""
+        sleep 3
+        # Check if services are running using simpler pattern
+        pm2_output=$(pm2 jlist 2>/dev/null)
+        dashboard_online=$(echo "$pm2_output" | grep -c '"name":"orient",".*"status":"online"' || true)
+        opencode_online=$(echo "$pm2_output" | grep -c '"name":"orient-opencode",".*"status":"online"' || true)
+        opencode_exists=$(echo "$pm2_output" | grep -c '"name":"orient-opencode"' || true)
+
+        echo ""
+        if [[ "$dashboard_online" -gt 0 ]] || curl -s http://localhost:${DASHBOARD_PORT:-4098}/health &>/dev/null; then
+            echo -e "${GREEN}✓ Dashboard is running${NC}"
         else
-            echo -e "${RED}✗ Orient failed to start${NC}"
+            echo -e "${RED}✗ Dashboard failed to start${NC}"
+        fi
+
+        if [[ "$opencode_online" -gt 0 ]] || curl -s http://localhost:${OPENCODE_PORT:-4099}/global/health &>/dev/null; then
+            echo -e "${GREEN}✓ OpenCode is running${NC}"
+        elif [[ "$opencode_exists" -eq 0 ]]; then
+            echo -e "${YELLOW}○ OpenCode not configured${NC}"
+        else
+            echo -e "${RED}✗ OpenCode failed to start${NC}"
+        fi
+
+        echo ""
+        echo "  Dashboard:  http://localhost:${DASHBOARD_PORT:-4098}"
+        echo "  WhatsApp:   http://localhost:${DASHBOARD_PORT:-4098}/qr"
+        echo "  OpenCode:   http://localhost:${OPENCODE_PORT:-4099}"
+        echo ""
+
+        # Check if dashboard health endpoint works
+        if ! curl -s http://localhost:${DASHBOARD_PORT:-4098}/health &>/dev/null; then
             echo "  Run 'orient logs' to see what went wrong"
         fi
         ;;
     stop)
         echo -e "${YELLOW}Stopping Orient...${NC}"
         pm2 stop orient --silent 2>/dev/null || true
+        pm2 stop orient-opencode --silent 2>/dev/null || true
         echo -e "${GREEN}✓ Orient stopped${NC}"
         ;;
     restart)
         echo -e "${GREEN}Restarting Orient...${NC}"
         pm2 restart orient --silent 2>/dev/null
-        sleep 2
+        pm2 restart orient-opencode --silent 2>/dev/null || true
+        sleep 3
         if pm2 jlist 2>/dev/null | grep -q '"status":"online"'; then
             echo -e "${GREEN}✓ Orient restarted${NC}"
         else
@@ -250,7 +332,14 @@ case "$1" in
         pm2 status
         ;;
     logs)
-        pm2 logs orient ${@:2}
+        if [[ "$2" == "opencode" ]]; then
+            pm2 logs orient-opencode ${@:3}
+        elif [[ "$2" == "dashboard" ]]; then
+            pm2 logs orient ${@:3}
+        else
+            # Show all Orient logs by default
+            pm2 logs orient orient-opencode ${@:2}
+        fi
         ;;
     doctor)
         echo -e "${GREEN}Orient Diagnostics${NC}"
@@ -259,21 +348,46 @@ case "$1" in
         echo "  Node.js: $(node -v)"
         echo "  pnpm: $(pnpm -v)"
         echo "  PM2: $(pm2 -v)"
+        if command -v opencode &>/dev/null; then
+            echo "  OpenCode: $(opencode --version 2>/dev/null || echo 'installed')"
+        elif [[ -x "$HOME/.opencode/bin/opencode" ]]; then
+            echo "  OpenCode: installed (at ~/.opencode/bin/opencode)"
+        else
+            echo "  OpenCode: not installed"
+        fi
         echo ""
         echo "Configuration:"
         echo "  ORIENT_HOME: $ORIENT_HOME"
         echo "  Database: ${DATABASE_TYPE:-sqlite}"
         echo "  Dashboard: http://localhost:${DASHBOARD_PORT:-4098}"
+        echo "  OpenCode: http://localhost:${OPENCODE_PORT:-4099}"
         echo ""
         echo "Services:"
         pm2 jlist 2>/dev/null | node -e "
             const data = JSON.parse(require('fs').readFileSync('/dev/stdin', 'utf8'));
-            data.forEach(p => {
-                const status = p.pm2_env.status;
-                const color = status === 'online' ? '\\x1b[32m' : '\\x1b[31m';
-                console.log('  ' + p.name + ': ' + color + status + '\\x1b[0m');
-            });
+            const orientApps = data.filter(p => p.name.startsWith('orient'));
+            if (orientApps.length === 0) {
+                console.log('  No Orient services running');
+            } else {
+                orientApps.forEach(p => {
+                    const status = p.pm2_env.status;
+                    const color = status === 'online' ? '\\x1b[32m' : '\\x1b[31m';
+                    console.log('  ' + p.name + ': ' + color + status + '\\x1b[0m');
+                });
+            }
         " 2>/dev/null || echo "  No services running"
+        echo ""
+        echo "Health checks:"
+        if curl -s http://localhost:${DASHBOARD_PORT:-4098}/health &>/dev/null; then
+            echo -e "  Dashboard: ${GREEN}healthy${NC}"
+        else
+            echo -e "  Dashboard: ${RED}not responding${NC}"
+        fi
+        if curl -s http://localhost:${OPENCODE_PORT:-4099}/global/health &>/dev/null; then
+            echo -e "  OpenCode: ${GREEN}healthy${NC}"
+        else
+            echo -e "  OpenCode: ${RED}not responding${NC}"
+        fi
         ;;
     config)
         ${EDITOR:-nano} "$ORIENT_HOME/.env"
@@ -311,7 +425,9 @@ case "$1" in
         echo ""
         echo -e "${YELLOW}Stopping services...${NC}"
         pm2 stop orient --silent 2>/dev/null || true
+        pm2 stop orient-opencode --silent 2>/dev/null || true
         pm2 delete orient --silent 2>/dev/null || true
+        pm2 delete orient-opencode --silent 2>/dev/null || true
 
         if [[ "$KEEP_DATA" == "true" ]]; then
             echo -e "${YELLOW}Removing Orient (keeping data)...${NC}"
@@ -348,11 +464,13 @@ case "$1" in
         echo "Usage: orient <command>"
         echo ""
         echo "Commands:"
-        echo "  start       Start Orient services"
+        echo "  start       Start Orient services (Dashboard + OpenCode)"
         echo "  stop        Stop Orient services"
         echo "  restart     Restart Orient services"
         echo "  status      Show service status"
-        echo "  logs        View logs"
+        echo "  logs        View all logs"
+        echo "  logs dashboard  View Dashboard logs only"
+        echo "  logs opencode   View OpenCode logs only"
         echo "  doctor      Run diagnostics"
         echo "  config      Edit configuration"
         echo "  version     Show installed version"
@@ -360,7 +478,9 @@ case "$1" in
         echo "              --keep-data  Keep database and config"
         echo "              --force      Skip confirmation"
         echo ""
-        echo "Dashboard: http://localhost:4098"
+        echo "Services:"
+        echo "  Dashboard:  http://localhost:4098"
+        echo "  OpenCode:   http://localhost:4099"
         echo ""
         ;;
 esac

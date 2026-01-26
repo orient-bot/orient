@@ -1000,7 +1000,7 @@ npx vitest run tests/e2e/session-commands.e2e.test.ts
 | Setting       | Value                 | Notes                                     |
 | ------------- | --------------------- | ----------------------------------------- |
 | OpenCode Port | `4099`                | Dev environment uses port 4099 (not 4096) |
-| Default Model | `opencode/grok-code`  | Uses OpenCode Zen proxy (FREE tier)       |
+| Default Model | `openai/gpt-4o-mini`  | Uses OpenCode Zen proxy (FREE tier)       |
 | Config File   | `opencode.local.json` | Contains model and MCP server settings    |
 
 ### Available Test Files
@@ -1064,7 +1064,7 @@ describe('My OpenCode E2E Tests', () => {
    - The standalone `opencode serve` uses port 4096 by default, but tests expect 4099
 
 2. **Model not found errors** (ProviderModelNotFoundError)
-   - Ensure using `opencode/grok-code` model format (not `grok-code` or `xai/grok-code`)
+   - Ensure using `openai/gpt-4o-mini` model format (not `grok-code` or `xai/grok-code`)
    - This routes through OpenCode Zen proxy which provides free access
 
 3. **Malformed JSON errors on summarize**
@@ -1072,7 +1072,7 @@ describe('My OpenCode E2E Tests', () => {
 
 4. **Streaming response parse errors**
    - Check model configuration - some models return streaming responses
-   - The `opencode/grok-code` model returns proper JSON responses
+   - The `openai/gpt-4o-mini` model returns proper JSON responses
 
 ## Turborepo Caching
 

@@ -225,7 +225,7 @@ async function main(): Promise<void> {
       process.env.OPENCODE_URL || `http://localhost:${process.env.OPENCODE_PORT || 4099}`;
 
     // Initialize OpenCode client for AI processing
-    const openCodeClient = createOpenCodeClient(openCodeUrl, 'opencode/grok-code');
+    const openCodeClient = createOpenCodeClient(openCodeUrl, 'openai/gpt-4o-mini');
     logger.info('OpenCode client initialized', { url: openCodeUrl });
 
     // Initialize transcription service for audio messages

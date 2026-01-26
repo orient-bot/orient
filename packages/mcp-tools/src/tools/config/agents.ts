@@ -35,7 +35,7 @@ export const configUpdateAgent: MCPTool = createTool({
     model_default: z
       .string()
       .optional()
-      .describe('Default model ID (e.g., opencode/grok-code, anthropic/claude-sonnet-4)'),
+      .describe('Default model ID (e.g., openai/gpt-4o-mini, anthropic/claude-sonnet-4)'),
     model_fallback: z.string().optional().describe('Fallback model if default fails'),
   }),
   keywords: ['agent', 'configure', 'update', 'enable', 'disable', 'model', 'prompt'],

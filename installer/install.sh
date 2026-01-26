@@ -266,11 +266,27 @@ setup_pm2() {
     fi
     log "PM2 $(pm2 -v) ✓"
 
+    # Check for OpenCode CLI
+    local opencode_bin=""
+    if command -v opencode &>/dev/null; then
+        opencode_bin=$(which opencode)
+        log "OpenCode CLI found ✓"
+    elif [[ -x "$HOME/.opencode/bin/opencode" ]]; then
+        opencode_bin="$HOME/.opencode/bin/opencode"
+        log "OpenCode CLI found at ~/.opencode/bin ✓"
+    else
+        warn "OpenCode CLI not found. AI agent features will be disabled."
+        warn "Install with: curl -fsSL https://opencode.ai/install.sh | bash"
+    fi
+
     # Create PM2 ecosystem configuration
     # Unified server: Dashboard handles both Dashboard API and WhatsApp endpoints
-    cat > "$INSTALL_DIR/ecosystem.config.cjs" << 'ECOSYSTEM'
+    cat > "$INSTALL_DIR/ecosystem.config.cjs" << ECOSYSTEM
 const path = require('path');
-const ORIENT_HOME = process.env.ORIENT_HOME || `${process.env.HOME}/.orient`;
+const ORIENT_HOME = process.env.ORIENT_HOME || \`\${process.env.HOME}/.orient\`;
+
+// OpenCode binary location (detected during install)
+const OPENCODE_BIN = '${opencode_bin}' || process.env.HOME + '/.opencode/bin/opencode';
 
 module.exports = {
   apps: [
@@ -283,6 +299,19 @@ module.exports = {
       out_file: path.join(ORIENT_HOME, 'logs/orient-out.log'),
       max_memory_restart: '750M',
       // Unified server handles Dashboard + WhatsApp on port 4098
+    },
+    {
+      name: 'orient-opencode',
+      script: OPENCODE_BIN,
+      args: 'serve --port 4099 --hostname 0.0.0.0',
+      cwd: path.join(ORIENT_HOME, 'orient'),
+      env_file: path.join(ORIENT_HOME, '.env'),
+      error_file: path.join(ORIENT_HOME, 'logs/opencode-error.log'),
+      out_file: path.join(ORIENT_HOME, 'logs/opencode-out.log'),
+      max_memory_restart: '500M',
+      env: {
+        OPENCODE_CONFIG: path.join(ORIENT_HOME, 'orient', 'opencode.json'),
+      },
     },
     {
       name: 'orient-slack',
@@ -298,7 +327,7 @@ module.exports = {
 };
 ECOSYSTEM
 
-    log "PM2 ecosystem configuration created"
+    log "PM2 ecosystem configuration created (Dashboard + OpenCode + Slack)"
 }
 
 # ============================================
