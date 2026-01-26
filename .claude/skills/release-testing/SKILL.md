@@ -81,9 +81,18 @@ INTEGRATION_TESTS=true pnpm test:integration
 # Without API key (graceful skip)
 pnpm test:eval  # Should pass with skip message
 
-# With API key (actual evals)
-ANTHROPIC_API_KEY=xxx pnpm test:eval  # Runs 5 tool-selection evals
+# With dev server running (full eval infrastructure test)
+./run.sh dev start
+ANTHROPIC_API_KEY=xxx pnpm test:eval
+./run.sh dev stop
 ```
+
+**Requirements**:
+
+1. `ANTHROPIC_API_KEY` environment variable
+2. Dev server running (`./run.sh dev start`) for OpenCode at localhost:4099
+
+**Known Limitation**: The eval/OpenCode agent routing integration needs work. The eval infrastructure (loading, filtering, running) works correctly, but actual agent invocations through OpenCode may fail with session errors. Test will pass while logging a warning about this.
 
 ## Success Criteria
 
