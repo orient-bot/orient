@@ -1,17 +1,17 @@
 #!/bin/bash
 #
-# Orient One-Line Installer for macOS
+# Orient Local Installer (for testing)
 #
-# Usage: curl -fsSL https://orient.bot/install.sh | bash
+# Usage: ./installer/install-local.sh
 #
-# This script installs Orient with:
-# - SQLite as the default database (PostgreSQL optional)
-# - Local filesystem for media storage
-# - PM2 for process management
-# - Full stack: WhatsApp, Slack, Dashboard, API Gateway
+# This version copies from local source instead of cloning from GitHub.
 #
 
 set -e
+
+# Get the directory where this script is located
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SOURCE_DIR="$(dirname "$SCRIPT_DIR")"
 
 # Version
 ORIENT_VERSION="0.2.0"
@@ -44,22 +44,6 @@ info() {
     echo -e "${BLUE}[orient]${NC} $1"
 }
 
-# Prompt user before installing a package
-prompt_install() {
-    local package_name=$1
-    local install_cmd=$2
-    echo ""
-    read -p "$(echo -e "${YELLOW}[orient]${NC}") $package_name is required. Install it? [Y/n] " response
-    case "$response" in
-        [nN])
-            error "Cannot proceed without $package_name"
-            ;;
-        *)
-            eval "$install_cmd"
-            ;;
-    esac
-}
-
 # ============================================
 # PREREQUISITE CHECKS
 # ============================================
@@ -69,7 +53,7 @@ check_prerequisites() {
 
     # macOS only
     if [[ "$(uname)" != "Darwin" ]]; then
-        error "This installer is for macOS only. For other platforms, please see the documentation."
+        error "This installer is for macOS only."
     fi
 
     # Node.js 20+
@@ -79,88 +63,56 @@ check_prerequisites() {
 
     local node_version=$(node -v | cut -d. -f1 | tr -d 'v')
     if [[ "$node_version" -lt 20 ]]; then
-        error "Node.js 20+ required (found: $(node -v)). Upgrade with: brew install node@20"
+        error "Node.js 20+ required (found: $(node -v))"
     fi
     log "Node.js $(node -v) ✓"
 
-    # pnpm - PROMPT before install
+    # pnpm
     if ! command -v pnpm &>/dev/null; then
-        prompt_install "pnpm" "npm install -g pnpm"
+        error "pnpm not found. Install with: npm install -g pnpm"
     fi
     log "pnpm $(pnpm -v) ✓"
 
-    # git
-    if ! command -v git &>/dev/null; then
-        error "git not found. Install with: brew install git"
+    # PM2
+    if ! command -v pm2 &>/dev/null; then
+        log "Installing PM2..."
+        npm install -g pm2
     fi
-    log "git ✓"
+    log "PM2 $(pm2 -v) ✓"
 }
 
 # ============================================
-# OPENCODE CHECK
-# ============================================
-
-check_opencode() {
-    local required_version=$(cat "$INSTALL_DIR/orient/installer/opencode-version.json" 2>/dev/null | grep '"required"' | cut -d'"' -f4)
-    required_version="${required_version:-1.1.27}"  # fallback
-
-    if command -v opencode &>/dev/null; then
-        local current_version=$(opencode --version 2>/dev/null | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')
-
-        if [[ "$current_version" == "$required_version" ]]; then
-            log "OpenCode $current_version ✓"
-        else
-            warn "OpenCode version mismatch: have $current_version, need $required_version"
-            echo ""
-            read -p "$(echo -e "${YELLOW}[orient]${NC}") Update OpenCode to $required_version? [Y/n] " response
-            if [[ "$response" != "n" && "$response" != "N" ]]; then
-                curl -fsSL https://opencode.ai/install.sh | bash
-            else
-                error "Orient requires OpenCode $required_version. Cannot proceed."
-            fi
-        fi
-    else
-        warn "OpenCode is not installed (required for AI features)"
-        echo ""
-        read -p "$(echo -e "${YELLOW}[orient]${NC}") Install OpenCode $required_version? (Required) [Y/n] " response
-        if [[ "$response" != "n" && "$response" != "N" ]]; then
-            curl -fsSL https://opencode.ai/install.sh | bash
-        else
-            error "Orient requires OpenCode. Cannot proceed."
-        fi
-    fi
-}
-
-# ============================================
-# INSTALLATION
+# INSTALLATION (LOCAL COPY)
 # ============================================
 
 install_orient() {
-    log "Installing Orient to $INSTALL_DIR..."
+    log "Installing Orient from local source..."
+    log "Source: $SOURCE_DIR"
+    log "Target: $INSTALL_DIR"
 
     # Create directory structure
     mkdir -p "$INSTALL_DIR"/{data/sqlite,data/media,data/whatsapp-auth,logs,bin}
 
-    # Clone or update repository
-    if [[ -d "$INSTALL_DIR/orient" ]]; then
-        log "Updating existing installation..."
-        cd "$INSTALL_DIR/orient"
-        git fetch origin
-        git checkout main
-        git pull origin main
-    else
-        log "Cloning Orient repository..."
-        git clone --depth 1 https://github.com/orient-bot/orient.git "$INSTALL_DIR/orient"
+    # Build source first (if not already built)
+    if [[ ! -d "$SOURCE_DIR/packages/dashboard/dist" ]]; then
+        log "Building source packages first..."
+        cd "$SOURCE_DIR"
+        pnpm run build:all
     fi
 
-    # Install dependencies
-    cd "$INSTALL_DIR/orient"
-    log "Installing dependencies (this may take a few minutes)..."
-    pnpm install --frozen-lockfile
+    # Copy from local source (including dist, excluding node_modules)
+    log "Copying source files..."
+    rsync -a --delete \
+        --exclude 'node_modules' \
+        --exclude '.git' \
+        --exclude '*.log' \
+        "$SOURCE_DIR/" "$INSTALL_DIR/orient/"
 
-    # Build packages
-    log "Building packages..."
-    pnpm run build:all
+    # Install dependencies (will link to existing dist folders)
+    cd "$INSTALL_DIR/orient"
+    log "Installing dependencies..."
+    pnpm install --reporter=silent 2>/dev/null
+    log "Dependencies installed ✓"
 }
 
 # ============================================
@@ -171,88 +123,42 @@ configure_orient() {
     local env_file="$INSTALL_DIR/.env"
 
     if [[ -f "$env_file" ]]; then
-        log "Existing configuration found at $env_file"
-        read -p "Do you want to keep existing configuration? [Y/n] " keep_config
-        if [[ "$keep_config" != "n" && "$keep_config" != "N" ]]; then
-            log "Keeping existing configuration"
-            return
-        fi
+        log "Keeping existing configuration"
+        return
     fi
 
     # Generate secrets
     local master_key=$(openssl rand -hex 32)
     local jwt_secret=$(openssl rand -hex 32)
 
-    echo ""
-    log "Let's configure Orient..."
-    echo ""
+    log "Creating configuration..."
 
     # Write configuration
     cat > "$env_file" << EOF
-# =============================================================================
-# Orient Configuration
-# Generated: $(date)
-# =============================================================================
+# Orient Configuration (Generated: $(date))
 
-# Environment
 NODE_ENV=production
 LOG_LEVEL=info
 
-# =============================================================================
-# Database (SQLite - default for local installation)
-# =============================================================================
+# Database (SQLite)
 DATABASE_TYPE=sqlite
 SQLITE_DATABASE=$INSTALL_DIR/data/sqlite/orient.db
 
-# To use PostgreSQL instead, uncomment and configure:
-# DATABASE_TYPE=postgres
-# DATABASE_URL=postgresql://user:pass@localhost:5432/orient
-
-# =============================================================================
-# Storage (Local filesystem)
-# =============================================================================
+# Storage
 STORAGE_TYPE=local
 STORAGE_PATH=$INSTALL_DIR/data/media
 
-# To use S3/MinIO instead, uncomment and configure:
-# STORAGE_TYPE=s3
-# S3_BUCKET=your-bucket
-# S3_ENDPOINT=https://s3.amazonaws.com
-# S3_ACCESS_KEY=your-access-key
-# S3_SECRET_KEY=your-secret-key
-
-# =============================================================================
 # Security
-# =============================================================================
 ORIENT_MASTER_KEY=$master_key
 DASHBOARD_JWT_SECRET=$jwt_secret
 
-# =============================================================================
 # Dashboard
-# =============================================================================
 DASHBOARD_PORT=4098
 BASE_URL=http://localhost:4098
-
-# =============================================================================
-# AI Provider (Configure via dashboard)
-# =============================================================================
-# ANTHROPIC_API_KEY=
-
-# =============================================================================
-# WhatsApp (optional)
-# =============================================================================
-# WHATSAPP_ADMIN_PHONE=+15551234567
-
-# =============================================================================
-# Slack (optional)
-# =============================================================================
-# SLACK_BOT_TOKEN=xoxb-your-bot-token
-# SLACK_SIGNING_SECRET=your-signing-secret
-# SLACK_APP_TOKEN=xapp-your-app-token
 EOF
 
     chmod 600 "$env_file"
-    log "Configuration saved to $env_file"
+    log "Configuration saved ✓"
 }
 
 # ============================================
@@ -260,14 +166,6 @@ EOF
 # ============================================
 
 setup_pm2() {
-    # PM2 - PROMPT before install
-    if ! command -v pm2 &>/dev/null; then
-        prompt_install "PM2 (process manager)" "npm install -g pm2"
-    fi
-    log "PM2 $(pm2 -v) ✓"
-
-    # Create PM2 ecosystem configuration
-    # Unified server: Dashboard handles both Dashboard API and WhatsApp endpoints
     cat > "$INSTALL_DIR/ecosystem.config.cjs" << 'ECOSYSTEM'
 const path = require('path');
 const ORIENT_HOME = process.env.ORIENT_HOME || `${process.env.HOME}/.orient`;
@@ -282,23 +180,12 @@ module.exports = {
       error_file: path.join(ORIENT_HOME, 'logs/orient-error.log'),
       out_file: path.join(ORIENT_HOME, 'logs/orient-out.log'),
       max_memory_restart: '750M',
-      // Unified server handles Dashboard + WhatsApp on port 4098
-    },
-    {
-      name: 'orient-slack',
-      cwd: path.join(ORIENT_HOME, 'orient'),
-      script: 'packages/bot-slack/dist/main.js',
-      env_file: path.join(ORIENT_HOME, '.env'),
-      error_file: path.join(ORIENT_HOME, 'logs/slack-error.log'),
-      out_file: path.join(ORIENT_HOME, 'logs/slack-out.log'),
-      max_memory_restart: '500M',
-      autorestart: false,  // Don't auto-restart Slack bot (optional service)
     },
   ],
 };
 ECOSYSTEM
 
-    log "PM2 ecosystem configuration created"
+    log "PM2 configuration created ✓"
 }
 
 # ============================================
@@ -306,16 +193,12 @@ ECOSYSTEM
 # ============================================
 
 setup_cli() {
-    # Create the CLI wrapper script
+    # Create CLI wrapper
     cat > "$INSTALL_DIR/bin/orient" << 'SCRIPT'
 #!/bin/bash
-#
-# Orient CLI - Manage your Orient installation
-#
-
 ORIENT_HOME="${ORIENT_HOME:-$HOME/.orient}"
 
-# Source environment if it exists
+# Source environment
 if [[ -f "$ORIENT_HOME/.env" ]]; then
     set -a
     source "$ORIENT_HOME/.env"
@@ -323,9 +206,9 @@ if [[ -f "$ORIENT_HOME/.env" ]]; then
 fi
 
 # Colors
-RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
+RED='\033[0;31m'
 NC='\033[0m'
 
 case "$1" in
@@ -334,6 +217,7 @@ case "$1" in
         pm2 start "$ORIENT_HOME/ecosystem.config.cjs" --silent
         pm2 save --silent
         sleep 2
+        # Check if actually running
         if pm2 jlist 2>/dev/null | grep -q '"status":"online"'; then
             echo ""
             echo -e "${GREEN}✓ Orient is running${NC}"
@@ -366,19 +250,15 @@ case "$1" in
         pm2 status
         ;;
     logs)
-        if [[ -n "$2" ]]; then
-            pm2 logs "$2"
-        else
-            pm2 logs
-        fi
+        pm2 logs orient ${@:2}
         ;;
     doctor)
         echo -e "${GREEN}Orient Diagnostics${NC}"
         echo ""
         echo "System:"
-        echo "  Node.js: $(node -v 2>/dev/null || echo 'Not found')"
-        echo "  pnpm: $(pnpm -v 2>/dev/null || echo 'Not found')"
-        echo "  PM2: $(pm2 -v 2>/dev/null || echo 'Not found')"
+        echo "  Node.js: $(node -v)"
+        echo "  pnpm: $(pnpm -v)"
+        echo "  PM2: $(pm2 -v)"
         echo ""
         echo "Configuration:"
         echo "  ORIENT_HOME: $ORIENT_HOME"
@@ -398,20 +278,13 @@ case "$1" in
     config)
         ${EDITOR:-nano} "$ORIENT_HOME/.env"
         ;;
-    upgrade)
-        echo -e "${GREEN}Upgrading Orient...${NC}"
-        cd "$ORIENT_HOME/orient"
-        git fetch origin
-        git checkout main
-        git pull origin main
-        pnpm install --frozen-lockfile
-        pnpm run build:all
-        echo -e "${GREEN}Upgrade complete. Run 'orient restart' to apply changes.${NC}"
+    version)
+        cat "$ORIENT_HOME/.orient-version" 2>/dev/null || echo "Unknown"
         ;;
     uninstall)
+        shift
         KEEP_DATA=false
         FORCE=false
-        shift
         while [[ $# -gt 0 ]]; do
             case "$1" in
                 --keep-data) KEEP_DATA=true ;;
@@ -468,13 +341,6 @@ case "$1" in
         echo ""
         echo "Note: Run 'source ~/.zshrc' or restart your terminal to update PATH."
         ;;
-    version)
-        if [[ -f "$ORIENT_HOME/.orient-version" ]]; then
-            cat "$ORIENT_HOME/.orient-version"
-        else
-            echo "Unknown"
-        fi
-        ;;
     *)
         echo ""
         echo -e "${GREEN}Orient CLI${NC} - AI Assistant Platform"
@@ -489,7 +355,6 @@ case "$1" in
         echo "  logs        View logs"
         echo "  doctor      Run diagnostics"
         echo "  config      Edit configuration"
-        echo "  upgrade     Update to latest version"
         echo "  version     Show installed version"
         echo "  uninstall   Remove Orient"
         echo "              --keep-data  Keep database and config"
@@ -503,22 +368,14 @@ SCRIPT
 
     chmod +x "$INSTALL_DIR/bin/orient"
 
-    # Add to PATH in shell profile
-    local shell_rc
-    if [[ -f "$HOME/.zshrc" ]]; then
-        shell_rc="$HOME/.zshrc"
-    elif [[ -f "$HOME/.bashrc" ]]; then
-        shell_rc="$HOME/.bashrc"
-    else
-        shell_rc="$HOME/.profile"
-    fi
-
+    # Add to PATH
+    local shell_rc="$HOME/.zshrc"
     if ! grep -q "ORIENT_HOME" "$shell_rc" 2>/dev/null; then
         echo '' >> "$shell_rc"
         echo '# Orient' >> "$shell_rc"
         echo 'export ORIENT_HOME="$HOME/.orient"' >> "$shell_rc"
         echo 'export PATH="$ORIENT_HOME/bin:$PATH"' >> "$shell_rc"
-        log "Added Orient to PATH in $shell_rc"
+        log "Added Orient to PATH"
     fi
 }
 
@@ -531,23 +388,17 @@ initialize_database() {
 
     cd "$INSTALL_DIR/orient"
 
-    # Source environment for database config
+    # Source environment
     set -a
     source "$INSTALL_DIR/.env"
     set +a
 
-    if [[ "$DATABASE_TYPE" == "sqlite" ]]; then
-        # Create SQLite database directory
-        mkdir -p "$(dirname "$SQLITE_DATABASE")"
+    mkdir -p "$(dirname "$SQLITE_DATABASE")"
 
-        # Push schema to SQLite
-        log "Creating SQLite schema..."
-        pnpm --filter @orientbot/database run db:push:sqlite 2>/dev/null || warn "Schema push skipped (may already exist)"
-    else
-        # PostgreSQL migration
-        log "Running PostgreSQL migrations..."
-        pnpm --filter @orientbot/database run db:push 2>/dev/null || warn "Migration skipped (may already exist)"
-    fi
+    # Push schema (suppress verbose output)
+    pnpm --filter @orientbot/database run db:push:sqlite >/dev/null 2>&1 || true
+
+    log "Database initialized ✓"
 }
 
 # ============================================
@@ -565,14 +416,14 @@ main() {
     echo "║    ╚██████╔╝██║  ██║██║███████╗██║ ╚████║   ██║           ║"
     echo "║     ╚═════╝ ╚═╝  ╚═╝╚═╝╚══════╝╚═╝  ╚═══╝   ╚═╝           ║"
     echo "║                                                            ║"
-    echo "║           AI Assistant Installer v$ORIENT_VERSION                 ║"
+    echo "║              AI Assistant Platform v$ORIENT_VERSION               ║"
+    echo "║                    (Local Install)                         ║"
     echo "║                                                            ║"
     echo "╚════════════════════════════════════════════════════════════╝"
     echo ""
 
     check_prerequisites
     install_orient
-    check_opencode
     configure_orient
     setup_pm2
     setup_cli
@@ -586,22 +437,16 @@ main() {
     log "Installation complete!"
     echo "════════════════════════════════════════════════════════════════"
     echo ""
-    echo "  To get started, run:"
+    echo "  Quick start:"
     echo ""
-    echo "    source ~/.zshrc    # (or restart your terminal)"
-    echo "    orient start       # Start all services"
+    echo "    source ~/.zshrc     # Load Orient into PATH"
+    echo "    orient start        # Start services"
     echo ""
-    echo "  Then open:"
+    echo "  Or run directly:"
     echo ""
-    echo "    Dashboard:  http://localhost:4098"
-    echo "    WhatsApp:   http://localhost:4098/qr (scan QR to connect)"
+    echo "    $INSTALL_DIR/bin/orient start"
     echo ""
-    echo "  Other commands:"
-    echo ""
-    echo "    orient status      # Check service status"
-    echo "    orient logs        # View logs"
-    echo "    orient doctor      # Run diagnostics"
-    echo "    orient config      # Edit configuration"
+    echo "  Dashboard: http://localhost:4098"
     echo ""
 
     # Make orient available in current session
@@ -621,12 +466,7 @@ main() {
 
     # Open browser
     log "Opening dashboard..."
-    if command -v open &>/dev/null; then
-        open "http://localhost:4098"
-    elif command -v xdg-open &>/dev/null; then
-        xdg-open "http://localhost:4098"
-    fi
+    open "http://localhost:4098"
 }
 
-# Run main function
 main "$@"
