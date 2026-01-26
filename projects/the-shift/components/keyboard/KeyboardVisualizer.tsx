@@ -6,7 +6,6 @@ import ClaudeStatusIndicator from '../claude/ClaudeStatusIndicator'
 // Only the keys we support
 const supportedKeys = [
   { key: 'G', label: 'g', hint: 'top' },
-  { key: 'H', label: 'h', hint: '←' },
   { key: 'J', label: 'j', hint: '↓' },
   { key: 'K', label: 'k', hint: '↑' },
   { key: 'I', label: 'i', hint: 'invite' },
