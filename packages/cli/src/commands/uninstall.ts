@@ -5,7 +5,7 @@
  */
 
 import { Command } from 'commander';
-import { execSync, spawnSync } from 'child_process';
+import { spawnSync } from 'child_process';
 import { existsSync, rmSync, readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { homedir } from 'os';
@@ -109,7 +109,7 @@ function cleanShellProfile(): void {
   for (const rcFile of rcFiles) {
     if (existsSync(rcFile)) {
       try {
-        let content = readFileSync(rcFile, 'utf8');
+        const content = readFileSync(rcFile, 'utf8');
         const lines = content.split('\n');
         const filteredLines = lines.filter(
           (line) => !line.includes('# Orient') && !line.includes('ORIENT_HOME')
