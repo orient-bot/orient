@@ -337,6 +337,20 @@ export class EvalRunner {
   getResults(): EvalResult[] {
     return this.results;
   }
+
+  /**
+   * Start the eval server (for use with vitest adapter)
+   */
+  async start(): Promise<void> {
+    await this.startServer();
+  }
+
+  /**
+   * Stop the eval server (for use with vitest adapter)
+   */
+  async stop(): Promise<void> {
+    await this.stopServer();
+  }
 }
 
 /**
