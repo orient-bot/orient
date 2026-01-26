@@ -75,7 +75,7 @@ export interface ChatPermissionDatabaseInterface {
   ): Promise<number>;
   getGroup(
     chatId: string
-  ): Promise<{ groupName: string | null; participantCount: number | null } | undefined>;
+  ): Promise<{ group_name: string | null; participant_count: number | null } | undefined>;
 }
 
 /**
@@ -240,11 +240,11 @@ export class ChatPermissionService {
     // Check if this is a solo group (only 1 participant - the admin)
     if (isGroup) {
       const group = await this.db.getGroup(chatId);
-      if (group && group.participantCount === 1) {
+      if (group && group.participant_count === 1) {
         logger.debug('Smart default: Solo group detected - allowing write', {
           chatId,
-          groupName: group.groupName,
-          participantCount: group.participantCount,
+          groupName: group.group_name,
+          participantCount: group.participant_count,
         });
         return { permission: 'read_write', isSmartDefault: true };
       }
@@ -252,8 +252,8 @@ export class ChatPermissionService {
       if (group) {
         logger.debug('Smart default: Multi-participant group - read only', {
           chatId,
-          groupName: group.groupName,
-          participantCount: group.participantCount,
+          groupName: group.group_name,
+          participantCount: group.participant_count,
         });
         return { permission: 'read_only', isSmartDefault: true };
       }

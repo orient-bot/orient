@@ -1,14 +1,14 @@
 /**
  * Version Preferences Service
  *
- * Manages user preferences for version update notifications using Drizzle ORM.
+ * Manages user preferences for version update notifications.
  * Handles notification settings, dismissed versions, and remind-later timestamps.
  */
 
+import pg from 'pg';
 import { createServiceLogger } from '@orient/core';
-import { getDatabase, eq, and, lt, schema, sql } from '@orient/database';
-import type { Database } from '@orient/database';
 
+const { Pool } = pg;
 const logger = createServiceLogger('version-preferences-service');
 
 // ============================================
@@ -20,8 +20,8 @@ export interface UserVersionPreferences {
   notificationsEnabled: boolean;
   dismissedVersions: string[];
   remindLaterUntil: Date | null;
-  createdAt: Date | null;
-  updatedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface UpdatePreferencesInput {
@@ -33,22 +33,19 @@ export interface UpdatePreferencesInput {
 // ============================================
 
 export class VersionPreferencesService {
-  private _db: Database | null = null;
+  private pool: pg.Pool;
 
-  private get db(): Database {
-    if (!this._db) {
-      this._db = getDatabase();
-    }
-    return this._db;
-  }
+  constructor(connectionString?: string) {
+    const dbUrl =
+      connectionString ||
+      process.env.DATABASE_URL ||
+      'postgresql://aibot:aibot123@localhost:5432/whatsapp_bot_0';
 
-  private parseVersions(json: string | null): string[] {
-    if (!json) return [];
-    try {
-      return JSON.parse(json);
-    } catch {
-      return [];
-    }
+    this.pool = new Pool({
+      connectionString: dbUrl,
+      max: 10,
+      idleTimeoutMillis: 30000,
+    });
   }
 
   /**
@@ -56,62 +53,62 @@ export class VersionPreferencesService {
    * Creates default preferences if none exist
    */
   async getPreferences(userId: number): Promise<UserVersionPreferences> {
-    const result = await this.db
-      .select()
-      .from(schema.userVersionPreferences)
-      .where(eq(schema.userVersionPreferences.userId, userId))
-      .limit(1);
+    // Try to get existing preferences
+    const result = await this.pool.query(
+      `SELECT
+        user_id,
+        notifications_enabled,
+        dismissed_versions,
+        remind_later_until,
+        created_at,
+        updated_at
+       FROM user_version_preferences
+       WHERE user_id = $1`,
+      [userId]
+    );
 
-    if (result.length > 0) {
-      const row = result[0];
+    if (result.rows.length > 0) {
+      const row = result.rows[0];
       return {
-        userId: row.userId,
-        notificationsEnabled: row.notificationsEnabled ?? true,
-        dismissedVersions: this.parseVersions(row.dismissedVersions),
-        remindLaterUntil: row.remindLaterUntil,
-        createdAt: row.createdAt,
-        updatedAt: row.updatedAt,
+        userId: row.user_id,
+        notificationsEnabled: row.notifications_enabled,
+        dismissedVersions: row.dismissed_versions || [],
+        remindLaterUntil: row.remind_later_until,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
       };
     }
 
     // Create default preferences
-    await this.db
-      .insert(schema.userVersionPreferences)
-      .values({
-        userId,
-        notificationsEnabled: true,
-        dismissedVersions: '[]',
-      })
-      .onConflictDoNothing();
+    const insertResult = await this.pool.query(
+      `INSERT INTO user_version_preferences (user_id, notifications_enabled, dismissed_versions)
+       VALUES ($1, true, '{}')
+       ON CONFLICT (user_id) DO NOTHING
+       RETURNING
+        user_id,
+        notifications_enabled,
+        dismissed_versions,
+        remind_later_until,
+        created_at,
+        updated_at`,
+      [userId]
+    );
 
-    // Fetch the inserted row
-    const insertedResult = await this.db
-      .select()
-      .from(schema.userVersionPreferences)
-      .where(eq(schema.userVersionPreferences.userId, userId))
-      .limit(1);
-
-    if (insertedResult.length > 0) {
-      const row = insertedResult[0];
+    // If insert succeeded, return the new row
+    if (insertResult.rows.length > 0) {
+      const row = insertResult.rows[0];
       return {
-        userId: row.userId,
-        notificationsEnabled: row.notificationsEnabled ?? true,
-        dismissedVersions: this.parseVersions(row.dismissedVersions),
-        remindLaterUntil: row.remindLaterUntil,
-        createdAt: row.createdAt,
-        updatedAt: row.updatedAt,
+        userId: row.user_id,
+        notificationsEnabled: row.notifications_enabled,
+        dismissedVersions: row.dismissed_versions || [],
+        remindLaterUntil: row.remind_later_until,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
       };
     }
 
-    // Race condition: return default
-    return {
-      userId,
-      notificationsEnabled: true,
-      dismissedVersions: [],
-      remindLaterUntil: null,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
+    // Race condition: another process inserted, fetch again
+    return this.getPreferences(userId);
   }
 
   /**
@@ -124,40 +121,64 @@ export class VersionPreferencesService {
     // Ensure preferences exist
     await this.getPreferences(userId);
 
-    const updateData: Record<string, unknown> = {
-      updatedAt: new Date(),
-    };
+    // Build update query dynamically
+    const setClauses: string[] = ['updated_at = NOW()'];
+    const values: unknown[] = [];
+    let paramIndex = 1;
 
     if (updates.notificationsEnabled !== undefined) {
-      updateData.notificationsEnabled = updates.notificationsEnabled;
+      setClauses.push(`notifications_enabled = $${paramIndex++}`);
+      values.push(updates.notificationsEnabled);
     }
 
-    await this.db
-      .update(schema.userVersionPreferences)
-      .set(updateData)
-      .where(eq(schema.userVersionPreferences.userId, userId));
+    values.push(userId);
 
+    const result = await this.pool.query(
+      `UPDATE user_version_preferences
+       SET ${setClauses.join(', ')}
+       WHERE user_id = $${paramIndex}
+       RETURNING
+        user_id,
+        notifications_enabled,
+        dismissed_versions,
+        remind_later_until,
+        created_at,
+        updated_at`,
+      values
+    );
+
+    const row = result.rows[0];
     logger.info('Updated version preferences', { userId, updates });
 
-    return this.getPreferences(userId);
+    return {
+      userId: row.user_id,
+      notificationsEnabled: row.notifications_enabled,
+      dismissedVersions: row.dismissed_versions || [],
+      remindLaterUntil: row.remind_later_until,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    };
   }
 
   /**
    * Dismiss a specific version notification
    */
   async dismissVersion(userId: number, version: string): Promise<void> {
-    const prefs = await this.getPreferences(userId);
-    const versions = prefs.dismissedVersions.filter((v) => v !== version);
-    versions.push(version);
+    // Ensure preferences exist
+    await this.getPreferences(userId);
 
-    await this.db
-      .update(schema.userVersionPreferences)
-      .set({
-        dismissedVersions: JSON.stringify(versions),
-        remindLaterUntil: null,
-        updatedAt: new Date(),
-      })
-      .where(eq(schema.userVersionPreferences.userId, userId));
+    await this.pool.query(
+      `UPDATE user_version_preferences
+       SET
+        dismissed_versions = array_append(
+          array_remove(dismissed_versions, $2),
+          $2
+        ),
+        remind_later_until = NULL,
+        updated_at = NOW()
+       WHERE user_id = $1`,
+      [userId, version]
+    );
 
     logger.info('Dismissed version notification', { userId, version });
   }
@@ -166,17 +187,19 @@ export class VersionPreferencesService {
    * Set "remind me later" for version notifications
    */
   async remindLater(userId: number, hours: number): Promise<void> {
+    // Ensure preferences exist
     await this.getPreferences(userId);
 
     const remindUntil = new Date(Date.now() + hours * 60 * 60 * 1000);
 
-    await this.db
-      .update(schema.userVersionPreferences)
-      .set({
-        remindLaterUntil: remindUntil,
-        updatedAt: new Date(),
-      })
-      .where(eq(schema.userVersionPreferences.userId, userId));
+    await this.pool.query(
+      `UPDATE user_version_preferences
+       SET
+        remind_later_until = $2,
+        updated_at = NOW()
+       WHERE user_id = $1`,
+      [userId, remindUntil]
+    );
 
     logger.info('Set remind later for version notification', { userId, hours, remindUntil });
   }
@@ -196,14 +219,17 @@ export class VersionPreferencesService {
   async shouldShowNotification(userId: number, version: string): Promise<boolean> {
     const prefs = await this.getPreferences(userId);
 
+    // Check if notifications are enabled
     if (!prefs.notificationsEnabled) {
       return false;
     }
 
+    // Check if version is dismissed
     if (prefs.dismissedVersions.includes(version)) {
       return false;
     }
 
+    // Check if in remind-later period
     if (prefs.remindLaterUntil && prefs.remindLaterUntil > new Date()) {
       return false;
     }
@@ -215,25 +241,19 @@ export class VersionPreferencesService {
    * Clear remind-later if it has expired
    */
   async clearExpiredRemindLater(userId: number): Promise<void> {
-    await this.db
-      .update(schema.userVersionPreferences)
-      .set({
-        remindLaterUntil: null,
-        updatedAt: new Date(),
-      })
-      .where(
-        and(
-          eq(schema.userVersionPreferences.userId, userId),
-          lt(schema.userVersionPreferences.remindLaterUntil, new Date())
-        )
-      );
+    await this.pool.query(
+      `UPDATE user_version_preferences
+       SET remind_later_until = NULL, updated_at = NOW()
+       WHERE user_id = $1 AND remind_later_until < NOW()`,
+      [userId]
+    );
   }
 
   /**
-   * Close the database connection
+   * Close the database connection pool
    */
   async close(): Promise<void> {
-    // No-op for SQLite singleton
+    await this.pool.end();
   }
 }
 
@@ -241,6 +261,8 @@ export class VersionPreferencesService {
 // Factory
 // ============================================
 
-export function createVersionPreferencesService(): VersionPreferencesService {
-  return new VersionPreferencesService();
+export function createVersionPreferencesService(
+  connectionString?: string
+): VersionPreferencesService {
+  return new VersionPreferencesService(connectionString);
 }

@@ -10,7 +10,7 @@ import { Router, Request, Response as ExpressResponse } from 'express';
 import { createServiceLogger } from '@orient/core';
 import { createSecretsService } from '@orient/database-services';
 import type { AuthenticatedRequest } from '../../auth.js';
-import type { MessageDatabase } from '@orient/database-services';
+import type { MessageDatabase, OnboarderSessionRecord } from '../../services/messageDatabase.js';
 
 const logger = createServiceLogger('onboarder-routes');
 const secretsService = createSecretsService();

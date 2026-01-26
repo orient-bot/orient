@@ -21,9 +21,9 @@ async function executeAgentAction(action: PendingAction): Promise<ActionExecutio
   });
 
   try {
-    const { getDatabase, agents, eq } = await import('@orient/database');
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const db = (await getDatabase()) as any;
+    const { getDatabase, agents } = await import('@orient/database');
+    const { eq } = await import('drizzle-orm');
+    const db = getDatabase();
 
     const agentId = action.target;
     const changes = action.changes;

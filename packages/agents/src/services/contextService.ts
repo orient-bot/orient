@@ -106,10 +106,7 @@ const DEFAULT_CONTEXT: PersistentContext = {
 // ============================================
 
 export class ContextService {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private async getDb(): Promise<any> {
-    return await getDatabase();
-  }
+  private db = getDatabase();
 
   // ============================================
   // CRUD OPERATIONS
@@ -122,9 +119,7 @@ export class ContextService {
     const op = logger.startOperation('getContext', { platform, chatId });
 
     try {
-      const result = await (
-        await this.getDb()
-      )
+      const result = await this.db
         .select()
         .from(chatContext)
         .where(and(eq(chatContext.platform, platform), eq(chatContext.chatId, chatId)));
@@ -138,7 +133,7 @@ export class ContextService {
 
       // Create default context if not exists
       const defaultContext = { ...DEFAULT_CONTEXT };
-      await (await this.getDb()).insert(chatContext).values({
+      await this.db.insert(chatContext).values({
         platform,
         chatId,
         contextJson: JSON.stringify(defaultContext),
@@ -171,9 +166,7 @@ export class ContextService {
       const merged = this.deepMerge(existing, updates);
 
       // Update in database
-      await (
-        await this.getDb()
-      )
+      await this.db
         .update(chatContext)
         .set({
           contextJson: JSON.stringify(merged),
@@ -233,9 +226,7 @@ export class ContextService {
     try {
       const defaultContext = { ...DEFAULT_CONTEXT };
 
-      await (
-        await this.getDb()
-      )
+      await this.db
         .update(chatContext)
         .set({
           contextJson: JSON.stringify(defaultContext),
@@ -259,9 +250,7 @@ export class ContextService {
     const op = logger.startOperation('deleteContext', { platform, chatId });
 
     try {
-      const result = await (
-        await this.getDb()
-      )
+      const result = await this.db
         .delete(chatContext)
         .where(and(eq(chatContext.platform, platform), eq(chatContext.chatId, chatId)))
         .returning();
@@ -438,7 +427,7 @@ export class ContextService {
     totalContexts: number;
     byPlatform: Record<string, number>;
   }> {
-    const results = await (await this.getDb()).select().from(chatContext);
+    const results = await this.db.select().from(chatContext);
 
     const byPlatform: Record<string, number> = {};
     for (const row of results) {

@@ -10,7 +10,7 @@ import { Router, Request, Response } from 'express';
 import { createServiceLogger } from '@orient/core';
 import type { MiniappEditService } from '@orient/apps';
 import type { AppsService } from '../../services/appsService.js';
-import type { StorageDatabase } from '@orient/database-services';
+import type { StorageDatabase } from '../../services/storageDatabase.js';
 
 const logger = createServiceLogger('apps-routes');
 

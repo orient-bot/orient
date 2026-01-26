@@ -1,58 +1,72 @@
 /**
  * Drizzle Database Client
  *
- * Provides a type-safe database client using Drizzle ORM with SQLite.
- * SQLite is used for both development and production - simple, fast, reliable.
+ * Provides a type-safe database client using Drizzle ORM with PostgreSQL.
+ * Uses connection pooling and automatic reconnection.
  */
 
+import { drizzle, PostgresJsDatabase } from 'drizzle-orm/postgres-js';
+import postgres from 'postgres';
 import { createServiceLogger } from '@orient/core';
-import type BetterSqlite3 from 'better-sqlite3';
-import type { DatabaseConfig, Database, DatabaseClient } from './clients/types.js';
-import { getDefaultSqlitePath } from './clients/types.js';
-import {
-  createSqliteClient,
-  getSqliteDatabase,
-  getSqliteRawDb,
-  resetSqliteInstance,
-} from './clients/sqlite.js';
-
-// Re-export types
-export type { DatabaseConfig, Database, DatabaseClient } from './clients/types.js';
-export { getDefaultSqlitePath } from './clients/types.js';
+import * as schema from './schema/index.js';
 
 const logger = createServiceLogger('drizzle-db');
 
-// Database client cache
-let cachedClient: DatabaseClient | null = null;
+// Default database URL
+const DEFAULT_DATABASE_URL = 'postgresql://aibot:aibot123@localhost:5432/whatsapp_bot_0';
+
+// Database instance cache
+let dbInstance: PostgresJsDatabase<typeof schema> | null = null;
+let sqlClient: postgres.Sql | null = null;
 
 /**
- * Get or create the database client
- * Uses a singleton pattern for connection reuse
- *
- * Note: This is a synchronous function since SQLite operations are synchronous.
- * For backwards compatibility, it can also be called with await.
+ * Database configuration options
  */
-export function getDatabase(config?: DatabaseConfig): Database {
-  if (cachedClient) {
-    return cachedClient.db;
-  }
-
-  cachedClient = createSqliteClient({
-    filename: config?.filename || getDefaultSqlitePath(),
-  });
-
-  logger.info('Using SQLite database');
-  return cachedClient.db;
+export interface DatabaseConfig {
+  connectionString?: string;
+  maxConnections?: number;
+  idleTimeout?: number;
+  connectTimeout?: number;
 }
 
 /**
- * Get the database client (for advanced operations)
+ * Get or create the database instance
+ * Uses a singleton pattern for connection pooling
  */
-export function getDatabaseClient(config?: DatabaseConfig): DatabaseClient {
-  if (!cachedClient) {
-    getDatabase(config);
+export function getDatabase(config?: DatabaseConfig): PostgresJsDatabase<typeof schema> {
+  if (dbInstance) {
+    return dbInstance;
   }
-  return cachedClient!;
+
+  const connectionString =
+    config?.connectionString || process.env.DATABASE_URL || DEFAULT_DATABASE_URL;
+
+  // Create postgres.js client with connection pooling
+  sqlClient = postgres(connectionString, {
+    max: config?.maxConnections ?? 10,
+    idle_timeout: config?.idleTimeout ?? 30,
+    connect_timeout: config?.connectTimeout ?? 5,
+    onnotice: () => {}, // Suppress notices
+  });
+
+  // Create Drizzle instance with schema
+  dbInstance = drizzle(sqlClient, { schema });
+
+  logger.info('Database connection established', {
+    connectionString: connectionString.replace(/:[^:@]+@/, ':****@'),
+  });
+
+  return dbInstance;
+}
+
+/**
+ * Get the raw SQL client for advanced queries
+ */
+export function getSqlClient(): postgres.Sql {
+  if (!sqlClient) {
+    getDatabase(); // Initialize if not already
+  }
+  return sqlClient!;
 }
 
 /**
@@ -60,9 +74,10 @@ export function getDatabaseClient(config?: DatabaseConfig): DatabaseClient {
  * Should be called on application shutdown
  */
 export async function closeDatabase(): Promise<void> {
-  if (cachedClient) {
-    await cachedClient.close();
-    cachedClient = null;
+  if (sqlClient) {
+    await sqlClient.end();
+    sqlClient = null;
+    dbInstance = null;
     logger.info('Database connection closed');
   }
 }
@@ -71,8 +86,8 @@ export async function closeDatabase(): Promise<void> {
  * Reset the database instance (for testing)
  */
 export function resetDatabaseInstance(): void {
-  resetSqliteInstance();
-  cachedClient = null;
+  dbInstance = null;
+  sqlClient = null;
 }
 
 /**
@@ -80,10 +95,9 @@ export function resetDatabaseInstance(): void {
  */
 export async function checkDatabaseConnection(): Promise<boolean> {
   try {
-    if (!cachedClient) {
-      getDatabase();
-    }
-    return await cachedClient!.checkConnection();
+    const sql = getSqlClient();
+    await sql`SELECT 1`;
+    return true;
   } catch (error) {
     logger.error('Database connection check failed', { error });
     return false;
@@ -97,21 +111,13 @@ export async function executeRawSql<T = unknown>(
   query: string,
   params: unknown[] = []
 ): Promise<T[]> {
-  if (!cachedClient) {
-    getDatabase();
-  }
-  return cachedClient!.executeRaw<T>(query, params);
+  const client = getSqlClient();
+  // Use unsafe for raw SQL execution
+  return client.unsafe(query, params as never[]) as unknown as T[];
 }
 
-/**
- * Get the raw SQLite database for advanced operations
- */
-export function getRawSqliteDb(): BetterSqlite3.Database {
-  return getSqliteRawDb();
-}
-
-// Export schema (SQLite)
-export * as schema from './schema/sqlite/index.js';
+// Export schema for use in queries
+export { schema };
 
 // Export Drizzle utilities
 export {
@@ -127,14 +133,8 @@ export {
   min,
   max,
   like,
+  ilike,
   inArray,
   isNull,
   isNotNull,
-  lt,
-  lte,
-  gt,
-  gte,
 } from 'drizzle-orm';
-
-// Re-export for backwards compatibility
-export { getSqliteDatabase, getSqliteRawDb };

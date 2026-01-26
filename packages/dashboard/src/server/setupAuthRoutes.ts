@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { createServiceLogger } from '@orient/core';
-import type { MessageDatabase } from '@orient/database-services';
+import type { MessageDatabase } from '../services/messageDatabase.js';
 import type { DashboardAuth } from '../auth.js';
 
 const logger = createServiceLogger('setup-auth-routes');

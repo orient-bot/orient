@@ -1,6 +1,6 @@
 {
   "name": "@orient/cli",
-  "version": "0.1.1",
+  "version": "1.0.0",
   "type": "module",
   "bin": {
     "orient": "./dist/cli.js"
@@ -8,8 +8,7 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "build": "tsc",
-    "test": "vitest run"
+    "build": "tsc"
   },
   "dependencies": {
     "@orient/core": "workspace:*",
@@ -19,8 +18,6 @@
     "jira.js": "^4.0.2"
   },
   "devDependencies": {
-    "@types/node": "^20.10.0",
-    "typescript": "^5.4.0",
-    "vitest": "^4.0.16"
+    "typescript": "^5.4.0"
   }
 }

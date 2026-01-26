@@ -305,8 +305,13 @@ const whatsappLogger = createServiceLogger('whatsapp');
 async function getMessageDatabase(): Promise<MessageDatabase> {
   if (!messageDb) {
     const op = whatsappLogger.startOperation('initialize');
-    whatsappLogger.debug('Initializing message database (SQLite)');
-    messageDb = createMessageDatabase();
+    const dbUrl =
+      process.env.DATABASE_URL || 'postgresql://aibot:aibot123@localhost:5432/whatsapp_bot_0';
+
+    whatsappLogger.debug('Initializing message database', {
+      dbUrl: dbUrl.replace(/:[^:@]+@/, ':****@'),
+    });
+    messageDb = createMessageDatabase(dbUrl);
     op.success('Message database pool created');
   }
 
@@ -3659,19 +3664,19 @@ async function executeToolCall(
                       direction: string;
                       phone: string;
                       text: string;
-                      isGroup: boolean;
-                      groupId: string | null;
-                      timestamp: Date;
-                      mediaType: string | null;
+                      is_group: boolean;
+                      group_id: string | null;
+                      timestamp: string;
+                      media_type: string | null;
                     }) => ({
                       id: m.id,
                       direction: m.direction,
                       phone: m.phone,
                       text: m.text,
-                      isGroup: m.isGroup,
-                      groupId: m.groupId,
+                      isGroup: m.is_group,
+                      groupId: m.group_id,
                       timestamp: m.timestamp,
-                      mediaType: m.mediaType,
+                      mediaType: m.media_type,
                     })
                   ),
                 },
@@ -3719,19 +3724,19 @@ async function executeToolCall(
                       direction: string;
                       phone: string;
                       text: string;
-                      isGroup: boolean;
-                      groupId: string | null;
-                      timestamp: Date;
-                      mediaType: string | null;
+                      is_group: boolean;
+                      group_id: string | null;
+                      timestamp: string;
+                      media_type: string | null;
                     }) => ({
                       id: m.id,
                       direction: m.direction,
                       phone: m.phone,
                       text: m.text,
-                      isGroup: m.isGroup,
-                      groupId: m.groupId,
+                      isGroup: m.is_group,
+                      groupId: m.group_id,
                       timestamp: m.timestamp,
-                      mediaType: m.mediaType,
+                      mediaType: m.media_type,
                     })
                   ),
                 },
@@ -3779,16 +3784,16 @@ async function executeToolCall(
                       id: number;
                       direction: string;
                       text: string;
-                      timestamp: Date;
-                      mediaType: string | null;
-                      transcribedText: string | null;
+                      timestamp: string;
+                      media_type: string | null;
+                      transcribed_text: string | null;
                     }) => ({
                       id: m.id,
                       direction: m.direction,
                       text: m.text,
                       timestamp: m.timestamp,
-                      mediaType: m.mediaType,
-                      transcribedText: m.transcribedText,
+                      mediaType: m.media_type,
+                      transcribedText: m.transcribed_text,
                     })
                   ),
                 },
@@ -3826,7 +3831,7 @@ async function executeToolCall(
         if (!groupId.includes('@')) {
           const group = await db.findGroupByName(groupId);
           if (group) {
-            actualGroupId = group.groupId;
+            actualGroupId = group.group_id;
             whatsappLogger.debug('Resolved group name to ID', { name: groupId, id: actualGroupId });
           }
         }
@@ -3843,8 +3848,8 @@ async function executeToolCall(
               text: JSON.stringify(
                 {
                   groupId: actualGroupId,
-                  groupName: groupInfo?.groupName || null,
-                  groupSubject: groupInfo?.groupSubject || null,
+                  groupName: groupInfo?.group_name || null,
+                  groupSubject: groupInfo?.group_subject || null,
                   count: messages.length,
                   messages: messages.map(
                     (m: {
@@ -3852,15 +3857,15 @@ async function executeToolCall(
                       direction: string;
                       phone: string;
                       text: string;
-                      timestamp: Date;
-                      mediaType: string | null;
+                      timestamp: string;
+                      media_type: string | null;
                     }) => ({
                       id: m.id,
                       direction: m.direction,
                       phone: m.phone,
                       text: m.text,
                       timestamp: m.timestamp,
-                      mediaType: m.mediaType,
+                      mediaType: m.media_type,
                     })
                   ),
                 },
@@ -3998,11 +4003,11 @@ async function executeToolCall(
                   namedGroupsCount: groups.length,
                   unnamedGroupsCount: groupIdsWithoutNames.length,
                   groups: groups.map((g) => ({
-                    groupId: g.groupId,
-                    name: g.groupName,
-                    subject: g.groupSubject,
-                    participantCount: g.participantCount,
-                    lastUpdated: g.lastUpdated,
+                    groupId: g.group_id,
+                    name: g.group_name,
+                    subject: g.group_subject,
+                    participantCount: g.participant_count,
+                    lastUpdated: g.last_updated,
                   })),
                   groupsWithoutNames: groupIdsWithoutNames,
                 },
@@ -4069,27 +4074,27 @@ async function executeToolCall(
                       direction: string;
                       phone: string;
                       text: string;
-                      isGroup: boolean;
-                      groupId: string | null;
-                      timestamp: Date;
-                      mediaType: string | null;
-                      mediaPath: string | null;
-                      mediaMimeType: string | null;
-                      transcribedText: string | null;
-                      transcribedLanguage: string | null;
+                      is_group: boolean;
+                      group_id: string | null;
+                      timestamp: string;
+                      media_type: string | null;
+                      media_path: string | null;
+                      media_mime_type: string | null;
+                      transcribed_text: string | null;
+                      transcribed_language: string | null;
                     }) => ({
                       id: m.id,
                       direction: m.direction,
                       phone: m.phone,
                       text: m.text,
-                      isGroup: m.isGroup,
-                      groupId: m.groupId,
+                      isGroup: m.is_group,
+                      groupId: m.group_id,
                       timestamp: m.timestamp,
-                      mediaType: m.mediaType,
-                      mediaPath: m.mediaPath,
-                      mediaMimeType: m.mediaMimeType,
-                      transcribedText: m.transcribedText,
-                      transcribedLanguage: m.transcribedLanguage,
+                      mediaType: m.media_type,
+                      mediaPath: m.media_path,
+                      mediaMimeType: m.media_mime_type,
+                      transcribedText: m.transcribed_text,
+                      transcribedLanguage: m.transcribed_language,
                     })
                   ),
                 },

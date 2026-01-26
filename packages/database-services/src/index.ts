@@ -13,38 +13,22 @@
  * } from '@orient/database-services';
  */
 
-// Export database services and factory functions (Drizzle/SQLite implementations)
-export { MessageDatabase, createMessageDatabase } from './services/messageDatabaseDrizzle.js';
+// Export database services and factory functions
+export { MessageDatabase, createMessageDatabase } from './messageDatabase.js';
 export type {
   StoredMessage,
   StoredGroup,
   StoreMessageOptions,
   MessageSearchOptions,
   MessageStats,
-} from './services/messageDatabaseDrizzle.js';
+} from './messageDatabase.js';
 
-export { SlackDatabase, createSlackDatabase } from './services/slackDatabaseDrizzle.js';
-export type {
-  ChatPermissionRecord,
-  PermissionAuditEntry,
-  DashboardUser,
-  SystemPromptRecord,
-  SystemPromptWithInfo,
-  ChatWithPermission,
-  DemoMeeting,
-  CreateDemoMeetingInput,
-  DemoGithubMonitor,
-  CreateDemoGithubMonitorInput,
-  UnifiedChat,
-  OnboarderSession,
-} from './services/messageDatabaseDrizzle.js';
+export { SlackDatabase, createSlackDatabase } from './slackDatabase.js';
 
 export { SchedulerDatabase, createSchedulerDatabase } from './schedulerDatabase.js';
 
 export { WebhookDatabase, createWebhookDatabase } from './webhookDatabase.js';
-
-export { StorageDatabase, createStorageDatabase } from './storageDatabase.js';
-export type { StorageEntry } from './storageDatabase.js';
+export type { WebhookDatabaseConfig } from './webhookDatabase.js';
 
 export { ChatPermissionService, createChatPermissionService } from './chatPermissionService.js';
 export type {
@@ -86,15 +70,6 @@ export type {
   FeatureFlagWithOverride,
   SetOverrideInput,
 } from './featureFlagsService.js';
-
-export { OAuthProxyService, createOAuthProxyService } from './oauthProxyService.js';
-export type {
-  OAuthProxySession,
-  OAuthProxySessionStatus,
-  OAuthProxyTokens,
-  CreateSessionInput,
-  CompleteSessionInput,
-} from './oauthProxyService.js';
 
 // Re-export all types
 export * from './types/index.js';

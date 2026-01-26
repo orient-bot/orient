@@ -204,9 +204,9 @@ export const configListAgents: MCPTool = createTool({
  * Helper: Get agent configuration
  */
 async function getAgentConfig(agentId: string) {
-  const { getDatabase, agents, agentSkills, agentTools, eq } = await import('@orient/database');
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const db = (await getDatabase()) as any;
+  const { getDatabase, agents, agentSkills, agentTools } = await import('@orient/database');
+  const { eq } = await import('drizzle-orm');
+  const db = getDatabase();
 
   const [agent] = await db.select().from(agents).where(eq(agents.id, agentId));
 
@@ -234,13 +234,11 @@ async function getAgentConfig(agentId: string) {
     model_default: agent.modelDefault,
     model_fallback: agent.modelFallback,
     base_prompt: agent.basePrompt,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    skills: skills.map((s: any) => ({
+    skills: skills.map((s) => ({
       name: s.skillName,
       enabled: s.enabled,
     })),
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    tools: tools.map((t: any) => ({
+    tools: tools.map((t) => ({
       pattern: t.pattern,
       type: t.type,
     })),
@@ -252,9 +250,9 @@ async function getAgentConfig(agentId: string) {
  * Helper: List all agents
  */
 async function listAllAgents(enabledOnly?: boolean) {
-  const { getDatabase, agents, eq } = await import('@orient/database');
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const db = (await getDatabase()) as any;
+  const { getDatabase, agents } = await import('@orient/database');
+  const { eq } = await import('drizzle-orm');
+  const db = getDatabase();
 
   const agentList = enabledOnly
     ? await db.select().from(agents).where(eq(agents.enabled, true))
@@ -262,8 +260,7 @@ async function listAllAgents(enabledOnly?: boolean) {
 
   return {
     count: agentList.length,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    agents: agentList.map((a: any) => ({
+    agents: agentList.map((a) => ({
       id: a.id,
       name: a.name,
       description: a.description,

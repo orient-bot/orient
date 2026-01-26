@@ -282,8 +282,7 @@ export interface AgentSeedResult {
  * Skips seeding if agents already exist (unless force is true).
  */
 export async function seedAgents(options: AgentSeedOptions = {}): Promise<AgentSeedResult> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const db = (await getDatabase()) as any;
+  const db = getDatabase();
   const { force = false, verbose = false } = options;
 
   if (verbose) {

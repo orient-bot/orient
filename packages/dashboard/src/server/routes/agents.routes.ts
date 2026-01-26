@@ -28,18 +28,13 @@ export function createAgentsRoutes(
   requireAuth: (req: Request, res: Response, next: () => void) => void
 ): Router {
   const router = Router();
-
-  // Helper to get database instance
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const getDb = async (): Promise<any> => await getDatabase();
+  const db = getDatabase();
 
   // Get agent registry stats
   router.get('/stats', requireAuth, async (_req: Request, res: Response) => {
     try {
-      const db = await getDb();
       const allAgents = await db.select().from(agents);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const enabledAgents = allAgents.filter((a: any) => a.enabled);
+      const enabledAgents = allAgents.filter((a) => a.enabled);
 
       // Count distinct enabled skills from agent_skills table
       const enabledSkills = await db
@@ -67,7 +62,6 @@ export function createAgentsRoutes(
   // List all agents
   router.get('/', requireAuth, async (_req: Request, res: Response) => {
     try {
-      const db = await getDb();
       const agentList = await db.select().from(agents).orderBy(agents.name);
       res.json({ agents: agentList });
     } catch (error) {
@@ -81,13 +75,11 @@ export function createAgentsRoutes(
   // List available skills from filesystem
   router.get('/available-skills', requireAuth, async (_req: Request, res: Response) => {
     try {
-      const db = await getDb();
       // Get unique skill names from agent_skills table
       const skills = await db
         .selectDistinct({ skillName: agentSkills.skillName })
         .from(agentSkills);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      res.json({ skills: skills.map((s: any) => s.skillName) });
+      res.json({ skills: skills.map((s) => s.skillName) });
     } catch (error) {
       logger.error('Failed to list available skills', {
         error: error instanceof Error ? error.message : String(error),
@@ -99,7 +91,6 @@ export function createAgentsRoutes(
   // Get context rules
   router.get('/context-rules', requireAuth, async (_req: Request, res: Response) => {
     try {
-      const db = await getDb();
       const rules = await db.select().from(contextRules).orderBy(desc(contextRules.priority));
       res.json({ rules });
     } catch (error) {
@@ -121,7 +112,6 @@ export function createAgentsRoutes(
       }
 
       // Find matching context rules ordered by priority
-      const db = await getDb();
       const rules = await db.select().from(contextRules).orderBy(desc(contextRules.priority));
 
       // Find the best matching rule
@@ -180,14 +170,10 @@ export function createAgentsRoutes(
 
       res.json({
         agent,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        skills: skills.map((s: any) => s.skillName),
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        allowedTools: tools.filter((t: any) => t.type === 'allow').map((t: any) => t.pattern),
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        deniedTools: tools.filter((t: any) => t.type === 'deny').map((t: any) => t.pattern),
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        askTools: tools.filter((t: any) => t.type === 'ask').map((t: any) => t.pattern),
+        skills: skills.map((s) => s.skillName),
+        allowedTools: tools.filter((t) => t.type === 'allow').map((t) => t.pattern),
+        deniedTools: tools.filter((t) => t.type === 'deny').map((t) => t.pattern),
+        askTools: tools.filter((t) => t.type === 'ask').map((t) => t.pattern),
         systemPrompt: agent.basePrompt,
         model: agent.modelDefault,
       });
@@ -202,7 +188,6 @@ export function createAgentsRoutes(
   // Get a specific agent with details
   router.get('/:id', requireAuth, async (req: Request, res: Response) => {
     try {
-      const db = await getDb();
       const { id } = req.params;
 
       const [agent] = await db.select().from(agents).where(eq(agents.id, id));
@@ -218,21 +203,16 @@ export function createAgentsRoutes(
 
       res.json({
         ...agent,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        skills: skills.map((s: any) => ({ id: s.id, skillName: s.skillName, enabled: s.enabled })),
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        tools: tools.map((t: any) => ({
+        skills: skills.map((s) => ({ id: s.id, skillName: s.skillName, enabled: s.enabled })),
+        tools: tools.map((t) => ({
           id: t.id,
           agentId: t.agentId,
           pattern: t.pattern,
           type: t.type,
         })),
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        allowTools: tools.filter((t: any) => t.type === 'allow').map((t: any) => t.pattern),
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        denyTools: tools.filter((t: any) => t.type === 'deny').map((t: any) => t.pattern),
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        askTools: tools.filter((t: any) => t.type === 'ask').map((t: any) => t.pattern),
+        allowTools: tools.filter((t) => t.type === 'allow').map((t) => t.pattern),
+        denyTools: tools.filter((t) => t.type === 'deny').map((t) => t.pattern),
+        askTools: tools.filter((t) => t.type === 'ask').map((t) => t.pattern),
       });
     } catch (error) {
       logger.error('Failed to get agent', {
@@ -245,7 +225,6 @@ export function createAgentsRoutes(
   // Create a new agent
   router.post('/', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
     try {
-      const db = await getDb();
       const { id, name, description, mode, modelDefault, modelFallback, basePrompt, enabled } =
         req.body;
 
@@ -278,7 +257,6 @@ export function createAgentsRoutes(
   // Update an agent
   router.patch('/:id', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
     try {
-      const db = await getDb();
       const { id } = req.params;
       const updates = req.body;
 
@@ -316,7 +294,6 @@ export function createAgentsRoutes(
   // Delete an agent
   router.delete('/:id', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
     try {
-      const db = await getDb();
       const { id } = req.params;
 
       // Check agent exists
@@ -346,7 +323,6 @@ export function createAgentsRoutes(
   // Toggle agent enabled/disabled
   router.post('/:id/toggle', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
     try {
-      const db = await getDb();
       const { id } = req.params;
       const { enabled } = req.body;
 
@@ -376,12 +352,10 @@ export function createAgentsRoutes(
   // Get agent skills
   router.get('/:id/skills', requireAuth, async (req: Request, res: Response) => {
     try {
-      const db = await getDb();
       const { id } = req.params;
       const skills = await db.select().from(agentSkills).where(eq(agentSkills.agentId, id));
       res.json({
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        skills: skills.map((s: any) => ({ id: s.id, skillName: s.skillName, enabled: s.enabled })),
+        skills: skills.map((s) => ({ id: s.id, skillName: s.skillName, enabled: s.enabled })),
       });
     } catch (error) {
       logger.error('Failed to get agent skills', {
@@ -394,7 +368,6 @@ export function createAgentsRoutes(
   // Update agent skills
   router.put('/:id/skills', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
     try {
-      const db = await getDb();
       const { id } = req.params;
       const { skills } = req.body;
 
@@ -415,8 +388,7 @@ export function createAgentsRoutes(
 
       const updatedSkills = await db.select().from(agentSkills).where(eq(agentSkills.agentId, id));
       res.json({
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        skills: updatedSkills.map((s: any) => ({
+        skills: updatedSkills.map((s) => ({
           id: s.id,
           skillName: s.skillName,
           enabled: s.enabled,
@@ -433,16 +405,12 @@ export function createAgentsRoutes(
   // Get agent tools
   router.get('/:id/tools', requireAuth, async (req: Request, res: Response) => {
     try {
-      const db = await getDb();
       const { id } = req.params;
       const tools = await db.select().from(agentTools).where(eq(agentTools.agentId, id));
       res.json({
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        allowTools: tools.filter((t: any) => t.type === 'allow').map((t: any) => t.pattern),
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        denyTools: tools.filter((t: any) => t.type === 'deny').map((t: any) => t.pattern),
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        askTools: tools.filter((t: any) => t.type === 'ask').map((t: any) => t.pattern),
+        allowTools: tools.filter((t) => t.type === 'allow').map((t) => t.pattern),
+        denyTools: tools.filter((t) => t.type === 'deny').map((t) => t.pattern),
+        askTools: tools.filter((t) => t.type === 'ask').map((t) => t.pattern),
       });
     } catch (error) {
       logger.error('Failed to get agent tools', {
@@ -455,7 +423,6 @@ export function createAgentsRoutes(
   // Update agent tools
   router.put('/:id/tools', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
     try {
-      const db = await getDb();
       const { id } = req.params;
       const allowTools = req.body.allowTools ?? req.body.allow ?? [];
       const denyTools = req.body.denyTools ?? req.body.deny ?? [];
@@ -487,12 +454,9 @@ export function createAgentsRoutes(
 
       const updatedTools = await db.select().from(agentTools).where(eq(agentTools.agentId, id));
       res.json({
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        allowTools: updatedTools.filter((t: any) => t.type === 'allow').map((t: any) => t.pattern),
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        denyTools: updatedTools.filter((t: any) => t.type === 'deny').map((t: any) => t.pattern),
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        askTools: updatedTools.filter((t: any) => t.type === 'ask').map((t: any) => t.pattern),
+        allowTools: updatedTools.filter((t) => t.type === 'allow').map((t) => t.pattern),
+        denyTools: updatedTools.filter((t) => t.type === 'deny').map((t) => t.pattern),
+        askTools: updatedTools.filter((t) => t.type === 'ask').map((t) => t.pattern),
       });
     } catch (error) {
       logger.error('Failed to update agent tools', {
@@ -505,7 +469,6 @@ export function createAgentsRoutes(
   // Create context rule
   router.post('/context-rules', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
     try {
-      const db = await getDb();
       const { contextType, contextId, agentId, skillOverrides, priority } = req.body;
 
       if (!contextType) {
@@ -545,7 +508,6 @@ export function createAgentsRoutes(
           return;
         }
 
-        const db = await getDb();
         await db.delete(contextRules).where(eq(contextRules.id, ruleId));
 
         res.json({ success: true });

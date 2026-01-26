@@ -15,7 +15,7 @@ import {
   UpdateWebhookInput,
   WebhookStats,
   WebhookEventStatus,
-} from './types/webhook.js';
+} from '../types/webhook.js';
 
 const logger = createServiceLogger('webhook-db');
 
@@ -26,16 +26,30 @@ export interface WebhookDatabaseConfig {
   connectionString: string;
 }
 
+const { Pool } = pg;
+
 /**
  * WebhookDatabase - PostgreSQL persistence for webhooks
  */
 export class WebhookDatabase {
   private pool: pg.Pool;
+  private initialized: boolean = false;
 
-  constructor(pool: pg.Pool) {
-    this.pool = pool;
+  constructor(connectionString?: string) {
+    const dbUrl =
+      connectionString ||
+      process.env.DATABASE_URL ||
+      'postgresql://aibot:aibot123@localhost:5432/whatsapp_bot_0';
+
+    this.pool = new Pool({
+      connectionString: dbUrl,
+      max: 10,
+      idleTimeoutMillis: 30000,
+      connectionTimeoutMillis: 5000,
+    });
+
     logger.info('Webhook database pool created', {
-      connectionString: this.maskConnectionString(pool.options.connectionString || ''),
+      connectionString: this.maskConnectionString(dbUrl),
     });
   }
 
@@ -46,7 +60,16 @@ export class WebhookDatabase {
   /**
    * Initialize database tables
    */
-  async initializeTables(): Promise<void> {
+  async initialize(): Promise<void> {
+    if (this.initialized) return;
+    await this.initializeTables();
+    this.initialized = true;
+  }
+
+  /**
+   * Initialize database tables (internal)
+   */
+  private async initializeTables(): Promise<void> {
     const client = await this.pool.connect();
     try {
       // Create webhooks table
@@ -528,20 +551,6 @@ export class WebhookDatabase {
 /**
  * Create a WebhookDatabase instance
  */
-export function createWebhookDatabase(config: WebhookDatabaseConfig): WebhookDatabase {
-  const pool = new pg.Pool({
-    connectionString: config.connectionString,
-    max: 10,
-    idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 5000,
-  });
-
-  return new WebhookDatabase(pool);
-}
-
-/**
- * Create WebhookDatabase from existing pool
- */
-export function createWebhookDatabaseFromPool(pool: pg.Pool): WebhookDatabase {
-  return new WebhookDatabase(pool);
+export function createWebhookDatabase(connectionString?: string): WebhookDatabase {
+  return new WebhookDatabase(connectionString);
 }

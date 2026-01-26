@@ -1,25 +1,22 @@
 /**
  * @orient/database
  *
- * Database schemas and client for the Orient.
- * Uses SQLite for both development and production.
+ * Database schemas, migrations, and clients for the Orient.
  *
  * This package provides:
  * - Drizzle ORM schema definitions
- * - Database client with connection management
+ * - Database client with connection pooling
  * - Type-safe database operations
  */
 
 // Export client functions
 export {
   getDatabase,
-  getDatabaseClient,
+  getSqlClient,
   closeDatabase,
   resetDatabaseInstance,
   checkDatabaseConnection,
   executeRawSql,
-  getRawSqliteDb,
-  getDefaultSqlitePath,
   schema,
   // Drizzle query helpers
   eq,
@@ -34,13 +31,10 @@ export {
   min,
   max,
   like,
+  ilike,
   inArray,
   isNull,
   isNotNull,
-  lt,
-  lte,
-  gte,
-  gt,
 } from './client.js';
 
 // Export schema tables directly for convenience
@@ -50,22 +44,13 @@ export {
   chatPermissions,
   permissionAuditLog,
   dashboardUsers,
-  userVersionPreferences,
   systemPrompts,
   slackMessages,
   slackChannels,
   slackChannelPermissions,
   slackPermissionAuditLog,
-  scheduledJobs,
-  scheduledJobRuns,
   scheduledMessages,
   webhookForwards,
-  webhooks,
-  webhookEvents,
-  // App Storage
-  appStorage,
-  // OAuth Proxy
-  oauthProxySessions,
   // Agent Registry tables
   agents,
   agentSkills,
@@ -79,9 +64,12 @@ export {
   // Feature Flags tables
   featureFlags,
   userFeatureFlagOverrides,
-  // Secrets
-  secrets,
-  secretsAuditLog,
+  // Enums
+  messageDirectionEnum,
+  chatTypeEnum,
+  chatPermissionEnum,
+  promptPlatformEnum,
+  slackChannelTypeEnum,
 } from './schema/index.js';
 
 // Export all types
@@ -142,4 +130,4 @@ export type {
 } from './types.js';
 
 // Export database config type
-export type { DatabaseConfig, Database } from './client.js';
+export type { DatabaseConfig } from './client.js';

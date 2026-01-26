@@ -19,4 +19,3 @@ export { createIntegrationsRoutes } from './integrations.routes.js';
 export { createStorageRoutes } from './storage.routes.js';
 export { createVersionRoutes } from './version.routes.js';
 export { createFeatureFlagsRoutes } from './featureFlags.routes.js';
-export { createOAuthProxyRoutes } from './oauth-proxy.routes.js';

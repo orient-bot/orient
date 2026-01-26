@@ -15,7 +15,7 @@ import {
   CreateScheduledJobInput,
   UpdateScheduledJobInput,
   SchedulerStats,
-} from './types/scheduler.js';
+} from '../types/scheduler.js';
 
 const { Pool } = pg;
 const logger = createServiceLogger('scheduler-db');

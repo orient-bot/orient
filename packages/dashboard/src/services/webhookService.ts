@@ -7,7 +7,7 @@
 
 import crypto from 'crypto';
 import { createServiceLogger } from '@orient/core';
-import { WebhookDatabase } from '@orient/database-services';
+import { WebhookDatabase } from './webhookDatabase.js';
 import {
   Webhook,
   WebhookEvent,
