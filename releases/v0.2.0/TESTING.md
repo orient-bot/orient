@@ -226,6 +226,7 @@ orient logs        # Shows logs
 orient doctor      # Runs diagnostics
 orient config      # Shows/edits config
 orient upgrade     # Upgrades to latest
+orient uninstall   # Removes Orient (prompts for confirmation)
 ```
 
 ---
@@ -370,9 +371,10 @@ cd ~/code/tombensim/orient-fresh-test
 cd ..
 rm -rf orient-fresh-test
 
-# For Mac installer cleanup
-orient stop
-rm -rf ~/.orient
+# For Mac installer cleanup (use uninstall command)
+orient uninstall
+# Or manually:
+# orient stop && rm -rf ~/.orient
 ```
 
 ---
