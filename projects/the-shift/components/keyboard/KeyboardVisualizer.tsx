@@ -9,7 +9,6 @@ const supportedKeys = [
   { key: 'H', label: 'h', hint: '←' },
   { key: 'J', label: 'j', hint: '↓' },
   { key: 'K', label: 'k', hint: '↑' },
-  { key: 'L', label: 'l', hint: '→' },
   { key: 'I', label: 'i', hint: 'invite' },
   { key: 'T', label: 't', hint: 'theme' },
   { key: '?', label: '?', hint: 'help' },
