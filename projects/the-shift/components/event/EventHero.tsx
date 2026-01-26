@@ -1,25 +1,33 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import ShiftKey from '../keyboard/ShiftKey'
 
 export default function EventHero() {
   const [mounted, setMounted] = useState(false)
+  const router = useRouter()
 
   useEffect(() => {
     setMounted(true)
   }, [])
+
+  const handleShiftClick = () => {
+    setTimeout(() => {
+      router.push('/invite')
+    }, 200)
+  }
 
   return (
     <section className="min-h-[90vh] flex flex-col items-center justify-center px-4 py-20">
       <div className="text-center max-w-4xl mx-auto">
         {/* The Shift key as hero */}
         <div className={`mb-12 ${mounted ? 'animate-scale-in' : 'opacity-0'}`}>
-          <ShiftKey size="xl" pulsing />
+          <ShiftKey size="xl" pulsing onClick={handleShiftClick} />
         </div>
 
         <p className={`font-mono text-sm text-text-muted uppercase tracking-widest mb-6 ${mounted ? 'animate-fade-in animation-delay-200' : 'opacity-0'}`}>
-          AI Builders Summit 2025
+          AI Builders Summit 2026
         </p>
 
         <h1 className={`text-4xl md:text-6xl font-bold mb-6 text-text-primary ${mounted ? 'animate-fade-in-up animation-delay-300' : 'opacity-0'}`}>

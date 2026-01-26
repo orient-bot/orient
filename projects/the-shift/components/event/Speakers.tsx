@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useCallback } from 'react'
+import ModeIndicator from '../claude/ModeIndicator'
 
 const speakers = [
   {
@@ -41,6 +42,9 @@ export default function Speakers() {
     <section className="py-20 px-4">
       <div className="max-w-4xl mx-auto">
         <div className="text-center mb-12">
+          <div className="flex justify-center mb-4">
+            <ModeIndicator mode="ask" />
+          </div>
           <h2 className="text-3xl font-bold mb-2 text-text-primary">Speakers</h2>
           <p className="text-text-secondary font-mono text-sm">
             // speakers.featured

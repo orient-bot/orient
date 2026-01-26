@@ -1,13 +1,14 @@
 'use client'
 
 import { useState, useCallback } from 'react'
+import ModeIndicator from '../claude/ModeIndicator'
 
 const details = [
   {
     key: 'F1',
     label: 'DATE',
     value: 'Coming Soon',
-    subtext: '3.5-4 hours',
+    subtext: '2 hours',
   },
   {
     key: 'F2',
@@ -34,6 +35,9 @@ export default function EventDetails() {
   return (
     <section className="py-20 px-4">
       <div className="max-w-4xl mx-auto">
+        <div className="flex justify-start mb-4">
+          <ModeIndicator mode="agent" />
+        </div>
         <div className="keyboard-container">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {details.map((detail) => (

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import ClaudeStatusIndicator from '../claude/ClaudeStatusIndicator'
 
 // Only the keys we support
 const supportedKeys = [
@@ -119,12 +120,12 @@ export default function KeyboardVisualizer({ onVimCommand }: KeyboardVisualizerP
         {/* Divider */}
         <div className="w-px h-6 bg-border-key" />
 
-        {/* Action indicator */}
-        <div className="w-16 text-center">
+        {/* Action indicator / Claude status */}
+        <div className="min-w-[120px] text-center">
           {lastAction ? (
             <span className="font-mono text-xs text-text-primary animate-fade-in">{lastAction}</span>
           ) : (
-            <span className="font-mono text-xs text-text-muted">vim</span>
+            <ClaudeStatusIndicator />
           )}
         </div>
 

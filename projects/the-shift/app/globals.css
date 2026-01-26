@@ -465,3 +465,15 @@ body {
   transform: translateY(2px);
   transition: transform 0.05s ease;
 }
+
+/* Typewriter animation for Claude status */
+@keyframes typewriter {
+  from { width: 0; }
+  to { width: 100%; }
+}
+
+.animate-typewriter {
+  overflow: hidden;
+  white-space: nowrap;
+  animation: typewriter 0.8s steps(12) forwards;
+}

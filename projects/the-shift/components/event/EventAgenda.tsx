@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useCallback } from 'react'
+import ModeIndicator from '../claude/ModeIndicator'
 
 const agenda = [
   {
@@ -14,7 +15,7 @@ const agenda = [
     key: '2',
     time: '15 min',
     title: 'The Burden Bearers',
-    description: 'AI for mature codebases — bringing AI to real production',
+    description: 'AI for mature codebases: bringing AI to real production',
     sessions: '2 demos',
     details: {
       subtitle: 'When your codebase has history',
@@ -29,7 +30,7 @@ const agenda = [
     key: '3',
     time: '15 min',
     title: 'The Vibe Coders',
-    description: 'Solo builders & AI-native products — one person, team output',
+    description: 'Solo builders & AI-native products: one person, team output',
     sessions: '2 demos',
     details: {
       subtitle: 'Building at 10x speed',
@@ -44,7 +45,7 @@ const agenda = [
     key: '4',
     time: '15 min',
     title: 'Software 3.0',
-    description: 'Agentic applications — when code stops being deterministic',
+    description: 'Agentic applications: when code stops being deterministic',
     sessions: '2 demos',
     details: {
       subtitle: 'The paradigm shift',
@@ -56,7 +57,7 @@ const agenda = [
     },
   },
   {
-    key: '—',
+    key: '-',
     time: '10 min',
     title: 'Networking Break',
     description: null,
@@ -104,6 +105,9 @@ export default function EventAgenda() {
     <section className="py-20 px-4 bg-bg-secondary">
       <div className="max-w-3xl mx-auto">
         <div className="text-center mb-12">
+          <div className="flex justify-center mb-4">
+            <ModeIndicator mode="plan" />
+          </div>
           <h2 className="text-3xl font-bold mb-2 text-text-primary">Agenda</h2>
           <p className="text-text-secondary font-mono text-sm">
             // event.schedule
