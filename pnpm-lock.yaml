@@ -459,9 +459,15 @@ importers:
 
   packages/dashboard:
     dependencies:
+      '@orient/agents':
+        specifier: workspace:*
+        version: link:../agents
       '@orient/apps':
         specifier: workspace:^
         version: link:../apps
+      '@orient/bot-whatsapp':
+        specifier: workspace:*
+        version: link:../bot-whatsapp
       '@orient/core':
         specifier: workspace:*
         version: link:../core

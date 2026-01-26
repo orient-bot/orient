@@ -3,9 +3,10 @@
  *
  * Express server for the dashboard API with database integration.
  * Serves the React frontend in production.
+ * Optionally mounts WhatsApp API endpoints for unified server mode.
  */
 
-import express, { Application } from 'express';
+import express, { Application, Router } from 'express';
 import cors from 'cors';
 import path from 'path';
 import fs from 'fs';
@@ -49,6 +50,8 @@ export interface DashboardServerConfig {
   corsOrigins?: string[];
   staticPath?: string;
   setupOnly?: boolean;
+  /** Optional WhatsApp router to mount for unified server mode */
+  whatsappRouter?: Router;
 }
 
 export interface DashboardServices {
@@ -211,6 +214,13 @@ function createBaseServer(config: DashboardServerConfig): Application {
   app.get('/health', (_req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
   });
+
+  // Mount WhatsApp router if provided (unified server mode)
+  // This provides /qr, /pairing-code, /flush-session, etc.
+  if (config.whatsappRouter) {
+    logger.info('Mounting WhatsApp API router (unified server mode)');
+    app.use(config.whatsappRouter);
+  }
 
   // Setup wizard routes (no auth required)
   app.use('/api/setup', createSetupRouter());

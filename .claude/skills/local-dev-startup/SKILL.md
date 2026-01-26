@@ -39,19 +39,17 @@ For production-like testing with all services running in Docker containers:
 
 1. **Builds Docker images** for all services:
    - bot-slack
-   - bot-whatsapp
-   - dashboard
+   - dashboard (includes WhatsApp integration)
    - opencode
 
 2. **Starts containers** in dependency order:
-   - PostgreSQL (database)
    - MinIO (object storage)
-   - Dashboard API
+   - Dashboard API (with WhatsApp routes)
    - OpenCode API
-   - Bot services (Slack, WhatsApp)
+   - Bot services (Slack)
    - Nginx (reverse proxy)
 
-3. **Applies database migrations** from `data/migrations/*.sql`
+3. **Creates SQLite database** and pushes schema
 
 4. **Exposes services via Nginx** at port 80
 
@@ -71,6 +69,7 @@ For production-like testing with all services running in Docker containers:
 | Services   | Native processes      | Docker containers              |
 | Hot reload | Yes (Vite HMR)        | No (requires rebuild)          |
 | Frontend   | http://localhost:5173 | http://localhost/dashboard/    |
+| Database   | SQLite (local file)   | SQLite (container volume)      |
 | Use case   | Daily development     | Integration/production testing |
 
 ### Verifying Test Environment
@@ -94,71 +93,49 @@ docker logs orienter-dashboard
 ## What `./run.sh dev` Does
 
 1. Checks for orphaned processes on required ports
-2. Starts Docker infrastructure (PostgreSQL, MinIO, Nginx)
-3. Waits for PostgreSQL to be ready
-4. Runs database migrations from `data/migrations/`
+2. Starts Docker infrastructure (MinIO, Nginx)
+3. Creates SQLite database directory if needed
+4. Pushes database schema with Drizzle
 5. Seeds agent registry if empty
 6. Starts Vite frontend dev server (port 5173)
-7. Starts Dashboard API server (port 4098)
-8. Starts WhatsApp bot (port 4097)
-9. Starts Slack bot
+7. Starts Dashboard API server with WhatsApp integration (port 4098)
+8. Starts Slack bot
 
 ## Service Ports
 
 | Service                   | Port | URL                   |
 | ------------------------- | ---- | --------------------- |
 | Dashboard Frontend (Vite) | 5173 | http://localhost:5173 |
-| Dashboard API             | 4098 | http://localhost:4098 |
-| WhatsApp Bot API          | 4097 | http://localhost:4097 |
+| Dashboard API + WhatsApp  | 4098 | http://localhost:4098 |
 | OpenCode                  | 4099 | http://localhost:4099 |
-| PostgreSQL                | 5432 | localhost:5432        |
 | MinIO Console             | 9001 | http://localhost:9001 |
 | MinIO API                 | 9000 | http://localhost:9000 |
 | Nginx                     | 80   | http://localhost:80   |
 
+**Note:** WhatsApp functionality is integrated into the Dashboard service on port 4098.
+
 ## Common Startup Errors and Solutions
 
-### 1. ECONNREFUSED (Database not running)
+### 1. Database File Not Found
 
 **Error:**
 
 ```
-AggregateError [ECONNREFUSED]
+SQLITE_CANTOPEN: unable to open database file
 ```
 
-**Cause:** PostgreSQL container is not running.
+**Cause:** Database directory doesn't exist.
 
 **Solution:**
 
 ```bash
 ./run.sh dev stop
 ./run.sh dev
+# Or manually:
+mkdir -p .dev-data/instance-0
 ```
 
-### 2. Password Authentication Failed
-
-**Error:**
-
-```
-password authentication failed for user "aibot"
-```
-
-**Cause:** DATABASE_URL uses different credentials than PostgreSQL was configured with.
-
-**Solution:**
-
-```bash
-# Check what credentials PostgreSQL uses
-docker exec orienter-postgres-0 env | grep POSTGRES
-
-# Update packages/dashboard/.env to match
-DATABASE_URL=postgresql://orient:aibot123@localhost:5432/whatsapp_bot_0
-
-# Restart
-./run.sh dev stop && ./run.sh dev
-```
-
-### 3. Missing Module Export (ESM Resolution)
+### 2. Missing Module Export (ESM Resolution)
 
 **Error:**
 
@@ -177,34 +154,51 @@ pnpm --filter @orient/database-services build
 pnpm --filter @orient/integrations build
 ```
 
-### 4. Missing Database Table
+### 3. Missing Database Table
 
 **Error:**
 
 ```
-relation "user_version_preferences" does not exist
+SqliteError: no such table: user_version_preferences
 ```
 
 **Solution:**
 
-1. Check if migration exists in `data/migrations/`
-2. If missing, create migration file
-3. Restart: `./run.sh dev stop && ./run.sh dev`
+1. Push schema: `pnpm --filter @orient/database run db:push:sqlite`
+2. Or restart: `./run.sh dev stop && ./run.sh dev`
 
-### 5. Container Name Conflict
+### 4. Container Name Conflict
 
 **Error:**
 
 ```
-Conflict. The container name "/orienter-postgres-0" is already in use
+Conflict. The container name "/orienter-minio-0" is already in use
 ```
 
 **Solution:**
 
 ```bash
 ./run.sh dev stop
-docker rm orienter-postgres-0 2>/dev/null
+docker rm orienter-minio-0 2>/dev/null
 ./run.sh dev
+```
+
+### 5. Port Already in Use
+
+**Error:**
+
+```
+EADDRINUSE: address already in use :::4098
+```
+
+**Solution:**
+
+```bash
+# Find what's using the port
+lsof -i :4098
+
+# Kill the process or stop dev mode
+./run.sh dev stop
 ```
 
 ## Package Build Order
@@ -218,52 +212,61 @@ pnpm --filter @orient/database-services build
 pnpm --filter @orient/integrations build
 ```
 
-## Database Migrations
+## Database Management
 
-### Migration Location
+### Database Location
 
-`data/migrations/*.sql`
+SQLite database file: `.dev-data/instance-N/orient.db`
 
-### Creating a New Migration
+### Pushing Schema
 
 ```bash
-cat > data/migrations/005_add_my_table.sql << 'EOF'
-CREATE TABLE IF NOT EXISTS my_table (
-  id SERIAL PRIMARY KEY,
-  name VARCHAR(255) NOT NULL
-);
-EOF
+# Push schema changes
+pnpm --filter @orient/database run db:push:sqlite
+
+# Or via run.sh (done automatically)
+./run.sh dev
 ```
 
-### Checking Applied Migrations
+### Inspecting Database
 
 ```bash
-docker exec orienter-postgres-0 psql -U orient -d whatsapp_bot_0 -c "SELECT * FROM _migrations;"
+# Using sqlite3 CLI
+sqlite3 .dev-data/instance-0/orient.db ".tables"
+sqlite3 .dev-data/instance-0/orient.db "SELECT * FROM agents;"
+
+# Using Drizzle Studio
+pnpm db:studio
 ```
 
 ## Verification Checklist
 
 ```bash
-# 1. API Health
-curl http://localhost:4098/api/health
+# 1. API Health (includes WhatsApp status)
+curl http://localhost:4098/health
 
 # 2. Frontend Loading
 curl -s http://localhost:5173 | head -5
 
 # 3. Database Connectivity
-docker exec orienter-postgres-0 psql -U orient -d whatsapp_bot_0 -c "SELECT 1;"
+sqlite3 .dev-data/instance-0/orient.db "SELECT COUNT(*) FROM agents;"
 
 # 4. Check Running Processes
 ps aux | grep -E "tsx|vite" | grep -v grep
+
+# 5. WhatsApp QR Status
+curl http://localhost:4098/qr/status
 ```
 
 ## Environment Configuration
 
-### `packages/dashboard/.env`
+### `.env`
 
 ```bash
-DATABASE_URL=postgresql://orient:aibot123@localhost:5432/whatsapp_bot_0
+DATABASE_TYPE=sqlite
+SQLITE_DB_PATH=.dev-data/instance-0/orient.db
 DASHBOARD_JWT_SECRET=your-secret-here
+ORIENT_MASTER_KEY=your-master-key
 ```
 
 ## Troubleshooting Commands
@@ -275,8 +278,8 @@ tail -f logs/instance-0/dashboard-dev.log
 # Check Docker containers
 docker ps
 
-# Connect to postgres
-docker exec -it orienter-postgres-0 psql -U orient -d whatsapp_bot_0
+# Check database tables
+sqlite3 .dev-data/instance-0/orient.db ".tables"
 
 # Check for errors
 grep -i error logs/instance-0/*.log | tail -20
@@ -344,7 +347,7 @@ When database is recreated, users are lost:
 ```bash
 cd packages/dashboard
 HASH=$(npx tsx -e "import bcrypt from 'bcryptjs'; bcrypt.hash('password', 10).then(h => console.log(h));")
-docker exec orienter-postgres-0 psql -U orient -d whatsapp_bot_0 -c "
+sqlite3 ../.dev-data/instance-0/orient.db "
 INSERT INTO dashboard_users (username, password_hash) VALUES ('username', '$HASH');
 "
 ```

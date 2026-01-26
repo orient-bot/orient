@@ -204,7 +204,7 @@ cd docker
 docker compose --env-file ../.env -f docker-compose.v2.yml -f docker-compose.local.yml --profile slack up -d --no-build
 ```
 
-### 8. Port Conflicts (9000, 5432, 80)
+### 8. Port Conflicts (9000, 80)
 
 **Symptom**: `Bind for 0.0.0.0:9000 failed: port is already allocated`
 
@@ -213,8 +213,8 @@ docker compose --env-file ../.env -f docker-compose.v2.yml -f docker-compose.loc
 **Fix**: Stop dev containers first:
 
 ```bash
-docker stop orienter-nginx-0 orienter-postgres-0 orienter-minio-0
-docker rm orienter-nginx-0 orienter-postgres-0 orienter-minio-0
+docker stop orienter-nginx-0 orienter-minio-0
+docker rm orienter-nginx-0 orienter-minio-0
 ```
 
 Then start test containers:

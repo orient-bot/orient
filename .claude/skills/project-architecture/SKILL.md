@@ -31,7 +31,7 @@ Orient is a **pnpm monorepo** implementing an AI-powered project management syst
 │   └──────────────────────────────┬──────────────────────────────────────┘   │
 │                                  ▼                                           │
 │   ┌─────────────────┐ ┌─────────────────┐ ┌─────────────────┐               │
-│   │   PostgreSQL    │ │ Object Storage  │ │ External APIs   │               │
+│   │   SQLite DB     │ │ Object Storage  │ │ External APIs   │               │
 │   │ (Drizzle ORM)   │ │ (MinIO / R2)    │ │ (JIRA, Google)  │               │
 │   └─────────────────┘ └─────────────────┘ └─────────────────┘               │
 └─────────────────────────────────────────────────────────────────────────────┘
@@ -47,15 +47,15 @@ orient/
 │   ├── mcp-servers/           # MCP server types and configs
 │   ├── mcp-tools/             # MCP tool definitions and registry
 │   ├── core/                  # Shared utilities, config, logging, types
-│   ├── database/              # Drizzle ORM schemas (PostgreSQL)
+│   ├── database/              # Drizzle ORM schemas (SQLite)
 │   ├── database-services/     # DB service implementations
 │   ├── integrations/          # External integrations (JIRA, GitHub, Google)
-│   ├── bot-whatsapp/          # WhatsApp bot (Baileys)
+│   ├── bot-whatsapp/          # WhatsApp bot (Baileys) - integrated into Dashboard
 │   ├── bot-slack/             # Slack bot (Bolt)
 │   ├── api-gateway/           # REST API, webhooks, schedulers
-│   ├── dashboard/             # React admin dashboard
+│   ├── dashboard/             # React admin dashboard + WhatsApp API
 │   └── test-utils/            # Test factories, mocks
-├── src/                       # ⚠️ DEPRECATED - Do not write new code here
+├── src/                       # DEPRECATED - Do not write new code here
 ├── apps/                      # Standalone mini-apps (e.g., meeting-scheduler)
 ├── data/                      # Seeds, migrations
 ├── docker/                    # Docker configs and compose files
@@ -66,21 +66,21 @@ orient/
 
 ## Package Descriptions
 
-| Package                     | Status        | Description                                                                |
-| --------------------------- | ------------- | -------------------------------------------------------------------------- |
-| `@orient/core`              | ✅ Stable     | Config loading, logging (`winston`), base types                            |
-| `@orient/database`          | ✅ Stable     | Drizzle ORM schemas, PostgreSQL client                                     |
-| `@orient/database-services` | ✅ Stable     | `MessageDatabase`, `SlackDatabase`, `SchedulerDatabase`, `WebhookDatabase` |
-| `@orient/agents`            | ✅ Stable     | Agent registry, skills service, prompts, tool permissions                  |
-| `@orient/apps`              | ✅ Stable     | Mini-apps manifests, types, validation, edit sessions                      |
-| `@orient/mcp-servers`       | 🚧 Types Only | MCP server type definitions (impl in `src/mcp-servers/`)                   |
-| `@orient/mcp-tools`         | ✅ Stable     | MCP tool registry & definitions                                            |
-| `@orient/integrations`      | ✅ Stable     | JIRA, GitHub, Google (Sheets, Slides, Gmail, Calendar)                     |
-| `@orient/bot-whatsapp`      | ✅ Stable     | WhatsApp bot using Baileys                                                 |
-| `@orient/bot-slack`         | ✅ Stable     | Slack bot using Bolt                                                       |
-| `@orient/api-gateway`       | ✅ Stable     | REST API, webhooks                                                         |
-| `@orient/dashboard`         | ✅ Stable     | Admin dashboard (React + Express)                                          |
-| `@orient/test-utils`        | ✅ Stable     | Test factories, mocks, DB helpers                                          |
+| Package                     | Status     | Description                                                                |
+| --------------------------- | ---------- | -------------------------------------------------------------------------- |
+| `@orient/core`              | Stable     | Config loading, logging (`winston`), base types                            |
+| `@orient/database`          | Stable     | Drizzle ORM schemas, SQLite client                                         |
+| `@orient/database-services` | Stable     | `MessageDatabase`, `SlackDatabase`, `SchedulerDatabase`, `WebhookDatabase` |
+| `@orient/agents`            | Stable     | Agent registry, skills service, prompts, tool permissions                  |
+| `@orient/apps`              | Stable     | Mini-apps manifests, types, validation, edit sessions                      |
+| `@orient/mcp-servers`       | Types Only | MCP server type definitions (impl in `src/mcp-servers/`)                   |
+| `@orient/mcp-tools`         | Stable     | MCP tool registry & definitions                                            |
+| `@orient/integrations`      | Stable     | JIRA, GitHub, Google (Sheets, Slides, Gmail, Calendar)                     |
+| `@orient/bot-whatsapp`      | Stable     | WhatsApp bot using Baileys (integrated into Dashboard)                     |
+| `@orient/bot-slack`         | Stable     | Slack bot using Bolt                                                       |
+| `@orient/api-gateway`       | Stable     | REST API, webhooks                                                         |
+| `@orient/dashboard`         | Stable     | Admin dashboard (React + Express) + WhatsApp API routes                    |
+| `@orient/test-utils`        | Stable     | Test factories, mocks, DB helpers                                          |
 
 ## Multi-MCP-Server Architecture
 
@@ -105,7 +105,7 @@ npm run start:mcp:core
 
 ## Agent Registry
 
-Agents are managed via the **Dashboard UI** and stored in PostgreSQL. The `@orient/agents` package provides the runtime.
+Agents are managed via the **Dashboard UI** and stored in SQLite. The `@orient/agents` package provides the runtime.
 
 ```
 ┌─────────────────────────────────────────┐
@@ -121,7 +121,7 @@ Agents are managed via the **Dashboard UI** and stored in PostgreSQL. The `@orie
 └────────────────────┬────────────────────┘
                      ▼
 ┌─────────────────────────────────────────┐
-│        PostgreSQL Tables                │
+│          SQLite Tables                  │
 │   agents | agent_skills | agent_tools   │
 │   context_rules                         │
 └─────────────────────────────────────────┘
@@ -193,7 +193,7 @@ Allows generating small React apps via AI prompts, managed through Git worktrees
 5. Return response to user
         │
         ▼
-6. Store outgoing message in PostgreSQL
+6. Store outgoing message in SQLite
 ```
 
 ## Docker Deployment
@@ -219,12 +219,12 @@ docker compose -f docker/docker-compose.v2.yml \
 npm run dev:slack           # Run Slack bot in dev mode
 npm run dev:whatsapp        # Run WhatsApp bot in dev mode
 npm run dev:mcp             # Run coding MCP server in dev mode
-npm run dev:infra           # Start Docker infrastructure (Postgres, etc.)
+npm run dev:infra           # Start Docker infrastructure (MinIO, Nginx)
 
 # Database
-npm run db:migrate          # Run migrations
-npm run db:seed:all         # Seed all data
-npm run agents:seed         # Seed default agents
+pnpm --filter @orient/database run db:push:sqlite  # Push schema
+pnpm run db:seed:all        # Seed all data
+pnpm run agents:seed        # Seed default agents
 
 # Testing
 npm run test                # Run all tests
@@ -262,5 +262,5 @@ npm run build:all           # Build packages + root + dashboard
 ### Database Schema Patterns
 
 - Use platform-specific tables: `messages` / `slack_messages`
-- PostgreSQL for structured data, Object Storage for media
+- SQLite for all structured data, Object Storage for media
 - Drizzle ORM for type-safe queries

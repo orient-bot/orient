@@ -168,8 +168,8 @@ ISOLATED=true ./scripts/seed-worktree-db.sh
 
 This automatically:
 
-1. Creates a new PostgreSQL database: `worktree_<timestamp>`
-2. Updates your `.env` with the new DATABASE_URL
+1. Creates a new SQLite database: `.dev-data/worktree_<timestamp>/orient.db`
+2. Updates your `.env` with the new SQLITE_DB_PATH
 3. Runs all migrations
 4. Seeds with:
    - 5 agents (pm-assistant, communicator, scheduler, explorer, app-builder)
@@ -2185,7 +2185,7 @@ MiniappEditService
     │
     └─→ MiniappEditDatabase
             ↓
-            └─→ PostgreSQL (network)
+            └─→ SQLite (file)
 ```
 
 **Initialization Order**:
@@ -2212,7 +2212,7 @@ echo $REPO_PATH
 
 # 3. Test service dependencies independently
 curl $OPENCODE_SERVER_URL/health
-psql $DATABASE_URL -c "SELECT 1"
+sqlite3 "$SQLITE_DB_PATH" "SELECT 1"
 ls -la $REPO_PATH
 ```
 
@@ -2314,7 +2314,7 @@ try {
 import { createMiniappEditDatabase } from './services/miniappEditDatabase';
 
 async function testService() {
-  const db = createMiniappEditDatabase(process.env.DATABASE_URL!);
+  const db = createMiniappEditDatabase(process.env.SQLITE_DB_PATH!);
   await db.initialize();
 
   const session = await db.createSession({
@@ -2478,14 +2478,14 @@ tail -f logs/instance-9/whatsapp-dev.log
 **Expected Log Sequence**:
 
 ```
-2026-01-19 06:27:14.601 [INFO] [slack-db] Slack database pool created
+2026-01-19 06:27:14.601 [INFO] [slack-db] Slack database initialized
   → {
-    "connectionString": "postgresql://orient:****@localhost:14432/whatsapp_bot_9"
+    "databasePath": ".dev-data/instance-9/orient.db"
   }
 
-2026-01-19 06:27:14.601 [INFO] [message-db] Database pool created
+2026-01-19 06:27:14.601 [INFO] [message-db] Database initialized
   → {
-    "connectionString": "postgresql://orient:****@localhost:14432/whatsapp_bot_9"
+    "databasePath": ".dev-data/instance-9/orient.db"
   }
 
 2026-01-19 06:27:14.602 [INFO] [prompt-service] Prompt service initialized
@@ -2642,7 +2642,7 @@ src/main.ts(121,47): error TS2345: Argument of type 'SlackDatabase' is not assig
    curl http://localhost:13098/api/prompts
 
 4. Verify custom prompt exists in database:
-   psql $DATABASE_URL -c "SELECT * FROM system_prompts WHERE platform='slack';"
+   sqlite3 "$SQLITE_DB_PATH" "SELECT * FROM system_prompts WHERE platform='slack';"
 ```
 
 #### When to Apply This Pattern
@@ -2730,16 +2730,16 @@ cp $ROOT_WORKTREE_PATH/.env.local .env.local 2>/dev/null || true
 
 - **Instance ID**: Auto-assigned (1-9) based on worktree name hash
 - **Ports**: Automatically offset by `instance_id × 1000`
-- **Database**: Separate database per instance (e.g., `whatsapp_bot_1`)
+- **Database**: Separate SQLite database per instance (e.g., `.dev-data/instance-1/orient.db`)
 - **Storage**: Separate MinIO bucket per instance
 - **Containers**: Isolated Docker containers and networks
 
 **Port Allocation Example:**
 
 ```
-Main repo (Instance 0):  http://localhost:80    (ports: 80, 4097, 4098, 5432, 9000)
-Worktree 1 (Instance 1): http://localhost:1080  (ports: 1080, 5097, 5098, 6432, 10000)
-Worktree 2 (Instance 2): http://localhost:2080  (ports: 2080, 6097, 6098, 7432, 11000)
+Main repo (Instance 0):  http://localhost:80    (ports: 80, 4098, 9000)
+Worktree 1 (Instance 1): http://localhost:1080  (ports: 1080, 5098, 10000)
+Worktree 2 (Instance 2): http://localhost:2080  (ports: 2080, 6098, 11000)
 ```
 
 **Check your instance:**
@@ -2797,8 +2797,6 @@ networks:
     driver: bridge
 
 volumes:
-  postgres-data-${AI_INSTANCE_ID:-0}: # ❌ Variable in key name
-    driver: local
   minio-data-${AI_INSTANCE_ID:-0}: # ❌ Variable in key name
     driver: local
 ```
@@ -2812,26 +2810,25 @@ networks:
     driver: bridge
 
 volumes:
-  postgres-data: # ✅ Static name
-    driver: local
   minio-data: # ✅ Static name
     driver: local
 ```
 
 **How Isolation Works**:
 
-- `COMPOSE_PROJECT_NAME=orienter-instance-0` → volumes become `orienter-instance-0_postgres-data`
-- `COMPOSE_PROJECT_NAME=orienter-instance-1` → volumes become `orienter-instance-1_postgres-data`
+- `COMPOSE_PROJECT_NAME=orienter-instance-0` → volumes become `orienter-instance-0_minio-data`
+- `COMPOSE_PROJECT_NAME=orienter-instance-1` → volumes become `orienter-instance-1_minio-data`
 - Each instance gets completely separate volumes and networks automatically
+- Database: SQLite files are stored in `.dev-data/instance-{id}/orient.db`
 
 **Container Names ARE Different** - Variables work in service definitions:
 
 ```yaml
 services:
-  postgres:
-    container_name: orienter-postgres-${AI_INSTANCE_ID:-0} # ✅ Works fine
+  minio:
+    container_name: orienter-minio-${AI_INSTANCE_ID:-0} # ✅ Works fine
     volumes:
-      - postgres-data:/var/lib/postgresql/data # ✅ Reference static name
+      - minio-data:/data # ✅ Reference static name
     networks:
       - orienter-network # ✅ Reference static name
 ```
@@ -2840,10 +2837,10 @@ services:
 
 ```bash
 # ❌ WRONG - Looking for compose project prefix
-docker ps | grep "$COMPOSE_PROJECT_NAME"    # Won't find orienter-postgres-0
+docker ps | grep "$COMPOSE_PROJECT_NAME"    # Won't find orienter-minio-0
 
 # ✅ CORRECT - Look for container name pattern
-docker ps | grep -E "orienter-.*-${AI_INSTANCE_ID}"  # Finds orienter-postgres-0
+docker ps | grep -E "orienter-.*-${AI_INSTANCE_ID}"  # Finds orienter-minio-0
 ```
 
 **Key Takeaways**:
@@ -2856,24 +2853,23 @@ docker ps | grep -E "orienter-.*-${AI_INSTANCE_ID}"  # Finds orienter-postgres-0
 
 ### 6. Instance-Specific Environment Variable Configuration
 
-**Critical Setup**: When copying `.env` from the main repo to a worktree, you MUST update instance-specific values or services will connect to the wrong database and storage.
+**Critical Setup**: When copying `.env` from the main repo to a worktree, you MUST update instance-specific values or services will use the wrong database and storage.
 
 #### The Problem
 
-**Symptom**: Services fail to start, or you accidentally connect to instance 0's database from instance 9.
+**Symptom**: Services fail to start, or you accidentally use instance 0's database from instance 9.
 
 **Root Cause**: `.env` contains hard-coded values for instance 0:
 
 ```bash
-DATABASE_URL=postgresql://orient:aibot123@localhost:5432/whatsapp_bot_0
+SQLITE_DB_PATH=.dev-data/instance-0/orient.db
 S3_ENDPOINT=http://localhost:9000
 ```
 
-When you copy this to a worktree with instance ID 9, services try to connect to:
+When you copy this to a worktree with instance ID 9, services try to use:
 
-- PostgreSQL on port **5432** (instance 0) instead of **14432** (instance 9)
+- SQLite database `.dev-data/instance-0/orient.db` instead of `.dev-data/instance-9/orient.db`
 - MinIO on port **9000** (instance 0) instead of **18000** (instance 9)
-- Database **whatsapp_bot_0** instead of **whatsapp_bot_9**
 
 #### Auto-Detecting Instance ID
 
@@ -2885,7 +2881,7 @@ source scripts/instance-env.sh
 
 # This sets:
 echo $AI_INSTANCE_ID      # e.g., 9
-echo $POSTGRES_PORT       # e.g., 14432 (5432 + 9×1000)
+echo $SQLITE_DB_PATH      # e.g., .dev-data/instance-9/orient.db
 echo $MINIO_API_PORT      # e.g., 18000 (9000 + 9×1000)
 echo $DASHBOARD_PORT      # e.g., 13098 (4098 + 9×1000)
 ```
@@ -2907,7 +2903,7 @@ if [ "$IS_WORKTREE" = "false" ]; then
 fi
 ```
 
-#### Fixing DATABASE_URL
+#### Fixing SQLITE_DB_PATH
 
 **Manual Fix**:
 
@@ -2915,29 +2911,25 @@ fi
 # 1. Source instance environment
 source scripts/instance-env.sh
 
-# 2. Extract credentials from current DATABASE_URL
-OLD_URL=$(grep "^DATABASE_URL=" .env | cut -d'=' -f2-)
-CREDS=$(echo "$OLD_URL" | grep -oE '//[^@]+@' | tr -d '/@')
+# 2. Update SQLITE_DB_PATH in .env
+sed -i '' "s|^SQLITE_DB_PATH=.*|SQLITE_DB_PATH=.dev-data/instance-${AI_INSTANCE_ID}/orient.db|" .env
 
-# 3. Build new URL with correct instance port and database
-NEW_URL="postgresql://${CREDS}@localhost:${POSTGRES_PORT}/whatsapp_bot_${AI_INSTANCE_ID}"
+# 3. Create the directory if needed
+mkdir -p ".dev-data/instance-${AI_INSTANCE_ID}"
 
-# 4. Replace in .env
-sed -i '' "s|^DATABASE_URL=.*|DATABASE_URL=${NEW_URL}|" .env
-
-# 5. Verify
-echo "Updated DATABASE_URL:"
-grep DATABASE_URL .env
+# 4. Verify
+echo "Updated SQLITE_DB_PATH:"
+grep SQLITE_DB_PATH .env
 ```
 
 **Expected Result**:
 
 ```bash
 # Before (instance 0):
-DATABASE_URL=postgresql://orient:aibot123@localhost:5432/whatsapp_bot_0
+SQLITE_DB_PATH=.dev-data/instance-0/orient.db
 
 # After (instance 9):
-DATABASE_URL=postgresql://orient:aibot123@localhost:14432/whatsapp_bot_9
+SQLITE_DB_PATH=.dev-data/instance-9/orient.db
 ```
 
 #### Adding S3_ENDPOINT (MinIO)
@@ -2991,25 +2983,15 @@ source scripts/instance-env.sh
 
 echo "📋 Instance Configuration:"
 echo "   AI_INSTANCE_ID:    $AI_INSTANCE_ID"
-echo "   POSTGRES_PORT:     $POSTGRES_PORT"
+echo "   SQLITE_DB_PATH:    $SQLITE_DB_PATH"
 echo "   MINIO_API_PORT:    $MINIO_API_PORT"
 echo ""
 
-# 2. Fix DATABASE_URL
-echo "🔧 Fixing DATABASE_URL..."
-OLD_URL=$(grep "^DATABASE_URL=" .env | head -1 | cut -d'=' -f2-)
-if [ -z "$OLD_URL" ]; then
-  echo "❌ DATABASE_URL not found in .env"
-  exit 1
-fi
-
-# Extract credentials
-CREDS=$(echo "$OLD_URL" | grep -oE '//[^@]+@' | tr -d '/@')
-NEW_URL="postgresql://${CREDS}@localhost:${POSTGRES_PORT}/whatsapp_bot_${AI_INSTANCE_ID}"
-
-# Replace
-sed -i '' "s|^DATABASE_URL=.*|DATABASE_URL=${NEW_URL}|" .env
-echo "   ✅ DATABASE_URL: ...@localhost:${POSTGRES_PORT}/whatsapp_bot_${AI_INSTANCE_ID}"
+# 2. Fix SQLITE_DB_PATH
+echo "🔧 Fixing SQLITE_DB_PATH..."
+mkdir -p ".dev-data/instance-${AI_INSTANCE_ID}"
+sed -i '' "s|^SQLITE_DB_PATH=.*|SQLITE_DB_PATH=.dev-data/instance-${AI_INSTANCE_ID}/orient.db|" .env
+echo "   ✅ SQLITE_DB_PATH: .dev-data/instance-${AI_INSTANCE_ID}/orient.db"
 
 # 3. Fix/Add S3_ENDPOINT
 echo "🔧 Configuring MinIO endpoint..."
@@ -3032,7 +3014,7 @@ echo ""
 echo "✅ Environment configured for instance $AI_INSTANCE_ID"
 echo ""
 echo "Verify with:"
-echo "  grep -E '(DATABASE_URL|S3_ENDPOINT|AI_INSTANCE_ID)' .env"
+echo "  grep -E '(SQLITE_DB_PATH|S3_ENDPOINT|AI_INSTANCE_ID)' .env"
 ```
 
 **Usage**:
@@ -3068,7 +3050,6 @@ npx tsx scripts/migrate-secrets-to-db.ts
 #    - SLACK_USER_TOKEN
 #    - OPENAI_API_KEY
 #    - ANTHROPIC_API_KEY
-#    - WHATSAPP_PHONE_NUMBER_ID
 ```
 
 **What This Does**:
@@ -3078,7 +3059,7 @@ npx tsx scripts/migrate-secrets-to-db.ts
 3. Stores encrypted values in `secrets` table
 4. Services load secrets from database instead of `.env`
 
-**Important**: The migration script uses `DATABASE_URL` from `.env`, which is why fixing it first is critical!
+**Important**: The migration script uses `SQLITE_DB_PATH` from `.env`, which is why fixing it first is critical!
 
 #### Verification Checklist
 
@@ -3089,45 +3070,43 @@ After configuring `.env`, verify instance isolation:
 source scripts/instance-env.sh
 echo "Instance ID: $AI_INSTANCE_ID"
 
-# 2. Verify DATABASE_URL port
-DB_PORT=$(grep DATABASE_URL .env | grep -oE 'localhost:[0-9]+' | cut -d':' -f2)
-echo "DATABASE_URL port: $DB_PORT (expected: $POSTGRES_PORT)"
+# 2. Verify SQLITE_DB_PATH
+DB_PATH=$(grep SQLITE_DB_PATH .env | cut -d'=' -f2)
+echo "SQLITE_DB_PATH: $DB_PATH (expected: .dev-data/instance-$AI_INSTANCE_ID/orient.db)"
 
-# 3. Verify database name
-DB_NAME=$(grep DATABASE_URL .env | grep -oE '/[^/]+$' | tr -d '/')
-echo "Database name: $DB_NAME (expected: whatsapp_bot_$AI_INSTANCE_ID)"
-
-# 4. Verify MinIO endpoint
+# 3. Verify MinIO endpoint
 MINIO_PORT=$(grep S3_ENDPOINT .env | grep -oE ':[0-9]+' | tr -d ':')
 echo "MinIO port: $MINIO_PORT (expected: $MINIO_API_PORT)"
 
-# 5. Test database connection
-psql "$(grep DATABASE_URL .env | cut -d'=' -f2-)" -c "SELECT 1" >/dev/null && \
+# 4. Test database connection
+sqlite3 "$DB_PATH" "SELECT 1" >/dev/null && \
   echo "✅ Database connection successful" || \
-  echo "❌ Database connection failed"
+  echo "❌ Database connection failed (file may not exist yet)"
 ```
 
 #### Common Issues
 
-**Issue 1: Database authentication failed**
+**Issue 1: Database file not found**
 
 ```bash
-# Error: password authentication failed for user "orient"
-# Cause: DATABASE_URL points to wrong port
+# Error: unable to open database file
+# Cause: SQLITE_DB_PATH points to wrong instance directory
 
 # Fix:
 source scripts/instance-env.sh
-sed -i '' "s|localhost:[0-9]\{4,5\}|localhost:${POSTGRES_PORT}|" .env
+mkdir -p ".dev-data/instance-${AI_INSTANCE_ID}"
+sed -i '' "s|^SQLITE_DB_PATH=.*|SQLITE_DB_PATH=.dev-data/instance-${AI_INSTANCE_ID}/orient.db|" .env
 ```
 
-**Issue 2: Services connect to wrong instance**
+**Issue 2: Services use wrong instance database**
 
 ```bash
 # Symptom: Instance 9 sees data from instance 0
-# Cause: DATABASE_URL still points to whatsapp_bot_0
+# Cause: SQLITE_DB_PATH still points to instance-0
 
-# Fix database name:
-sed -i '' "s|/whatsapp_bot_[0-9]|/whatsapp_bot_${AI_INSTANCE_ID}|" .env
+# Fix database path:
+source scripts/instance-env.sh
+sed -i '' "s|instance-[0-9]|instance-${AI_INSTANCE_ID}|g" .env
 ```
 
 **Issue 3: MinIO bucket not found**
@@ -3145,14 +3124,13 @@ echo "S3_ENDPOINT=http://localhost:${MINIO_API_PORT}" >> .env
 
 **Instance-Specific Variables** (must be updated per instance):
 
-| Variable                  | Instance 0              | Instance 9               | Formula              |
-| ------------------------- | ----------------------- | ------------------------ | -------------------- |
-| `AI_INSTANCE_ID`          | `0`                     | `9`                      | Auto-detected        |
-| `DATABASE_URL` (port)     | `5432`                  | `14432`                  | 5432 + (ID × 1000)   |
-| `DATABASE_URL` (database) | `whatsapp_bot_0`        | `whatsapp_bot_9`         | `whatsapp_bot_${ID}` |
-| `S3_ENDPOINT`             | `http://localhost:9000` | `http://localhost:18000` | 9000 + (ID × 1000)   |
-| `DASHBOARD_PORT`          | `4098`                  | `13098`                  | 4098 + (ID × 1000)   |
-| `OPENCODE_PORT`           | `4099`                  | `13099`                  | 4099 + (ID × 1000)   |
+| Variable         | Instance 0                       | Instance 9                       | Formula                        |
+| ---------------- | -------------------------------- | -------------------------------- | ------------------------------ |
+| `AI_INSTANCE_ID` | `0`                              | `9`                              | Auto-detected                  |
+| `SQLITE_DB_PATH` | `.dev-data/instance-0/orient.db` | `.dev-data/instance-9/orient.db` | `.dev-data/instance-${ID}/...` |
+| `S3_ENDPOINT`    | `http://localhost:9000`          | `http://localhost:18000`         | 9000 + (ID × 1000)             |
+| `DASHBOARD_PORT` | `4098`                           | `13098`                          | 4098 + (ID × 1000)             |
+| `OPENCODE_PORT`  | `4099`                           | `13099`                          | 4099 + (ID × 1000)             |
 
 **Shared Variables** (same across all instances):
 
@@ -3171,7 +3149,7 @@ Run this one-liner to check if your `.env` matches your instance:
 
 ```bash
 source scripts/instance-env.sh && echo "Instance: $AI_INSTANCE_ID" && \
-grep DATABASE_URL .env | grep -q ":$POSTGRES_PORT/" && echo "✅ DATABASE_URL OK" || echo "❌ DATABASE_URL WRONG (expected port $POSTGRES_PORT)"
+grep SQLITE_DB_PATH .env | grep -q "instance-$AI_INSTANCE_ID" && echo "✅ SQLITE_DB_PATH OK" || echo "❌ SQLITE_DB_PATH WRONG (expected instance-$AI_INSTANCE_ID)"
 ```
 
 #### Comprehensive Isolation Check Script
@@ -3196,41 +3174,29 @@ echo "   AI_INSTANCE_ID:    $AI_INSTANCE_ID"
 echo "   COMPOSE_PROJECT:   $COMPOSE_PROJECT_NAME"
 echo "   Expected ports:"
 echo "     - Nginx:         $NGINX_PORT"
-echo "     - Postgres:      $POSTGRES_PORT"
 echo "     - MinIO API:     $MINIO_API_PORT"
 echo "     - MinIO Console: $MINIO_CONSOLE_PORT"
 echo "     - Dashboard:     $DASHBOARD_PORT"
 echo "     - OpenCode:      $OPENCODE_PORT"
+echo "   Expected database:"
+echo "     - SQLITE_DB_PATH: .dev-data/instance-$AI_INSTANCE_ID/orient.db"
 echo ""
 
 ERRORS=0
 
-# Check DATABASE_URL
-echo "🔍 Checking DATABASE_URL..."
-CURRENT_DB_URL=$(grep "^DATABASE_URL=" .env 2>/dev/null | cut -d'=' -f2-)
-if [ -z "$CURRENT_DB_URL" ]; then
-  echo "   ❌ DATABASE_URL not found in .env"
+# Check SQLITE_DB_PATH
+echo "🔍 Checking SQLITE_DB_PATH..."
+CURRENT_DB_PATH=$(grep "^SQLITE_DB_PATH=" .env 2>/dev/null | cut -d'=' -f2-)
+if [ -z "$CURRENT_DB_PATH" ]; then
+  echo "   ❌ SQLITE_DB_PATH not found in .env"
   ((ERRORS++))
 else
-  # Extract port from DATABASE_URL
-  DB_PORT=$(echo "$CURRENT_DB_URL" | grep -oE 'localhost:[0-9]+' | cut -d':' -f2)
-  DB_NAME=$(echo "$CURRENT_DB_URL" | grep -oE '/[^/]+$' | tr -d '/')
-
-  if [ "$DB_PORT" != "$POSTGRES_PORT" ]; then
-    echo "   ❌ DATABASE_URL uses port $DB_PORT, expected $POSTGRES_PORT"
-    echo "   Current:  $CURRENT_DB_URL"
-    echo "   Expected: postgresql://...@localhost:$POSTGRES_PORT/whatsapp_bot_$AI_INSTANCE_ID"
+  EXPECTED_DB_PATH=".dev-data/instance-$AI_INSTANCE_ID/orient.db"
+  if [ "$CURRENT_DB_PATH" != "$EXPECTED_DB_PATH" ]; then
+    echo "   ❌ SQLITE_DB_PATH is '$CURRENT_DB_PATH', expected '$EXPECTED_DB_PATH'"
     ((ERRORS++))
   else
-    echo "   ✅ DATABASE_URL port is correct ($DB_PORT)"
-  fi
-
-  EXPECTED_DB_NAME="whatsapp_bot_$AI_INSTANCE_ID"
-  if [ "$DB_NAME" != "$EXPECTED_DB_NAME" ]; then
-    echo "   ⚠️  Database name is '$DB_NAME', expected '$EXPECTED_DB_NAME'"
-    echo "      (This may be intentional for shared database setups)"
-  else
-    echo "   ✅ Database name is correct ($DB_NAME)"
+    echo "   ✅ SQLITE_DB_PATH is correct"
   fi
 fi
 
@@ -3268,11 +3234,10 @@ fi
 # Check for Docker containers
 echo ""
 echo "🔍 Checking Docker containers for instance $AI_INSTANCE_ID..."
-POSTGRES_CONTAINER="orienter-postgres-$AI_INSTANCE_ID"
 NGINX_CONTAINER="orienter-nginx-$AI_INSTANCE_ID"
 MINIO_CONTAINER="orienter-minio-$AI_INSTANCE_ID"
 
-for container in "$POSTGRES_CONTAINER" "$NGINX_CONTAINER" "$MINIO_CONTAINER"; do
+for container in "$NGINX_CONTAINER" "$MINIO_CONTAINER"; do
   if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "^${container}$"; then
     echo "   ✅ $container is running"
   else
@@ -3283,7 +3248,7 @@ done
 # Check for port conflicts
 echo ""
 echo "🔍 Checking for port conflicts..."
-for port_var in NGINX_PORT POSTGRES_PORT MINIO_API_PORT DASHBOARD_PORT OPENCODE_PORT; do
+for port_var in NGINX_PORT MINIO_API_PORT DASHBOARD_PORT OPENCODE_PORT; do
   port_value=$(eval echo \$$port_var)
   pid=$(lsof -ti :$port_value 2>/dev/null | head -1)
   if [ -n "$pid" ]; then
@@ -3302,36 +3267,31 @@ if [ $ERRORS -eq 0 ]; then
 else
   echo "❌ Found $ERRORS isolation issue(s) - see above for details"
   echo ""
-  echo "To fix DATABASE_URL, run:"
-  echo "  sed -i '' 's|localhost:5432/whatsapp_bot_0|localhost:$POSTGRES_PORT/whatsapp_bot_$AI_INSTANCE_ID|g' .env"
+  echo "To fix SQLITE_DB_PATH, run:"
+  echo "  sed -i '' 's|instance-[0-9]|instance-$AI_INSTANCE_ID|g' .env"
   echo ""
   echo "To add S3_ENDPOINT, run:"
   echo "  echo 'S3_ENDPOINT=http://localhost:$MINIO_API_PORT' >> .env"
 fi
 ```
 
-#### Auto-Fix Database URL
+#### Auto-Fix Database Path
 
-If your DATABASE_URL points to the wrong instance, run this to fix it:
+If your SQLITE_DB_PATH points to the wrong instance, run this to fix it:
 
 ```bash
-# Source instance env to get correct ports
+# Source instance env to get correct paths
 source scripts/instance-env.sh
 
-# Fix DATABASE_URL in .env
-# First, extract current credentials
-OLD_URL=$(grep "^DATABASE_URL=" .env | cut -d'=' -f2-)
-CREDS=$(echo "$OLD_URL" | grep -oE '//[^@]+@' | tr -d '/@')
+# Create the directory if needed
+mkdir -p ".dev-data/instance-${AI_INSTANCE_ID}"
 
-# Build new URL with correct port and database
-NEW_URL="postgresql://${CREDS}@localhost:${POSTGRES_PORT}/whatsapp_bot_${AI_INSTANCE_ID}"
-
-# Replace in .env
-sed -i '' "s|^DATABASE_URL=.*|DATABASE_URL=${NEW_URL}|" .env
+# Fix SQLITE_DB_PATH in .env
+sed -i '' "s|^SQLITE_DB_PATH=.*|SQLITE_DB_PATH=.dev-data/instance-${AI_INSTANCE_ID}/orient.db|" .env
 
 # Verify
-echo "Updated DATABASE_URL:"
-grep DATABASE_URL .env
+echo "Updated SQLITE_DB_PATH:"
+grep SQLITE_DB_PATH .env
 ```
 
 #### Auto-Fix MinIO Endpoint
@@ -3368,12 +3328,12 @@ grep -E "(S3_ENDPOINT|AI_INSTANCE_ID)" .env
 # From each worktree, run:
 source scripts/instance-env.sh
 echo "Instance $AI_INSTANCE_ID using database:"
-grep DATABASE_URL .env
+grep SQLITE_DB_PATH .env
 
-# If two worktrees show the same DATABASE_URL, they're sharing!
+# If two worktrees show the same SQLITE_DB_PATH, they're sharing!
 ```
 
-**Fix**: Run the auto-fix script above in the worktree that has the wrong DATABASE_URL.
+**Fix**: Run the auto-fix script above in the worktree that has the wrong SQLITE_DB_PATH.
 
 #### Port Collision Detection
 
@@ -3384,7 +3344,7 @@ When starting services, check for port conflicts:
 source scripts/instance-env.sh
 echo "Checking ports for instance $AI_INSTANCE_ID..."
 
-for port in $NGINX_PORT $POSTGRES_PORT $MINIO_API_PORT $DASHBOARD_PORT $OPENCODE_PORT; do
+for port in $NGINX_PORT $MINIO_API_PORT $DASHBOARD_PORT $OPENCODE_PORT; do
   if lsof -Pi :$port -sTCP:LISTEN -t >/dev/null 2>&1; then
     echo "⚠️  Port $port is already in use!"
     lsof -Pi :$port -sTCP:LISTEN
@@ -3409,31 +3369,26 @@ source scripts/instance-env.sh
 
 #### Troubleshooting Common Isolation Issues
 
-**Issue: "Connection refused" to database**
+**Issue: "Database file not found" error**
 
 ```bash
-# Check if container is running
-docker ps | grep "orienter-postgres-$AI_INSTANCE_ID"
+# Check if database file exists
+ls -la ".dev-data/instance-$AI_INSTANCE_ID/orient.db"
 
-# If not running, start infrastructure
+# If missing, create directory and start services (will auto-create)
 source scripts/instance-env.sh
-docker compose -f docker/docker-compose.infra.yml up -d
-
-# Verify database exists
-docker exec orienter-postgres-$AI_INSTANCE_ID psql -U orient -c "\l" | grep whatsapp_bot
+mkdir -p ".dev-data/instance-$AI_INSTANCE_ID"
+./run.sh dev  # Will create database on startup
 ```
 
 **Issue: Two instances writing to same database**
 
 ```bash
-# Check what's using the database
-docker exec orienter-postgres-0 psql -U orient -d whatsapp_bot_0 -c "SELECT * FROM pg_stat_activity WHERE datname = 'whatsapp_bot_0';"
-
-# Fix: Ensure each worktree has correct DATABASE_URL
+# Fix: Ensure each worktree has correct SQLITE_DB_PATH
 # In worktree 1:
-grep DATABASE_URL .env  # Should show port 6432, database whatsapp_bot_1
+grep SQLITE_DB_PATH .env  # Should show instance-1
 # In worktree 6:
-grep DATABASE_URL .env  # Should show port 11432, database whatsapp_bot_6
+grep SQLITE_DB_PATH .env  # Should show instance-6
 ```
 
 **Issue: MinIO bucket conflicts**
@@ -3458,6 +3413,9 @@ cp /path/to/main/repo/.env .env
 # Auto-configure for this instance
 source scripts/instance-env.sh
 
+# Create database directory
+mkdir -p ".dev-data/instance-$AI_INSTANCE_ID"
+
 # Update instance-specific values
 cat >> .env << EOF
 
@@ -3466,11 +3424,8 @@ AI_INSTANCE_ID=$AI_INSTANCE_ID
 S3_ENDPOINT=http://localhost:$MINIO_API_PORT
 EOF
 
-# Fix DATABASE_URL
-OLD_URL=$(grep "^DATABASE_URL=" .env | head -1 | cut -d'=' -f2-)
-CREDS=$(echo "$OLD_URL" | grep -oE '//[^@]+@' | tr -d '/@')
-NEW_URL="postgresql://${CREDS}@localhost:${POSTGRES_PORT}/whatsapp_bot_${AI_INSTANCE_ID}"
-sed -i '' "s|^DATABASE_URL=.*|DATABASE_URL=${NEW_URL}|" .env
+# Fix SQLITE_DB_PATH
+sed -i '' "s|^SQLITE_DB_PATH=.*|SQLITE_DB_PATH=.dev-data/instance-${AI_INSTANCE_ID}/orient.db|" .env
 
 echo "✅ Environment configured for instance $AI_INSTANCE_ID"
 ```

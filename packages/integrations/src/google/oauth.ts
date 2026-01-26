@@ -435,7 +435,6 @@ export class GoogleOAuthService {
   /**
    * Get an authenticated OAuth2 client for a specific account.
    * Automatically refreshes tokens if expired.
-   * In proxy mode, uses the proxy server for token refresh.
    */
   async getAuthClient(email: string): Promise<Auth.OAuth2Client> {
     const op = logger.startOperation('getAuthClient', { email });
@@ -467,44 +466,18 @@ export class GoogleOAuthService {
       logger.debug('Token expired or expiring soon, refreshing', { email });
 
       try {
-        // Check if we should use proxy for refresh
-        const { isProxyModeEnabled, getGoogleOAuthProxyClient } = await import('./oauth-proxy.js');
+        const { credentials } = await client.refreshAccessToken();
 
-        if (isProxyModeEnabled()) {
-          // Use proxy for token refresh (doesn't require client secret)
-          logger.debug('Using proxy for token refresh', { email });
-          const proxyClient = getGoogleOAuthProxyClient();
-          const { accessToken, expiresAt } = await proxyClient.refreshTokens(account.refreshToken);
-
-          // Update stored tokens
-          account.accessToken = accessToken;
-          account.expiresAt = expiresAt;
-          account.lastRefreshAt = Date.now();
-          this.saveData();
-
-          // Update the client credentials
-          client.setCredentials({
-            access_token: accessToken,
-            refresh_token: account.refreshToken,
-            expiry_date: expiresAt,
-          });
-
-          logger.debug('Token refreshed via proxy successfully', { email });
-        } else {
-          // Standard refresh using client secret
-          const { credentials } = await client.refreshAccessToken();
-
-          // Update stored tokens
-          account.accessToken = credentials.access_token || account.accessToken;
-          if (credentials.refresh_token) {
-            account.refreshToken = credentials.refresh_token;
-          }
-          account.expiresAt = credentials.expiry_date || Date.now() + 3600 * 1000;
-          account.lastRefreshAt = Date.now();
-          this.saveData();
-
-          logger.debug('Token refreshed successfully', { email });
+        // Update stored tokens
+        account.accessToken = credentials.access_token || account.accessToken;
+        if (credentials.refresh_token) {
+          account.refreshToken = credentials.refresh_token;
         }
+        account.expiresAt = credentials.expiry_date || Date.now() + 3600 * 1000;
+        account.lastRefreshAt = Date.now();
+        this.saveData();
+
+        logger.debug('Token refreshed successfully', { email });
       } catch (error) {
         op.failure(error instanceof Error ? error : String(error));
         throw new Error(`Failed to refresh token for ${email}. Please reconnect the account.`);

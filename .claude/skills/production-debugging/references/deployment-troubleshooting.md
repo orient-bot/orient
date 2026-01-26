@@ -197,13 +197,11 @@ ssh $OCI_USER@$OCI_HOST "
 ### Database Corrupted
 
 ```bash
-# Check if postgres is running
-ssh $OCI_USER@$OCI_HOST "docker logs orienter-postgres 2>&1 | tail -20"
+# Check SQLite database integrity
+ssh $OCI_USER@$OCI_HOST "docker exec orienter-dashboard sqlite3 /app/data/orient.db 'PRAGMA integrity_check;'"
 
 # If corrupted, restore from backup (if available)
-ssh $OCI_USER@$OCI_HOST "
-  docker exec orienter-postgres pg_restore -U aibot -d whatsapp_bot /backups/latest.dump
-"
+ssh $OCI_USER@$OCI_HOST "cp ~/orient/backups/orient.db ~/orient/data/orient.db && docker restart orienter-dashboard"
 ```
 
 ### Server Completely Unresponsive

@@ -6,7 +6,7 @@ This guide walks you through setting up Orient for local development.
 
 - **Node.js 20+** - JavaScript runtime
 - **pnpm 9+** - Package manager
-- **Docker** - For local infrastructure (PostgreSQL, MinIO, Nginx)
+- **Docker** - For local infrastructure (MinIO, Nginx)
 - **Git** - Version control
 
 ## Step 1: Check Your Environment
@@ -57,8 +57,9 @@ cp .mcp.config.example.json .mcp.config.local.json
 
 Edit `.env` with your credentials. At minimum, set:
 
-- `POSTGRES_USER` and `POSTGRES_PASSWORD`
 - `MINIO_ROOT_USER` and `MINIO_ROOT_PASSWORD`
+- `DASHBOARD_JWT_SECRET`
+- `ORIENT_MASTER_KEY`
 
 See [Configuration](configuration.md) for all available settings.
 
@@ -76,8 +77,9 @@ This starts:
 | WhatsApp QR   | http://localhost:80/qr/ | QR code for WhatsApp pairing     |
 | OpenCode      | http://localhost:4099   | MCP server for IDE integration   |
 | Vite          | http://localhost:5173   | Frontend dev server (hot-reload) |
-| PostgreSQL    | localhost:5432          | Database                         |
 | MinIO Console | http://localhost:9001   | S3-compatible storage UI         |
+
+**Note:** The database is SQLite (file-based at `.dev-data/instance-0/orient.db`) - no separate database service needed.
 
 ## Step 5: Verify
 

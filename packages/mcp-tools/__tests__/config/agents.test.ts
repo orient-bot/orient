@@ -5,7 +5,10 @@ import {
   configListAgents,
   configUpdateAgent,
 } from '../../src/tools/config/agents.js';
-import { getPendingActionsStore, resetPendingActionsStore } from '../../src/tools/config/pending-store.js';
+import {
+  getPendingActionsStore,
+  resetPendingActionsStore,
+} from '../../src/tools/config/pending-store.js';
 
 const context = { config: {}, correlationId: 'test' } as ToolContext;
 
@@ -53,9 +56,6 @@ vi.mock('@orient/database', () => ({
   agents: agentsTable,
   agentSkills: agentSkillsTable,
   agentTools: agentToolsTable,
-}));
-
-vi.mock('drizzle-orm', () => ({
   eq: vi.fn(() => 'eq'),
 }));
 

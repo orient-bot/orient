@@ -6,7 +6,7 @@
 
 import { Command } from 'commander';
 import { execSync } from 'child_process';
-import { existsSync, statSync } from 'fs';
+import { existsSync, readFileSync, statSync } from 'fs';
 import { join } from 'path';
 import { homedir } from 'os';
 import * as net from 'net';
@@ -115,7 +115,7 @@ export const doctorCommand = new Command('doctor')
       checkOk('.env file exists');
 
       // Check for required variables
-      const envContent = require('fs').readFileSync(envPath, 'utf8');
+      const envContent = readFileSync(envPath, 'utf8');
 
       if (
         envContent.includes('ORIENT_MASTER_KEY=') &&

@@ -27,21 +27,6 @@ services:
       - OAUTH_CALLBACK_URL=${OAUTH_CALLBACK_URL}
 
   # ===========================================================================
-  # WhatsApp Bot - Use pre-built image from ghcr.io
-  # V2 service name: bot-whatsapp (was: whatsapp-bot)
-  # ===========================================================================
-  bot-whatsapp:
-    image: ghcr.io/orient-core/orient/whatsapp-bot:latest
-    container_name: orienter-bot-whatsapp
-    environment:
-      # OAuth callback URL for Atlassian MCP (REQUIRED for production)
-      # The dashboard runs in this container, so it needs the callback URL
-      - OAUTH_CALLBACK_URL=${OAUTH_CALLBACK_URL}
-      # Google OAuth callback URL (REQUIRED for production)
-      # This URL must be registered in Google Cloud Console → Authorized redirect URIs
-      - GOOGLE_OAUTH_CALLBACK_URL=${GOOGLE_OAUTH_CALLBACK_URL}
-
-  # ===========================================================================
   # Slack Bot (optional profile) - Use pre-built image from ghcr.io
   # V2 service name: bot-slack (was: slack-bot)
   # ===========================================================================
@@ -50,11 +35,16 @@ services:
     container_name: orienter-bot-slack
 
   # ===========================================================================
-  # Dashboard - Use pre-built image from ghcr.io
+  # Dashboard - Unified server (Dashboard + WhatsApp)
+  # Use pre-built image from ghcr.io
   # ===========================================================================
   dashboard:
     image: ghcr.io/orient-core/orient/dashboard:latest
     container_name: orienter-dashboard
+    environment:
+      # Google OAuth callback URL (REQUIRED for production)
+      # This URL must be registered in Google Cloud Console → Authorized redirect URIs
+      - GOOGLE_OAUTH_CALLBACK_URL=${GOOGLE_OAUTH_CALLBACK_URL}
 
   # ===========================================================================
   # Postgres - Production container name

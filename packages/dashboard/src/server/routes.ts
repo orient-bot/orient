@@ -26,7 +26,6 @@ import {
   createStorageRoutes,
   createVersionRoutes,
   createFeatureFlagsRoutes,
-  createOAuthProxyRoutes,
 } from './routes/index.js';
 import { createGoogleAuthRoutes } from './routes/google-auth.routes.js';
 import { initStorageService } from '../services/storageService.js';
@@ -254,9 +253,6 @@ export function createDashboardRouter(services: DashboardServices): Router {
 
   // Google OAuth routes
   router.use('/auth/google', createGoogleAuthRoutes(auth, db));
-
-  // OAuth proxy routes (for external instances authenticating through production)
-  router.use('/oauth/proxy', createOAuthProxyRoutes());
 
   // Login
   router.post('/auth/login', async (req: Request, res: Response) => {

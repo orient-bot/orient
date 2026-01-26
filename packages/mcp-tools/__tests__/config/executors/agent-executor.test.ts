@@ -1,5 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { getPendingActionsStore, resetPendingActionsStore } from '../../../src/tools/config/pending-store.js';
+import {
+  getPendingActionsStore,
+  resetPendingActionsStore,
+} from '../../../src/tools/config/pending-store.js';
 import { registerAgentExecutor } from '../../../src/tools/config/executors/agent-executor.js';
 
 let updateSpy: ReturnType<typeof vi.fn>;
@@ -11,9 +14,6 @@ vi.mock('@orient/database', () => ({
     update: updateSpy,
   }),
   agents: { id: 'id' },
-}));
-
-vi.mock('drizzle-orm', () => ({
   eq: vi.fn(() => 'eq'),
 }));
 
