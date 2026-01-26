@@ -164,7 +164,7 @@ async function promptForConfig(options: {
 
   // Database type (SQLite-only now)
   console.log('  Database: SQLite (default)');
-  const databaseType: 'sqlite' = 'sqlite';
+  const databaseType = 'sqlite' as const;
 
   // Storage type
   const stType = await question(`Storage type [local/s3] (${options.storage}): `);

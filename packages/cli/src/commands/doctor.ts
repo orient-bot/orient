@@ -115,7 +115,7 @@ export const doctorCommand = new Command('doctor')
       checkOk('.env file exists');
 
       // Check for required variables
-      const envContent = require('fs').readFileSync(envPath, 'utf8');
+      const envContent = readFileSync(envPath, 'utf8');
 
       if (
         envContent.includes('ORIENT_MASTER_KEY=') &&
