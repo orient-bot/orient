@@ -96,8 +96,8 @@ export function createDashboardRouter(services: DashboardServices): Router {
 
       const meeting = await db.createDemoMeeting({
         title,
-        description: typeof description === 'string' ? description : null,
-        attendees: typeof attendees === 'string' ? attendees : null,
+        description: typeof description === 'string' ? description : undefined,
+        attendees: typeof attendees === 'string' ? attendees : undefined,
         startTime: parsedDate,
         durationMinutes: duration,
         sendReminder: sendReminder !== false,

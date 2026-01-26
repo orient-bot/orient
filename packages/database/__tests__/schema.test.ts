@@ -42,20 +42,27 @@ describe('Database Schema', () => {
     });
   });
 
-  describe('Enums', () => {
-    it('should export messageDirectionEnum', async () => {
-      const { messageDirectionEnum } = await import('../src/schema/index.js');
-      expect(messageDirectionEnum).toBeDefined();
+  describe('Type Value Arrays (SQLite uses const arrays instead of enums)', () => {
+    it('should export MESSAGE_DIRECTION_VALUES', async () => {
+      const { MESSAGE_DIRECTION_VALUES } = await import('../src/schema/index.js');
+      expect(MESSAGE_DIRECTION_VALUES).toBeDefined();
+      expect(MESSAGE_DIRECTION_VALUES).toContain('incoming');
+      expect(MESSAGE_DIRECTION_VALUES).toContain('outgoing');
     });
 
-    it('should export chatTypeEnum', async () => {
-      const { chatTypeEnum } = await import('../src/schema/index.js');
-      expect(chatTypeEnum).toBeDefined();
+    it('should export CHAT_TYPE_VALUES', async () => {
+      const { CHAT_TYPE_VALUES } = await import('../src/schema/index.js');
+      expect(CHAT_TYPE_VALUES).toBeDefined();
+      expect(CHAT_TYPE_VALUES).toContain('individual');
+      expect(CHAT_TYPE_VALUES).toContain('group');
     });
 
-    it('should export chatPermissionEnum', async () => {
-      const { chatPermissionEnum } = await import('../src/schema/index.js');
-      expect(chatPermissionEnum).toBeDefined();
+    it('should export CHAT_PERMISSION_VALUES', async () => {
+      const { CHAT_PERMISSION_VALUES } = await import('../src/schema/index.js');
+      expect(CHAT_PERMISSION_VALUES).toBeDefined();
+      expect(CHAT_PERMISSION_VALUES).toContain('read_only');
+      expect(CHAT_PERMISSION_VALUES).toContain('read_write');
+      expect(CHAT_PERMISSION_VALUES).toContain('ignored');
     });
   });
 });

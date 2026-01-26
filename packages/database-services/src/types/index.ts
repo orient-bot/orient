@@ -30,8 +30,8 @@ export interface ChatPermissionRecord {
   permission: ChatPermission; // Permission level
   displayName?: string; // Human-readable name
   notes?: string; // Admin notes
-  createdAt: string;
-  updatedAt: string;
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
 /**
@@ -40,10 +40,10 @@ export interface ChatPermissionRecord {
 export interface PermissionAuditEntry {
   id: number;
   chatId: string;
-  oldPermission: ChatPermission | null;
-  newPermission: ChatPermission;
-  changedBy?: string; // Username who made the change
-  changedAt: string;
+  oldPermission: string | null;
+  newPermission: string;
+  changedBy: string | null;
+  changedAt: Date | null;
 }
 
 /**
@@ -56,25 +56,15 @@ export interface DashboardUser {
   googleId?: string | null;
   googleEmail?: string | null;
   authMethod?: 'password' | 'google' | 'both';
-  createdAt: string;
+  createdAt: Date | null;
 }
 
 /**
  * Chat with permission info for dashboard display
  */
-export interface ChatWithPermission {
-  chatId: string;
-  chatType: ChatType;
-  permission: ChatPermission;
-  displayName?: string;
-  notes?: string;
-  messageCount?: number; // Number of stored messages
-  lastMessageAt?: string; // Timestamp of last message
-  createdAt: string;
-  updatedAt: string;
-  // Smart default fields (for discovered chats without explicit permissions)
-  effectivePermission?: ChatPermission; // Permission that will apply (smart-default or fallback)
-  isSmartDefaultWritable?: boolean; // True if this chat has smart-default write access
+export interface ChatWithPermission extends ChatPermissionRecord {
+  messageCount: number;
+  lastMessageAt: Date | null;
 }
 
 /**
@@ -114,15 +104,15 @@ export interface SystemPromptRecord {
   platform: PromptPlatform;
   promptText: string;
   isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
 /**
  * System prompt with display info for dashboard
  */
 export interface SystemPromptWithInfo extends SystemPromptRecord {
-  displayName?: string; // Human-readable name of chat/channel
+  displayName: string | null; // Human-readable name of chat/channel
   isDefault: boolean; // True if this is the platform default (chatId = '*')
 }
 

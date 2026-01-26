@@ -467,14 +467,14 @@ async function handleMessage(
       });
       // Try to get from database if fetching failed
       const storedGroup = await messageDb.getGroup(message.groupId);
-      if (storedGroup?.group_name || storedGroup?.group_subject) {
-        groupName = storedGroup.group_name ?? storedGroup.group_subject ?? undefined;
+      if (storedGroup?.groupName || storedGroup?.groupSubject) {
+        groupName = storedGroup.groupName ?? storedGroup.groupSubject ?? undefined;
       }
     }
   }
 
   // Prepare storage options for media
-  const storeOptions: StoreMessageOptions = {};
+  const storeOptions: Partial<StoreMessageOptions> = {};
 
   // Save image to disk if present
   if (message.mediaBuffer && message.mediaType) {
@@ -746,7 +746,7 @@ async function handleMessageStored(
   }
 
   // Prepare storage options for media (if any)
-  const storeOptions: StoreMessageOptions = {};
+  const storeOptions: Partial<StoreMessageOptions> = {};
 
   if (message.mediaBuffer && message.mediaType) {
     const savedMedia = mediaStorage.saveMedia(
