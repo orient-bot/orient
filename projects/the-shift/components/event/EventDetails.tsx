@@ -35,7 +35,7 @@ export default function EventDetails() {
   return (
     <section className="py-20 px-4">
       <div className="max-w-4xl mx-auto">
-        <div className="flex justify-start mb-4">
+        <div className="flex justify-center mb-4">
           <ModeIndicator mode="agent" />
         </div>
         <div className="keyboard-container">
