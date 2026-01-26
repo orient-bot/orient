@@ -228,6 +228,7 @@ setup_pm2() {
     log "PM2 $(pm2 -v) ✓"
 
     # Create PM2 ecosystem configuration
+    # Unified server: Dashboard handles both Dashboard API and WhatsApp endpoints
     cat > "$INSTALL_DIR/ecosystem.config.cjs" << 'ECOSYSTEM'
 const path = require('path');
 const ORIENT_HOME = process.env.ORIENT_HOME || `${process.env.HOME}/.orient`;
@@ -235,24 +236,15 @@ const ORIENT_HOME = process.env.ORIENT_HOME || `${process.env.HOME}/.orient`;
 module.exports = {
   apps: [
     {
-      name: 'orient-dashboard',
+      name: 'orient',
       cwd: path.join(ORIENT_HOME, 'orient'),
       script: 'dist/packages/dashboard/src/main.js',
       env_file: path.join(ORIENT_HOME, '.env'),
-      error_file: path.join(ORIENT_HOME, 'logs/dashboard-error.log'),
-      out_file: path.join(ORIENT_HOME, 'logs/dashboard-out.log'),
-      max_memory_restart: '500M',
+      error_file: path.join(ORIENT_HOME, 'logs/orient-error.log'),
+      out_file: path.join(ORIENT_HOME, 'logs/orient-out.log'),
+      max_memory_restart: '750M',
       node_args: '--experimental-specifier-resolution=node',
-    },
-    {
-      name: 'orient-whatsapp',
-      cwd: path.join(ORIENT_HOME, 'orient'),
-      script: 'dist/packages/bot-whatsapp/src/main.js',
-      env_file: path.join(ORIENT_HOME, '.env'),
-      error_file: path.join(ORIENT_HOME, 'logs/whatsapp-error.log'),
-      out_file: path.join(ORIENT_HOME, 'logs/whatsapp-out.log'),
-      max_memory_restart: '500M',
-      node_args: '--experimental-specifier-resolution=node',
+      // Unified server handles Dashboard + WhatsApp on port 4098
     },
     {
       name: 'orient-slack',
@@ -366,8 +358,9 @@ case "$1" in
         # Check ports
         echo ""
         echo "Port availability:"
-        for port in 4097 4098 4100; do
-            echo -n "  Port $port: "
+        # Unified server: Only port 4098 needed (Dashboard + WhatsApp)
+        for port in 4098; do
+            echo -n "  Port $port (Orient): "
             if lsof -i :$port &>/dev/null; then
                 echo -e "${YELLOW}In use${NC}"
             else
@@ -443,9 +436,9 @@ case "$1" in
         echo "  version    Show installed version"
         echo ""
         echo "Services:"
-        echo "  orient-dashboard  - Web dashboard (http://localhost:4098)"
-        echo "  orient-whatsapp   - WhatsApp bot"
-        echo "  orient-slack      - Slack bot"
+        echo "  orient       - Main server (http://localhost:4098)"
+        echo "               Dashboard + WhatsApp QR at /qr"
+        echo "  orient-slack - Slack bot (optional)"
         ;;
 esac
 SCRIPT
@@ -542,7 +535,7 @@ main() {
     echo "  Then open:"
     echo ""
     echo "    Dashboard:  http://localhost:4098"
-    echo "    WhatsApp:   http://localhost:4097/qr (scan QR to connect)"
+    echo "    WhatsApp:   http://localhost:4098/qr (scan QR to connect)"
     echo ""
     echo "  Other commands:"
     echo ""

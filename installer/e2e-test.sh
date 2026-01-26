@@ -47,7 +47,6 @@ REPO_ROOT="$(dirname "$SCRIPT_DIR")"
 INSTANCE_ID=2
 PORT_OFFSET=$((INSTANCE_ID * 1000))
 DASHBOARD_PORT=$((4098 + PORT_OFFSET))
-WHATSAPP_PORT=$((4097 + PORT_OFFSET))
 VITE_PORT=$((5173 + PORT_OFFSET))
 
 log() {
@@ -181,15 +180,12 @@ STORAGE_PATH=$storage_path
 ORIENT_MASTER_KEY=$master_key
 DASHBOARD_JWT_SECRET=$jwt_secret
 
-# Dashboard - Use instance-specific port
+# Dashboard - Use instance-specific port (unified with WhatsApp)
 DASHBOARD_PORT=$DASHBOARD_PORT
 BASE_URL=http://localhost:$DASHBOARD_PORT
 
 # AI Provider (mock for testing)
 ANTHROPIC_API_KEY=test-key-not-real
-
-# WhatsApp
-WHATSAPP_PORT=$WHATSAPP_PORT
 EOF
 
     chmod 600 "$env_file"

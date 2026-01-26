@@ -31,7 +31,9 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
+    "@orient/agents": "workspace:*",
     "@orient/apps": "workspace:^",
+    "@orient/bot-whatsapp": "workspace:*",
     "@orient/core": "workspace:*",
     "@orient/database": "workspace:*",
     "@orient/database-services": "workspace:*",

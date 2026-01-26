@@ -43,7 +43,7 @@ npm run test:unit
 # Run integration tests
 npm run test:integration
 
-# Run E2E tests (requires PostgreSQL)
+# Run E2E tests (requires SQLite database)
 npm run test:e2e
 
 # CI mode (excludes E2E)
@@ -88,8 +88,8 @@ npm test -- --testNamePattern="chatPermission"
 ### E2E Tests (\*.e2e.test.ts)
 
 - **Location**: `src/db/__tests__/*.e2e.test.ts`, `tests/e2e/`
-- **Purpose**: Test real database operations with PostgreSQL, or real OpenCode server interactions
-- **Dependencies**: Requires running PostgreSQL (`DATABASE_URL` env var) OR OpenCode server
+- **Purpose**: Test real database operations with SQLite, or real OpenCode server interactions
+- **Dependencies**: SQLite database file OR OpenCode server
 - **When to write**: For database schema changes, complex queries, OpenCode session management
 - **Note**: Skipped automatically in CI if required services are not running
 
@@ -701,52 +701,44 @@ For file-test mapping, see [references/file-test-mapping.md](references/file-tes
 
 ## Testing Database Services
 
-Database services (e.g., `StorageDatabase`, `SchedulerDatabase`) require special testing approaches due to their reliance on PostgreSQL connections.
+Database services (e.g., `StorageDatabase`, `SchedulerDatabase`) require special testing approaches due to their reliance on SQLite connections.
 
 ### Integration vs Unit Test Trade-offs
 
 | Approach                  | Pros                                       | Cons                                     | When to Use                     |
 | ------------------------- | ------------------------------------------ | ---------------------------------------- | ------------------------------- |
 | **Unit tests with mocks** | Fast, no DB needed, isolated               | Complex mocking, may miss real DB issues | Simple logic, utility methods   |
-| **Integration tests**     | Tests real DB behavior, catches SQL errors | Slower, requires PostgreSQL              | Schema changes, complex queries |
+| **Integration tests**     | Tests real DB behavior, catches SQL errors | Slower, requires SQLite                  | Schema changes, complex queries |
 | **API-level tests**       | Tests full stack, simpler mocking          | Less granular                            | Bridge endpoints, service APIs  |
 
 **Recommended approach**: Test database services through their API endpoints (like bridge API tests) rather than mocking `pg.Pool` directly. This provides better coverage with simpler test code.
 
-### Mocking pg.Pool (Complex - Often Avoid)
+### Mocking SQLite/Drizzle (Complex - Often Avoid)
 
-Mocking `pg.Pool` is complex because of its class-based API and connection pattern. If you must mock it:
+Mocking the Drizzle ORM is complex. Prefer API-level testing instead:
 
 ```typescript
 // WARNING: This pattern is complex and fragile
 // Prefer API-level testing instead
 
-const mockQuery = vi.fn();
-const mockConnect = vi.fn();
-const mockRelease = vi.fn();
-
-vi.mock('pg', () => ({
-  default: {
-    Pool: class MockPool {
-      query = mockQuery;
-      connect = mockConnect;
-      on = vi.fn();
-      end = vi.fn();
-    },
-  },
+vi.mock('@orient/database', () => ({
+  getDatabase: () => ({
+    select: vi.fn().mockReturnValue({
+      from: vi.fn().mockReturnValue({
+        where: vi.fn().mockResolvedValue([]),
+      }),
+    }),
+    insert: vi.fn().mockReturnValue({
+      values: vi.fn().mockResolvedValue({ rowsAffected: 1 }),
+    }),
+  }),
 }));
-
-// Setup connect to return a client with query and release
-mockConnect.mockResolvedValue({
-  query: mockQuery,
-  release: mockRelease,
-});
 ```
 
-**Why this is problematic:**
+**Why direct mocking is problematic:**
 
-1. The `pg` module uses default exports with a class
-2. You need to mock both pool-level and client-level methods
+1. Drizzle ORM has a fluent API with method chaining
+2. You need to mock each method in the chain
 3. Transaction testing requires careful mock sequencing
 4. Mock setup is verbose and error-prone
 
@@ -986,7 +978,7 @@ pnpm --filter @orient/core test:coverage
 
 4. **E2E test skipped unexpectedly**
    - Ensure `DATABASE_URL` or `TEST_DATABASE_URL` is set
-   - Check PostgreSQL is running: `docker compose -f docker/docker-compose.infra.yml up -d`
+   - Check database directory exists: `mkdir -p .dev-data/instance-0`
 
 ## OpenCode E2E Tests
 

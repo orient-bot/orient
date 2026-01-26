@@ -489,13 +489,13 @@ tail -f <worktree-path>/.pnpm-install.log
 
 When using `--isolated`, the script automatically:
 
-1. Creates a new PostgreSQL database: `worktree_<timestamp>`
-2. Updates the worktree's `.env` with the new DATABASE_URL
-3. Runs all migrations from `data/migrations/`
+1. Creates a new SQLite database file: `data/worktree_<timestamp>.db`
+2. Updates the worktree's `.env` with the new SQLITE_DB_PATH
+3. Runs all migrations
 4. Seeds the database with:
    - **5 agents:** pm-assistant, communicator, scheduler, explorer, app-builder
    - **6 context rules:** Platform and environment routing
-   - **6 test permissions:** Sample WhatsApp and Slack permissions
+   - **6 test permissions:** Sample permissions
    - **4 sample prompts:** Default prompts for testing
 
 Database seeding starts after pnpm install completes. Check progress:
@@ -572,7 +572,7 @@ Values with special characters MUST be quoted:
 
 ```bash
 # ✅ Correct - quoted values
-DATABASE_URL="postgresql://user:pass@localhost:5432/db"
+SQLITE_DB_PATH="./data/orient.db"
 STANDUP_CRON="30 9 * * 1-5"
 STANDUP_CHANNEL="#orienter-standups"
 
@@ -583,10 +583,10 @@ STANDUP_CHANNEL=#orienter-standups  # Shell treats # as comment
 
 ### Required Variables
 
-For database seeding to work, ensure `DATABASE_URL` is set:
+For database seeding to work, ensure `SQLITE_DB_PATH` is set:
 
 ```bash
-DATABASE_URL="postgresql://aibot:aibot123@localhost:5432/whatsapp_bot"
+SQLITE_DB_PATH="./data/orient.db"
 ```
 
 ### Common Shell Parsing Errors
@@ -931,8 +931,8 @@ cat <worktree-path>/.db-seed.log
 
 Common issues:
 
-- PostgreSQL not running: `docker compose -f docker/docker-compose.infra.yml up -d postgres`
-- Invalid DATABASE_URL: Check quotes and format
+- SQLite database directory not writable: Check permissions on `data/` directory
+- Invalid SQLITE_DB_PATH: Check quotes and format
 - Missing tables: Run `npm run db:migrate` first
 
 ### Worktree creation failed

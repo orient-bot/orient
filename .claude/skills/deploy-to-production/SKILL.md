@@ -207,8 +207,8 @@ done
 Required for production:
 
 ```bash
-# Database
-DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+# Database (SQLite)
+SQLITE_DB_PATH=/app/data/orient.db
 
 # Dashboard Security (REQUIRED - causes crash loop if missing)
 DASHBOARD_JWT_SECRET="<32+ character secure string>"
@@ -360,10 +360,8 @@ curl -sf https://app.orient.bot/dashboard/api/health    # Dashboard
 ### Expected Container Names
 
 - `orienter-nginx`
-- `orienter-bot-whatsapp`
 - `orienter-opencode`
 - `orienter-dashboard`
-- `orienter-postgres`
 
 ## Rollback Procedure
 
@@ -516,26 +514,12 @@ cat ~/.ssh/id_rsa | pbcopy
 
 ### Database Migration Failures
 
-#### Role/User Not Found
+The database is now SQLite-based, which simplifies migrations significantly. Migrations are run automatically on startup.
 
-**Error**: `FATAL: role "orient" does not exist`
-
-**Cause**: Migration script uses hardcoded database user instead of actual configured user.
-
-**Fix**: The workflow now dynamically reads credentials from server `.env`:
+**If migrations fail**, check the logs:
 
 ```bash
-DB_USER=$(grep '^POSTGRES_USER=' ~/orient/.env | cut -d= -f2 | tr -d '"')
-DB_NAME=$(grep '^POSTGRES_DB=' ~/orient/.env | cut -d= -f2 | tr -d '"')
-```
-
-If migrations still fail, verify server `.env` has correct values:
-
-```bash
-ssh opc@152.70.172.33 "grep POSTGRES ~/orient/.env"
-# Expected:
-# POSTGRES_USER=aibot
-# POSTGRES_DB=whatsapp_bot
+ssh opc@152.70.172.33 "docker logs orienter-dashboard --tail 100 | grep -i migration"
 ```
 
 #### Production Down After Failed Deploy
@@ -601,12 +585,8 @@ ORIENT_CODE_DOMAIN=code.orient.bot
 ORIENT_STAGING_DOMAIN=staging.orient.bot
 ORIENT_CODE_STAGING_DOMAIN=code-staging.orient.bot
 
-# REQUIRED - Database (generates crash loop if missing)
-POSTGRES_USER=aibot
-POSTGRES_PASSWORD=<secure-password>
-POSTGRES_DB=whatsapp_bot
-# IMPORTANT: Use container name 'orienter-postgres' not 'postgres' to avoid DNS conflicts with staging
-DATABASE_URL=postgresql://aibot:<password>@orienter-postgres:5432/whatsapp_bot
+# REQUIRED - Database (SQLite)
+SQLITE_DB_PATH=/app/data/orient.db
 
 # REQUIRED - Dashboard Security (crash loop if missing)
 DASHBOARD_JWT_SECRET=<openssl rand -hex 32>
@@ -631,24 +611,6 @@ R2_SECRET_ACCESS_KEY=
 # Generate secure values
 openssl rand -hex 32  # For DASHBOARD_JWT_SECRET
 openssl rand -hex 32  # For ORIENT_MASTER_KEY
-openssl rand -base64 24 | tr -d '/+=' | head -c 24  # For POSTGRES_PASSWORD
-```
-
-### PostgreSQL Authentication Failures
-
-**Error**: `password authentication failed for user "aibot"`
-
-**Cause**: PostgreSQL was initialized with a different password than what's in `.env`
-
-**Fix**: Reset the PostgreSQL data volume (WARNING: deletes all data):
-
-```bash
-ssh opc@152.70.172.33
-cd ~/orient/docker
-sudo docker compose --env-file ../.env \
-  -f docker-compose.v2.yml -f docker-compose.prod.yml -f docker-compose.r2.yml down -v
-sudo docker compose --env-file ../.env \
-  -f docker-compose.v2.yml -f docker-compose.prod.yml -f docker-compose.r2.yml up -d
 ```
 
 ### Nginx Upstream Errors
@@ -700,40 +662,12 @@ docker exec orienter-nginx ls -la /etc/nginx/ssl/
 ### Database Connection Failed
 
 ```bash
-# Check database health
-docker exec orienter-postgres pg_isready -U aibot -d whatsapp_bot
+# Check SQLite database file exists
+docker exec orienter-dashboard ls -la /app/data/orient.db
 
-# Check DATABASE_URL in container
-docker exec orienter-dashboard env | grep DATABASE_URL
+# Check SQLITE_DB_PATH in container
+docker exec orienter-dashboard env | grep SQLITE_DB_PATH
 ```
-
-### DNS Conflict: Database Does Not Exist
-
-**Error**: `error: database "whatsapp_bot" does not exist` even though the database clearly exists
-
-**Cause**: When production and staging share the same Docker network, both postgres containers have the DNS alias `postgres`. Docker DNS may resolve to the wrong container.
-
-**Diagnosis**:
-
-```bash
-# Check both postgres containers have the same alias
-docker inspect orienter-postgres --format '{{json .NetworkSettings.Networks}}' | jq '.[] | .DNSNames'
-docker inspect orienter-postgres-staging --format '{{json .NetworkSettings.Networks}}' | jq '.[] | .DNSNames'
-
-# If both show "postgres" as an alias, that's the conflict
-```
-
-**Fix**: Use container names instead of service aliases in DATABASE_URL:
-
-```bash
-# In docker-compose.v2.yml, change:
-DATABASE_URL=postgresql://user:pass@postgres:5432/db
-
-# To:
-DATABASE_URL=postgresql://user:pass@orienter-postgres:5432/db
-```
-
-The compose file (`docker-compose.v2.yml`) should already use `orienter-postgres` (container name) instead of `postgres` (service alias).
 
 ### Health Check Race Conditions
 
@@ -771,18 +705,14 @@ cd ~/orient/docker
 # Start services in stages manually
 COMPOSE="docker compose --env-file ../.env -f docker-compose.v2.yml -f docker-compose.prod.yml -f docker-compose.r2.yml"
 
-# 1. Ensure postgres is running
-sudo $COMPOSE up -d postgres
-sleep 5
-
-# 2. Start dashboard and opencode
+# 1. Start dashboard and opencode
 sudo $COMPOSE up -d dashboard opencode
 sleep 15
 
-# 3. Check health
+# 2. Check health
 docker ps --format 'table {{.Names}}\t{{.Status}}' | grep -E 'dashboard|opencode'
 
-# 4. If healthy, start remaining services
+# 3. If healthy, start remaining services
 sudo $COMPOSE up -d
 ```
 
@@ -818,10 +748,8 @@ Expected output - all containers should show "(healthy)":
 ```
 NAMES                   STATUS
 orienter-nginx          Up X minutes (healthy)
-orienter-bot-whatsapp   Up X minutes (healthy)
 orienter-opencode       Up X minutes (healthy)
 orienter-dashboard      Up X minutes (healthy)
-orienter-postgres       Up X minutes (healthy)
 ```
 
 ### ESM Module Import Resolution Issues

@@ -3,6 +3,9 @@
  *
  * Tests instance detection, port calculation, and environment configuration
  * for the multi-instance development environment.
+ *
+ * Database: SQLite (file-based, no PostgreSQL)
+ * WhatsApp: Integrated into Dashboard (unified server, single DASHBOARD_PORT)
  */
 
 import { describe, it, expect } from 'vitest';
@@ -31,13 +34,13 @@ function runBashScript(command: string, env?: Record<string, string>): string {
 describe('instance-env.sh', () => {
   describe('Port Calculation', () => {
     it('should calculate port for instance 0 (no offset)', () => {
-      const result = runBashScript('calculate_port 4097 0');
-      expect(result).toBe('4097');
+      const result = runBashScript('calculate_port 4098 0');
+      expect(result).toBe('4098');
     });
 
     it('should calculate port for instance 1 (offset 1000)', () => {
-      const result = runBashScript('calculate_port 4097 1');
-      expect(result).toBe('5097');
+      const result = runBashScript('calculate_port 4098 1');
+      expect(result).toBe('5098');
     });
 
     it('should calculate port for instance 2 (offset 2000)', () => {
@@ -46,8 +49,8 @@ describe('instance-env.sh', () => {
     });
 
     it('should calculate port for instance 9 (offset 9000)', () => {
-      const result = runBashScript('calculate_port 5432 9');
-      expect(result).toBe('14432');
+      const result = runBashScript('calculate_port 9000 9');
+      expect(result).toBe('18000');
     });
 
     it('should handle different base ports correctly', () => {
@@ -83,15 +86,13 @@ describe('instance-env.sh', () => {
       const vars = [
         'AI_INSTANCE_ID',
         'NGINX_PORT',
-        'WHATSAPP_PORT',
         'DASHBOARD_PORT',
         'OPENCODE_PORT',
         'VITE_PORT',
-        'POSTGRES_PORT',
         'MINIO_API_PORT',
         'MINIO_CONSOLE_PORT',
         'COMPOSE_PROJECT_NAME',
-        'POSTGRES_DB',
+        'SQLITE_DB_PATH',
         'S3_BUCKET',
         'DATA_DIR',
         'LOG_DIR',
@@ -108,29 +109,25 @@ describe('instance-env.sh', () => {
     it('should configure instance 0 with original ports', () => {
       const results = {
         nginxPort: runBashScript('AI_INSTANCE_ID=0 configure_instance && echo $NGINX_PORT'),
-        whatsappPort: runBashScript('AI_INSTANCE_ID=0 configure_instance && echo $WHATSAPP_PORT'),
         dashboardPort: runBashScript('AI_INSTANCE_ID=0 configure_instance && echo $DASHBOARD_PORT'),
-        postgresPort: runBashScript('AI_INSTANCE_ID=0 configure_instance && echo $POSTGRES_PORT'),
+        vitePort: runBashScript('AI_INSTANCE_ID=0 configure_instance && echo $VITE_PORT'),
       };
 
       expect(results.nginxPort).toBe('80');
-      expect(results.whatsappPort).toBe('4097');
       expect(results.dashboardPort).toBe('4098');
-      expect(results.postgresPort).toBe('5432');
+      expect(results.vitePort).toBe('5173');
     });
 
     it('should configure instance 1 with offset ports', () => {
       const results = {
         nginxPort: runBashScript('AI_INSTANCE_ID=1 configure_instance && echo $NGINX_PORT'),
-        whatsappPort: runBashScript('AI_INSTANCE_ID=1 configure_instance && echo $WHATSAPP_PORT'),
         dashboardPort: runBashScript('AI_INSTANCE_ID=1 configure_instance && echo $DASHBOARD_PORT'),
-        postgresPort: runBashScript('AI_INSTANCE_ID=1 configure_instance && echo $POSTGRES_PORT'),
+        vitePort: runBashScript('AI_INSTANCE_ID=1 configure_instance && echo $VITE_PORT'),
       };
 
       expect(results.nginxPort).toBe('1080');
-      expect(results.whatsappPort).toBe('5097');
       expect(results.dashboardPort).toBe('5098');
-      expect(results.postgresPort).toBe('6432');
+      expect(results.vitePort).toBe('6173');
     });
 
     it('should include instance ID in compose project name', () => {
@@ -141,9 +138,9 @@ describe('instance-env.sh', () => {
       expect(result).toContain('orienter-instance');
     });
 
-    it('should include instance ID in database name', () => {
-      const result = runBashScript('AI_INSTANCE_ID=3 configure_instance && echo $POSTGRES_DB');
-      expect(result).toContain('_3');
+    it('should include instance ID in SQLite database path', () => {
+      const result = runBashScript('AI_INSTANCE_ID=3 configure_instance && echo $SQLITE_DB_PATH');
+      expect(result).toContain('instance-3');
     });
 
     it('should include instance ID in S3 bucket name', () => {
@@ -165,14 +162,18 @@ describe('instance-env.sh', () => {
   describe('WhatsApp Configuration', () => {
     // TODO: Fix this test - environment-specific, fails on some systems
     it.skip('should enable WhatsApp by default in instance 0', () => {
-      const result = runBashScript('AI_INSTANCE_ID=0 configure_instance && echo $WHATSAPP_ENABLED');
+      const result = runBashScript(
+        'AI_INSTANCE_ID=0 unset WHATSAPP_ENABLED && configure_instance && echo $WHATSAPP_ENABLED'
+      );
       expect(result).toBe('true');
     });
 
     it.skip('should disable WhatsApp by default in non-zero instances', () => {
       // TODO: Fix this test - it's currently failing on CI
       const results = [1, 2, 3, 4, 5].map((id) =>
-        runBashScript(`AI_INSTANCE_ID=${id} configure_instance && echo $WHATSAPP_ENABLED`)
+        runBashScript(
+          `AI_INSTANCE_ID=${id} unset WHATSAPP_ENABLED && configure_instance && echo $WHATSAPP_ENABLED`
+        )
       );
 
       results.forEach((result) => {
@@ -192,9 +193,9 @@ describe('instance-env.sh', () => {
     it('should generate unique ports for each instance', () => {
       const instance1Ports = [
         runBashScript('AI_INSTANCE_ID=1 configure_instance && echo $NGINX_PORT'),
-        runBashScript('AI_INSTANCE_ID=1 configure_instance && echo $WHATSAPP_PORT'),
         runBashScript('AI_INSTANCE_ID=1 configure_instance && echo $DASHBOARD_PORT'),
         runBashScript('AI_INSTANCE_ID=1 configure_instance && echo $OPENCODE_PORT'),
+        runBashScript('AI_INSTANCE_ID=1 configure_instance && echo $VITE_PORT'),
       ];
 
       const uniquePorts = new Set(instance1Ports);
@@ -214,25 +215,19 @@ describe('instance-env.sh', () => {
     });
   });
 
-  describe('DATABASE_URL Construction', () => {
-    // TODO: Fix this test - port calculation changed, update expected value
-    it.skip('should construct DATABASE_URL with correct port', () => {
-      const result = runBashScript('AI_INSTANCE_ID=2 configure_instance && echo $DATABASE_URL');
-      expect(result).toContain(':7432/'); // Port should be 5432 + 2000
+  describe('SQLite Database Path', () => {
+    it('should set SQLITE_DB_PATH for each instance', () => {
+      const result = runBashScript('AI_INSTANCE_ID=2 configure_instance && echo $SQLITE_DB_PATH');
+      expect(result).toContain('instance-2');
+      expect(result).toContain('orient.db');
     });
 
-    it('should construct DATABASE_URL with correct database name', () => {
-      const result = runBashScript('AI_INSTANCE_ID=3 configure_instance && echo $DATABASE_URL');
-      expect(result).toContain('whatsapp_bot_3');
-    });
-
-    it('should use default credentials when not set', () => {
-      const result = runBashScript('AI_INSTANCE_ID=1 configure_instance && echo $DATABASE_URL', {
-        DATABASE_URL: '',
-        POSTGRES_USER: '',
-        POSTGRES_PASSWORD: '',
-      });
-      expect(result).toContain('aibot:aibot123');
+    it('should place database in DATA_DIR', () => {
+      const sqlitePath = runBashScript(
+        'AI_INSTANCE_ID=1 configure_instance && echo $SQLITE_DB_PATH'
+      );
+      const dataDir = runBashScript('AI_INSTANCE_ID=1 configure_instance && echo $DATA_DIR');
+      expect(sqlitePath).toContain(dataDir);
     });
   });
 
@@ -240,7 +235,7 @@ describe('instance-env.sh', () => {
     it('should handle missing parameters gracefully in calculate_port', () => {
       // This should not crash, though the result may be empty or 0
       expect(() => {
-        runBashScript('calculate_port 4097');
+        runBashScript('calculate_port 4098');
       }).not.toThrow();
     });
 

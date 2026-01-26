@@ -3,103 +3,92 @@ name: database-migrations
 description: Guide for creating and managing database migrations. Use when adding new tables, modifying schema, creating migrations, or before deploying database changes. Covers migration workflow, testing locally, and CI validation.
 ---
 
-# Database Migrations
+# Database Migrations (SQLite)
 
 ## Quick Reference
 
 ```bash
-# Apply all migrations locally
-npm run db:migrate
+# Push schema to SQLite database
+pnpm --filter @orient/database run db:push:sqlite
 
-# Check current tables
-npm run db:migrate:status
+# Open Drizzle Studio to inspect database
+pnpm db:studio
 
 # Seed default agent data
-npm run agents:seed
+pnpm run agents:seed
+```
+
+## Database: SQLite (File-Based)
+
+The Orient uses SQLite for all database operations. The database file is located at:
+
+- **Dev mode**: `.dev-data/instance-N/orient.db`
+- **Docker**: `/app/data/orient.db`
+- **Production**: Configured via `SQLITE_DATABASE` environment variable
+
+**Environment variables:**
+
+```bash
+DATABASE_TYPE=sqlite
+SQLITE_DATABASE=/path/to/orient.db
+# OR use instance-aware path:
+SQLITE_DB_PATH=/path/to/orient.db
 ```
 
 ## When to Create a Migration
 
-Create a new migration file when:
+Create schema changes when:
 
 - Adding a new table
 - Adding columns to existing tables
 - Creating new indexes
-- Adding constraints or foreign keys
-- Creating triggers or functions
+- Adding constraints
 
 **Do NOT need migrations for:**
 
 - Updating seed data (use seed scripts)
 - Modifying application code only
-- Changing Drizzle schema without DB changes (won't work!)
 
-## Migration Workflow
+## Schema Workflow
 
-### Step 1: Create Migration File
+### Step 1: Update Drizzle Schema
 
-```bash
-# Create new migration file with next sequence number
-touch data/migrations/003_your_feature_name.sql
-```
-
-**Naming convention:** `XXX_description.sql` where XXX is the sequence number.
-
-### Step 2: Write Migration SQL
-
-```sql
--- Migration: 003_your_feature_name.sql
--- Description: Brief description of changes
--- Run: npm run db:migrate
-
-BEGIN;
-
-CREATE TABLE IF NOT EXISTS your_table (
-    id TEXT PRIMARY KEY,
-    name TEXT NOT NULL,
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-CREATE INDEX IF NOT EXISTS idx_your_table_name ON your_table(name);
-
-COMMIT;
-```
-
-**Best practices:**
-
-- Wrap in `BEGIN;` ... `COMMIT;` for atomicity
-- Use `IF NOT EXISTS` for idempotency
-- Add `COMMENT ON TABLE/COLUMN` for documentation
-- Create indexes for frequently queried columns
-
-### Step 3: Update Drizzle Schema
-
-Edit `src/db/schema.ts` to match your migration:
+Edit `packages/database/src/schema/` files:
 
 ```typescript
-export const yourTable = pgTable('your_table', {
+// packages/database/src/schema/yourTable.ts
+import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core';
+
+export const yourTable = sqliteTable('your_table', {
   id: text('id').primaryKey(),
   name: text('name').notNull(),
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
 });
 ```
 
-### Step 4: Test Locally
+### Step 2: Push Schema to Database
 
 ```bash
-# Apply migration to local database
-npm run db:migrate
+# Push schema changes to SQLite
+pnpm --filter @orient/database run db:push:sqlite
 
-# Verify tables exist
-npm run db:migrate:status
-
-# Run schema validation test
-npm run test:e2e -- src/db/__tests__/schema-validation
+# Or using environment variables
+DATABASE_TYPE=sqlite SQLITE_DATABASE=./data/orient.db pnpm --filter @orient/database run db:push:sqlite
 ```
 
-### Step 5: Update Tests
+### Step 3: Verify Changes
 
-If your migration adds required tables, update `src/db/__tests__/schema-validation.e2e.test.ts`:
+```bash
+# Open Drizzle Studio
+pnpm db:studio
+
+# Or use sqlite3 CLI
+sqlite3 .dev-data/instance-0/orient.db ".schema your_table"
+```
+
+### Step 4: Update Tests
+
+If your schema adds required tables, update the schema validation tests:
 
 ```typescript
 const REQUIRED_TABLES = [
@@ -112,50 +101,49 @@ const REQUIRED_TABLES = [
 
 Before merging a PR with database changes:
 
-- [ ] Migration file created in `data/migrations/XXX_name.sql`
-- [ ] Schema updated in `src/db/schema.ts`
-- [ ] Migration tested locally: `npm run db:migrate`
+- [ ] Schema updated in `packages/database/src/schema/`
+- [ ] Schema pushed locally: `pnpm --filter @orient/database run db:push:sqlite`
 - [ ] Schema validation test updated if needed
-- [ ] Integration tests pass: `npm run test:integration`
+- [ ] Integration tests pass: `pnpm test:integration`
 - [ ] Seed data created if needed (e.g., `data/seeds/`)
 
 ## CI Validation
 
 The CI pipeline automatically:
 
-1. Starts a fresh PostgreSQL database
-2. Applies all migrations from `data/migrations/`
+1. Creates a fresh SQLite database
+2. Pushes schema using Drizzle
 3. Runs schema validation tests
 4. Fails the build if any required tables are missing
 
 **If CI fails with "Missing required tables":**
 
-- Ensure your migration file is in `data/migrations/`
-- Ensure the file is valid SQL
-- Check that REQUIRED_TABLES includes your new table
+- Ensure your schema is exported from `packages/database/src/schema/index.ts`
+- Check that schema files use correct SQLite types
+- Verify REQUIRED_TABLES includes your new table
 
 ## Troubleshooting
 
 ### "Table already exists" error
 
-Migrations use `IF NOT EXISTS`, so this shouldn't happen. If it does:
+SQLite schema push is idempotent. If this happens:
 
 - Check for duplicate table definitions
-- Ensure migration is idempotent
+- Ensure you're not mixing schema sources
 
 ### "Column does not exist" error
 
 Schema mismatch between code and database:
 
-1. Check `src/db/schema.ts` matches your migration
-2. Run `npm run db:migrate` to apply pending migrations
-3. Verify with `npm run db:migrate:status`
+1. Check `packages/database/src/schema/` matches your expectations
+2. Run `pnpm --filter @orient/database run db:push:sqlite` to apply pending changes
+3. Verify with `sqlite3 your.db ".schema tablename"`
 
 ### Integration tests fail in CI but pass locally
 
-- Migrations may not be applying in CI
-- Check `.github/workflows/test.yml` for migration step
-- Ensure migration files are committed to git
+- Schema may not be pushing in CI
+- Check `.github/workflows/test.yml` for schema push step
+- Ensure schema files are committed to git
 
 ## Worktree Database Setup
 
@@ -170,16 +158,16 @@ All worktrees use the same development database. Best for:
 - Frontend work
 
 ```bash
-# No special setup needed - uses DATABASE_URL from .env
-pnpm run dev
+# No special setup needed - uses SQLITE_DB_PATH from instance-env.sh
+./run.sh dev
 ```
 
 ### Isolated Database (For Schema Testing)
 
 Each worktree gets its own database. Use for:
 
-- Testing new migrations
-- Schema changes
+- Testing new schema changes
+- Schema modifications
 - Isolated experiments
 
 ```bash
@@ -200,42 +188,58 @@ The unified seeder (`data/seeds/index.ts`) runs in order:
 
 ```bash
 # Seed all data
-npm run db:seed:all
+pnpm run db:seed:all
 
 # Force re-seed (override existing)
-npm run db:seed:all:force
+pnpm run db:seed:all:force
 
 # Seed agents only
-npm run agents:seed
-```
-
-### .env Configuration
-
-Ensure your `.env` has `DATABASE_URL` configured:
-
-```bash
-DATABASE_URL="postgresql://aibot:aibot123@localhost:5432/whatsapp_bot"
-```
-
-**Important:** Quote values containing special characters (cron expressions, `#` channels):
-
-```bash
-STANDUP_CRON="30 9 * * 1-5"        # Good
-STANDUP_CHANNEL="#orienter-standups" # Good
+pnpm run agents:seed
 ```
 
 ## File Locations
 
-| Purpose                | Location                                         |
-| ---------------------- | ------------------------------------------------ |
-| Migration files        | `data/migrations/*.sql`                          |
-| Drizzle schema         | `src/db/schema.ts`                               |
-| Schema validation test | `src/db/__tests__/schema-validation.e2e.test.ts` |
-| Seed scripts           | `data/seeds/*.ts`                                |
-| Unified seeder         | `data/seeds/index.ts`                            |
-| Worktree DB script     | `scripts/seed-worktree-db.sh`                    |
-| CI workflow            | `.github/workflows/test.yml`                     |
+| Purpose            | Location                                |
+| ------------------ | --------------------------------------- |
+| Drizzle schema     | `packages/database/src/schema/`         |
+| Schema exports     | `packages/database/src/schema/index.ts` |
+| SQLite config      | `packages/database/drizzle.config.ts`   |
+| Seed scripts       | `data/seeds/*.ts`                       |
+| Unified seeder     | `data/seeds/index.ts`                   |
+| Worktree DB script | `scripts/seed-worktree-db.sh`           |
+| CI workflow        | `.github/workflows/test.yml`            |
 
-## Reference Materials
+## SQLite-Specific Notes
 
-See [references/checklist.md](references/checklist.md) for the complete pre-merge migration checklist.
+### Data Types
+
+SQLite uses different types than PostgreSQL:
+
+| PostgreSQL     | SQLite                                  |
+| -------------- | --------------------------------------- |
+| `SERIAL`       | `integer('id').primaryKey()`            |
+| `TIMESTAMPTZ`  | `integer('col', { mode: 'timestamp' })` |
+| `VARCHAR(255)` | `text('col')`                           |
+| `BOOLEAN`      | `integer('col', { mode: 'boolean' })`   |
+| `JSONB`        | `text('col', { mode: 'json' })`         |
+
+### Transactions
+
+SQLite transactions work slightly differently:
+
+```typescript
+import { db } from '@orient/database';
+
+await db.transaction(async (tx) => {
+  await tx.insert(yourTable).values({ ... });
+  await tx.update(otherTable).set({ ... });
+});
+```
+
+### Concurrency
+
+SQLite uses file-level locking. For high-concurrency scenarios:
+
+- Use WAL mode (Write-Ahead Logging) - configured by default
+- Keep transactions short
+- Consider read replicas for read-heavy workloads
