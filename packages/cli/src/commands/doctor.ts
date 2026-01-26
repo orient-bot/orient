@@ -6,7 +6,7 @@
 
 import { Command } from 'commander';
 import { execSync } from 'child_process';
-import { existsSync, statSync } from 'fs';
+import { existsSync, readFileSync, statSync } from 'fs';
 import { join } from 'path';
 import { homedir } from 'os';
 import * as net from 'net';
