@@ -1,6 +1,12 @@
-import { pgTable, serial, text, timestamp, index } from 'drizzle-orm/pg-core';
+/**
+ * SQLite Secrets Schema
+ *
+ * Encrypted secrets storage with audit logging.
+ */
 
-export const secrets = pgTable(
+import { sqliteTable, text, integer, index } from 'drizzle-orm/sqlite-core';
+
+export const secrets = sqliteTable(
   'secrets',
   {
     key: text('key').primaryKey(),
@@ -9,20 +15,20 @@ export const secrets = pgTable(
     authTag: text('auth_tag').notNull(),
     category: text('category'),
     description: text('description'),
-    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
-    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+    createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
+    updatedAt: integer('updated_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
   },
   (table) => [index('idx_secrets_category').on(table.category)]
 );
 
-export const secretsAuditLog = pgTable(
+export const secretsAuditLog = sqliteTable(
   'secrets_audit_log',
   {
-    id: serial('id').primaryKey(),
+    id: integer('id').primaryKey({ autoIncrement: true }),
     key: text('key').notNull(),
     action: text('action').notNull(),
     changedBy: text('changed_by'),
-    changedAt: timestamp('changed_at', { withTimezone: true }).defaultNow(),
+    changedAt: integer('changed_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
   },
   (table) => [
     index('idx_secrets_audit_key').on(table.key),
