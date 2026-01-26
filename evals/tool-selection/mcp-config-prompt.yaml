@@ -1,0 +1,29 @@
+name: mcp-config-prompt
+description: Agent should use MCP config tool when asked to change system prompt
+type: tool_selection
+agent: onboarder
+
+input:
+  prompt: 'Change the Slack bot prompt to introduce yourself as Ori and be helpful'
+
+mocks:
+  orient-assistant:
+    config_set_prompt:
+      response:
+        success: true
+        action_id: 'action_123'
+        summary: 'Prepared prompt change for Slack platform'
+        requires_confirmation: true
+
+expect:
+  tool_calls:
+    required:
+      - name: config_set_prompt
+
+  assertions:
+    # Response should ask for confirmation
+    - type: response_matches
+      pattern: 'confirm|apply|proceed|change'
+    # Should NOT give manual dashboard instructions
+    - type: response_not_matches
+      pattern: 'navigate to|go to settings|click on'
