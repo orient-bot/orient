@@ -10,16 +10,24 @@ import cors from 'cors';
 import path from 'path';
 import fs from 'fs';
 import { createServiceLogger } from '@orient/core';
-import { ensureAgentsSeeded } from '@orient/database-services';
-import { MessageDatabase } from '../services/messageDatabase.js';
-import { SlackDatabase } from '../services/slackDatabase.js';
-import { SchedulerDatabase } from '../services/schedulerDatabase.js';
+import {
+  ensureAgentsSeeded,
+  MessageDatabase,
+  createMessageDatabase,
+  SlackDatabase,
+  createSlackDatabase,
+  SchedulerDatabase,
+  createSchedulerDatabase,
+  WebhookDatabase,
+  createWebhookDatabase,
+  StorageDatabase,
+  createStorageDatabase,
+  PromptService,
+  createPromptService,
+} from '@orient/database-services';
 import { SchedulerService } from '../services/schedulerService.js';
-import { WebhookDatabase } from '../services/webhookDatabase.js';
 import { WebhookService } from '../services/webhookService.js';
 import { MonitoringService, createMonitoringService } from '../services/monitoringService.js';
-import { PromptService, createPromptService } from '../services/promptService.js';
-import { StorageDatabase } from '../services/storageDatabase.js';
 import { createDashboardAuth, DashboardAuth, createRateLimitMiddleware } from '../auth.js';
 import { createDashboardRouter } from './routes.js';
 import { createSetupRouter } from './setupRoutes.js';
@@ -62,16 +70,14 @@ export interface DashboardServices {
  * Initialize all dashboard services
  */
 async function initializeServices(config: DashboardServerConfig): Promise<DashboardServices> {
-  const databaseUrl = config.databaseUrl || process.env.DATABASE_URL;
-
-  // Initialize databases
-  const db = new MessageDatabase(databaseUrl);
+  // Initialize databases (SQLite via shared singleton)
+  const db = createMessageDatabase();
   await db.initialize();
 
-  const slackDb = new SlackDatabase(databaseUrl);
+  const slackDb = createSlackDatabase();
   await slackDb.initialize();
 
-  const schedulerDb = new SchedulerDatabase(databaseUrl);
+  const schedulerDb = createSchedulerDatabase();
   await schedulerDb.initialize();
 
   // Ensure default agents are seeded
@@ -90,8 +96,7 @@ async function initializeServices(config: DashboardServerConfig): Promise<Dashbo
   await schedulerService.start();
 
   // Initialize webhook database and service
-  const webhookDb = new WebhookDatabase(databaseUrl);
-  await webhookDb.initialize();
+  const webhookDb = createWebhookDatabase();
   const webhookService = new WebhookService(webhookDb);
 
   // Initialize prompt service
@@ -116,14 +121,14 @@ async function initializeServices(config: DashboardServerConfig): Promise<Dashbo
   }
 
   // Initialize storage database for mini-app persistence
-  const storageDb = new StorageDatabase(databaseUrl);
+  const storageDb = createStorageDatabase();
   await storageDb.initialize();
   logger.info('Storage database initialized');
 
   // Initialize miniapp edit service
   let miniappEditService: MiniappEditService | undefined;
   try {
-    const miniappEditDb = createMiniappEditDatabase(databaseUrl);
+    const miniappEditDb = createMiniappEditDatabase();
     await miniappEditDb.initialize();
 
     // Get repo path from environment or use default
@@ -178,8 +183,7 @@ async function initializeSetupAuthServices(config: DashboardServerConfig): Promi
   db: MessageDatabase;
   auth: DashboardAuth;
 }> {
-  const databaseUrl = config.databaseUrl || process.env.DATABASE_URL;
-  const db = new MessageDatabase(databaseUrl);
+  const db = new MessageDatabase();
   await db.initialize();
   const auth = createDashboardAuth(config.jwtSecret, db);
   return { db, auth };

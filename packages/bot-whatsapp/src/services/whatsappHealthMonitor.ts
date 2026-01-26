@@ -148,11 +148,17 @@ export class WhatsAppHealthMonitor extends EventEmitter {
       }
 
       if (state[DB_KEY_LAST_PAIRING_REQUEST]) {
-        this.lastPairingRequestTime = new Date(state[DB_KEY_LAST_PAIRING_REQUEST]);
+        const lastReq = state[DB_KEY_LAST_PAIRING_REQUEST];
+        if (typeof lastReq === 'string' || typeof lastReq === 'number') {
+          this.lastPairingRequestTime = new Date(lastReq);
+        }
       }
 
       if (state[DB_KEY_CONSECUTIVE_FAILURES]) {
-        this.consecutiveFailures = parseInt(state[DB_KEY_CONSECUTIVE_FAILURES], 10) || 0;
+        const failures = state[DB_KEY_CONSECUTIVE_FAILURES];
+        if (typeof failures === 'string' || typeof failures === 'number') {
+          this.consecutiveFailures = parseInt(String(failures), 10) || 0;
+        }
       }
 
       logger.info('Loaded persisted health monitor state', {
