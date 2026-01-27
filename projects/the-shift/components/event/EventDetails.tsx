@@ -7,8 +7,8 @@ const details = [
   {
     key: 'F1',
     label: 'DATE',
-    value: 'Coming Soon',
-    subtext: '2 hours',
+    value: 'March 2025',
+    subtext: 'Around Purim',
   },
   {
     key: 'F2',

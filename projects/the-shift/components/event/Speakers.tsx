@@ -98,12 +98,11 @@ const speakers = [
   },
   {
     key: 'S',
-    name: 'Oron Lev',
-    handle: 'LinkedIn',
-    role: 'Head of Franklin',
-    url: 'https://www.linkedin.com/in/oron-lev-171416140/',
-    imageUrl: '/speakers/oron-lev.jpg',
-    isLinkedIn: true,
+    name: 'Alon Carmel',
+    handle: '@aloncarmel',
+    role: 'Founder @ Wilco',
+    url: 'https://x.com/aloncarmel',
+    imageUrl: 'https://pbs.twimg.com/profile_images/1439941107794825223/3kwmZyhl_400x400.jpg',
   },
 ]
 
