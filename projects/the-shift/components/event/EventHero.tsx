@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import ShiftKey from '../keyboard/ShiftKey'
+import ShootingStars from './ShootingStars'
 
 export default function EventHero() {
   const [mounted, setMounted] = useState(false)
@@ -19,8 +20,9 @@ export default function EventHero() {
   }
 
   return (
-    <section className="min-h-[80vh] flex flex-col items-center justify-center px-4 py-12">
-      <div className="text-center max-w-4xl mx-auto">
+    <section className="relative overflow-hidden min-h-[80vh] flex flex-col items-center justify-center px-4 py-12">
+      <ShootingStars />
+      <div className="relative z-10 text-center max-w-4xl mx-auto">
         {/* The Shift key as hero */}
         <div className={`mb-12 ${mounted ? 'animate-scale-in' : 'opacity-0'}`}>
           <ShiftKey size="xl" pulsing onClick={handleShiftClick} />
@@ -45,7 +47,7 @@ export default function EventHero() {
       </div>
 
       {/* Vim hint */}
-      <div className={`mt-16 flex items-center gap-3 ${mounted ? 'animate-fade-in animation-delay-500' : 'opacity-0'}`}>
+      <div className={`relative z-10 mt-16 flex items-center gap-3 ${mounted ? 'animate-fade-in animation-delay-500' : 'opacity-0'}`}>
         <div className="flex items-center gap-1">
           <span className="key key-small text-xs">j</span>
           <span className="key key-small text-xs">k</span>
