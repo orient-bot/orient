@@ -1,0 +1,104 @@
+.section {
+  padding: 5rem 2rem;
+}
+
+.sectionAlt {
+  background: var(--ifm-background-surface-color);
+}
+
+.sectionContent {
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.sectionTitle {
+  font-size: 2.25rem;
+  font-weight: 700;
+  margin: 0 0 0.5rem;
+  text-align: center;
+}
+
+.sectionSubtitle {
+  font-size: 1.25rem;
+  color: var(--ifm-font-color-secondary);
+  text-align: center;
+  margin: 0 0 2.5rem;
+}
+
+.terminalWrapper {
+  max-width: 600px;
+  margin: 0 auto 2rem;
+}
+
+.resultBadges {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 2rem;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: var(--ifm-card-background-color);
+  border: 1px solid var(--ifm-hr-border-color);
+  border-radius: 2rem;
+  font-size: 0.875rem;
+  color: var(--ifm-font-color-secondary);
+}
+
+.badgeCheck {
+  color: #22c55e;
+  font-weight: 700;
+}
+
+.centeredCta {
+  text-align: center;
+}
+
+.primaryButton {
+  background: #18181b;
+  color: #ffffff;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
+  font-weight: 500;
+  border-radius: 0.375rem;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: opacity 0.15s ease;
+}
+
+.primaryButton:hover {
+  opacity: 0.85;
+  color: #ffffff;
+  text-decoration: none;
+}
+
+.primaryButton:active {
+  transform: scale(0.97);
+}
+
+@media (max-width: 600px) {
+  .section {
+    padding: 3rem 1.5rem;
+  }
+
+  .sectionTitle {
+    font-size: 1.75rem;
+  }
+
+  .sectionSubtitle {
+    font-size: 1rem;
+  }
+
+  .resultBadges {
+    flex-direction: column;
+    align-items: center;
+  }
+}
