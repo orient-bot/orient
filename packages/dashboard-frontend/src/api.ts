@@ -992,7 +992,7 @@ export async function invalidateSecretsCache(): Promise<{ success: boolean }> {
 // PROVIDERS API
 // ============================================
 
-export type ProviderId = 'openai' | 'anthropic' | 'google';
+export type ProviderId = 'openai' | 'anthropic' | 'google' | 'opencode_zen';
 
 export interface ProviderStatus {
   id: ProviderId;
@@ -1005,6 +1005,7 @@ export interface ProviderDefaults {
   transcription: ProviderId;
   vision: ProviderId;
   imageGeneration: ProviderId;
+  agentChat: ProviderId;
 }
 
 export async function getProviders(): Promise<{ providers: ProviderStatus[] }> {
