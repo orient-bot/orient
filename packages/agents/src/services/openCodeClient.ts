@@ -78,7 +78,7 @@ export class OpenCodeClient {
   constructor(config: OpenCodeConfig) {
     this.config = {
       timeout: 120000, // 2 minutes - OpenCode can be slow with complex MCP tool calls
-      defaultModel: 'openai/gpt-4o-mini', // Default to Grok Code Fast 1 via OpenCode Zen (FREE!)
+      defaultModel: 'anthropic/claude-haiku-4-5-20251001',
       ...config,
     };
     logger.info('OpenCode client initialized', {
@@ -93,7 +93,7 @@ export class OpenCodeClient {
    * Get the default model ID
    */
   getDefaultModel(): string {
-    return this.config.defaultModel || 'openai/gpt-4o-mini';
+    return this.config.defaultModel || 'anthropic/claude-haiku-4-5-20251001';
   }
 
   /**
@@ -532,7 +532,7 @@ export class OpenCodeClient {
     logger.info('Summarizing session', { sessionId });
 
     // Build model info for the summarization request
-    const modelId = this.config.defaultModel || 'openai/gpt-4o-mini';
+    const modelId = this.config.defaultModel || 'anthropic/claude-haiku-4-5-20251001';
     const modelParts = modelId.split('/');
     const model =
       modelParts.length === 2
@@ -635,7 +635,7 @@ export class OpenCodeClient {
  */
 export function createOpenCodeClient(
   baseUrl: string = 'http://localhost:4099',
-  defaultModel: string = 'openai/gpt-4o-mini',
+  defaultModel: string = 'anthropic/claude-haiku-4-5-20251001',
   password?: string
 ): OpenCodeClient {
   // Use provided password or fall back to environment variable

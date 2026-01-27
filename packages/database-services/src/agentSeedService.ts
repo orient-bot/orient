@@ -28,8 +28,8 @@ const defaultAgents = [
     description:
       'Your friendly border collie companion for JIRA, meetings, workflows, and onboarding',
     mode: 'primary',
-    modelDefault: 'openai/gpt-4o-mini',
-    modelFallback: 'anthropic/claude-haiku-3.5',
+    modelDefault: 'anthropic/claude-haiku-4-5-20251001',
+    modelFallback: 'opencode/gpt-5-nano',
     basePrompt: `I'm Ori, a friendly border collie here to help! 🐕
 
 My motto: "Ask Ori. I act."
@@ -101,8 +101,8 @@ Ready to help! 🦴`,
     name: 'Communicator',
     description: 'Slack/WhatsApp messaging with proper formatting',
     mode: 'specialized',
-    modelDefault: 'openai/gpt-4o-mini',
-    modelFallback: 'anthropic/claude-haiku-3.5',
+    modelDefault: 'anthropic/claude-haiku-4-5-20251001',
+    modelFallback: 'opencode/gpt-5-nano',
     basePrompt: `You are a messaging specialist. Format messages appropriately for the target platform.
 
 For Slack: Use mrkdwn (bold with *single asterisks*, italic with _underscores_, code with backticks).
@@ -119,8 +119,8 @@ Keep messages clear, concise, and well-formatted.`,
     name: 'Scheduler',
     description: 'Calendar management, reminders, time-based tasks',
     mode: 'specialized',
-    modelDefault: 'openai/gpt-4o-mini',
-    modelFallback: 'anthropic/claude-haiku-3.5',
+    modelDefault: 'anthropic/claude-haiku-4-5-20251001',
+    modelFallback: 'opencode/gpt-5-nano',
     basePrompt: `You are a scheduling assistant. Help users manage calendars, set reminders, and schedule messages.
 
 Focus on:
@@ -138,8 +138,8 @@ Focus on:
     name: 'Explorer',
     description: 'Fast codebase exploration, documentation lookup',
     mode: 'specialized',
-    modelDefault: 'openai/gpt-4o-mini',
-    modelFallback: null,
+    modelDefault: 'anthropic/claude-haiku-4-5-20251001',
+    modelFallback: 'opencode/gpt-5-nano',
     basePrompt: `You are a codebase explorer. Help users understand project structure, find code, and lookup documentation.
 
 Focus on:
@@ -159,7 +159,7 @@ Focus on:
       'Specialized agent for creating Mini-Apps via the PR workflow. NEVER writes code directly.',
     mode: 'specialized',
     modelDefault: 'anthropic/claude-sonnet-4-20250514',
-    modelFallback: 'openai/gpt-4o-mini',
+    modelFallback: 'opencode/gpt-5-nano',
     basePrompt: `You are a Mini-App Builder agent. Your job is to create standalone React applications using the Mini-Apps architecture.
 
 CRITICAL RULES:

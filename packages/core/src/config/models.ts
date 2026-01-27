@@ -77,12 +77,13 @@ export type ModelDefinition = (typeof AVAILABLE_MODELS)[ModelKey];
 
 /** Default model for WhatsApp - can be overridden via WHATSAPP_DEFAULT_MODEL env var */
 export const WHATSAPP_DEFAULT_MODEL =
-  getEnvWithSecrets('WHATSAPP_DEFAULT_MODEL') || 'openai/gpt-4o-mini';
-export const WHATSAPP_DEFAULT_MODEL_NAME = 'GPT-4o Mini';
+  getEnvWithSecrets('WHATSAPP_DEFAULT_MODEL') || 'anthropic/claude-haiku-4-5-20251001';
+export const WHATSAPP_DEFAULT_MODEL_NAME = 'Claude Haiku 4.5';
 
 /** Default model for Slack - can be overridden via SLACK_DEFAULT_MODEL env var */
-export const SLACK_DEFAULT_MODEL = getEnvWithSecrets('SLACK_DEFAULT_MODEL') || 'openai/gpt-4o-mini';
-export const SLACK_DEFAULT_MODEL_NAME = 'GPT-4o Mini';
+export const SLACK_DEFAULT_MODEL =
+  getEnvWithSecrets('SLACK_DEFAULT_MODEL') || 'anthropic/claude-haiku-4-5-20251001';
+export const SLACK_DEFAULT_MODEL_NAME = 'Claude Haiku 4.5';
 
 /** Default agent for all bot integrations */
 export const DEFAULT_AGENT = 'pm-assistant';
