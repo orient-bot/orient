@@ -5,8 +5,8 @@
  */
 
 import { Router, Request, Response } from 'express';
-import { createServiceLogger, invalidateConfigCache, setSecretOverrides } from '@orient/core';
-import { createSecretsService } from '@orient/database-services';
+import { createServiceLogger, invalidateConfigCache, setSecretOverrides } from '@orientbot/core';
+import { createSecretsService } from '@orientbot/database-services';
 
 const logger = createServiceLogger('providers-routes');
 

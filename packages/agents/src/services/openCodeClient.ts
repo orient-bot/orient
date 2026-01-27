@@ -5,8 +5,8 @@
  * It can be used by WhatsApp/Slack bots to leverage OpenCode as their AI processing backend.
  */
 
-import { createServiceLogger, AVAILABLE_MODELS, parseModelName } from '@orient/core';
-import type { ModelKey } from '@orient/core';
+import { createServiceLogger, AVAILABLE_MODELS, parseModelName } from '@orientbot/core';
+import type { ModelKey } from '@orientbot/core';
 
 // Re-export model types and functions for backward compatibility
 export { AVAILABLE_MODELS, parseModelName };
@@ -77,7 +77,7 @@ export class OpenCodeClient {
   constructor(config: OpenCodeConfig) {
     this.config = {
       timeout: 120000, // 2 minutes - OpenCode can be slow with complex MCP tool calls
-      defaultModel: 'opencode/grok-code', // Default to Grok Code Fast 1 via OpenCode Zen (FREE!)
+      defaultModel: 'openai/gpt-4o-mini', // Default to Grok Code Fast 1 via OpenCode Zen (FREE!)
       ...config,
     };
     logger.info('OpenCode client initialized', {
@@ -90,7 +90,7 @@ export class OpenCodeClient {
    * Get the default model ID
    */
   getDefaultModel(): string {
-    return this.config.defaultModel || 'opencode/grok-code';
+    return this.config.defaultModel || 'openai/gpt-4o-mini';
   }
 
   /**
@@ -529,7 +529,7 @@ export class OpenCodeClient {
     logger.info('Summarizing session', { sessionId });
 
     // Build model info for the summarization request
-    const modelId = this.config.defaultModel || 'opencode/grok-code';
+    const modelId = this.config.defaultModel || 'openai/gpt-4o-mini';
     const modelParts = modelId.split('/');
     const model =
       modelParts.length === 2
@@ -623,7 +623,7 @@ export class OpenCodeClient {
  */
 export function createOpenCodeClient(
   baseUrl: string = 'http://localhost:4099',
-  defaultModel: string = 'opencode/grok-code'
+  defaultModel: string = 'openai/gpt-4o-mini'
 ): OpenCodeClient {
   return new OpenCodeClient({ baseUrl, defaultModel });
 }

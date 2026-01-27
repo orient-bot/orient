@@ -76,9 +76,26 @@ DASHBOARD_PORT=4098
 
 - One-line installer: `curl -fsSL https://orient.bot/install.sh | bash`
 - Installs to `~/.orient/` with PM2 process management
-- `orient` CLI for start/stop/status/logs/doctor/config/upgrade
+- `orient` CLI for start/stop/status/logs/doctor/config/upgrade/uninstall
 - Auto-configures SQLite database and local media storage
 - Interactive setup with API key prompts
+- Clean uninstall with `orient uninstall`
+
+#### npm Publishing Infrastructure
+
+- All packages renamed from `@orient/*` to `@orientbot/*` scope
+- Future npm-based installation: `npm install -g @orientbot/cli`
+- Changesets for version management and changelog generation
+- Automated npm publishing via CI/CD workflow
+- 15 publishable packages with proper publishConfig
+
+#### CLI Improvements
+
+- Cleaner output with checkmark indicators (✓)
+- Silent PM2 operations for reduced noise
+- Improved doctor command output
+- Better error handling for start/restart failures
+- Proper uninstall confirmation flow
 
 #### Architecture
 
@@ -95,11 +112,13 @@ DASHBOARD_PORT=4098
 
 ### Changed
 
+- **Package scope renamed**: `@orient/*` → `@orientbot/*` (all 15 packages)
 - Database client: pg.Pool → better-sqlite3 + Drizzle ORM
 - All 32 database tables migrated to SQLite schema
 - Docker Compose simplified (no PostgreSQL container, no separate WhatsApp)
 - Dashboard serves WhatsApp endpoints via apiRouter.ts
 - Health checks consolidated to single endpoint
+- Installer output improved with progress indicators
 
 ### Removed
 

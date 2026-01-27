@@ -4,10 +4,10 @@
  * SQLite database for storing and querying Slack messages.
  * This is a type-safe implementation using Drizzle ORM.
  *
- * Exported via @orient/database-services package.
+ * Exported via @orientbot/database-services package.
  */
 
-import { createServiceLogger } from '@orient/core';
+import { createServiceLogger } from '@orientbot/core';
 import {
   getDatabase,
   closeDatabase,
@@ -19,7 +19,7 @@ import {
   sql,
   like,
   schema,
-} from '@orient/database';
+} from '@orientbot/database';
 import type {
   Database,
   SlackMessage,
@@ -31,7 +31,7 @@ import type {
   SlackDashboardStats,
   SlackChannelType,
   SlackChannelPermission,
-} from '@orient/database';
+} from '@orientbot/database';
 
 const logger = createServiceLogger('slack-db-drizzle');
 

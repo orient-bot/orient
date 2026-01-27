@@ -4,13 +4,13 @@
  * Provides functionality to interact with Google Sheets using OAuth 2.0
  * for personal accounts (as opposed to service accounts).
  *
- * Exported via @orient/integrations package.
+ * Exported via @orientbot/integrations package.
  *
  * This allows access to the user's own spreadsheets without sharing.
  */
 
 import { google, sheets_v4 } from 'googleapis';
-import { createServiceLogger } from '@orient/core';
+import { createServiceLogger } from '@orientbot/core';
 import { getGoogleOAuthService } from './oauth.js';
 
 const logger = createServiceLogger('sheets-oauth');

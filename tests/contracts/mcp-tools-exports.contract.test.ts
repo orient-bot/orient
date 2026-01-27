@@ -1,13 +1,13 @@
 /**
- * Contract Tests for @orient/mcp-tools
+ * Contract Tests for @orientbot/mcp-tools
  *
- * These tests verify that the public API of @orient/mcp-tools remains stable.
+ * These tests verify that the public API of @orientbot/mcp-tools remains stable.
  */
 
 import { describe, it, expect, vi, beforeAll } from 'vitest';
 
 // Mock logger for registry
-vi.mock('@orient/core', () => ({
+vi.mock('@orientbot/core', () => ({
   createServiceLogger: () => ({
     debug: vi.fn(),
     info: vi.fn(),
@@ -23,7 +23,7 @@ beforeAll(async () => {
   mcpToolsModule = await import('../../packages/mcp-tools/src/index.ts');
 }, 60000);
 
-describe('@orient/mcp-tools Public API Contract', () => {
+describe('@orientbot/mcp-tools Public API Contract', () => {
   describe('Tool Base Class Exports', () => {
     it('should export MCPTool class', async () => {
       const { MCPTool } = mcpToolsModule;

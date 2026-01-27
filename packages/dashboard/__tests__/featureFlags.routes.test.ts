@@ -53,13 +53,13 @@ const mockDb = {
   },
 };
 
-vi.mock('@orient/database', () => ({
+vi.mock('@orientbot/database', () => ({
   getDatabase: () => mockDb,
   featureFlags: { id: 'id', sortOrder: 'sortOrder' },
   eq: vi.fn((a, b) => ({ a, b })),
 }));
 
-vi.mock('@orient/core', () => ({
+vi.mock('@orientbot/core', () => ({
   createServiceLogger: () => ({
     info: vi.fn(),
     error: vi.fn(),

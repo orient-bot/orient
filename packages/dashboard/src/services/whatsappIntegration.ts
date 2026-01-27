@@ -10,11 +10,11 @@ import {
   WhatsAppConnection,
   createWhatsAppRouter,
   TranscriptionService,
-} from '@orient/bot-whatsapp';
-import type { WhatsAppBotConfig, ParsedMessage } from '@orient/bot-whatsapp';
-import { createServiceLogger, loadConfig, getConfig, startConfigPoller } from '@orient/core';
-import { MessageDatabase, createChatPermissionService } from '@orient/database-services';
-import { createOpenCodeClient } from '@orient/agents';
+} from '@orientbot/bot-whatsapp';
+import type { WhatsAppBotConfig, ParsedMessage } from '@orientbot/bot-whatsapp';
+import { createServiceLogger, loadConfig, getConfig, startConfigPoller } from '@orientbot/core';
+import { MessageDatabase, createChatPermissionService } from '@orientbot/database-services';
+import { createOpenCodeClient } from '@orientbot/agents';
 import { downloadMediaMessage } from 'baileys';
 
 const logger = createServiceLogger('whatsapp-integration');
@@ -179,7 +179,7 @@ export async function initializeWhatsAppIntegration(): Promise<WhatsAppIntegrati
     process.env.OPENCODE_URL || `http://localhost:${process.env.OPENCODE_PORT || 4099}`;
 
   // Initialize OpenCode client
-  const openCodeClient = createOpenCodeClient(openCodeUrl, 'opencode/grok-code');
+  const openCodeClient = createOpenCodeClient(openCodeUrl, 'openai/gpt-4o-mini');
   logger.info('OpenCode client initialized', { url: openCodeUrl });
 
   // Initialize transcription service

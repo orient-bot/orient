@@ -1,4 +1,4 @@
-# @orient/mcp-servers
+# @orientbot/mcp-servers
 
 MCP (Model Context Protocol) server implementations for the Orient.
 
@@ -16,13 +16,13 @@ This package provides:
 ## Installation
 
 ```bash
-pnpm add @orient/mcp-servers
+pnpm add @orientbot/mcp-servers
 ```
 
 ## Usage
 
 ```typescript
-import { CoreServer, CodingServer } from '@orient/mcp-servers';
+import { CoreServer, CodingServer } from '@orientbot/mcp-servers';
 
 // Create a core server
 const coreServer = new CoreServer({

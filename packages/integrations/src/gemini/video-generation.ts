@@ -8,7 +8,7 @@
  * This module provides a placeholder implementation that returns helpful errors.
  */
 
-import { createServiceLogger } from '@orient/core';
+import { createServiceLogger } from '@orientbot/core';
 import type { VideoGenerationInput, VideoGenerationResult } from './types.js';
 
 const logger = createServiceLogger('gemini-video');

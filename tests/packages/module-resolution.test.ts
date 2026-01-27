@@ -64,8 +64,8 @@ describe('Package Build State', () => {
 
     if (!isBuilt) {
       console.warn(
-        `⚠️  Package @orient/${pkgName} is not built.\n` +
-          `   Run: pnpm --filter @orient/${pkgName} build`
+        `⚠️  Package @orientbot/${pkgName} is not built.\n` +
+          `   Run: pnpm --filter @orientbot/${pkgName} build`
       );
     }
 
@@ -152,7 +152,7 @@ describe('Package.json Exports Validation', () => {
 
           if (config.import && !config.default) {
             throw new Error(
-              `@orient/${pkgName}: Export "${exportPath}" is missing "default" condition.\n` +
+              `@orientbot/${pkgName}: Export "${exportPath}" is missing "default" condition.\n` +
                 `This causes ERR_PACKAGE_PATH_NOT_EXPORTED with tsx through pnpm symlinks.\n` +
                 `Fix: Add "default": "${config.import}" to package.json exports.`
             );
@@ -169,9 +169,9 @@ describe('Dashboard Startup Prerequisites', () => {
 
     if (!existsSync(dbDistPath)) {
       console.warn(
-        '⚠️  @orient/database is not built!\n' +
+        '⚠️  @orientbot/database is not built!\n' +
           '   The dashboard API will fail to start without it.\n' +
-          '   Run: pnpm --filter @orient/database build'
+          '   Run: pnpm --filter @orientbot/database build'
       );
     }
 

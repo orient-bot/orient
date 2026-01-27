@@ -1,4 +1,4 @@
-# @orient/database
+# @orientbot/database
 
 Database schemas, migrations, and clients for the Orient.
 
@@ -12,7 +12,7 @@ Database schemas, migrations, and clients for the Orient.
 ## Installation
 
 ```bash
-pnpm add @orient/database
+pnpm add @orientbot/database
 ```
 
 ## Usage
@@ -20,7 +20,7 @@ pnpm add @orient/database
 ### Basic Usage
 
 ```typescript
-import { getDatabase, schema, eq } from '@orient/database';
+import { getDatabase, schema, eq } from '@orientbot/database';
 
 // Get database instance
 const db = getDatabase();
@@ -46,7 +46,7 @@ await db.insert(schema.messages).values({
 ### Using Types
 
 ```typescript
-import type { Message, NewMessage, ChatPermission } from '@orient/database';
+import type { Message, NewMessage, ChatPermission } from '@orientbot/database';
 
 const newMessage: NewMessage = {
   direction: 'outgoing',
@@ -61,7 +61,7 @@ const newMessage: NewMessage = {
 ### Database Configuration
 
 ```typescript
-import { getDatabase } from '@orient/database';
+import { getDatabase } from '@orientbot/database';
 
 const db = getDatabase({
   connectionString: process.env.DATABASE_URL,
@@ -74,7 +74,7 @@ const db = getDatabase({
 ### Cleanup
 
 ```typescript
-import { closeDatabase } from '@orient/database';
+import { closeDatabase } from '@orientbot/database';
 
 // Close connection on app shutdown
 process.on('SIGTERM', async () => {

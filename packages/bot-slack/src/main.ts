@@ -14,13 +14,13 @@ import {
   getConfig,
   setSecretOverrides,
   startConfigPoller,
-} from '@orient/core';
+} from '@orientbot/core';
 import {
   createSecretsService,
   createSlackDatabase,
   createMessageDatabase,
   createPromptService,
-} from '@orient/database-services';
+} from '@orientbot/database-services';
 import type { SlackBotServiceConfig } from './types.js';
 
 const logger = createServiceLogger('slack-bot');

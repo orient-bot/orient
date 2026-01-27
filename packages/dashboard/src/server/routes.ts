@@ -5,8 +5,8 @@
  */
 
 import { Router, Request, Response } from 'express';
-import { createServiceLogger, getConfigVersion } from '@orient/core';
-import { createSkillsService } from '@orient/agents';
+import { createServiceLogger, getConfigVersion } from '@orientbot/core';
+import { createSkillsService } from '@orientbot/agents';
 import type { DashboardServices } from './index.js';
 import { AuthenticatedRequest, createAuthMiddleware } from '../auth.js';
 import { ChatPermission, ChatType } from '../types/index.js';

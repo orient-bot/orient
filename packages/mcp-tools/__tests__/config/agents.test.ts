@@ -22,7 +22,7 @@ const agentRow = {
   description: 'Primary agent',
   mode: 'primary',
   enabled: true,
-  modelDefault: 'opencode/grok-code',
+  modelDefault: 'openai/gpt-4o-mini',
   modelFallback: 'anthropic/claude-sonnet-4',
   basePrompt: 'Be helpful',
   updatedAt: new Date('2025-01-01T00:00:00Z'),
@@ -33,7 +33,7 @@ const toolsRows = [{ pattern: 'jira.*', type: 'allow' }];
 
 const allAgents = [agentRow, { ...agentRow, id: 'communicator', enabled: false }];
 
-vi.mock('@orient/database', () => ({
+vi.mock('@orientbot/database', () => ({
   getDatabase: () => ({
     select: () => ({
       from: (table: unknown) => {

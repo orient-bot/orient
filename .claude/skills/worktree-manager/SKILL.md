@@ -269,7 +269,7 @@ Common issues:
 
 - Database directory not created: `mkdir -p .dev-data/instance-N`
 - Invalid SQLITE_DB_PATH: Check quotes and format
-- Missing schema: Run `pnpm --filter @orient/database run db:push:sqlite` first
+- Missing schema: Run `pnpm --filter @orientbot/database run db:push:sqlite` first
 
 ### Worktree creation failed
 

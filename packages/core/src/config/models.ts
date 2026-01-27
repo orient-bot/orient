@@ -5,11 +5,15 @@
  * This includes model definitions, defaults per platform, and helper utilities.
  *
  * Model Selection Strategy:
- * - WhatsApp default: Grok Code Fast 1 via OpenCode Zen (FREE!)
- * - Slack default: Grok Code Fast 1 via OpenCode Zen (FREE!)
+ * - WhatsApp default: GPT-4o Mini (fast and reliable)
+ * - Slack default: GPT-4o Mini (fast and reliable)
  * - Vision model: Claude Sonnet 4 (automatically used when images are sent)
  *
  * Users can switch models via chat commands like "switch to gpt" or "use sonnet"
+ *
+ * Environment Variables:
+ * - SLACK_DEFAULT_MODEL: Override default Slack model (e.g., "anthropic/claude-sonnet-4")
+ * - WHATSAPP_DEFAULT_MODEL: Override default WhatsApp model
  */
 
 import { getEnvWithSecrets } from './loader.js';
@@ -20,17 +24,16 @@ import { getEnvWithSecrets } from './loader.js';
 
 /**
  * Available AI models that can be selected
- * These are the primary models supported by OpenCode Zen
+ * These are the primary models supported by OpenCode
  */
 export const AVAILABLE_MODELS = {
-  // Default for WhatsApp - Grok Code Fast 1 via OpenCode Zen (FREE!)
-  // Using opencode/ prefix routes through OpenCode Zen's free tier
-  grok: {
-    id: 'opencode/grok-code',
-    name: 'Grok Code Fast 1',
-    provider: 'opencode',
-    aliases: ['grok', 'grok-code', 'grok-code-fast-1', 'grok-fast', 'xai', 'opencode'],
-    supportsVision: false, // Grok doesn't support image analysis
+  // GPT-4o Mini - Fast and reliable default
+  'gpt-mini': {
+    id: 'openai/gpt-4o-mini',
+    name: 'GPT-4o Mini',
+    provider: 'openai',
+    aliases: ['gpt-mini', 'gpt4o-mini', '4o-mini', 'mini'],
+    supportsVision: true,
   },
   // OpenAI models
   gpt: {
@@ -72,13 +75,14 @@ export type ModelDefinition = (typeof AVAILABLE_MODELS)[ModelKey];
 // PLATFORM DEFAULTS
 // ============================================
 
-/** Default model for WhatsApp (Grok - free tier) */
-export const WHATSAPP_DEFAULT_MODEL = 'opencode/grok-code';
-export const WHATSAPP_DEFAULT_MODEL_NAME = 'Grok Code Fast 1';
+/** Default model for WhatsApp - can be overridden via WHATSAPP_DEFAULT_MODEL env var */
+export const WHATSAPP_DEFAULT_MODEL =
+  getEnvWithSecrets('WHATSAPP_DEFAULT_MODEL') || 'openai/gpt-4o-mini';
+export const WHATSAPP_DEFAULT_MODEL_NAME = 'GPT-4o Mini';
 
-/** Default model for Slack (Grok - free tier via OpenCode Zen) */
-export const SLACK_DEFAULT_MODEL = 'opencode/grok-code';
-export const SLACK_DEFAULT_MODEL_NAME = 'Grok Code Fast 1';
+/** Default model for Slack - can be overridden via SLACK_DEFAULT_MODEL env var */
+export const SLACK_DEFAULT_MODEL = getEnvWithSecrets('SLACK_DEFAULT_MODEL') || 'openai/gpt-4o-mini';
+export const SLACK_DEFAULT_MODEL_NAME = 'GPT-4o Mini';
 
 /** Default agent for all bot integrations */
 export const DEFAULT_AGENT = 'pm-assistant';

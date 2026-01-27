@@ -5,9 +5,9 @@
  * through production's shared OAuth client using Drizzle ORM.
  */
 
-import { createServiceLogger, decryptSecret, encryptSecret } from '@orient/core';
-import { getDatabase, eq, and, gt, lt, or, schema } from '@orient/database';
-import type { Database } from '@orient/database';
+import { createServiceLogger, decryptSecret, encryptSecret } from '@orientbot/core';
+import { getDatabase, eq, and, gt, lt, or, schema } from '@orientbot/database';
+import type { Database } from '@orientbot/database';
 
 const logger = createServiceLogger('oauth-proxy-service');
 

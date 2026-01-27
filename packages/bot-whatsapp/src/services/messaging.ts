@@ -7,7 +7,7 @@
 
 import type { WASocket, proto, WAMessage } from 'baileys';
 import { downloadMediaMessage } from 'baileys';
-import { createServiceLogger } from '@orient/core';
+import { createServiceLogger } from '@orientbot/core';
 import type { ParsedMessage, WhatsAppMediaType, WhatsAppAudioType } from '../types.js';
 
 const logger = createServiceLogger('whatsapp-messaging');

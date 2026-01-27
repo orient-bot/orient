@@ -21,14 +21,14 @@ pnpm turbo test
 
 ```bash
 # Core package
-pnpm --filter @orient/core test
+pnpm --filter @orientbot/core test
 
 # Database package
-pnpm --filter @orient/database test
-pnpm --filter @orient/database test:e2e  # E2E tests
+pnpm --filter @orientbot/database test
+pnpm --filter @orientbot/database test:e2e  # E2E tests
 
 # MCP Tools package
-pnpm --filter @orient/mcp-tools test
+pnpm --filter @orientbot/mcp-tools test
 ```
 
 ### Root-Level Tests (during migration)
@@ -63,7 +63,7 @@ npm run test:coverage
 npm test -- src/services/__tests__/jiraService.test.ts
 
 # Package test file
-pnpm --filter @orient/core test -- __tests__/config.test.ts
+pnpm --filter @orientbot/core test -- __tests__/config.test.ts
 
 # Pattern matching
 npm test -- --testNamePattern="chatPermission"
@@ -160,25 +160,25 @@ orienter/
 
 ## Decision Tree - Which Tests to Run
 
-| Modified Package/File                           | Tests to Run               | Command                                                   |
-| ----------------------------------------------- | -------------------------- | --------------------------------------------------------- |
-| `packages/core/src/**`                          | Core unit tests            | `pnpm --filter @orient/core test`                         |
-| `packages/database/src/**`                      | Database tests             | `pnpm --filter @orient/database test`                     |
-| `packages/database/src/schema/**`               | Database E2E               | `pnpm --filter @orient/database test:e2e`                 |
-| `packages/mcp-tools/src/**`                     | MCP Tools tests            | `pnpm --filter @orient/mcp-tools test`                    |
-| `packages/dashboard-frontend/src/routes.ts`     | Frontend routing tests     | `pnpm --filter @orient/dashboard-frontend test -- routes` |
-| `packages/dashboard-frontend/src/components/**` | Frontend component tests   | `pnpm --filter @orient/dashboard-frontend test`           |
-| `packages/dashboard-frontend/src/api.ts`        | API client + constants     | `pnpm --filter @orient/dashboard-frontend test`           |
-| `packages/dashboard-frontend/src/App.tsx`       | Frontend integration tests | `pnpm --filter @orient/dashboard-frontend test`           |
-| `packages/bot-whatsapp/src/services/**`         | WhatsApp service tests     | `pnpm --filter @orient/bot-whatsapp test`                 |
-| `src/services/*.ts`                             | Service unit tests         | `npm test -- src/services/__tests__/<name>.test.ts`       |
-| `src/services/openCode*.ts`                     | OpenCode E2E               | `npx vitest run tests/e2e/opencode-session.e2e.test.ts`   |
-| `src/tools/*.ts`                                | Tool tests                 | `npm run test:tools`                                      |
-| `src/db/*.ts`                                   | E2E database tests         | `npm run test:e2e`                                        |
-| `packages/*/Dockerfile`                         | Docker tests               | `pnpm test:docker:files`                                  |
-| `docker/docker-compose*.yml`                    | Docker compose tests       | `pnpm test:docker:files`                                  |
-| `packages/*/src/main.ts`                        | Entry point + Docker tests | Package test + `pnpm test:docker:files`                   |
-| Multiple files                                  | All tests                  | `npm run test:ci`                                         |
+| Modified Package/File                           | Tests to Run               | Command                                                      |
+| ----------------------------------------------- | -------------------------- | ------------------------------------------------------------ |
+| `packages/core/src/**`                          | Core unit tests            | `pnpm --filter @orientbot/core test`                         |
+| `packages/database/src/**`                      | Database tests             | `pnpm --filter @orientbot/database test`                     |
+| `packages/database/src/schema/**`               | Database E2E               | `pnpm --filter @orientbot/database test:e2e`                 |
+| `packages/mcp-tools/src/**`                     | MCP Tools tests            | `pnpm --filter @orientbot/mcp-tools test`                    |
+| `packages/dashboard-frontend/src/routes.ts`     | Frontend routing tests     | `pnpm --filter @orientbot/dashboard-frontend test -- routes` |
+| `packages/dashboard-frontend/src/components/**` | Frontend component tests   | `pnpm --filter @orientbot/dashboard-frontend test`           |
+| `packages/dashboard-frontend/src/api.ts`        | API client + constants     | `pnpm --filter @orientbot/dashboard-frontend test`           |
+| `packages/dashboard-frontend/src/App.tsx`       | Frontend integration tests | `pnpm --filter @orientbot/dashboard-frontend test`           |
+| `packages/bot-whatsapp/src/services/**`         | WhatsApp service tests     | `pnpm --filter @orientbot/bot-whatsapp test`                 |
+| `src/services/*.ts`                             | Service unit tests         | `npm test -- src/services/__tests__/<name>.test.ts`          |
+| `src/services/openCode*.ts`                     | OpenCode E2E               | `npx vitest run tests/e2e/opencode-session.e2e.test.ts`      |
+| `src/tools/*.ts`                                | Tool tests                 | `npm run test:tools`                                         |
+| `src/db/*.ts`                                   | E2E database tests         | `npm run test:e2e`                                           |
+| `packages/*/Dockerfile`                         | Docker tests               | `pnpm test:docker:files`                                     |
+| `docker/docker-compose*.yml`                    | Docker compose tests       | `pnpm test:docker:files`                                     |
+| `packages/*/src/main.ts`                        | Entry point + Docker tests | Package test + `pnpm test:docker:files`                      |
+| Multiple files                                  | All tests                  | `npm run test:ci`                                            |
 
 ## Writing New Tests
 
@@ -191,8 +191,8 @@ orienter/
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-// Mock @orient/core if needed
-vi.mock('@orient/core', () => ({
+// Mock @orientbot/core if needed
+vi.mock('@orientbot/core', () => ({
   createServiceLogger: () => ({
     debug: vi.fn(),
     info: vi.fn(),
@@ -636,9 +636,9 @@ Object.assign(navigator, { clipboard: mockClipboard });
 **Run frontend component tests:**
 
 ```bash
-pnpm --filter @orient/dashboard-frontend test
-pnpm --filter @orient/dashboard-frontend test -- __tests__/MyComponent.test.tsx
-pnpm --filter @orient/dashboard-frontend test -- --testNamePattern="state transition"
+pnpm --filter @orientbot/dashboard-frontend test
+pnpm --filter @orientbot/dashboard-frontend test -- __tests__/MyComponent.test.tsx
+pnpm --filter @orientbot/dashboard-frontend test -- --testNamePattern="state transition"
 ```
 
 ### Cross-Package Integration Test Template
@@ -646,12 +646,12 @@ pnpm --filter @orient/dashboard-frontend test -- --testNamePattern="state transi
 ```typescript
 /**
  * Integration Tests for [Feature]
- * Tests interaction between @orient/core and @orient/database
+ * Tests interaction between @orientbot/core and @orientbot/database
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { loadConfig } from '@orient/core';
-import { getDatabase, closeDatabase } from '@orient/database';
+import { loadConfig } from '@orientbot/core';
+import { getDatabase, closeDatabase } from '@orientbot/database';
 
 describe('Feature Integration', () => {
   beforeAll(async () => {
@@ -676,8 +676,8 @@ describe('Feature Integration', () => {
 ### Standard Mocks
 
 ```typescript
-// Mock @orient/core logger
-vi.mock('@orient/core', () => ({
+// Mock @orientbot/core logger
+vi.mock('@orientbot/core', () => ({
   createServiceLogger: () => ({
     debug: vi.fn(),
     info: vi.fn(),
@@ -721,7 +721,7 @@ Mocking the Drizzle ORM is complex. Prefer API-level testing instead:
 // WARNING: This pattern is complex and fragile
 // Prefer API-level testing instead
 
-vi.mock('@orient/database', () => ({
+vi.mock('@orientbot/database', () => ({
   getDatabase: () => ({
     select: vi.fn().mockReturnValue({
       from: vi.fn().mockReturnValue({
@@ -945,7 +945,7 @@ View coverage report:
 
 ```bash
 npm run test:coverage
-pnpm --filter @orient/core test:coverage
+pnpm --filter @orientbot/core test:coverage
 ```
 
 ## Debugging Failed Tests
@@ -1000,7 +1000,7 @@ npx vitest run tests/e2e/session-commands.e2e.test.ts
 | Setting       | Value                 | Notes                                     |
 | ------------- | --------------------- | ----------------------------------------- |
 | OpenCode Port | `4099`                | Dev environment uses port 4099 (not 4096) |
-| Default Model | `opencode/grok-code`  | Uses OpenCode Zen proxy (FREE tier)       |
+| Default Model | `openai/gpt-4o-mini`  | Uses OpenCode Zen proxy (FREE tier)       |
 | Config File   | `opencode.local.json` | Contains model and MCP server settings    |
 
 ### Available Test Files
@@ -1064,7 +1064,7 @@ describe('My OpenCode E2E Tests', () => {
    - The standalone `opencode serve` uses port 4096 by default, but tests expect 4099
 
 2. **Model not found errors** (ProviderModelNotFoundError)
-   - Ensure using `opencode/grok-code` model format (not `grok-code` or `xai/grok-code`)
+   - Ensure using `openai/gpt-4o-mini` model format (not `grok-code` or `xai/grok-code`)
    - This routes through OpenCode Zen proxy which provides free access
 
 3. **Malformed JSON errors on summarize**
@@ -1072,7 +1072,7 @@ describe('My OpenCode E2E Tests', () => {
 
 4. **Streaming response parse errors**
    - Check model configuration - some models return streaming responses
-   - The `opencode/grok-code` model returns proper JSON responses
+   - The `openai/gpt-4o-mini` model returns proper JSON responses
 
 ## Turborepo Caching
 

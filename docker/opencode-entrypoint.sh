@@ -162,6 +162,15 @@ main() {
     log "Log Directory: $LOG_DIR"
     log "Project Directory: $PROJECT_DIR"
     log "Deployment Environment: $DEPLOY_ENV"
+
+    # Configure OpenCode isolation for container environment
+    # This ensures OpenCode uses container-local paths instead of any mounted home directory
+    export OPENCODE_TEST_HOME="/home/opencode"
+    export XDG_DATA_HOME="/home/opencode/.local/share"
+    export XDG_CONFIG_HOME="/home/opencode/.config"
+    export XDG_CACHE_HOME="/home/opencode/.cache"
+    export XDG_STATE_HOME="/home/opencode/.local/state"
+    log "OpenCode isolation configured (OPENCODE_TEST_HOME=/home/opencode)"
     
     # Ensure directories exist
     mkdir -p "$LOG_DIR" "$DATA_DIR"

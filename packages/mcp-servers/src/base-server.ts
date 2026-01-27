@@ -20,9 +20,9 @@ import {
   generateCorrelationId,
   mcpToolLogger,
   clearCorrelationId,
-} from '@orient/core';
-import { setSecretOverrides } from '@orient/core';
-import { createSecretsService } from '@orient/database-services';
+} from '@orientbot/core';
+import { setSecretOverrides } from '@orientbot/core';
+import { createSecretsService } from '@orientbot/database-services';
 import { McpServerConfig, McpServerType, SERVER_CONFIGS } from './types.js';
 import { filterTools, isToolAvailable } from './tool-filter.js';
 

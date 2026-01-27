@@ -221,8 +221,8 @@ Skip isolated database when:
 pnpm run build
 
 # Build a specific package
-pnpm --filter @orient/core run build
-pnpm --filter @orient/bot-whatsapp run build
+pnpm --filter @orientbot/core run build
+pnpm --filter @orientbot/bot-whatsapp run build
 
 # Build with turbo (uses caching)
 pnpm turbo run build
@@ -238,7 +238,7 @@ pnpm test
 pnpm run test:unit
 
 # Run tests for a specific package
-pnpm --filter @orient/core run test
+pnpm --filter @orientbot/core run test
 
 # Run with turbo (respects dependencies)
 pnpm turbo run test
@@ -358,8 +358,8 @@ Use workspace protocol in `package.json`:
 ```json
 {
   "dependencies": {
-    "@orient/core": "workspace:*",
-    "@orient/database": "workspace:*"
+    "@orientbot/core": "workspace:*",
+    "@orientbot/database": "workspace:*"
   }
 }
 ```
@@ -383,7 +383,7 @@ This section covers pnpm-specific patterns, common issues, and turbo build cachi
 project/
 ├── node_modules/
 │   ├── .pnpm/                    # Actual packages (symlinked)
-│   ├── @orient/core -> .pnpm/...  # Workspace packages
+│   ├── @orientbot/core -> .pnpm/...  # Workspace packages
 │   └── react -> .pnpm/...        # External packages
 ├── packages/
 │   ├── core/
@@ -411,13 +411,13 @@ pnpm add -D -w eslint
 
 ```bash
 # Install in specific package
-pnpm --filter @orient/core add lodash
+pnpm --filter @orientbot/core add lodash
 
 # Install in package by path
 pnpm --filter ./packages/dashboard add express
 
 # Install dev dependency in package
-pnpm --filter @orient/core add -D jest
+pnpm --filter @orientbot/core add -D jest
 ```
 
 #### Pattern 3: Frontend Package Dependencies
@@ -454,8 +454,8 @@ pnpm --filter "$(cat src/dashboard/frontend/package.json | jq -r .name)" add luc
 // packages/dashboard/package.json
 {
   "dependencies": {
-    "@orient/core": "workspace:*", // Any version
-    "@orient/database": "workspace:^1.0.0", // Specific range
+    "@orientbot/core": "workspace:*", // Any version
+    "@orientbot/database": "workspace:^1.0.0", // Specific range
     "react": "^18.2.0" // External dependency
   }
 }
@@ -466,7 +466,7 @@ pnpm --filter "$(cat src/dashboard/frontend/package.json | jq -r .name)" add luc
 ```json
 {
   "dependencies": {
-    "@orient/core": "1.2.3" // Resolved version
+    "@orientbot/core": "1.2.3" // Resolved version
   }
 }
 ```
@@ -480,7 +480,7 @@ pnpm --filter "$(cat src/dashboard/frontend/package.json | jq -r .name)" add luc
 ```yaml
 lockfileVersion: '6.0'
 dependencies:
-  '@orient/core':
+  '@orientbot/core':
     specifier: workspace:*
     version: link:packages/core
   react:
@@ -576,7 +576,7 @@ ls -la node_modules/.pnpm/
 ls -la node_modules/react  # -> .pnpm/react@18.2.0/node_modules/react
 
 # Workspace packages also symlink
-ls -la node_modules/@orient/core  # -> ../packages/core
+ls -la node_modules/@orientbot/core  # -> ../packages/core
 ```
 
 **Issues This Causes**:
@@ -591,7 +591,7 @@ ls -la node_modules/@orient/core  # -> ../packages/core
 // jest.config.js - Handle pnpm symlinks
 module.exports = {
   moduleNameMapper: {
-    '^@orient/(.*)$': '<rootDir>/packages/$1/src',
+    '^@orientbot/(.*)$': '<rootDir>/packages/$1/src',
   },
   // Or use pnpm's resolution
   resolver: 'jest-pnpm-resolver',
@@ -610,7 +610,7 @@ COPY packages ./packages
 
 #### Issue 3: Workspace Dependencies Not Updating
 
-**Problem**: Changed code in `@orient/core` but dashboard doesn't see it
+**Problem**: Changed code in `@orientbot/core` but dashboard doesn't see it
 
 **Cause**: Build artifacts not updated
 
@@ -618,7 +618,7 @@ COPY packages ./packages
 
 ```bash
 # Rebuild affected packages
-pnpm --filter @orient/core run build
+pnpm --filter @orientbot/core run build
 
 # Or rebuild everything
 pnpm run build
@@ -639,14 +639,14 @@ pnpm turbo run build --force
 ```typescript
 // packages/dashboard/src/app.ts
 import lodash from 'lodash'; // Works locally but not in CI!
-// Why? @orient/core depends on lodash, and pnpm hoists it
+// Why? @orientbot/core depends on lodash, and pnpm hoists it
 ```
 
 **Solution**: Declare all direct dependencies
 
 ```bash
 # Add lodash to dashboard's dependencies
-pnpm --filter @orient/dashboard add lodash
+pnpm --filter @orientbot/dashboard add lodash
 ```
 
 **Prevention**: Use `shamefully-hoist=false` in `.npmrc`
@@ -853,13 +853,13 @@ pnpm outdated
 pnpm -r run build  # -r = recursive
 
 # Run in specific package
-pnpm --filter @orient/core run test
+pnpm --filter @orientbot/core run test
 
 # Run in packages matching glob
 pnpm --filter "./packages/bot-*" run start
 
 # Run with dependencies first
-pnpm --filter @orient/dashboard... run build
+pnpm --filter @orientbot/dashboard... run build
 # ... = include dependencies
 ```
 
@@ -914,7 +914,7 @@ pnpm --filter @orient/dashboard... run build
 
    ```bash
    # Build only dashboard and its deps
-   pnpm --filter @orient/dashboard... run build
+   pnpm --filter @orientbot/dashboard... run build
 
    # Test only changed packages (with turbo)
    pnpm turbo run test --filter=[HEAD^1]
@@ -971,11 +971,11 @@ rm .pnpm-install.pid
 pnpm install
 ```
 
-**"Cannot find module '@orient/core'"**
+**"Cannot find module '@orientbot/core'"**
 
 ```bash
 # Rebuild workspace packages
-pnpm --filter @orient/core run build
+pnpm --filter @orientbot/core run build
 # Or rebuild all
 pnpm run build
 ```
@@ -2374,7 +2374,7 @@ curl -H "Authorization: Bearer $TOKEN" \
 
 ```typescript
 // ❌ WRONG - TypeScript compilation error
-import { createSlackDatabase, createPromptService } from '@orient/database-services';
+import { createSlackDatabase, createPromptService } from '@orientbot/database-services';
 
 const slackDatabase = createSlackDatabase();
 const promptService = createPromptService(slackDatabase); // ERROR!
@@ -2395,13 +2395,13 @@ const promptService = createPromptService(slackDatabase); // ERROR!
 
 ```typescript
 import { createSlackBotService } from './services/index.js';
-import { createServiceLogger, loadConfig, getConfig } from '@orient/core';
+import { createServiceLogger, loadConfig, getConfig } from '@orientbot/core';
 import {
   createSecretsService,
   createSlackDatabase, // Platform-specific database
   createMessageDatabase, // Cross-platform database (for prompts)
   createPromptService,
-} from '@orient/database-services';
+} from '@orientbot/database-services';
 
 const logger = createServiceLogger('slack-bot');
 
@@ -2543,14 +2543,14 @@ const promptService = createPromptService(messageDatabase);
 import {
   createSlackDatabase,
   createPromptService, // No createMessageDatabase!
-} from '@orient/database-services';
+} from '@orientbot/database-services';
 
 // ✅ CORRECT
 import {
   createSlackDatabase,
   createMessageDatabase, // Added
   createPromptService,
-} from '@orient/database-services';
+} from '@orientbot/database-services';
 ```
 
 **Mistake 3: Forgetting to Attach Service to Bot**
@@ -2611,7 +2611,7 @@ logger.info('Prompt service configured for Slack bot');
 3. Verify MessageDatabase import and initialization
 
 4. Rebuild and restart:
-   pnpm --filter @orient/bot-slack run build
+   pnpm --filter @orientbot/bot-slack run build
    ./run.sh dev
 ```
 
@@ -2624,7 +2624,7 @@ src/main.ts(121,47): error TS2345: Argument of type 'SlackDatabase' is not assig
 # Fix:
 1. Check which database you're passing to createPromptService()
 2. Replace with createMessageDatabase()
-3. Import createMessageDatabase from @orient/database-services
+3. Import createMessageDatabase from @orientbot/database-services
 ```
 
 **Problem: Service initialized but prompts don't work**
@@ -2660,7 +2660,7 @@ Use this multiple-database pattern when:
 
 ```typescript
 // __tests__/main.test.ts
-import { createMessageDatabase, createPromptService } from '@orient/database-services';
+import { createMessageDatabase, createPromptService } from '@orientbot/database-services';
 
 describe('Database Service Integration', () => {
   it('should initialize PromptService with MessageDatabase', () => {
@@ -3486,7 +3486,7 @@ pnpm turbo run build --force
 mv packages/dashboard/src/services/myService.ts src/services/myService.ts
 
 # SOLUTION 2: Use relative imports
-# Change: import { foo } from '@orient/core'
+# Change: import { foo } from '@orientbot/core'
 # To:     import { foo } from '../../../../src/services/myService.js'
 ```
 
@@ -3509,7 +3509,7 @@ pnpm run build
 
 ```typescript
 // ❌ AVOID cross-package aliases in worktrees (causes build issues)
-import { createLogger } from '@orient/core';
+import { createLogger } from '@orientbot/core';
 
 // ✅ USE relative paths for root imports
 import { createLogger } from '../../../../src/utils/logger.js';
@@ -4233,7 +4233,7 @@ pnpm turbo run build --force
 
 ### TypeScript Module Resolution Errors After Merge
 
-**Common Error**: `Cannot find module '@orient/core'` or similar after merging from dev.
+**Common Error**: `Cannot find module '@orientbot/core'` or similar after merging from dev.
 
 **Cause**: Build order dependencies - packages must be built in the correct order.
 
@@ -4261,8 +4261,8 @@ pnpm turbo run build --force
 
 ```bash
 # If you know which package is missing, build it first
-pnpm --filter @orient/core run build
-pnpm --filter @orient/database run build
+pnpm --filter @orientbot/core run build
+pnpm --filter @orientbot/database run build
 
 # Then build the rest
 pnpm turbo run build
@@ -4271,14 +4271,14 @@ pnpm turbo run build
 **Understanding Turbo Build Order**:
 
 ```
-@orient/core           (no dependencies)
+@orientbot/core           (no dependencies)
     ↓
-@orient/database       (depends on core)
+@orientbot/database       (depends on core)
     ↓
-@orient/agents         (depends on core, database)
+@orientbot/agents         (depends on core, database)
     ↓
-@orient/bot-whatsapp   (depends on agents)
-@orient/dashboard      (depends on multiple packages)
+@orientbot/bot-whatsapp   (depends on agents)
+@orientbot/dashboard      (depends on multiple packages)
 ```
 
 Turbo reads `turbo.json` and `package.json` dependencies to determine build order. When merging introduces new dependencies, turbo ensures they're built first.
@@ -4337,7 +4337,7 @@ echo "✅ Merge complete!"
 pnpm turbo run build --force
 
 # If still failing, check specific package
-pnpm --filter @orient/core run build
+pnpm --filter @orientbot/core run build
 # Then rebuild all
 pnpm turbo run build
 ```

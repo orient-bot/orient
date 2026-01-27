@@ -76,13 +76,13 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build dependencies
-        run: pnpm turbo build --filter=@orient/${{ matrix.package }}...
+        run: pnpm turbo build --filter=@orientbot/${{ matrix.package }}...
 
       - name: Run package tests
-        run: pnpm --filter @orient/${{ matrix.package }} test
+        run: pnpm --filter @orientbot/${{ matrix.package }} test
 
       - name: Run package tests with coverage
-        run: pnpm --filter @orient/${{ matrix.package }} test:coverage
+        run: pnpm --filter @orientbot/${{ matrix.package }} test:coverage
         continue-on-error: true
 
   # Root-level tests (legacy during migration)

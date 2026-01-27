@@ -29,7 +29,7 @@ describe('FeatureFlagsService', () => {
     process.env.SQLITE_DATABASE = TEST_DB_PATH;
 
     // Set up test database - auto-migration creates all tables with proper FK constraints
-    const { executeRawSql, getDatabase } = await import('@orient/database');
+    const { executeRawSql, getDatabase } = await import('@orientbot/database');
     getDatabase();
 
     // Insert a test user required by FK constraints on user_feature_flag_overrides
@@ -42,7 +42,7 @@ describe('FeatureFlagsService', () => {
   afterEach(async () => {
     // Clean up
     try {
-      const { resetDatabaseInstance } = await import('@orient/database');
+      const { resetDatabaseInstance } = await import('@orientbot/database');
       resetDatabaseInstance();
     } catch {
       // Ignore if not loaded
@@ -63,7 +63,7 @@ describe('FeatureFlagsService', () => {
 
   describe('getAllFlags', () => {
     it('should return all feature flags', async () => {
-      const { executeRawSql } = await import('@orient/database');
+      const { executeRawSql } = await import('@orientbot/database');
       const { createFeatureFlagsService } = await import('../src/featureFlagsService.js');
 
       // Insert test data
@@ -95,7 +95,7 @@ describe('FeatureFlagsService', () => {
 
   describe('getAllFlagsWithOverrides', () => {
     it('should return flags with user overrides applied', async () => {
-      const { executeRawSql } = await import('@orient/database');
+      const { executeRawSql } = await import('@orientbot/database');
       const { createFeatureFlagsService } = await import('../src/featureFlagsService.js');
 
       // Insert test data
@@ -120,7 +120,7 @@ describe('FeatureFlagsService', () => {
     });
 
     it('should return flags without overrides when user has none', async () => {
-      const { executeRawSql } = await import('@orient/database');
+      const { executeRawSql } = await import('@orientbot/database');
       const { createFeatureFlagsService } = await import('../src/featureFlagsService.js');
 
       // Insert test data
@@ -140,7 +140,7 @@ describe('FeatureFlagsService', () => {
 
   describe('setUserOverride', () => {
     it('should set a user override', async () => {
-      const { executeRawSql } = await import('@orient/database');
+      const { executeRawSql } = await import('@orientbot/database');
       const { createFeatureFlagsService } = await import('../src/featureFlagsService.js');
 
       // Insert test data
@@ -168,7 +168,7 @@ describe('FeatureFlagsService', () => {
 
   describe('removeUserOverride', () => {
     it('should remove a user override', async () => {
-      const { executeRawSql } = await import('@orient/database');
+      const { executeRawSql } = await import('@orientbot/database');
       const { createFeatureFlagsService } = await import('../src/featureFlagsService.js');
 
       // Insert test data
@@ -198,7 +198,7 @@ describe('FeatureFlagsService', () => {
 
   describe('getEffectiveFlags', () => {
     it('should return a flat record of effective flag values', async () => {
-      const { executeRawSql } = await import('@orient/database');
+      const { executeRawSql } = await import('@orientbot/database');
       const { createFeatureFlagsService } = await import('../src/featureFlagsService.js');
 
       // Insert test data
@@ -221,7 +221,7 @@ describe('FeatureFlagsService', () => {
 
   describe('hierarchy logic', () => {
     it('should disable children when parent is disabled', async () => {
-      const { executeRawSql } = await import('@orient/database');
+      const { executeRawSql } = await import('@orientbot/database');
       const { createFeatureFlagsService } = await import('../src/featureFlagsService.js');
 
       // Insert test data with parent disabled
@@ -240,7 +240,7 @@ describe('FeatureFlagsService', () => {
     });
 
     it('should respect user override on parent flag', async () => {
-      const { executeRawSql } = await import('@orient/database');
+      const { executeRawSql } = await import('@orientbot/database');
       const { createFeatureFlagsService } = await import('../src/featureFlagsService.js');
 
       // Insert test data

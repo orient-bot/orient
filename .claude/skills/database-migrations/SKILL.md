@@ -9,7 +9,7 @@ description: Guide for creating and managing database migrations. Use when addin
 
 ```bash
 # Push schema to SQLite database
-pnpm --filter @orient/database run db:push:sqlite
+pnpm --filter @orientbot/database run db:push:sqlite
 
 # Open Drizzle Studio to inspect database
 pnpm db:studio
@@ -70,10 +70,10 @@ export const yourTable = sqliteTable('your_table', {
 
 ```bash
 # Push schema changes to SQLite
-pnpm --filter @orient/database run db:push:sqlite
+pnpm --filter @orientbot/database run db:push:sqlite
 
 # Or using environment variables
-DATABASE_TYPE=sqlite SQLITE_DATABASE=./data/orient.db pnpm --filter @orient/database run db:push:sqlite
+DATABASE_TYPE=sqlite SQLITE_DATABASE=./data/orient.db pnpm --filter @orientbot/database run db:push:sqlite
 ```
 
 ### Step 3: Verify Changes
@@ -102,7 +102,7 @@ const REQUIRED_TABLES = [
 Before merging a PR with database changes:
 
 - [ ] Schema updated in `packages/database/src/schema/`
-- [ ] Schema pushed locally: `pnpm --filter @orient/database run db:push:sqlite`
+- [ ] Schema pushed locally: `pnpm --filter @orientbot/database run db:push:sqlite`
 - [ ] Schema validation test updated if needed
 - [ ] Integration tests pass: `pnpm test:integration`
 - [ ] Seed data created if needed (e.g., `data/seeds/`)
@@ -124,6 +124,46 @@ The CI pipeline automatically:
 
 ## Troubleshooting
 
+### "Directory does not exist" error
+
+When running `db:push:sqlite`, you may see:
+
+```
+TypeError: Cannot open database because the directory does not exist
+```
+
+**Cause:** Drizzle uses a relative path (`./data/orient.db`) but runs from the package directory.
+
+**Solution:** Use the `SQLITE_DATABASE` env var with the full path:
+
+```bash
+# From packages/database directory
+cd packages/database
+SQLITE_DATABASE="$HOME/.orient/orient/data/orient.db" pnpm run db:push:sqlite
+
+# Or from monorepo root
+SQLITE_DATABASE="/full/path/to/orient.db" pnpm --filter @orientbot/database run db:push:sqlite
+```
+
+### "No such table" error at runtime
+
+The database file exists but tables weren't created:
+
+```
+SqliteError: no such table: slack_channel_permissions
+```
+
+**Solution:** Push the schema to create all tables:
+
+```bash
+# Ensure database directory exists
+mkdir -p ~/.orient/orient/data
+
+# Push schema with explicit path
+SQLITE_DATABASE="$HOME/.orient/orient/data/orient.db" \
+  pnpm --filter @orientbot/database run db:push:sqlite
+```
+
 ### "Table already exists" error
 
 SQLite schema push is idempotent. If this happens:
@@ -136,7 +176,7 @@ SQLite schema push is idempotent. If this happens:
 Schema mismatch between code and database:
 
 1. Check `packages/database/src/schema/` matches your expectations
-2. Run `pnpm --filter @orient/database run db:push:sqlite` to apply pending changes
+2. Run `pnpm --filter @orientbot/database run db:push:sqlite` to apply pending changes
 3. Verify with `sqlite3 your.db ".schema tablename"`
 
 ### Integration tests fail in CI but pass locally
@@ -144,6 +184,90 @@ Schema mismatch between code and database:
 - Schema may not be pushing in CI
 - Check `.github/workflows/test.yml` for schema push step
 - Ensure schema files are committed to git
+
+### PM2 processes missing environment variables
+
+When services like OpenCode or Slack bot fail because they can't find API keys:
+
+```bash
+# Restart with environment from .env file
+cd ~/.orient/orient
+export OPENAI_API_KEY=$(grep OPENAI_API_KEY .env | cut -d= -f2)
+export ANTHROPIC_API_KEY=$(grep ANTHROPIC_API_KEY .env | cut -d= -f2)
+pm2 restart orient-opencode orient-slack --update-env
+```
+
+**Note:** `--update-env` tells PM2 to capture the current shell environment.
+
+## E2E Test Database Setup
+
+E2E tests require their own database with the schema initialized. Without this, tests fail with "no such table" errors.
+
+### Initialize Test Database
+
+```bash
+# 1. Create the test data directory
+mkdir -p data
+
+# 2. Push schema to test database (from project root)
+SQLITE_DATABASE="/full/path/to/project/data/orient.db" \
+  pnpm --filter @orientbot/database run db:push:sqlite
+```
+
+### Using SQLITE_DATABASE Environment Variable
+
+When running E2E tests, set the `SQLITE_DATABASE` environment variable:
+
+```bash
+# Run E2E tests with test database
+SQLITE_DATABASE="$(pwd)/data/orient.db" pnpm test:e2e
+
+# Or export for the session
+export SQLITE_DATABASE="$(pwd)/data/orient.db"
+pnpm test:e2e
+```
+
+### Troubleshooting "No Such Table" in E2E Tests
+
+If you see errors like:
+
+```
+SqliteError: no such table: messages
+SqliteError: no such table: slack_messages
+```
+
+**Solution:**
+
+1. Create the test database directory:
+
+   ```bash
+   mkdir -p data
+   ```
+
+2. Push the schema with an absolute path:
+
+   ```bash
+   SQLITE_DATABASE="$(pwd)/data/orient.db" \
+     pnpm --filter @orientbot/database run db:push:sqlite
+   ```
+
+3. Re-run E2E tests:
+   ```bash
+   SQLITE_DATABASE="$(pwd)/data/orient.db" pnpm test:e2e
+   ```
+
+### CI E2E Test Database
+
+In CI workflows, the test database should be initialized before running E2E tests:
+
+```yaml
+# .github/workflows/test.yml
+- name: Initialize test database
+  run: |
+    mkdir -p data
+    SQLITE_DATABASE="${{ github.workspace }}/data/orient.db" \
+      pnpm --filter @orientbot/database run db:push:sqlite
+```
 
 ## Worktree Database Setup
 
@@ -228,7 +352,7 @@ SQLite uses different types than PostgreSQL:
 SQLite transactions work slightly differently:
 
 ```typescript
-import { db } from '@orient/database';
+import { db } from '@orientbot/database';
 
 await db.transaction(async (tx) => {
   await tx.insert(yourTable).values({ ... });

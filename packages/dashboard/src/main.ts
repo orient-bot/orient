@@ -10,8 +10,8 @@
 import crypto from 'crypto';
 import { startDashboardServer } from './server/index.js';
 import { getSetupStatus } from './server/setupWizard.js';
-import { createServiceLogger, loadConfig, getConfig, setSecretOverrides } from '@orient/core';
-import { createSecretsService } from '@orient/database-services';
+import { createServiceLogger, loadConfig, getConfig, setSecretOverrides } from '@orientbot/core';
+import { createSecretsService } from '@orientbot/database-services';
 import { initializeWhatsAppIntegration } from './services/whatsappIntegration.js';
 
 const logger = createServiceLogger('dashboard');

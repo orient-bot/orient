@@ -4,7 +4,7 @@
  * This module contains the event handling logic for the WhatsApp bot.
  * Extracted from whatsapp-bot.ts for better maintainability.
  *
- * Exported via @orient/bot-whatsapp package.
+ * Exported via @orientbot/bot-whatsapp package.
  */
 
 import { proto } from 'baileys';
@@ -14,14 +14,14 @@ import {
   MessageDatabase,
   ChatPermissionService,
   type StoreMessageOptions,
-} from '@orient/database-services';
+} from '@orientbot/database-services';
 import { TranscriptionService } from './transcriptionService.js';
 import { MediaStorageService } from './mediaStorageService.js';
 import { WhatsAppApiServer } from './whatsappApiServer.js';
 import type { WhatsAppMessage, PollVote, WhatsAppPoll } from '../types.js';
-import { createDedicatedServiceLogger } from '@orient/core';
+import { createDedicatedServiceLogger } from '@orientbot/core';
 import { getPollActionRegistry } from './pollActionRegistry.js';
-import { createProgressiveResponder, formatModelName, formatToolsUsed } from '@orient/agents';
+import { createProgressiveResponder, formatModelName, formatToolsUsed } from '@orientbot/agents';
 
 // Use dedicated WhatsApp logger
 const logger = createDedicatedServiceLogger('whatsapp', {

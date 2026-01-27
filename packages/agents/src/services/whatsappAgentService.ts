@@ -5,20 +5,20 @@
  * using Claude to understand requests and execute Jira operations.
  * Formatting is adapted for WhatsApp's text rendering.
  *
- * Exported via @orient/bot-whatsapp package.
+ * Exported via @orientbot/bot-whatsapp package.
  */
 
 import Anthropic from '@anthropic-ai/sdk';
-import { createDedicatedServiceLogger } from '@orient/core';
+import { createDedicatedServiceLogger } from '@orientbot/core';
 import {
   JiraIssue,
   SLABreach,
   AgentMessage,
   WhatsAppMediaType,
   ClarificationQuestion,
-} from '@orient/core';
-import * as jiraService from '@orient/integrations/jira';
-import { MessageDatabase, type StoredMessage } from '@orient/database-services';
+} from '@orientbot/core';
+import * as jiraService from '@orientbot/integrations/jira';
+import { MessageDatabase, type StoredMessage } from '@orientbot/database-services';
 import {
   SkillsService,
   PolicyEngine,
@@ -37,7 +37,7 @@ import {
   successResult,
   failureResult,
 } from './toolCallingService.js';
-import { getWhatsAppJiraTools } from '@orient/mcp-tools';
+import { getWhatsAppJiraTools } from '@orientbot/mcp-tools';
 
 // Use dedicated WhatsApp logger - logs go to logs/whatsapp-debug-*.log and logs/whatsapp-error-*.log
 const logger = createDedicatedServiceLogger('whatsapp', {

@@ -13,7 +13,7 @@
  * (in mcp-server.ts) to a modular registry-based tool execution system.
  *
  * Migration Strategy:
- * 1. New tools register via ToolExecutorRegistry (@orient/agents)
+ * 1. New tools register via ToolExecutorRegistry (@orientbot/agents)
  * 2. Old tools fall back to legacyExecutor (monolithic switch statement)
  * 3. Tools are migrated one at a time to the registry
  * 4. Once all tools migrated, remove legacyExecutor fallback
@@ -40,9 +40,13 @@
  * - packages/mcp-tools/src/ - Modular tool implementations
  */
 
-import { getToolExecutorRegistry } from '@orient/agents';
-import { ToolDiscoveryService, formatDiscoveryResult, type DiscoveryInput } from '@orient/agents';
-import { createServiceLogger } from '@orient/core';
+import { getToolExecutorRegistry } from '@orientbot/agents';
+import {
+  ToolDiscoveryService,
+  formatDiscoveryResult,
+  type DiscoveryInput,
+} from '@orientbot/agents';
+import { createServiceLogger } from '@orientbot/core';
 
 const logger = createServiceLogger('tool-executor');
 const discoveryLogger = createServiceLogger('tool-discovery');

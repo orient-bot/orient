@@ -25,7 +25,7 @@ pnpm run build:packages
 
 - `tsc` runs without error but produces no output
 - Turbo shows "cache hit" but dist/ folders are empty
-- Turbo warns: "no output files found for task @orient/mcp-tools#build"
+- Turbo warns: "no output files found for task @orientbot/mcp-tools#build"
 - Build completes "successfully" but dependent packages fail with TS2307
 
 **Cause**: TypeScript's `.tsbuildinfo` files store incremental compilation state. When stale, tsc believes everything is up-to-date and skips compilation entirely - even when dist/ is empty.
@@ -107,7 +107,7 @@ rm -rf ../orient-fresh-*
 
 ### 6. Module Resolution Errors (TS2307)
 
-**Symptom**: Build fails with `error TS2307: Cannot find module '@orient/mcp-tools'` or similar.
+**Symptom**: Build fails with `error TS2307: Cannot find module '@orientbot/mcp-tools'` or similar.
 
 **Cause**: Turbo's dependency graph wasn't respected because:
 

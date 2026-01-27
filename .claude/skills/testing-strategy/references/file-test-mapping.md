@@ -2,7 +2,7 @@
 
 This document maps source files to their corresponding test files in the monorepo.
 
-## Package: @orient/core
+## Package: @orientbot/core
 
 | Source File                     | Test File                                | Category                          |
 | ------------------------------- | ---------------------------------------- | --------------------------------- |
@@ -11,7 +11,7 @@ This document maps source files to their corresponding test files in the monorep
 | `packages/core/src/utils/*.ts`  | `packages/core/__tests__/utils.test.ts`  | Unit                              |
 | `packages/core/src/types/*.ts`  | -                                        | Type definitions (no test needed) |
 
-## Package: @orient/database
+## Package: @orientbot/database
 
 | Source File                         | Test File                                        | Category                          |
 | ----------------------------------- | ------------------------------------------------ | --------------------------------- |
@@ -19,7 +19,7 @@ This document maps source files to their corresponding test files in the monorep
 | `packages/database/src/client.ts`   | `packages/database/__tests__/client.e2e.test.ts` | E2E                               |
 | `packages/database/src/types.ts`    | -                                                | Type definitions (no test needed) |
 
-## Package: @orient/mcp-tools
+## Package: @orientbot/mcp-tools
 
 | Source File                               | Test File                                       | Category |
 | ----------------------------------------- | ----------------------------------------------- | -------- |
@@ -95,7 +95,7 @@ This document maps source files to their corresponding test files in the monorep
 
 ```bash
 # Package test
-pnpm --filter @orient/core test -- __tests__/config.test.ts
+pnpm --filter @orientbot/core test -- __tests__/config.test.ts
 
 # Root test
 npm test -- src/services/__tests__/jiraService.test.ts

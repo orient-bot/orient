@@ -134,7 +134,7 @@ setup_miniapps_shared() {
         log_step "Creating apps/_shared/package.json for TypeScript resolution..."
         cat > "$shared_dir/package.json" << 'SHAREDJSON'
 {
-  "name": "@orient/mini-apps-shared",
+  "name": "@orientbot/mini-apps-shared",
   "private": true,
   "version": "1.0.0",
   "type": "module",
@@ -473,7 +473,7 @@ fresh_start() {
 
     # Rebuild only core packages needed for dev (using turbo for proper dependency handling)
     log_info "Rebuilding core packages..."
-    pnpm turbo build --filter=@orient/core --filter=@orient/database --filter=@orient/database-services --filter=@orient/apps --filter=@orient/mcp-tools --filter=@orient/agents 2>&1 | tail -20 || {
+    pnpm turbo build --filter=@orientbot/core --filter=@orientbot/database --filter=@orientbot/database-services --filter=@orientbot/apps --filter=@orientbot/mcp-tools --filter=@orientbot/agents 2>&1 | tail -20 || {
         log_warn "Some packages failed to build. Dev mode may still work with tsx."
     }
 
@@ -579,7 +579,7 @@ start_dev() {
     # Step 3: Start frontend dev server with hot-reload
     log_step "Starting frontend dev server (Vite)..."
     cd "$PROJECT_ROOT"
-    pnpm --filter @orient/dashboard-frontend run dev > "$LOG_DIR/frontend-dev.log" 2>&1 &
+    pnpm --filter @orientbot/dashboard-frontend run dev > "$LOG_DIR/frontend-dev.log" 2>&1 &
     echo $! > "$FRONTEND_PID_FILE"
     log_info "Frontend dev server started (PID: $(cat $FRONTEND_PID_FILE))"
 
@@ -590,7 +590,7 @@ start_dev() {
     # Ensure database package is built (required for module resolution with tsx)
     if [ ! -f "packages/database/dist/index.js" ]; then
         log_warn "Database package not built, building now..."
-        pnpm --filter @orient/database build || {
+        pnpm --filter @orientbot/database build || {
             log_error "Failed to build database package"
             return 1
         }
@@ -599,7 +599,7 @@ start_dev() {
     # Ensure database-services package is built (it imports from database)
     if [ ! -f "packages/database-services/dist/index.js" ]; then
         log_warn "Database-services package not built, building now..."
-        pnpm --filter @orient/database-services build || {
+        pnpm --filter @orientbot/database-services build || {
             log_error "Failed to build database-services package"
             return 1
         }
@@ -608,7 +608,7 @@ start_dev() {
     # Ensure apps package is built (required for storage capabilities in mini-apps)
     if [ ! -f "packages/apps/dist/types.js" ]; then
         log_warn "Apps package not built, building now..."
-        pnpm --filter @orient/apps build || {
+        pnpm --filter @orientbot/apps build || {
             log_error "Failed to build apps package"
             return 1
         }
@@ -616,7 +616,7 @@ start_dev() {
 
     # Start dashboard using pnpm (handles workspace resolution better than direct tsx)
     # Run from project root to ensure proper workspace resolution
-    pnpm --filter @orient/dashboard dev > "$LOG_DIR/dashboard-dev.log" 2>&1 &
+    pnpm --filter @orientbot/dashboard dev > "$LOG_DIR/dashboard-dev.log" 2>&1 &
     echo $! > "$DASHBOARD_PID_FILE"
     log_info "Dashboard API server started (PID: $(cat $DASHBOARD_PID_FILE))"
     
@@ -624,7 +624,7 @@ start_dev() {
     if ! wait_for_dashboard; then
         log_error "Dashboard failed to start. Check logs: $LOG_DIR/dashboard-dev.log"
         log_error "Common issues:"
-        log_error "  1. Database package not built - run: pnpm --filter @orient/database build"
+        log_error "  1. Database package not built - run: pnpm --filter @orientbot/database build"
         log_error "  2. Module resolution issues - try: pnpm install"
         log_error "  3. Port already in use - check: lsof -i :${DASHBOARD_PORT}"
         return 1
@@ -637,10 +637,12 @@ start_dev() {
 
     # Step 4: Start OpenCode server (dashboard must be ready first)
     log_step "Starting OpenCode server..."
-    # Use local config if it exists
-    if [ -f "$PROJECT_ROOT/opencode.local.json" ]; then
-        export OPENCODE_CONFIG="$PROJECT_ROOT/opencode.local.json"
-    fi
+
+    # Configure OpenCode isolation to use project-local data
+    # This prevents interference with user's global ~/.opencode/ installation
+    source "$SCRIPT_DIR/opencode-env.sh"
+    configure_opencode_isolation
+
     opencode serve --port "$OPENCODE_PORT" --hostname 0.0.0.0 > "$LOG_DIR/opencode-dev.log" 2>&1 &
     echo $! > "$OPENCODE_PID_FILE"
     log_info "OpenCode started (PID: $(cat $OPENCODE_PID_FILE))"
@@ -787,7 +789,7 @@ stop_dev() {
     kill_by_pattern "tsx.*watch.*slack-bot" "Slack tsx"
     kill_by_pattern "tsx.*packages/dashboard/src/main.ts" "Dashboard API"
     kill_by_pattern "tsx.*src/main.ts" "Dashboard API (tsx)"
-    kill_by_pattern "pnpm.*@orient/dashboard.*dev" "Dashboard API (pnpm)"
+    kill_by_pattern "pnpm.*@orientbot/dashboard.*dev" "Dashboard API (pnpm)"
     kill_by_pattern "node.*slack-bot" "Slack node"
     kill_by_pattern "vite.*dashboard-frontend" "Vite"
 

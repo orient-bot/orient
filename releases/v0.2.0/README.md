@@ -21,6 +21,7 @@ This directory contains the official documentation for the Orient v0.2.0 release
 Orient v0.2.0 is a major architecture update:
 
 - **Mac Installer** - One-line install with `orient` CLI
+- **npm Packages** - `@orientbot/*` scope on npm (future: `npm install -g @orientbot/cli`)
 - **SQLite-Only** - Zero database setup required
 - **Single Port** - All services on port 4098
 
@@ -58,6 +59,7 @@ orient logs      # View logs
 orient doctor    # Run diagnostics
 orient config    # Configure settings
 orient upgrade   # Upgrade to latest
+orient uninstall # Remove Orient completely
 ```
 
 ### Manual Installation

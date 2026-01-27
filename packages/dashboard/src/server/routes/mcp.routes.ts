@@ -6,23 +6,23 @@
  */
 
 import { Router, Request, Response } from 'express';
-import { createServiceLogger } from '@orient/core';
-import { createSecretsService } from '@orient/database-services';
+import { createServiceLogger } from '@orientbot/core';
+import { createSecretsService } from '@orientbot/database-services';
 import * as fs from 'fs';
 import * as path from 'path';
 
 // Lazy-loaded OAuth modules - using 'any' type because these are dynamically imported
 // and TypeScript can't verify the module structure at compile time
 
-// Google OAuth service from @orient/integrations
+// Google OAuth service from @orientbot/integrations
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let googleOAuthServiceModule: any = null;
 
-// Atlassian OAuth service from @orient/mcp-servers/oauth
+// Atlassian OAuth service from @orientbot/mcp-servers/oauth
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let atlassianOAuthModule: any = null;
 
-// GitHub OAuth service from @orient/integrations/catalog/github
+// GitHub OAuth service from @orientbot/integrations/catalog/github
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let gitHubOAuthModule: any = null;
 
@@ -53,7 +53,7 @@ async function getGitHubOAuthModule() {
   if (!gitHubOAuthModule) {
     try {
       // Use package import - much cleaner than relative paths
-      gitHubOAuthModule = await import('@orient/integrations/catalog/github');
+      gitHubOAuthModule = await import('@orientbot/integrations/catalog/github');
     } catch (error) {
       throw new Error(
         `Failed to load GitHub OAuth service: ${error instanceof Error ? error.message : String(error)}`
@@ -66,8 +66,8 @@ async function getGitHubOAuthModule() {
 async function getAtlassianOAuthModule() {
   if (!atlassianOAuthModule) {
     try {
-      // Use package import - Atlassian OAuth is re-exported from @orient/mcp-servers
-      atlassianOAuthModule = await import('@orient/mcp-servers/oauth');
+      // Use package import - Atlassian OAuth is re-exported from @orientbot/mcp-servers
+      atlassianOAuthModule = await import('@orientbot/mcp-servers/oauth');
       logger.info('Loaded Atlassian OAuth module');
     } catch (error) {
       throw new Error(
@@ -107,7 +107,7 @@ async function getGoogleOAuthModule() {
   if (!googleOAuthServiceModule) {
     try {
       // Dynamic import from packages/integrations
-      googleOAuthServiceModule = await import('@orient/integrations');
+      googleOAuthServiceModule = await import('@orientbot/integrations');
     } catch (error) {
       throw new Error(
         `Failed to load Google OAuth service: ${error instanceof Error ? error.message : String(error)}`
