@@ -1486,18 +1486,33 @@ Always provide concise, actionable summaries when reporting on project status.`;
   // ============================================
 
   async getAllChatsUnified(): Promise<UnifiedChat[]> {
-    // Get WhatsApp chats with permissions
-    const whatsappChats = await this.getAllChatsWithPermissions();
+    // Get WhatsApp chats with permissions AND without permissions
+    const [configuredChats, unconfiguredChats] = await Promise.all([
+      this.getAllChatsWithPermissions(),
+      this.getChatsWithoutPermissions(),
+    ]);
 
-    return whatsappChats.map((chat) => ({
+    const configuredIds = new Set(configuredChats.map((c) => c.chatId));
+
+    const mapChat = (chat: ChatWithPermission, isConfigured: boolean): UnifiedChat => ({
       id: chat.chatId,
+      chatId: chat.chatId,
+      chatType: chat.chatType as 'individual' | 'group',
       platform: 'whatsapp' as const,
       type: chat.chatType as 'individual' | 'group',
       displayName: chat.displayName || chat.chatId,
       permission: chat.permission || undefined,
       messageCount: chat.messageCount,
       lastMessageAt: chat.lastMessageAt,
-    }));
+      isConfigured,
+    });
+
+    return [
+      ...configuredChats.map((chat) => mapChat(chat, true)),
+      ...unconfiguredChats
+        .filter((chat) => !configuredIds.has(chat.chatId))
+        .map((chat) => mapChat(chat, false)),
+    ];
   }
 
   // ============================================
@@ -1779,12 +1794,15 @@ export interface CreateDemoGithubMonitorInput {
 
 export interface UnifiedChat {
   id: string;
+  chatId: string;
+  chatType: 'individual' | 'group' | 'channel';
   platform: 'whatsapp' | 'slack';
   type: 'individual' | 'group' | 'channel';
   displayName: string;
   permission?: string;
   messageCount: number;
   lastMessageAt: Date | null;
+  isConfigured: boolean;
 }
 
 export interface OnboarderSession {
