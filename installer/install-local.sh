@@ -519,6 +519,11 @@ initialize_database() {
     pnpm --filter @orientbot/database run db:push:sqlite >/dev/null 2>&1 || true
 
     log "Database initialized ✓"
+
+    # Generate OpenCode server password
+    log "Setting up OpenCode security..."
+    npx tsx scripts/setup-opencode-password.ts >/dev/null 2>&1 || true
+    log "OpenCode password configured ✓"
 }
 
 # ============================================

@@ -66,7 +66,7 @@ export class EvalServer {
    */
   private setupRoutes(): void {
     // Mount eval routes under /api/eval
-    this.app.use('/api/eval', createEvalRoutes());
+    this.app.use('/api/eval', createEvalRoutes({ openCodePassword: this.config.openCodePassword }));
 
     // Root health check
     this.app.get('/health', (_req: Request, res: Response) => {
@@ -175,6 +175,7 @@ export async function startEvalServer(config: Partial<EvalServerConfig> = {}): P
   const fullConfig: EvalServerConfig = {
     port: config.port ?? 0, // 0 = auto-assign
     debug: config.debug ?? false,
+    openCodePassword: config.openCodePassword,
   };
 
   const server = new EvalServer(fullConfig);

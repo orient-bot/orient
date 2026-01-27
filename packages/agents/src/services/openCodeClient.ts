@@ -19,6 +19,7 @@ export interface OpenCodeConfig {
   defaultAgent?: string; // e.g., 'build', 'plan', 'pm-assistant'
   defaultModel?: string; // Default model ID (e.g., 'anthropic/claude-sonnet-4-20250514')
   timeout?: number; // Request timeout in ms
+  password?: string; // Server password for authentication (Basic auth)
 }
 
 export interface OpenCodeSession {
@@ -83,6 +84,8 @@ export class OpenCodeClient {
     logger.info('OpenCode client initialized', {
       baseUrl: config.baseUrl,
       defaultModel: this.config.defaultModel,
+      passwordSet: !!this.config.password,
+      passwordLength: this.config.password?.length || 0,
     });
   }
 
@@ -595,9 +598,17 @@ export class OpenCodeClient {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), this.config.timeout);
 
+    // Build headers with optional Basic auth
+    const headers = new Headers(options?.headers);
+    if (this.config.password) {
+      const credentials = Buffer.from(`opencode:${this.config.password}`).toString('base64');
+      headers.set('Authorization', `Basic ${credentials}`);
+    }
+
     try {
       const response = await fetch(url, {
         ...options,
+        headers,
         signal: controller.signal,
       });
 
@@ -620,12 +631,16 @@ export class OpenCodeClient {
 
 /**
  * Create an OpenCode client with default configuration
+ * Automatically uses OPENCODE_SERVER_PASSWORD from environment if available
  */
 export function createOpenCodeClient(
   baseUrl: string = 'http://localhost:4099',
-  defaultModel: string = 'openai/gpt-4o-mini'
+  defaultModel: string = 'openai/gpt-4o-mini',
+  password?: string
 ): OpenCodeClient {
-  return new OpenCodeClient({ baseUrl, defaultModel });
+  // Use provided password or fall back to environment variable
+  const serverPassword = password || process.env.OPENCODE_SERVER_PASSWORD;
+  return new OpenCodeClient({ baseUrl, defaultModel, password: serverPassword });
 }
 
 // Export a singleton instance for convenience

@@ -1,0 +1,18 @@
+# Tool Selection: Config List Agents
+# Tests that agent uses config_list_agents to show all agents
+
+name: config_list_agents
+description: Agent uses config_list_agents to show all agents
+type: tool_selection
+agent: default
+
+input:
+  prompt: 'Show me all the agents and which ones are enabled'
+
+expect:
+  tool_calls:
+    required:
+      - name: config_list_agents
+    forbidden:
+      - config_update_agent
+      - config_delete_agent

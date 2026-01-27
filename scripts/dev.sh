@@ -635,7 +635,30 @@ start_dev() {
         log_info "Mini-apps cache refreshed"
     fi
 
-    # Step 4: Start OpenCode server (dashboard must be ready first)
+    # Step 4: Ensure OpenCode password exists and load secrets
+    log_step "Setting up OpenCode security..."
+
+    # Generate OpenCode password if it doesn't exist
+    if [ -f "$PROJECT_ROOT/scripts/setup-opencode-password.ts" ]; then
+        cd "$PROJECT_ROOT" && npx tsx scripts/setup-opencode-password.ts 2>/dev/null || true
+    fi
+
+    # Load secrets from database into environment (BEFORE starting OpenCode)
+    # This makes OPENCODE_SERVER_PASSWORD and other secrets available
+    if [ -f "$PROJECT_ROOT/scripts/load-secrets.ts" ]; then
+        log_step "Loading secrets from database..."
+        local secrets_output
+        # Filter to only export lines (script may output logger messages to stdout)
+        if secrets_output=$(cd "$PROJECT_ROOT" && npx tsx scripts/load-secrets.ts 2>/dev/null | grep "^export "); then
+            eval "$secrets_output"
+            local secret_count=$(echo "$secrets_output" | wc -l | tr -d ' ')
+            log_info "Loaded $secret_count secrets from database"
+        else
+            log_info "Loaded 0 secrets from database"
+        fi
+    fi
+
+    # Step 5: Start OpenCode server (dashboard must be ready first)
     log_step "Starting OpenCode server..."
 
     # Configure OpenCode isolation to use project-local data
@@ -647,10 +670,8 @@ start_dev() {
     echo $! > "$OPENCODE_PID_FILE"
     log_info "OpenCode started (PID: $(cat $OPENCODE_PID_FILE))"
 
-    # Step 5: Wait for OpenCode
+    # Step 6: Wait for OpenCode
     wait_for_opencode
-
-    # Step 6: Start WhatsApp bot with tsx watch (instant hot-reload)
 
     # Set environment variables for local development
     # (DATABASE_URL, AWS_ENDPOINT_URL, and S3_BUCKET are already set by instance-env.sh)
@@ -671,21 +692,6 @@ start_dev() {
             log_warn "WhatsApp integration disabled in worktree (use --enable-whatsapp to override)"
         else
             log_warn "WhatsApp integration disabled (--no-whatsapp)"
-        fi
-    fi
-
-    # Step 5b: Load secrets from database into environment
-    # This makes secrets saved via the dashboard available to bots
-    if [ -f "$PROJECT_ROOT/scripts/load-secrets.ts" ]; then
-        log_step "Loading secrets from database..."
-        local secrets_output
-        # Filter to only export lines (script may output logger messages to stdout)
-        if secrets_output=$(cd "$PROJECT_ROOT" && npx tsx scripts/load-secrets.ts 2>/dev/null | grep "^export "); then
-            eval "$secrets_output"
-            local secret_count=$(echo "$secrets_output" | wc -l | tr -d ' ')
-            log_info "Loaded $secret_count secrets from database"
-        else
-            log_info "Loaded 0 secrets from database"
         fi
     fi
 

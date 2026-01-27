@@ -453,6 +453,9 @@ export interface EvalServerConfig {
 
   /** Enable debug logging */
   debug?: boolean;
+
+  /** OpenCode server password for authentication */
+  openCodePassword?: string;
 }
 
 /**

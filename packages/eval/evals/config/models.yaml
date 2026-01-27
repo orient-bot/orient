@@ -1,0 +1,24 @@
+# Model Matrix Configuration
+# Model IDs must match OpenCode's provider list (GET /provider)
+
+models:
+  accuracy_matrix:
+    # Anthropic
+    - anthropic/claude-sonnet-4-20250514
+    - anthropic/claude-haiku-4-5-20251001
+    # OpenAI
+    - openai/gpt-4o
+    - openai/gpt-4o-mini
+    # OpenAI via OpenCode proxy (gpt-5.x codex)
+    - openai/gpt-5.2-codex
+    - openai/gpt-5.1-codex
+
+  default:
+    - anthropic/claude-haiku-4-5-20251001
+
+  fast:
+    - anthropic/claude-haiku-4-5-20251001
+    - openai/gpt-4o-mini
+
+# Note: Model IDs must exist in OpenCode's provider list.
+# Run `curl -s http://localhost:4099/provider` to see available models.

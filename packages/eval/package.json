@@ -20,7 +20,10 @@
   },
   "scripts": {
     "build": "tsc",
-    "test": "vitest run"
+    "test": "vitest run",
+    "report": "tsx src/report.ts",
+    "report:run": "tsx src/report.ts --run",
+    "report:matrix": "tsx src/report.ts --run --matrix accuracy_matrix"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",
