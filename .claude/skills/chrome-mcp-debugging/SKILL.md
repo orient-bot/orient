@@ -1,4 +1,5 @@
 ---
+name: chrome-mcp-debugging
 description: Debug Chrome MCP socket communication, inspect protocols, and bridge native host tools over HTTP. Use when troubleshooting Chrome extension MCP connections, analyzing message formats, or exposing browser automation tools to external clients like Docker containers.
 ---
 
