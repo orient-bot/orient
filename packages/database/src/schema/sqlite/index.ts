@@ -10,8 +10,9 @@
 
 import { sqliteTable, text, integer, index, uniqueIndex } from 'drizzle-orm/sqlite-core';
 
-// Re-export common types for validation
-export * from '../common.js';
+// Note: Common types (enum value arrays and TypeScript types) are re-exported
+// from '../schema/index.ts', NOT from here. This file only contains table
+// definitions, which is what drizzle-kit needs for schema processing.
 
 // ============================================
 // WHATSAPP TABLES
@@ -722,6 +723,7 @@ export const userFeatureFlagOverrides = sqliteTable(
     updatedAt: integer('updated_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
   },
   (table) => [
+    uniqueIndex('idx_user_flag_overrides_user_flag').on(table.userId, table.flagId),
     index('idx_user_flag_overrides_user').on(table.userId),
     index('idx_user_flag_overrides_flag').on(table.flagId),
   ]
