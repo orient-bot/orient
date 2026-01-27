@@ -110,8 +110,8 @@ export function getRawSqliteDb(): BetterSqlite3.Database {
   return getSqliteRawDb();
 }
 
-// Export schema (SQLite)
-export * as schema from './schema/sqlite/index.js';
+// Export schema (SQLite tables + common types)
+export * as schema from './schema/index.js';
 
 // Export Drizzle utilities
 export {

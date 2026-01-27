@@ -28,35 +28,14 @@ describe('FeatureFlagsService', () => {
     // Set environment for SQLite
     process.env.SQLITE_DATABASE = TEST_DB_PATH;
 
-    // Set up test database with required tables
+    // Set up test database - auto-migration creates all tables with proper FK constraints
     const { executeRawSql, getDatabase } = await import('@orient/database');
     getDatabase();
 
-    // Create feature flags table
+    // Insert a test user required by FK constraints on user_feature_flag_overrides
     await executeRawSql(`
-      CREATE TABLE IF NOT EXISTS feature_flags (
-        id TEXT PRIMARY KEY,
-        name TEXT NOT NULL,
-        description TEXT,
-        enabled INTEGER NOT NULL DEFAULT 1,
-        category TEXT NOT NULL DEFAULT 'ui',
-        sort_order INTEGER NOT NULL DEFAULT 0,
-        created_at INTEGER DEFAULT (strftime('%s', 'now')),
-        updated_at INTEGER DEFAULT (strftime('%s', 'now'))
-      )
-    `);
-
-    // Create user overrides table (matches Drizzle schema)
-    await executeRawSql(`
-      CREATE TABLE IF NOT EXISTS user_feature_flag_overrides (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER NOT NULL,
-        flag_id TEXT NOT NULL,
-        enabled INTEGER NOT NULL,
-        created_at INTEGER DEFAULT (strftime('%s', 'now')),
-        updated_at INTEGER DEFAULT (strftime('%s', 'now')),
-        UNIQUE (user_id, flag_id)
-      )
+      INSERT OR IGNORE INTO dashboard_users (id, username, password_hash, auth_method, created_at)
+      VALUES (1, 'test-user', 'hash', 'password', strftime('%s', 'now'))
     `);
   });
 

@@ -6,13 +6,15 @@
  */
 
 import { drizzle } from 'drizzle-orm/better-sqlite3';
+import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
 import Database from 'better-sqlite3';
 import { createServiceLogger } from '@orient/core';
 import * as schema from '../schema/sqlite/index.js';
 import type { DatabaseConfig, DatabaseClient, Database as DrizzleDatabase } from './types.js';
 import { getDefaultSqlitePath } from './types.js';
 import { existsSync, mkdirSync } from 'fs';
-import { dirname } from 'path';
+import { dirname, resolve } from 'path';
+import { fileURLToPath } from 'url';
 
 const logger = createServiceLogger('sqlite-client');
 
@@ -59,6 +61,22 @@ export function createSqliteClient(config?: DatabaseConfig): DatabaseClient {
 
   // Create Drizzle instance with schema
   dbInstance = drizzle(sqliteDb, { schema });
+
+  // Auto-create tables if they don't exist (run migrations)
+  try {
+    const currentDir = dirname(fileURLToPath(import.meta.url));
+    const migrationsFolder = resolve(currentDir, '../../drizzle/sqlite');
+    if (existsSync(migrationsFolder)) {
+      migrate(dbInstance, { migrationsFolder });
+      logger.info('Database schema ensured via migrations');
+    } else {
+      logger.warn('Migrations folder not found, skipping auto-migration', { migrationsFolder });
+    }
+  } catch (error) {
+    logger.warn('Auto-migration failed (tables may already exist)', {
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
 
   logger.info('SQLite connection established', { filename });
 

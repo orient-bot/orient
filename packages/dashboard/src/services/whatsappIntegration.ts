@@ -11,11 +11,11 @@ import {
   createWhatsAppRouter,
   TranscriptionService,
 } from '@orient/bot-whatsapp';
+import type { WhatsAppBotConfig, ParsedMessage } from '@orient/bot-whatsapp';
 import { createServiceLogger, loadConfig, getConfig, startConfigPoller } from '@orient/core';
 import { MessageDatabase, createChatPermissionService } from '@orient/database-services';
 import { createOpenCodeClient } from '@orient/agents';
 import { downloadMediaMessage } from 'baileys';
-import type { WhatsAppBotConfig } from '@orient/bot-whatsapp';
 
 const logger = createServiceLogger('whatsapp-integration');
 
@@ -201,7 +201,7 @@ export async function initializeWhatsAppIntegration(): Promise<WhatsAppIntegrati
     logger.info('WhatsApp connected successfully');
   });
 
-  connection.on('qr', (_qr) => {
+  connection.on('qr', (_qr: string) => {
     logger.info('QR code received - scan with WhatsApp app or use /qr endpoint');
   });
 
@@ -209,16 +209,16 @@ export async function initializeWhatsAppIntegration(): Promise<WhatsAppIntegrati
     logger.info('WhatsApp Bot is ready!');
   });
 
-  connection.on('disconnected', (reason) => {
+  connection.on('disconnected', (reason: string) => {
     logger.warn('WhatsApp disconnected', { reason });
   });
 
-  connection.on('error', (error) => {
+  connection.on('error', (error: Error) => {
     logger.error('WhatsApp error', { error: String(error) });
   });
 
   // Set up message handling
-  connection.on('message', async (message) => {
+  connection.on('message', async (message: ParsedMessage) => {
     try {
       logger.info('Received message', {
         from: message.chatId,
@@ -313,7 +313,7 @@ export async function initializeWhatsAppIntegration(): Promise<WhatsAppIntegrati
         if (transcriptionService) {
           try {
             const audioBuffer = (await downloadMediaMessage(
-              message.rawMessage,
+              message.rawMessage as Parameters<typeof downloadMediaMessage>[0],
               'buffer',
               {}
             )) as Buffer;

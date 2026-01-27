@@ -65,6 +65,7 @@
   },
   "files": [
     "dist",
+    "drizzle",
     "drizzle.config.ts",
     "README.md"
   ]

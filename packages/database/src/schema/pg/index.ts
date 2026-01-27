@@ -12,6 +12,7 @@ import {
   timestamp,
   integer,
   index,
+  uniqueIndex,
   pgEnum,
 } from 'drizzle-orm/pg-core';
 
@@ -658,6 +659,7 @@ export const userFeatureFlagOverrides = pgTable(
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
   },
   (table) => [
+    uniqueIndex('idx_user_flag_overrides_user_flag').on(table.userId, table.flagId),
     index('idx_user_flag_overrides_user').on(table.userId),
     index('idx_user_flag_overrides_flag').on(table.flagId),
   ]

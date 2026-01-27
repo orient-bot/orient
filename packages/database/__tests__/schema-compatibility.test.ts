@@ -192,9 +192,9 @@ describe('Schema Compatibility', () => {
   describe('Common Types', () => {
     it('should export common types from both dialects', async () => {
       const pgSchema = await import('../src/schema/pg/index.js');
-      const sqliteSchema = await import('../src/schema/sqlite/index.js');
+      const schemaIndex = await import('../src/schema/index.js');
 
-      // Common exported values (from common.ts re-exports)
+      // Common exported values (from common.ts, re-exported via schema/index.ts)
       const commonExports = [
         'MESSAGE_DIRECTION_VALUES',
         'CHAT_TYPE_VALUES',
@@ -210,11 +210,11 @@ describe('Schema Compatibility', () => {
       expect(pgSchema.promptPlatformEnum).toBeDefined();
       expect(pgSchema.slackChannelTypeEnum).toBeDefined();
 
-      // SQLite re-exports the common value arrays
+      // Common types are exported via the schema index (not sqlite/index.ts directly)
       for (const exportName of commonExports) {
         expect(
-          sqliteSchema[exportName as keyof typeof sqliteSchema],
-          `SQLite should export ${exportName}`
+          schemaIndex[exportName as keyof typeof schemaIndex],
+          `Schema index should export ${exportName}`
         ).toBeDefined();
       }
     });
