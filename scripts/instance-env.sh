@@ -101,6 +101,14 @@ configure_instance() {
   else
     export WHATSAPP_ENABLED="${WHATSAPP_ENABLED:-false}"
   fi
+
+  # Configure OpenCode isolation if the script exists
+  # This ensures OpenCode uses project-local data instead of global ~/.opencode/
+  local script_dir="$(dirname "${BASH_SOURCE[0]}")"
+  if [ -f "$script_dir/opencode-env.sh" ]; then
+    source "$script_dir/opencode-env.sh"
+    configure_opencode_isolation
+  fi
 }
 
 # Display instance information

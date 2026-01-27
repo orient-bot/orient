@@ -212,9 +212,70 @@ check_git() {
   fi
 }
 
+check_opencode_isolation() {
+  print_header "OpenCode Isolation"
+
+  # Check if opencode-env.sh exists
+  if [ ! -f "$PROJECT_ROOT/scripts/opencode-env.sh" ]; then
+    check_fail "opencode-env.sh not found" "Required for OpenCode isolation"
+    return
+  fi
+
+  check_pass "opencode-env.sh exists"
+
+  # Source and configure isolation
+  source "$PROJECT_ROOT/scripts/opencode-env.sh"
+
+  # Save current env
+  local old_test_home="$OPENCODE_TEST_HOME"
+  local old_xdg_data="$XDG_DATA_HOME"
+
+  # Clear and reconfigure
+  unset OPENCODE_TEST_HOME XDG_DATA_HOME XDG_CONFIG_HOME XDG_CACHE_HOME XDG_STATE_HOME
+  export PROJECT_ROOT="$PROJECT_ROOT"
+  configure_opencode_isolation
+
+  # Check isolation is configured correctly
+  local expected_home="$PROJECT_ROOT/.opencode"
+
+  if [ "$OPENCODE_TEST_HOME" = "$expected_home" ]; then
+    check_pass "OPENCODE_TEST_HOME configured correctly"
+  else
+    check_fail "OPENCODE_TEST_HOME not configured" "Expected: $expected_home"
+  fi
+
+  if [ "$XDG_DATA_HOME" = "$expected_home/data" ]; then
+    check_pass "XDG_DATA_HOME configured correctly"
+  else
+    check_fail "XDG_DATA_HOME not configured" "Expected: $expected_home/data"
+  fi
+
+  # Check that .opencode directory structure exists
+  if [ -d "$PROJECT_ROOT/.opencode" ]; then
+    check_pass ".opencode directory exists"
+  else
+    check_warn ".opencode directory does not exist" "Will be created on first run"
+  fi
+
+  # Verify isolation doesn't point to user home
+  if [[ "$OPENCODE_TEST_HOME" != "$HOME"* ]] || [[ "$OPENCODE_TEST_HOME" == "$expected_home"* ]]; then
+    check_pass "Isolation prevents use of global ~/.opencode/"
+  else
+    check_fail "Isolation may use global config" "OPENCODE_TEST_HOME points to home directory"
+  fi
+
+  # Restore env
+  if [ -n "$old_test_home" ]; then
+    export OPENCODE_TEST_HOME="$old_test_home"
+  fi
+  if [ -n "$old_xdg_data" ]; then
+    export XDG_DATA_HOME="$old_xdg_data"
+  fi
+}
+
 check_optional_tools() {
   print_header "Optional Tools"
-  
+
   # OpenCode (for MCP servers)
   if command -v opencode &> /dev/null; then
     local opencode_version=$(opencode --version 2>/dev/null || echo "unknown")
@@ -536,6 +597,7 @@ main() {
   check_docker
   check_git
   check_optional_tools
+  check_opencode_isolation
   check_config_files
   check_dependencies
   check_ports
