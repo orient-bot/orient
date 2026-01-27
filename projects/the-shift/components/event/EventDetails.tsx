@@ -1,7 +1,7 @@
-'use client'
+'use client';
 
-import { useState, useCallback } from 'react'
-import ModeIndicator from '../claude/ModeIndicator'
+import { useState, useCallback } from 'react';
+import ModeIndicator from '../claude/ModeIndicator';
 
 const details = [
   {
@@ -22,15 +22,15 @@ const details = [
     value: '500',
     subtext: 'Invite only',
   },
-]
+];
 
 export default function EventDetails() {
-  const [pressedKey, setPressedKey] = useState<string | null>(null)
+  const [pressedKey, setPressedKey] = useState<string | null>(null);
 
   const handleKeyPress = useCallback((key: string) => {
-    setPressedKey(key)
-    setTimeout(() => setPressedKey(null), 300)
-  }, [])
+    setPressedKey(key);
+    setTimeout(() => setPressedKey(null), 300);
+  }, []);
 
   return (
     <section className="py-12 px-4">
@@ -54,17 +54,13 @@ export default function EventDetails() {
                 <p className="font-mono text-xs text-text-muted uppercase tracking-wider mb-2 mt-2">
                   {detail.label}
                 </p>
-                <p className="text-2xl font-bold text-text-primary mb-1">
-                  {detail.value}
-                </p>
-                <p className="text-sm text-text-muted">
-                  {detail.subtext}
-                </p>
+                <p className="text-2xl font-bold text-text-primary mb-1">{detail.value}</p>
+                <p className="text-sm text-text-muted">{detail.subtext}</p>
               </button>
             ))}
           </div>
         </div>
       </div>
     </section>
-  )
+  );
 }

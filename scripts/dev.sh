@@ -637,10 +637,12 @@ start_dev() {
 
     # Step 4: Start OpenCode server (dashboard must be ready first)
     log_step "Starting OpenCode server..."
-    # Use local config if it exists
-    if [ -f "$PROJECT_ROOT/opencode.local.json" ]; then
-        export OPENCODE_CONFIG="$PROJECT_ROOT/opencode.local.json"
-    fi
+
+    # Configure OpenCode isolation to use project-local data
+    # This prevents interference with user's global ~/.opencode/ installation
+    source "$SCRIPT_DIR/opencode-env.sh"
+    configure_opencode_isolation
+
     opencode serve --port "$OPENCODE_PORT" --hostname 0.0.0.0 > "$LOG_DIR/opencode-dev.log" 2>&1 &
     echo $! > "$OPENCODE_PID_FILE"
     log_info "OpenCode started (PID: $(cat $OPENCODE_PID_FILE))"

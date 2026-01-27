@@ -1,6 +1,6 @@
-import Header from '@/components/keyboard/Header'
-import InviteHero from '@/components/invite/InviteHero'
-import InviteForm from '@/components/invite/InviteForm'
+import Header from '@/components/keyboard/Header';
+import InviteHero from '@/components/invite/InviteHero';
+import InviteForm from '@/components/invite/InviteForm';
 
 export default function InvitePage() {
   return (
@@ -13,5 +13,5 @@ export default function InvitePage() {
         </div>
       </main>
     </>
-  )
+  );
 }

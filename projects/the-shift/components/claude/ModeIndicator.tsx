@@ -1,10 +1,10 @@
-'use client'
+'use client';
 
-type Mode = 'plan' | 'act' | 'ask' | 'agent'
+type Mode = 'plan' | 'act' | 'ask' | 'agent';
 
 interface ModeIndicatorProps {
-  mode: Mode
-  className?: string
+  mode: Mode;
+  className?: string;
 }
 
 const modeConfig: Record<Mode, { label: string; bgClass: string; textClass: string }> = {
@@ -28,10 +28,10 @@ const modeConfig: Record<Mode, { label: string; bgClass: string; textClass: stri
     bgClass: 'bg-gray-500/20 dark:bg-gray-400/20',
     textClass: 'text-gray-700 dark:text-gray-400',
   },
-}
+};
 
 export default function ModeIndicator({ mode, className = '' }: ModeIndicatorProps) {
-  const config = modeConfig[mode]
+  const config = modeConfig[mode];
 
   return (
     <span
@@ -48,5 +48,5 @@ export default function ModeIndicator({ mode, className = '' }: ModeIndicatorPro
       <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
       {config.label}
     </span>
-  )
+  );
 }

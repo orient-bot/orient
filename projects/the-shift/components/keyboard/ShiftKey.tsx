@@ -1,14 +1,14 @@
-'use client'
+'use client';
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback } from 'react';
 
 interface ShiftKeyProps {
-  size?: 'sm' | 'md' | 'lg' | 'xl'
-  showArrow?: boolean
-  className?: string
-  onClick?: () => void
-  animated?: boolean
-  pulsing?: boolean
+  size?: 'sm' | 'md' | 'lg' | 'xl';
+  showArrow?: boolean;
+  className?: string;
+  onClick?: () => void;
+  animated?: boolean;
+  pulsing?: boolean;
 }
 
 export default function ShiftKey({
@@ -19,32 +19,32 @@ export default function ShiftKey({
   animated = true,
   pulsing = false,
 }: ShiftKeyProps) {
-  const [isPressed, setIsPressed] = useState(false)
+  const [isPressed, setIsPressed] = useState(false);
 
   const handleClick = useCallback(() => {
     if (!animated) {
-      onClick?.()
-      return
+      onClick?.();
+      return;
     }
 
-    setIsPressed(true)
-    setTimeout(() => setIsPressed(false), 300)
-    onClick?.()
-  }, [animated, onClick])
+    setIsPressed(true);
+    setTimeout(() => setIsPressed(false), 300);
+    onClick?.();
+  }, [animated, onClick]);
 
   const sizeClasses = {
     sm: 'px-4 py-2 text-sm',
     md: 'px-6 py-3 text-base',
     lg: 'px-10 py-5 text-xl',
     xl: 'px-16 py-8 text-3xl',
-  }
+  };
 
   const iconSizes = {
     sm: 'w-4 h-4',
     md: 'w-5 h-5',
     lg: 'w-6 h-6',
     xl: 'w-8 h-8',
-  }
+  };
 
   return (
     <button
@@ -71,5 +71,5 @@ export default function ShiftKey({
       )}
       <span>Shift</span>
     </button>
-  )
+  );
 }

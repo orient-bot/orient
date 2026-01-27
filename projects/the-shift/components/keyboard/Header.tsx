@@ -1,7 +1,7 @@
-'use client'
+'use client';
 
-import Link from 'next/link'
-import ThemeToggle from '../ThemeToggle'
+import Link from 'next/link';
+import ThemeToggle from '../ThemeToggle';
 
 export default function Header() {
   return (
@@ -19,5 +19,5 @@ export default function Header() {
         </div>
       </div>
     </header>
-  )
+  );
 }

@@ -1,7 +1,7 @@
-'use client'
+'use client';
 
-import { useState, useEffect, useCallback } from 'react'
-import ClaudeStatusIndicator from '../claude/ClaudeStatusIndicator'
+import { useState, useEffect, useCallback } from 'react';
+import ClaudeStatusIndicator from '../claude/ClaudeStatusIndicator';
 
 // Only the keys we support
 const supportedKeys = [
@@ -11,71 +11,109 @@ const supportedKeys = [
   { key: 'I', label: 'i', hint: 'invite' },
   { key: 'T', label: 't', hint: 'theme' },
   { key: '?', label: '?', hint: 'help' },
-]
+];
 
 interface KeyboardVisualizerProps {
-  onVimCommand?: (command: string) => void
+  onVimCommand?: (command: string) => void;
 }
 
 export default function KeyboardVisualizer({ onVimCommand }: KeyboardVisualizerProps) {
-  const [pressedKeys, setPressedKeys] = useState<Set<string>>(new Set())
-  const [isVisible, setIsVisible] = useState(true)
-  const [lastAction, setLastAction] = useState<string | null>(null)
+  const [pressedKeys, setPressedKeys] = useState<Set<string>>(new Set());
+  const [isVisible, setIsVisible] = useState(true);
+  const [lastAction, setLastAction] = useState<string | null>(null);
 
   const normalizeKey = useCallback((key: string): string => {
-    return key.toUpperCase()
-  }, [])
+    return key.toUpperCase();
+  }, []);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Don't capture if user is typing in an input
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
-        return
+        return;
       }
 
-      const key = normalizeKey(e.key)
-      setPressedKeys(prev => new Set(prev).add(key))
+      const key = normalizeKey(e.key);
+      setPressedKeys((prev) => new Set(prev).add(key));
 
       // Vim commands
       if (onVimCommand) {
-        const k = e.key.toLowerCase()
+        const k = e.key.toLowerCase();
 
-        if (k === 'j') { onVimCommand('down'); setLastAction('↓ next') }
-        if (k === 'k') { onVimCommand('up'); setLastAction('↑ prev') }
-        if (k === 'h') { onVimCommand('left'); setLastAction('← left') }
-        if (k === 'l') { onVimCommand('right'); setLastAction('→ right') }
-        if (k === 'g' && e.shiftKey) { onVimCommand('bottom'); setLastAction('⤓ bottom') }
-        if (k === 'g' && !e.shiftKey) { onVimCommand('top'); setLastAction('⤒ top') }
-        if (k === 'd' && e.ctrlKey) { onVimCommand('half-down'); setLastAction('½↓') }
-        if (k === 'u' && e.ctrlKey) { onVimCommand('half-up'); setLastAction('½↑') }
-        if (k === 'i') { onVimCommand('invite'); setLastAction('→ invite') }
-        if (k === 't') { onVimCommand('toggle-theme'); setLastAction('◐ theme') }
-        if (k === '?' || (k === '/' && e.shiftKey)) { onVimCommand('help'); setLastAction('? help') }
-        if (k === 'escape') { onVimCommand('escape'); setLastAction('esc') }
-        if (k === '`') { setIsVisible(prev => !prev) }
+        if (k === 'j') {
+          onVimCommand('down');
+          setLastAction('↓ next');
+        }
+        if (k === 'k') {
+          onVimCommand('up');
+          setLastAction('↑ prev');
+        }
+        if (k === 'h') {
+          onVimCommand('left');
+          setLastAction('← left');
+        }
+        if (k === 'l') {
+          onVimCommand('right');
+          setLastAction('→ right');
+        }
+        if (k === 'g' && e.shiftKey) {
+          onVimCommand('bottom');
+          setLastAction('⤓ bottom');
+        }
+        if (k === 'g' && !e.shiftKey) {
+          onVimCommand('top');
+          setLastAction('⤒ top');
+        }
+        if (k === 'd' && e.ctrlKey) {
+          onVimCommand('half-down');
+          setLastAction('½↓');
+        }
+        if (k === 'u' && e.ctrlKey) {
+          onVimCommand('half-up');
+          setLastAction('½↑');
+        }
+        if (k === 'i') {
+          onVimCommand('invite');
+          setLastAction('→ invite');
+        }
+        if (k === 't') {
+          onVimCommand('toggle-theme');
+          setLastAction('◐ theme');
+        }
+        if (k === '?' || (k === '/' && e.shiftKey)) {
+          onVimCommand('help');
+          setLastAction('? help');
+        }
+        if (k === 'escape') {
+          onVimCommand('escape');
+          setLastAction('esc');
+        }
+        if (k === '`') {
+          setIsVisible((prev) => !prev);
+        }
       }
 
       // Clear action after delay
-      setTimeout(() => setLastAction(null), 800)
-    }
+      setTimeout(() => setLastAction(null), 800);
+    };
 
     const handleKeyUp = (e: KeyboardEvent) => {
-      const key = normalizeKey(e.key)
-      setPressedKeys(prev => {
-        const next = new Set(prev)
-        next.delete(key)
-        return next
-      })
-    }
+      const key = normalizeKey(e.key);
+      setPressedKeys((prev) => {
+        const next = new Set(prev);
+        next.delete(key);
+        return next;
+      });
+    };
 
-    window.addEventListener('keydown', handleKeyDown)
-    window.addEventListener('keyup', handleKeyUp)
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
 
     return () => {
-      window.removeEventListener('keydown', handleKeyDown)
-      window.removeEventListener('keyup', handleKeyUp)
-    }
-  }, [normalizeKey, onVimCommand])
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, [normalizeKey, onVimCommand]);
 
   if (!isVisible) {
     return (
@@ -86,7 +124,7 @@ export default function KeyboardVisualizer({ onVimCommand }: KeyboardVisualizerP
       >
         ⌨
       </button>
-    )
+    );
   }
 
   return (
@@ -95,7 +133,7 @@ export default function KeyboardVisualizer({ onVimCommand }: KeyboardVisualizerP
         {/* Keys */}
         <div className="flex items-center gap-1">
           {supportedKeys.map(({ key, label, hint }) => {
-            const isPressed = pressedKeys.has(key) || pressedKeys.has(label.toUpperCase())
+            const isPressed = pressedKeys.has(key) || pressedKeys.has(label.toUpperCase());
 
             return (
               <div
@@ -111,7 +149,7 @@ export default function KeyboardVisualizer({ onVimCommand }: KeyboardVisualizerP
               >
                 <span className="font-bold">{label}</span>
               </div>
-            )
+            );
           })}
         </div>
 
@@ -121,7 +159,9 @@ export default function KeyboardVisualizer({ onVimCommand }: KeyboardVisualizerP
         {/* Action indicator / Claude status */}
         <div className="min-w-[120px] text-center">
           {lastAction ? (
-            <span className="font-mono text-xs text-text-primary animate-fade-in">{lastAction}</span>
+            <span className="font-mono text-xs text-text-primary animate-fade-in">
+              {lastAction}
+            </span>
           ) : (
             <ClaudeStatusIndicator />
           )}
@@ -137,5 +177,5 @@ export default function KeyboardVisualizer({ onVimCommand }: KeyboardVisualizerP
         </button>
       </div>
     </div>
-  )
+  );
 }

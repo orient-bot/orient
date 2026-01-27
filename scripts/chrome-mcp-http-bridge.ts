@@ -24,16 +24,16 @@
  *   CHROME_MCP_BRIDGE_HOST - Bind address (default: 127.0.0.1)
  */
 
-import { createServer, IncomingMessage, ServerResponse } from "http";
-import { createConnection, Socket } from "net";
-import { readdirSync, statSync } from "fs";
-import { join } from "path";
-import { randomUUID } from "crypto";
+import { createServer, IncomingMessage, ServerResponse } from 'http';
+import { createConnection, Socket } from 'net';
+import { readdirSync, statSync } from 'fs';
+import { join } from 'path';
+import { randomUUID } from 'crypto';
 
 // Configuration
-const PORT = parseInt(process.env.CHROME_MCP_BRIDGE_PORT || "9877");
-const HOST = process.env.CHROME_MCP_BRIDGE_HOST || "127.0.0.1";
-const USERNAME = process.env.USER || process.env.USERNAME || "user";
+const PORT = parseInt(process.env.CHROME_MCP_BRIDGE_PORT || '9877');
+const HOST = process.env.CHROME_MCP_BRIDGE_HOST || '127.0.0.1';
+const USERNAME = process.env.USER || process.env.USERNAME || 'user';
 const SOCKET_DIR = `/tmp/claude-mcp-browser-bridge-${USERNAME}`;
 
 interface Session {
@@ -41,7 +41,7 @@ interface Session {
   socket: Socket;
   pendingRequests: Map<string | number, (response: unknown) => void>;
   sseClients: Set<ServerResponse>;
-  buffer: Buffer;  // Binary buffer for length-prefixed protocol
+  buffer: Buffer; // Binary buffer for length-prefixed protocol
   connected: boolean;
 }
 
@@ -55,7 +55,7 @@ function findActiveSocket(): string | null {
   try {
     const files = readdirSync(SOCKET_DIR);
     for (const file of files) {
-      if (file.endsWith(".sock")) {
+      if (file.endsWith('.sock')) {
         const socketPath = join(SOCKET_DIR, file);
         const stat = statSync(socketPath);
         if (stat.isSocket()) {
@@ -64,7 +64,7 @@ function findActiveSocket(): string | null {
       }
     }
   } catch (err) {
-    log("Error finding socket:", err);
+    log('Error finding socket:', err);
   }
   return null;
 }
@@ -72,7 +72,7 @@ function findActiveSocket(): string | null {
 function createSession(): Session | null {
   const socketPath = findActiveSocket();
   if (!socketPath) {
-    log("No active Chrome MCP socket found");
+    log('No active Chrome MCP socket found');
     log(`Looking in: ${SOCKET_DIR}`);
     return null;
   }
@@ -87,16 +87,16 @@ function createSession(): Session | null {
     socket,
     pendingRequests: new Map(),
     sseClients: new Set(),
-    buffer: Buffer.alloc(0),  // Binary buffer for length-prefixed protocol
+    buffer: Buffer.alloc(0), // Binary buffer for length-prefixed protocol
     connected: false,
   };
 
-  socket.on("connect", () => {
+  socket.on('connect', () => {
     session.connected = true;
     log(`Session ${id}: Connected to Chrome MCP socket`);
   });
 
-  socket.on("data", (data: Buffer) => {
+  socket.on('data', (data: Buffer) => {
     // Append to binary buffer
     session.buffer = Buffer.concat([session.buffer, data]);
 
@@ -118,7 +118,7 @@ function createSession(): Session | null {
       }
 
       // Extract the message
-      const jsonData = session.buffer.slice(4, 4 + msgLength).toString("utf8");
+      const jsonData = session.buffer.slice(4, 4 + msgLength).toString('utf8');
       session.buffer = session.buffer.slice(4 + msgLength);
 
       try {
@@ -130,7 +130,7 @@ function createSession(): Session | null {
     }
   });
 
-  socket.on("close", () => {
+  socket.on('close', () => {
     log(`Session ${id}: Socket closed`);
     session.connected = false;
     sessions.delete(id);
@@ -141,7 +141,7 @@ function createSession(): Session | null {
     }
   });
 
-  socket.on("error", (err) => {
+  socket.on('error', (err) => {
     log(`Session ${id}: Socket error:`, err);
     session.connected = false;
     sessions.delete(id);
@@ -152,14 +152,22 @@ function createSession(): Session | null {
 }
 
 function handleMcpMessage(session: Session, message: unknown) {
-  const msg = message as { id?: string | number; method?: string; result?: unknown; error?: unknown };
+  const msg = message as {
+    id?: string | number;
+    method?: string;
+    result?: unknown;
+    error?: unknown;
+  };
 
   // Debug: log the full message
   log(`Session ${session.id}: Received message:`, JSON.stringify(message).substring(0, 500));
 
   // If this is a response (has result or error), look up by ID
   if (msg.result !== undefined || msg.error !== undefined) {
-    log(`Session ${session.id}: This is a response with id=${msg.id}, pending IDs:`, Array.from(session.pendingRequests.keys()));
+    log(
+      `Session ${session.id}: This is a response with id=${msg.id}, pending IDs:`,
+      Array.from(session.pendingRequests.keys())
+    );
 
     if (msg.id !== undefined && session.pendingRequests.has(msg.id)) {
       const resolve = session.pendingRequests.get(msg.id)!;
@@ -185,7 +193,7 @@ function handleMcpMessage(session: Session, message: unknown) {
 function sendToMcp(session: Session, message: unknown): Promise<unknown> {
   return new Promise((resolve, reject) => {
     if (!session.connected) {
-      reject(new Error("Socket not connected"));
+      reject(new Error('Socket not connected'));
       return;
     }
 
@@ -199,14 +207,14 @@ function sendToMcp(session: Session, message: unknown): Promise<unknown> {
       setTimeout(() => {
         if (session.pendingRequests.has(msg.id!)) {
           session.pendingRequests.delete(msg.id!);
-          reject(new Error("Request timeout"));
+          reject(new Error('Request timeout'));
         }
       }, 60000);
     }
 
     // Chrome MCP uses length-prefixed binary protocol (4-byte LE length + JSON)
     const jsonData = JSON.stringify(message);
-    const jsonBuffer = Buffer.from(jsonData, "utf8");
+    const jsonBuffer = Buffer.from(jsonData, 'utf8');
     const lengthBuffer = Buffer.alloc(4);
     lengthBuffer.writeUInt32LE(jsonBuffer.length, 0);
     const data = Buffer.concat([lengthBuffer, jsonBuffer]);
@@ -223,12 +231,8 @@ function sendToMcp(session: Session, message: unknown): Promise<unknown> {
   });
 }
 
-async function handlePost(
-  req: IncomingMessage,
-  res: ServerResponse,
-  session: Session
-) {
-  let body = "";
+async function handlePost(req: IncomingMessage, res: ServerResponse, session: Session) {
+  let body = '';
   for await (const chunk of req) {
     body += chunk;
   }
@@ -237,7 +241,7 @@ async function handlePost(
     const message = JSON.parse(body);
     const msg = message as { id?: string | number; method?: string };
 
-    log(`Received: ${msg.method || "response"} ${msg.id ? `(id: ${msg.id})` : ""}`);
+    log(`Received: ${msg.method || 'response'} ${msg.id ? `(id: ${msg.id})` : ''}`);
 
     // Check if this is a notification (no response expected)
     if (msg.id === undefined || !msg.method) {
@@ -251,30 +255,30 @@ async function handlePost(
     const response = await sendToMcp(session, message);
 
     // Check Accept header for SSE preference
-    const accept = req.headers.accept || "";
-    if (accept.includes("text/event-stream")) {
+    const accept = req.headers.accept || '';
+    if (accept.includes('text/event-stream')) {
       res.writeHead(200, {
-        "Content-Type": "text/event-stream",
-        "Cache-Control": "no-cache",
-        Connection: "keep-alive",
-        "Mcp-Session-Id": session.id,
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        Connection: 'keep-alive',
+        'Mcp-Session-Id': session.id,
       });
 
       res.write(`data: ${JSON.stringify(response)}\n\n`);
       res.end();
     } else {
       res.writeHead(200, {
-        "Content-Type": "application/json",
-        "Mcp-Session-Id": session.id,
+        'Content-Type': 'application/json',
+        'Mcp-Session-Id': session.id,
       });
       res.end(JSON.stringify(response));
     }
   } catch (err) {
     log(`Error handling POST:`, err);
-    res.writeHead(500, { "Content-Type": "application/json" });
+    res.writeHead(500, { 'Content-Type': 'application/json' });
     res.end(
       JSON.stringify({
-        jsonrpc: "2.0",
+        jsonrpc: '2.0',
         error: { code: -32603, message: String(err) },
       })
     );
@@ -282,36 +286,32 @@ async function handlePost(
 }
 
 function handleGet(req: IncomingMessage, res: ServerResponse, session: Session) {
-  const accept = req.headers.accept || "";
+  const accept = req.headers.accept || '';
 
-  if (!accept.includes("text/event-stream")) {
+  if (!accept.includes('text/event-stream')) {
     res.writeHead(406);
-    res.end("SSE not accepted");
+    res.end('SSE not accepted');
     return;
   }
 
   log(`SSE client connected to session ${session.id}`);
 
   res.writeHead(200, {
-    "Content-Type": "text/event-stream",
-    "Cache-Control": "no-cache",
-    Connection: "keep-alive",
-    "Mcp-Session-Id": session.id,
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    Connection: 'keep-alive',
+    'Mcp-Session-Id': session.id,
   });
 
   session.sseClients.add(res);
 
-  req.on("close", () => {
+  req.on('close', () => {
     log(`SSE client disconnected from session ${session.id}`);
     session.sseClients.delete(res);
   });
 }
 
-function handleDelete(
-  _req: IncomingMessage,
-  res: ServerResponse,
-  session: Session
-) {
+function handleDelete(_req: IncomingMessage, res: ServerResponse, session: Session) {
   log(`Terminating session ${session.id}`);
 
   session.socket.destroy();
@@ -327,65 +327,70 @@ function handleDelete(
 
 const server = createServer(async (req, res) => {
   // CORS headers
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS");
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
   res.setHeader(
-    "Access-Control-Allow-Headers",
-    "Content-Type, Accept, Mcp-Session-Id, MCP-Protocol-Version"
+    'Access-Control-Allow-Headers',
+    'Content-Type, Accept, Mcp-Session-Id, MCP-Protocol-Version'
   );
-  res.setHeader("Access-Control-Expose-Headers", "Mcp-Session-Id");
+  res.setHeader('Access-Control-Expose-Headers', 'Mcp-Session-Id');
 
-  if (req.method === "OPTIONS") {
+  if (req.method === 'OPTIONS') {
     res.writeHead(204);
     res.end();
     return;
   }
 
   // Health check endpoint
-  const url = new URL(req.url || "/", `http://${req.headers.host}`);
-  if (url.pathname === "/health") {
+  const url = new URL(req.url || '/', `http://${req.headers.host}`);
+  if (url.pathname === '/health') {
     const socketPath = findActiveSocket();
-    res.writeHead(200, { "Content-Type": "application/json" });
-    res.end(JSON.stringify({
-      status: socketPath ? "ok" : "no_socket",
-      socketPath,
-      activeSessions: sessions.size,
-    }));
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(
+      JSON.stringify({
+        status: socketPath ? 'ok' : 'no_socket',
+        socketPath,
+        activeSessions: sessions.size,
+      })
+    );
     return;
   }
 
   // Only handle /mcp endpoint
-  if (url.pathname !== "/mcp") {
+  if (url.pathname !== '/mcp') {
     res.writeHead(404);
-    res.end("Not found");
+    res.end('Not found');
     return;
   }
 
   // Get or create session
-  const sessionId = req.headers["mcp-session-id"] as string | undefined;
+  const sessionId = req.headers['mcp-session-id'] as string | undefined;
   let session: Session | undefined;
 
   if (sessionId) {
     session = sessions.get(sessionId);
     if (!session) {
       res.writeHead(404);
-      res.end("Session not found");
+      res.end('Session not found');
       return;
     }
   }
 
   // For initialization requests, create new session
-  if (!session && req.method === "POST") {
+  if (!session && req.method === 'POST') {
     session = createSession();
     if (!session) {
-      res.writeHead(503, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({
-        jsonrpc: "2.0",
-        error: {
-          code: -32603,
-          message: "Chrome MCP socket not available. Make sure Chrome is open with the Claude extension.",
-        },
-      }));
+      res.writeHead(503, { 'Content-Type': 'application/json' });
+      res.end(
+        JSON.stringify({
+          jsonrpc: '2.0',
+          error: {
+            code: -32603,
+            message:
+              'Chrome MCP socket not available. Make sure Chrome is open with the Claude extension.',
+          },
+        })
+      );
       return;
     }
 
@@ -394,17 +399,19 @@ const server = createServer(async (req, res) => {
       if (session!.connected) {
         resolve();
       } else {
-        session!.socket.once("connect", resolve);
+        session!.socket.once('connect', resolve);
         setTimeout(resolve, 5000); // Timeout after 5s
       }
     });
 
     if (!session.connected) {
-      res.writeHead(503, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({
-        jsonrpc: "2.0",
-        error: { code: -32603, message: "Failed to connect to Chrome MCP socket" },
-      }));
+      res.writeHead(503, { 'Content-Type': 'application/json' });
+      res.end(
+        JSON.stringify({
+          jsonrpc: '2.0',
+          error: { code: -32603, message: 'Failed to connect to Chrome MCP socket' },
+        })
+      );
       sessions.delete(session.id);
       return;
     }
@@ -412,57 +419,57 @@ const server = createServer(async (req, res) => {
 
   if (!session) {
     res.writeHead(400);
-    res.end("Session required");
+    res.end('Session required');
     return;
   }
 
   switch (req.method) {
-    case "POST":
+    case 'POST':
       await handlePost(req, res, session);
       break;
-    case "GET":
+    case 'GET':
       handleGet(req, res, session);
       break;
-    case "DELETE":
+    case 'DELETE':
       handleDelete(req, res, session);
       break;
     default:
       res.writeHead(405);
-      res.end("Method not allowed");
+      res.end('Method not allowed');
   }
 });
 
 // Check socket availability before starting
 const initialSocket = findActiveSocket();
 if (!initialSocket) {
-  console.log("\n⚠️  Warning: No Chrome MCP socket found.");
-  console.log("Make sure Chrome is open with the Claude extension active.\n");
+  console.log('\n⚠️  Warning: No Chrome MCP socket found.');
+  console.log('Make sure Chrome is open with the Claude extension active.\n');
 }
 
 server.listen(PORT, HOST, () => {
-  console.log("");
-  console.log("╔══════════════════════════════════════════════════════════════╗");
-  console.log("║  Chrome MCP HTTP Bridge                                       ║");
-  console.log("╠══════════════════════════════════════════════════════════════╣");
-  console.log("║  Exposes Chrome MCP tools over HTTP for Docker containers    ║");
-  console.log("║                                                               ║");
+  console.log('');
+  console.log('╔══════════════════════════════════════════════════════════════╗');
+  console.log('║  Chrome MCP HTTP Bridge                                       ║');
+  console.log('╠══════════════════════════════════════════════════════════════╣');
+  console.log('║  Exposes Chrome MCP tools over HTTP for Docker containers    ║');
+  console.log('║                                                               ║');
   console.log(`║  Local URL:  http://${HOST}:${PORT}/mcp                       ║`);
   console.log(`║  Docker URL: http://host.docker.internal:${PORT}/mcp          ║`);
-  console.log("║                                                               ║");
+  console.log('║                                                               ║');
   console.log(`║  Socket dir: ${SOCKET_DIR.padEnd(37)}║`);
-  console.log(`║  Socket:     ${(initialSocket || "Not found").padEnd(37)}║`);
-  console.log("╚══════════════════════════════════════════════════════════════╝");
-  console.log("");
-  console.log("To use from Docker, add to Claude Code MCP config:");
+  console.log(`║  Socket:     ${(initialSocket || 'Not found').padEnd(37)}║`);
+  console.log('╚══════════════════════════════════════════════════════════════╝');
+  console.log('');
+  console.log('To use from Docker, add to Claude Code MCP config:');
   console.log('  "chrome-bridge": {');
   console.log(`    "url": "http://host.docker.internal:${PORT}/mcp"`);
-  console.log("  }");
-  console.log("");
+  console.log('  }');
+  console.log('');
 });
 
 // Graceful shutdown
-process.on("SIGINT", () => {
-  log("Shutting down...");
+process.on('SIGINT', () => {
+  log('Shutting down...');
   for (const session of sessions.values()) {
     session.socket.destroy();
   }
@@ -470,8 +477,8 @@ process.on("SIGINT", () => {
   process.exit(0);
 });
 
-process.on("SIGTERM", () => {
-  log("Shutting down...");
+process.on('SIGTERM', () => {
+  log('Shutting down...');
   for (const session of sessions.values()) {
     session.socket.destroy();
   }

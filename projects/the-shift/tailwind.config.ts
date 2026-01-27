@@ -1,4 +1,4 @@
-import type { Config } from 'tailwindcss'
+import type { Config } from 'tailwindcss';
 
 const config: Config = {
   content: [
@@ -20,7 +20,7 @@ const config: Config = {
         'text-primary': 'var(--text-primary)',
         'text-secondary': 'var(--text-secondary)',
         'text-muted': 'var(--text-muted)',
-        'accent': 'var(--accent)',
+        accent: 'var(--accent)',
         'accent-hover': 'var(--accent-hover)',
       },
       fontFamily: {
@@ -28,13 +28,13 @@ const config: Config = {
         sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
       },
       borderRadius: {
-        'key': '8px',
+        key: '8px',
         'key-lg': '10px',
-        'keyboard': '16px',
+        keyboard: '16px',
       },
     },
   },
   plugins: [],
-}
+};
 
-export default config
+export default config;

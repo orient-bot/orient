@@ -17,16 +17,16 @@
  *   http://host.docker.internal:9876/mcp
  */
 
-import { spawn, ChildProcess } from "child_process";
-import { createServer, IncomingMessage, ServerResponse } from "http";
-import { randomUUID } from "crypto";
+import { spawn, ChildProcess } from 'child_process';
+import { createServer, IncomingMessage, ServerResponse } from 'http';
+import { randomUUID } from 'crypto';
 
 // Configuration
-const PORT = parseInt(process.env.MCP_BRIDGE_PORT || "9876");
-const HOST = process.env.MCP_BRIDGE_HOST || "127.0.0.1";
+const PORT = parseInt(process.env.MCP_BRIDGE_PORT || '9876');
+const HOST = process.env.MCP_BRIDGE_HOST || '127.0.0.1';
 const MCP_COMMAND =
   process.env.MCP_COMMAND || `${process.env.HOME}/.local/share/claude/versions/2.1.17`;
-const MCP_ARGS = ["--chrome-native-host"];
+const MCP_ARGS = ['--chrome-native-host'];
 
 interface Session {
   id: string;
@@ -69,7 +69,7 @@ function createSession(): Session {
   log(`Creating new session: ${id}`);
 
   const proc = spawn(MCP_COMMAND, MCP_ARGS, {
-    stdio: ["pipe", "pipe", "pipe"],
+    stdio: ['pipe', 'pipe', 'pipe'],
   });
 
   const session: Session = {
@@ -80,7 +80,7 @@ function createSession(): Session {
     buffer: Buffer.alloc(0),
   };
 
-  proc.stdout?.on("data", (data: Buffer) => {
+  proc.stdout?.on('data', (data: Buffer) => {
     // Append new data to buffer
     session.buffer = Buffer.concat([session.buffer, data]);
 
@@ -96,11 +96,11 @@ function createSession(): Session {
     }
   });
 
-  proc.stderr?.on("data", (data: Buffer) => {
+  proc.stderr?.on('data', (data: Buffer) => {
     log(`MCP stderr: ${data.toString()}`);
   });
 
-  proc.on("close", (code) => {
+  proc.on('close', (code) => {
     log(`MCP process exited with code ${code}`);
     sessions.delete(id);
 
@@ -110,7 +110,7 @@ function createSession(): Session {
     }
   });
 
-  proc.on("error", (err) => {
+  proc.on('error', (err) => {
     log(`MCP process error:`, err);
     sessions.delete(id);
   });
@@ -150,7 +150,7 @@ function sendToMcp(session: Session, message: unknown): Promise<unknown> {
       setTimeout(() => {
         if (session.pendingRequests.has(msg.id!)) {
           session.pendingRequests.delete(msg.id!);
-          reject(new Error("Request timeout"));
+          reject(new Error('Request timeout'));
         }
       }, 30000);
     }
@@ -169,12 +169,8 @@ function sendToMcp(session: Session, message: unknown): Promise<unknown> {
   });
 }
 
-async function handlePost(
-  req: IncomingMessage,
-  res: ServerResponse,
-  session: Session
-) {
-  let body = "";
+async function handlePost(req: IncomingMessage, res: ServerResponse, session: Session) {
+  let body = '';
   for await (const chunk of req) {
     body += chunk;
   }
@@ -183,7 +179,7 @@ async function handlePost(
     const message = JSON.parse(body);
     const msg = message as { id?: string | number; method?: string };
 
-    log(`Received: ${msg.method || "response"} ${msg.id ? `(id: ${msg.id})` : ""}`);
+    log(`Received: ${msg.method || 'response'} ${msg.id ? `(id: ${msg.id})` : ''}`);
 
     // Check if this is a notification or response (no response expected)
     if (msg.id === undefined || !msg.method) {
@@ -197,14 +193,14 @@ async function handlePost(
     const response = await sendToMcp(session, message);
 
     // Check Accept header for SSE preference
-    const accept = req.headers.accept || "";
-    if (accept.includes("text/event-stream")) {
+    const accept = req.headers.accept || '';
+    if (accept.includes('text/event-stream')) {
       // Respond with SSE stream
       res.writeHead(200, {
-        "Content-Type": "text/event-stream",
-        "Cache-Control": "no-cache",
-        Connection: "keep-alive",
-        "Mcp-Session-Id": session.id,
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        Connection: 'keep-alive',
+        'Mcp-Session-Id': session.id,
       });
 
       res.write(`data: ${JSON.stringify(response)}\n\n`);
@@ -212,17 +208,17 @@ async function handlePost(
     } else {
       // Respond with JSON
       res.writeHead(200, {
-        "Content-Type": "application/json",
-        "Mcp-Session-Id": session.id,
+        'Content-Type': 'application/json',
+        'Mcp-Session-Id': session.id,
       });
       res.end(JSON.stringify(response));
     }
   } catch (err) {
     log(`Error handling POST:`, err);
-    res.writeHead(500, { "Content-Type": "application/json" });
+    res.writeHead(500, { 'Content-Type': 'application/json' });
     res.end(
       JSON.stringify({
-        jsonrpc: "2.0",
+        jsonrpc: '2.0',
         error: { code: -32603, message: String(err) },
       })
     );
@@ -230,36 +226,32 @@ async function handlePost(
 }
 
 function handleGet(req: IncomingMessage, res: ServerResponse, session: Session) {
-  const accept = req.headers.accept || "";
+  const accept = req.headers.accept || '';
 
-  if (!accept.includes("text/event-stream")) {
+  if (!accept.includes('text/event-stream')) {
     res.writeHead(406);
-    res.end("SSE not accepted");
+    res.end('SSE not accepted');
     return;
   }
 
   log(`SSE client connected to session ${session.id}`);
 
   res.writeHead(200, {
-    "Content-Type": "text/event-stream",
-    "Cache-Control": "no-cache",
-    Connection: "keep-alive",
-    "Mcp-Session-Id": session.id,
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    Connection: 'keep-alive',
+    'Mcp-Session-Id': session.id,
   });
 
   session.sseClients.add(res);
 
-  req.on("close", () => {
+  req.on('close', () => {
     log(`SSE client disconnected from session ${session.id}`);
     session.sseClients.delete(res);
   });
 }
 
-function handleDelete(
-  req: IncomingMessage,
-  res: ServerResponse,
-  session: Session
-) {
+function handleDelete(req: IncomingMessage, res: ServerResponse, session: Session) {
   log(`Terminating session ${session.id}`);
 
   session.process.kill();
@@ -275,81 +267,81 @@ function handleDelete(
 
 const server = createServer(async (req, res) => {
   // CORS headers for cross-origin requests
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS");
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
   res.setHeader(
-    "Access-Control-Allow-Headers",
-    "Content-Type, Accept, Mcp-Session-Id, MCP-Protocol-Version"
+    'Access-Control-Allow-Headers',
+    'Content-Type, Accept, Mcp-Session-Id, MCP-Protocol-Version'
   );
-  res.setHeader("Access-Control-Expose-Headers", "Mcp-Session-Id");
+  res.setHeader('Access-Control-Expose-Headers', 'Mcp-Session-Id');
 
-  if (req.method === "OPTIONS") {
+  if (req.method === 'OPTIONS') {
     res.writeHead(204);
     res.end();
     return;
   }
 
   // Only handle /mcp endpoint
-  const url = new URL(req.url || "/", `http://${req.headers.host}`);
-  if (url.pathname !== "/mcp") {
+  const url = new URL(req.url || '/', `http://${req.headers.host}`);
+  if (url.pathname !== '/mcp') {
     res.writeHead(404);
-    res.end("Not found");
+    res.end('Not found');
     return;
   }
 
   // Get or create session
-  const sessionId = req.headers["mcp-session-id"] as string | undefined;
+  const sessionId = req.headers['mcp-session-id'] as string | undefined;
   let session: Session | undefined;
 
   if (sessionId) {
     session = sessions.get(sessionId);
     if (!session) {
       res.writeHead(404);
-      res.end("Session not found");
+      res.end('Session not found');
       return;
     }
   }
 
   // For initialization requests (no session), create new session
-  if (!session && req.method === "POST") {
+  if (!session && req.method === 'POST') {
     session = createSession();
   }
 
   if (!session) {
     res.writeHead(400);
-    res.end("Session required");
+    res.end('Session required');
     return;
   }
 
   switch (req.method) {
-    case "POST":
+    case 'POST':
       await handlePost(req, res, session);
       break;
-    case "GET":
+    case 'GET':
       handleGet(req, res, session);
       break;
-    case "DELETE":
+    case 'DELETE':
       handleDelete(req, res, session);
       break;
     default:
       res.writeHead(405);
-      res.end("Method not allowed");
+      res.end('Method not allowed');
   }
 });
 
 server.listen(PORT, HOST, () => {
   log(`MCP HTTP Bridge listening on http://${HOST}:${PORT}/mcp`);
-  log(`MCP command: ${MCP_COMMAND} ${MCP_ARGS.join(" ")}`);
-  log("");
-  log("To connect from Docker container, add to Claude Code MCP config:");
+  log(`MCP command: ${MCP_COMMAND} ${MCP_ARGS.join(' ')}`);
+  log('');
+  log('To connect from Docker container, add to Claude Code MCP config:');
   log(`  "chrome-bridge": {`);
   log(`    "url": "http://host.docker.internal:${PORT}/mcp"`);
   log(`  }`);
 });
 
 // Graceful shutdown
-process.on("SIGINT", () => {
-  log("Shutting down...");
+process.on('SIGINT', () => {
+  log('Shutting down...');
   for (const session of sessions.values()) {
     session.process.kill();
   }
@@ -357,8 +349,8 @@ process.on("SIGINT", () => {
   process.exit(0);
 });
 
-process.on("SIGTERM", () => {
-  log("Shutting down...");
+process.on('SIGTERM', () => {
+  log('Shutting down...');
   for (const session of sessions.values()) {
     session.process.kill();
   }

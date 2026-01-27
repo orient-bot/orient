@@ -1,7 +1,7 @@
-'use client'
+'use client';
 
-import { useState, useCallback } from 'react'
-import ModeIndicator from '../claude/ModeIndicator'
+import { useState, useCallback } from 'react';
+import ModeIndicator from '../claude/ModeIndicator';
 
 const agenda = [
   {
@@ -23,7 +23,7 @@ const agenda = [
         'Integrating AI into legacy systems without breaking everything',
         'Strategies for incremental AI adoption in enterprise environments',
       ],
-      speakers: 'Industry practitioners who\'ve done the hard work',
+      speakers: "Industry practitioners who've done the hard work",
     },
   },
   {
@@ -85,21 +85,21 @@ const agenda = [
     description: null,
     details: null,
   },
-]
+];
 
 export default function EventAgenda() {
-  const [expandedIndex, setExpandedIndex] = useState<number | null>(null)
-  const [pressedIndex, setPressedIndex] = useState<number | null>(null)
+  const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
+  const [pressedIndex, setPressedIndex] = useState<number | null>(null);
 
   const handleKeyPress = useCallback((index: number) => {
-    setPressedIndex(index)
-    setTimeout(() => setPressedIndex(null), 150)
+    setPressedIndex(index);
+    setTimeout(() => setPressedIndex(null), 150);
 
     // Toggle expand if has details
     if (agenda[index].details) {
-      setExpandedIndex(prev => prev === index ? null : index)
+      setExpandedIndex((prev) => (prev === index ? null : index));
     }
-  }, [])
+  }, []);
 
   return (
     <section className="py-12 px-4 bg-bg-secondary">
@@ -109,15 +109,13 @@ export default function EventAgenda() {
             <ModeIndicator mode="plan" />
           </div>
           <h2 className="text-3xl font-bold mb-2 text-text-primary">Agenda</h2>
-          <p className="text-text-secondary font-mono text-sm">
-            // event.schedule
-          </p>
+          <p className="text-text-secondary font-mono text-sm">// event.schedule</p>
         </div>
 
         <div className="space-y-3">
           {agenda.map((item, index) => {
-            const isExpanded = expandedIndex === index
-            const hasDetails = !!item.details
+            const isExpanded = expandedIndex === index;
+            const hasDetails = !!item.details;
 
             return (
               <div key={index}>
@@ -145,7 +143,9 @@ export default function EventAgenda() {
                       <h3 className="font-semibold text-text-primary">{item.title}</h3>
                       <span className="font-mono text-xs text-text-muted">{item.time}</span>
                       {hasDetails && (
-                        <span className={`text-text-muted text-xs transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}>
+                        <span
+                          className={`text-text-muted text-xs transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
+                        >
                           ▼
                         </span>
                       )}
@@ -176,14 +176,12 @@ export default function EventAgenda() {
                       ))}
                     </ul>
                     {item.details.speakers && (
-                      <p className="text-xs text-text-muted font-mono">
-                        {item.details.speakers}
-                      </p>
+                      <p className="text-xs text-text-muted font-mono">{item.details.speakers}</p>
                     )}
                   </div>
                 )}
               </div>
-            )
+            );
           })}
         </div>
 
@@ -192,5 +190,5 @@ export default function EventAgenda() {
         </p>
       </div>
     </section>
-  )
+  );
 }

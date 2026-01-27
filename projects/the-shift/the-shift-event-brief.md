@@ -1,19 +1,20 @@
 # השינוי / The Shift
+
 ## AI Builders Summit Israel
 
 ---
 
 ### Event Snapshot
 
-| | |
-|---|---|
-| **Event** | השינוי / The Shift - AI Builders Summit |
-| **Date** | [TBD] |
-| **Venue** | [TBD] |
-| **Attendees** | ~500 (invite-only) |
-| **Duration** | 2 hours |
-| **Language** | Hebrew |
-| **Recording** | None (exclusive, be there or miss it) |
+|               |                                         |
+| ------------- | --------------------------------------- |
+| **Event**     | השינוי / The Shift - AI Builders Summit |
+| **Date**      | [TBD]                                   |
+| **Venue**     | [TBD]                                   |
+| **Attendees** | ~500 (invite-only)                      |
+| **Duration**  | 2 hours                                 |
+| **Language**  | Hebrew                                  |
+| **Recording** | None (exclusive, be there or miss it)   |
 
 ---
 
@@ -30,6 +31,7 @@ This isn't another AI hype event. It's a raw, authentic showcase of what's actua
 ## The Who
 
 **500 carefully curated attendees:**
+
 - Venture Capitalists & Angel Investors
 - Founders & Entrepreneurs
 - Software Engineers & Architects
@@ -43,65 +45,76 @@ This isn't another AI hype event. It's a raw, authentic showcase of what's actua
 ## Evening Flow (2 hours)
 
 ### 🎤 Opening (10 min)
+
 Welcome & context setting. Why we're here tonight. Framing "The Shift."
 
 ---
 
 ### 🔧 Builders Summit Part 1: "The Burden Bearers" (15 min)
+
 **AI for Mature Codebases | 2 demos × 7 min**
 
 How are teams using AI to navigate complex, existing systems? Real war stories from production.
 
-*What we're looking for:*
+_What we're looking for:_
+
 - Integrating AI into legacy systems without breaking everything
 - Strategies for incremental AI adoption in enterprise environments
 
 ---
 
 ### ⚡ Builders Summit Part 2: "The Vibe Coders" (15 min)
+
 **Solo builders, AI-native products | 2 demos × 7 min**
 
 One person, AI tools, remarkable output. Products that would have taken teams now built by individuals.
 
-*What we're looking for:*
+_What we're looking for:_
+
 - How solo developers are shipping products that used to need teams
 - From idea to production in days, not months
 
 ---
 
 ### 🤖 Builders Summit Part 3: "Software 3.0" (15 min)
+
 **Agentic Applications | 2 demos × 7 min**
 
 When the AI isn't just helping write code - it IS the product. Autonomous agents as the core value proposition.
 
-*What we're looking for:*
+_What we're looking for:_
+
 - Building applications where AI agents make decisions
 - Safety, guardrails, and trust in agentic systems
 
 ---
 
 ### ☕ Networking Break (10 min)
-*Topic corners: AI-First Investing | Building with Agents | The Future of SaaS*
+
+_Topic corners: AI-First Investing | Building with Agents | The Future of SaaS_
 
 ---
 
 ### 💬 Panel: "The Great Rewrite" (30 min)
+
 **Hosted by Shaul Amsterdamsky (Kan 11)**
 
 An honest conversation about what The Shift means - for developers, for companies, for Israel's tech ecosystem.
 
 **Panelists:** Mix of investors, tech executives, and builder/influencer voices.
-*(Names TBD)*
+_(Names TBD)_
 
 **Discussion threads:**
+
 1. **The Role Question** - What happens to developers? Augmented or replaced?
 2. **What skills matter in the AI era?**
 
-*Tone: Balanced. We don't shy away from hard questions, but we focus on what can be built.*
+_Tone: Balanced. We don't shy away from hard questions, but we focus on what can be built._
 
 ---
 
 ### 🥂 Closing & Open Networking (15 min)
+
 Quick wrap-up. Networking with drinks.
 
 ---
@@ -111,6 +124,7 @@ Quick wrap-up. Networking with drinks.
 **Submissions:** Via online form (link TBD)
 
 **Selection criteria:**
+
 - Real, working product (not concepts)
 - Clear demonstration of AI's role in development
 - Compelling story or insight to share
@@ -118,23 +132,25 @@ Quick wrap-up. Networking with drinks.
 
 **Categories:**
 
-| Category | Looking For |
-|----------|-------------|
+| Category       | Looking For                               |
+| -------------- | ----------------------------------------- |
 | Burden Bearers | AI applied to existing, complex codebases |
-| Vibe Coders | Solo/small team, AI-native builds |
-| Software 3.0 | Agentic applications in production |
+| Vibe Coders    | Solo/small team, AI-native builds         |
+| Software 3.0   | Agentic applications in production        |
 
 ---
 
 ## Branding Direction
 
 ### Visual Identity
+
 - **Minimal, bold typography**
 - **Dark mode aesthetic** - tech-forward, evening event
 - **Accent:** Electric blue gradient
 - **Key visual:** Abstract "shift" / transformation imagery
 
 ### Tagline Options
+
 - "כשהקוד כותב את עצמו" / When Code Writes Itself
 - "העתיד כבר נבנה" / The Future is Already Being Built
 - "ישראל בונה אחרת" / Israel Builds Different
@@ -172,6 +188,7 @@ Quick wrap-up. Networking with drinks.
 **The Shift (השינוי)** is a 2-hour, invite-only evening for 500 of Israel's tech leaders to understand the AI transformation in software development.
 
 **Format:**
+
 - 6 live demos from builders (7 min each, 2 per category)
 - Expert panel moderated by Shaul Amsterdamsky
 - Networking break with topic corners

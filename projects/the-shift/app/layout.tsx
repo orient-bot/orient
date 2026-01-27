@@ -1,21 +1,17 @@
-import type { Metadata } from 'next'
-import './globals.css'
+import type { Metadata } from 'next';
+import './globals.css';
 
 export const metadata: Metadata = {
   title: 'The Shift | AI Builders Summit 2026',
-  description: 'Press Shift to change everything. An exclusive event for Israel\'s tech leaders.',
+  description: "Press Shift to change everything. An exclusive event for Israel's tech leaders.",
   openGraph: {
     title: 'The Shift | AI Builders Summit 2026',
-    description: 'Press Shift to change everything. An exclusive event for Israel\'s tech leaders.',
+    description: "Press Shift to change everything. An exclusive event for Israel's tech leaders.",
     type: 'website',
   },
-}
+};
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
@@ -40,5 +36,5 @@ export default function RootLayout({
         {children}
       </body>
     </html>
-  )
+  );
 }

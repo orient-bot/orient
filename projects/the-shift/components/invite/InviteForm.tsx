@@ -1,17 +1,17 @@
-'use client'
+'use client';
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback } from 'react';
 
 interface InviteFormProps {
-  kolCode?: string
+  kolCode?: string;
 }
 
 interface FormData {
-  name: string
-  email: string
-  company: string
-  linkedin: string
-  twitter: string
+  name: string;
+  email: string;
+  company: string;
+  linkedin: string;
+  twitter: string;
 }
 
 export default function InviteForm({ kolCode }: InviteFormProps) {
@@ -21,44 +21,44 @@ export default function InviteForm({ kolCode }: InviteFormProps) {
     company: '',
     linkedin: '',
     twitter: '',
-  })
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error'>('idle')
-  const [errorMessage, setErrorMessage] = useState('')
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const [errorMessage, setErrorMessage] = useState('');
 
   const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target
-    setFormData((prev) => ({ ...prev, [name]: value }))
-  }, [])
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsSubmitting(true)
-    setSubmitStatus('idle')
-    setErrorMessage('')
+    e.preventDefault();
+    setIsSubmitting(true);
+    setSubmitStatus('idle');
+    setErrorMessage('');
 
     try {
       const response = await fetch('/api/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...formData, kolCode }),
-      })
+      });
 
-      const data = await response.json()
+      const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Something went wrong')
+        throw new Error(data.error || 'Something went wrong');
       }
 
-      setSubmitStatus('success')
-      setFormData({ name: '', email: '', company: '', linkedin: '', twitter: '' })
+      setSubmitStatus('success');
+      setFormData({ name: '', email: '', company: '', linkedin: '', twitter: '' });
     } catch (error) {
-      setSubmitStatus('error')
-      setErrorMessage(error instanceof Error ? error.message : 'Something went wrong')
+      setSubmitStatus('error');
+      setErrorMessage(error instanceof Error ? error.message : 'Something went wrong');
     } finally {
-      setIsSubmitting(false)
+      setIsSubmitting(false);
     }
-  }
+  };
 
   if (submitStatus === 'success') {
     return (
@@ -67,11 +67,9 @@ export default function InviteForm({ kolCode }: InviteFormProps) {
           ✓
         </div>
         <h3 className="text-xl font-bold mb-2 text-text-primary">Application received</h3>
-        <p className="text-text-secondary text-sm font-mono">
-          // we&apos;ll be in touch
-        </p>
+        <p className="text-text-secondary text-sm font-mono">// we&apos;ll be in touch</p>
       </div>
-    )
+    );
   }
 
   return (
@@ -83,7 +81,10 @@ export default function InviteForm({ kolCode }: InviteFormProps) {
       )}
 
       <div>
-        <label htmlFor="name" className="block text-xs font-mono text-text-muted uppercase tracking-wider mb-2">
+        <label
+          htmlFor="name"
+          className="block text-xs font-mono text-text-muted uppercase tracking-wider mb-2"
+        >
           Name <span className="text-red-500">*</span>
         </label>
         <input
@@ -99,7 +100,10 @@ export default function InviteForm({ kolCode }: InviteFormProps) {
       </div>
 
       <div>
-        <label htmlFor="email" className="block text-xs font-mono text-text-muted uppercase tracking-wider mb-2">
+        <label
+          htmlFor="email"
+          className="block text-xs font-mono text-text-muted uppercase tracking-wider mb-2"
+        >
           Email <span className="text-red-500">*</span>
         </label>
         <input
@@ -115,7 +119,10 @@ export default function InviteForm({ kolCode }: InviteFormProps) {
       </div>
 
       <div>
-        <label htmlFor="company" className="block text-xs font-mono text-text-muted uppercase tracking-wider mb-2">
+        <label
+          htmlFor="company"
+          className="block text-xs font-mono text-text-muted uppercase tracking-wider mb-2"
+        >
           Company
         </label>
         <input
@@ -131,7 +138,10 @@ export default function InviteForm({ kolCode }: InviteFormProps) {
 
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label htmlFor="linkedin" className="block text-xs font-mono text-text-muted uppercase tracking-wider mb-2">
+          <label
+            htmlFor="linkedin"
+            className="block text-xs font-mono text-text-muted uppercase tracking-wider mb-2"
+          >
             LinkedIn
           </label>
           <input
@@ -146,7 +156,10 @@ export default function InviteForm({ kolCode }: InviteFormProps) {
         </div>
 
         <div>
-          <label htmlFor="twitter" className="block text-xs font-mono text-text-muted uppercase tracking-wider mb-2">
+          <label
+            htmlFor="twitter"
+            className="block text-xs font-mono text-text-muted uppercase tracking-wider mb-2"
+          >
             X / Twitter
           </label>
           <input
@@ -161,17 +174,11 @@ export default function InviteForm({ kolCode }: InviteFormProps) {
         </div>
       </div>
 
-      <button
-        type="submit"
-        disabled={isSubmitting}
-        className="btn-key w-full mt-2"
-      >
+      <button type="submit" disabled={isSubmitting} className="btn-key w-full mt-2">
         {isSubmitting ? 'Submitting...' : 'Submit Application'}
       </button>
 
-      <p className="text-center text-text-muted text-xs font-mono">
-        // spots are limited
-      </p>
+      <p className="text-center text-text-muted text-xs font-mono">// spots are limited</p>
     </form>
-  )
+  );
 }

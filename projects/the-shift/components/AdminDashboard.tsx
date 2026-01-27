@@ -1,87 +1,97 @@
-'use client'
+'use client';
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react';
 
 interface Registration {
-  id: string
-  name: string
-  email: string
-  company?: string
-  linkedin?: string
-  twitter?: string
-  kolCode?: string
-  createdAt: string
+  id: string;
+  name: string;
+  email: string;
+  company?: string;
+  linkedin?: string;
+  twitter?: string;
+  kolCode?: string;
+  createdAt: string;
 }
 
 interface Stats {
-  total: number
-  byKol: Record<string, number>
-  registrations: Registration[]
+  total: number;
+  byKol: Record<string, number>;
+  registrations: Registration[];
 }
 
 export default function AdminDashboard() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false)
-  const [password, setPassword] = useState('')
-  const [stats, setStats] = useState<Stats | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
-  const [selectedKol, setSelectedKol] = useState<string>('all')
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [password, setPassword] = useState('');
+  const [stats, setStats] = useState<Stats | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [selectedKol, setSelectedKol] = useState<string>('all');
 
   const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoading(true)
-    setError('')
+    e.preventDefault();
+    setLoading(true);
+    setError('');
 
     try {
       const response = await fetch('/api/stats', {
         headers: {
-          'Authorization': `Bearer ${password}`,
+          Authorization: `Bearer ${password}`,
         },
-      })
+      });
 
       if (!response.ok) {
-        throw new Error('סיסמה שגויה')
+        throw new Error('סיסמה שגויה');
       }
 
-      const data = await response.json()
-      setStats(data)
-      setIsAuthenticated(true)
+      const data = await response.json();
+      setStats(data);
+      setIsAuthenticated(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'שגיאה')
+      setError(err instanceof Error ? err.message : 'שגיאה');
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const refreshStats = async () => {
-    if (!password) return
-    setLoading(true)
+    if (!password) return;
+    setLoading(true);
 
     try {
       const response = await fetch('/api/stats', {
         headers: {
-          'Authorization': `Bearer ${password}`,
+          Authorization: `Bearer ${password}`,
         },
-      })
+      });
 
       if (response.ok) {
-        const data = await response.json()
-        setStats(data)
+        const data = await response.json();
+        setStats(data);
       }
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const exportCSV = () => {
-    if (!stats) return
+    if (!stats) return;
 
-    const headers = ['ID', 'Name', 'Email', 'Company', 'LinkedIn', 'Twitter', 'KOL Code', 'Created At']
-    const filteredRegistrations = selectedKol === 'all'
-      ? stats.registrations
-      : stats.registrations.filter(r => (r.kolCode || 'direct') === selectedKol)
+    const headers = [
+      'ID',
+      'Name',
+      'Email',
+      'Company',
+      'LinkedIn',
+      'Twitter',
+      'KOL Code',
+      'Created At',
+    ];
+    const filteredRegistrations =
+      selectedKol === 'all'
+        ? stats.registrations
+        : stats.registrations.filter((r) => (r.kolCode || 'direct') === selectedKol);
 
-    const rows = filteredRegistrations.map(r => [
+    const rows = filteredRegistrations.map((r) => [
       r.id,
       r.name,
       r.email,
@@ -90,19 +100,19 @@ export default function AdminDashboard() {
       r.twitter || '',
       r.kolCode || 'direct',
       r.createdAt,
-    ])
+    ]);
 
     const csvContent = [
       headers.join(','),
-      ...rows.map(row => row.map(cell => `"${cell}"`).join(',')),
-    ].join('\n')
+      ...rows.map((row) => row.map((cell) => `"${cell}"`).join(',')),
+    ].join('\n');
 
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-    const link = document.createElement('a')
-    link.href = URL.createObjectURL(blob)
-    link.download = `the-shift-registrations-${new Date().toISOString().split('T')[0]}.csv`
-    link.click()
-  }
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `the-shift-registrations-${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+  };
 
   if (!isAuthenticated) {
     return (
@@ -138,12 +148,13 @@ export default function AdminDashboard() {
           </form>
         </div>
       </div>
-    )
+    );
   }
 
-  const filteredRegistrations = stats && selectedKol === 'all'
-    ? stats.registrations
-    : stats?.registrations.filter(r => (r.kolCode || 'direct') === selectedKol) || []
+  const filteredRegistrations =
+    stats && selectedKol === 'all'
+      ? stats.registrations
+      : stats?.registrations.filter((r) => (r.kolCode || 'direct') === selectedKol) || [];
 
   return (
     <div className="min-h-screen p-4 md:p-8">
@@ -175,7 +186,9 @@ export default function AdminDashboard() {
           </div>
           <div className="bg-surface/50 backdrop-blur-sm border border-white/5 rounded-2xl p-6">
             <p className="text-text-secondary text-sm mb-1">KOL פעילים</p>
-            <p className="text-4xl font-bold text-accent">{Object.keys(stats?.byKol || {}).filter(k => k !== 'direct').length}</p>
+            <p className="text-4xl font-bold text-accent">
+              {Object.keys(stats?.byKol || {}).filter((k) => k !== 'direct').length}
+            </p>
           </div>
           <div className="bg-surface/50 backdrop-blur-sm border border-white/5 rounded-2xl p-6">
             <p className="text-text-secondary text-sm mb-1">הרשמות ישירות</p>
@@ -224,11 +237,21 @@ export default function AdminDashboard() {
             <table className="w-full">
               <thead>
                 <tr className="bg-background/50">
-                  <th className="text-right px-6 py-3 text-text-secondary text-sm font-medium">שם</th>
-                  <th className="text-right px-6 py-3 text-text-secondary text-sm font-medium">אימייל</th>
-                  <th className="text-right px-6 py-3 text-text-secondary text-sm font-medium">חברה</th>
-                  <th className="text-right px-6 py-3 text-text-secondary text-sm font-medium">KOL</th>
-                  <th className="text-right px-6 py-3 text-text-secondary text-sm font-medium">תאריך</th>
+                  <th className="text-right px-6 py-3 text-text-secondary text-sm font-medium">
+                    שם
+                  </th>
+                  <th className="text-right px-6 py-3 text-text-secondary text-sm font-medium">
+                    אימייל
+                  </th>
+                  <th className="text-right px-6 py-3 text-text-secondary text-sm font-medium">
+                    חברה
+                  </th>
+                  <th className="text-right px-6 py-3 text-text-secondary text-sm font-medium">
+                    KOL
+                  </th>
+                  <th className="text-right px-6 py-3 text-text-secondary text-sm font-medium">
+                    תאריך
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -242,14 +265,18 @@ export default function AdminDashboard() {
                   filteredRegistrations.map((reg) => (
                     <tr key={reg.id} className="border-t border-white/5 hover:bg-background/30">
                       <td className="px-6 py-4">{reg.name}</td>
-                      <td className="px-6 py-4 text-text-secondary" dir="ltr">{reg.email}</td>
+                      <td className="px-6 py-4 text-text-secondary" dir="ltr">
+                        {reg.email}
+                      </td>
                       <td className="px-6 py-4 text-text-secondary">{reg.company || '-'}</td>
                       <td className="px-6 py-4">
-                        <span className={`px-2 py-1 rounded text-sm ${
-                          reg.kolCode
-                            ? 'bg-electric-blue/20 text-electric-blue'
-                            : 'bg-white/5 text-text-secondary'
-                        }`}>
+                        <span
+                          className={`px-2 py-1 rounded text-sm ${
+                            reg.kolCode
+                              ? 'bg-electric-blue/20 text-electric-blue'
+                              : 'bg-white/5 text-text-secondary'
+                          }`}
+                        >
                           {reg.kolCode || 'direct'}
                         </span>
                       </td>
@@ -265,5 +292,5 @@ export default function AdminDashboard() {
         </div>
       </div>
     </div>
-  )
+  );
 }

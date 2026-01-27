@@ -1,21 +1,21 @@
-import Header from '@/components/keyboard/Header'
-import InviteHero from '@/components/invite/InviteHero'
-import InviteForm from '@/components/invite/InviteForm'
+import Header from '@/components/keyboard/Header';
+import InviteHero from '@/components/invite/InviteHero';
+import InviteForm from '@/components/invite/InviteForm';
 
 const kolNames: Record<string, string> = {
   shaul: 'Shaul',
   tom: 'Tom',
   ori: 'Ori',
   yonatan: 'Yonatan',
-}
+};
 
 interface PageProps {
-  params: Promise<{ code: string }>
+  params: Promise<{ code: string }>;
 }
 
 export default async function KolInvitePage({ params }: PageProps) {
-  const { code } = await params
-  const kolName = kolNames[code.toLowerCase()]
+  const { code } = await params;
+  const kolName = kolNames[code.toLowerCase()];
 
   return (
     <>
@@ -27,17 +27,15 @@ export default async function KolInvitePage({ params }: PageProps) {
         </div>
       </main>
     </>
-  )
+  );
 }
 
 export async function generateMetadata({ params }: PageProps) {
-  const { code } = await params
-  const kolName = kolNames[code.toLowerCase()]
+  const { code } = await params;
+  const kolName = kolNames[code.toLowerCase()];
 
   return {
-    title: kolName
-      ? `Invited by ${kolName} | The Shift`
-      : 'The Shift | AI Builders Summit 2026',
+    title: kolName ? `Invited by ${kolName} | The Shift` : 'The Shift | AI Builders Summit 2026',
     description: 'Press Shift to change everything. Apply to attend.',
-  }
+  };
 }

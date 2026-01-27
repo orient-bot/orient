@@ -1,4 +1,4 @@
-'use client'
+'use client';
 
 export default function Footer() {
   return (
@@ -9,10 +9,8 @@ export default function Footer() {
           <span>built with vibes and AI</span>
           <span className="cursor-blink">▋</span>
         </p>
-        <p className="font-mono text-xs text-text-muted mt-2">
-          ⇧ the-shift.dev
-        </p>
+        <p className="font-mono text-xs text-text-muted mt-2">⇧ the-shift.dev</p>
       </div>
     </footer>
-  )
+  );
 }

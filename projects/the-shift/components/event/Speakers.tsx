@@ -1,8 +1,8 @@
-'use client'
+'use client';
 
-import { useState, useCallback, useEffect, useRef } from 'react'
-import Image from 'next/image'
-import ModeIndicator from '../claude/ModeIndicator'
+import { useState, useCallback, useEffect, useRef } from 'react';
+import Image from 'next/image';
+import ModeIndicator from '../claude/ModeIndicator';
 
 const speakers = [
   {
@@ -104,40 +104,39 @@ const speakers = [
     imageUrl: '/speakers/tal-barmeir.jpg',
     isLinkedIn: true,
   },
-]
-
+];
 
 export default function Speakers() {
-  const [pressedKey, setPressedKey] = useState<string | null>(null)
-  const [highlightIndex, setHighlightIndex] = useState<number>(0)
-  const isPaused = useRef(false)
+  const [pressedKey, setPressedKey] = useState<string | null>(null);
+  const [highlightIndex, setHighlightIndex] = useState<number>(0);
+  const isPaused = useRef(false);
 
   useEffect(() => {
     const interval = setInterval(() => {
       if (!isPaused.current) {
         setHighlightIndex((prev) => {
-          let next: number
+          let next: number;
           do {
-            next = Math.floor(Math.random() * speakers.length)
-          } while (next === prev)
-          return next
-        })
+            next = Math.floor(Math.random() * speakers.length);
+          } while (next === prev);
+          return next;
+        });
       }
-    }, 3500)
-    return () => clearInterval(interval)
-  }, [])
+    }, 3500);
+    return () => clearInterval(interval);
+  }, []);
 
   const handleKeyPress = useCallback((key: string, url: string) => {
-    setPressedKey(key)
-    isPaused.current = true
+    setPressedKey(key);
+    isPaused.current = true;
     setTimeout(() => {
-      setPressedKey(null)
-      window.open(url, '_blank')
+      setPressedKey(null);
+      window.open(url, '_blank');
       setTimeout(() => {
-        isPaused.current = false
-      }, 1000)
-    }, 200)
-  }, [])
+        isPaused.current = false;
+      }, 1000);
+    }, 200);
+  }, []);
 
   return (
     <section className="py-12 px-4">
@@ -147,9 +146,7 @@ export default function Speakers() {
             <ModeIndicator mode="ask" />
           </div>
           <h2 className="text-3xl font-bold mb-2 text-text-primary">Speakers</h2>
-          <p className="text-text-secondary font-mono text-sm">
-            // speakers.featured
-          </p>
+          <p className="text-text-secondary font-mono text-sm">// speakers.featured</p>
         </div>
 
         <div className="keyboard-container">
@@ -186,22 +183,19 @@ export default function Speakers() {
                     />
                   ) : (
                     <span className="text-2xl font-bold font-mono text-text-primary">
-                      {speaker.name.split(' ').map(n => n[0]).join('')}
+                      {speaker.name
+                        .split(' ')
+                        .map((n) => n[0])
+                        .join('')}
                     </span>
                   )}
                 </div>
 
-                <h3 className="font-semibold text-text-primary mb-1 text-sm">
-                  {speaker.name}
-                </h3>
+                <h3 className="font-semibold text-text-primary mb-1 text-sm">{speaker.name}</h3>
 
-                <p className="font-mono text-xs text-text-muted mb-1">
-                  {speaker.handle}
-                </p>
+                <p className="font-mono text-xs text-text-muted mb-1">{speaker.handle}</p>
 
-                <p className="text-xs text-text-secondary">
-                  {speaker.role}
-                </p>
+                <p className="text-xs text-text-secondary">{speaker.role}</p>
 
                 {/* Host badge */}
                 {'isHost' in speaker && speaker.isHost && (
@@ -213,11 +207,19 @@ export default function Speakers() {
                 {/* Social icon on hover */}
                 <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
                   {'isLinkedIn' in speaker && speaker.isLinkedIn ? (
-                    <svg className="w-4 h-4 text-text-muted" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+                    <svg
+                      className="w-4 h-4 text-text-muted"
+                      viewBox="0 0 24 24"
+                      fill="currentColor"
+                    >
+                      <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
                     </svg>
                   ) : (
-                    <svg className="w-4 h-4 text-text-muted" viewBox="0 0 24 24" fill="currentColor">
+                    <svg
+                      className="w-4 h-4 text-text-muted"
+                      viewBox="0 0 24 24"
+                      fill="currentColor"
+                    >
                       <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
                     </svg>
                   )}
@@ -232,5 +234,5 @@ export default function Speakers() {
         </p>
       </div>
     </section>
-  )
+  );
 }

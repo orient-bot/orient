@@ -1,10 +1,10 @@
-'use client'
+'use client';
 
-import Link from 'next/link'
-import ShiftKey from '../keyboard/ShiftKey'
+import Link from 'next/link';
+import ShiftKey from '../keyboard/ShiftKey';
 
 interface InviteHeroProps {
-  kolName?: string
+  kolName?: string;
 }
 
 export default function InviteHero({ kolName }: InviteHeroProps) {
@@ -22,19 +22,11 @@ export default function InviteHero({ kolName }: InviteHeroProps) {
         <ShiftKey size="lg" />
       </div>
 
-      <h1 className="text-2xl font-bold mb-2 text-text-primary">
-        Apply to attend
-      </h1>
+      <h1 className="text-2xl font-bold mb-2 text-text-primary">Apply to attend</h1>
 
-      <p className="text-text-secondary text-sm mb-2">
-        AI Builders Summit 2026 | Tel Aviv
-      </p>
+      <p className="text-text-secondary text-sm mb-2">AI Builders Summit 2026 | Tel Aviv</p>
 
-      {kolName && (
-        <p className="text-text-muted text-sm font-mono">
-          // invited by {kolName}
-        </p>
-      )}
+      {kolName && <p className="text-text-muted text-sm font-mono">// invited by {kolName}</p>}
     </div>
-  )
+  );
 }

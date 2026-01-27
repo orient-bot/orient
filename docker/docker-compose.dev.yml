@@ -83,7 +83,7 @@ services:
       - GOOGLE_OAUTH_CLIENT_SECRET
 
     extra_hosts:
-      - "host.docker.internal:host-gateway"
+      - 'host.docker.internal:host-gateway'
 
     # Use bridge network (can reach host via host.docker.internal)
     network_mode: bridge

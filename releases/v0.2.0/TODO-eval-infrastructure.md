@@ -24,7 +24,7 @@
    - `data/seeds/sample-prompts.ts` - Fixed imports to use @orientbot/database
 
 3. **Eval File Fixes**
-   - `evals/tool-selection/whatsapp-group-messages.yaml` - Fixed tool names (ai*first_whatsapp*_ -> whatsapp\__)
+   - `evals/tool-selection/whatsapp-group-messages.yaml` - Fixed tool names (ai*first_whatsapp*\_ -> whatsapp\_\_)
 
 4. **OpenCode Config** (in ~/.orient/orient/opencode.json)
    - Added agents: ori, communicator, scheduler, explorer
