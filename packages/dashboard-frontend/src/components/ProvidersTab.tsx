@@ -35,12 +35,19 @@ const PROVIDERS: ProviderDefinition[] = [
     description: 'Gemini Nano Banana for fast image generation.',
     capabilities: ['Image generation'],
   },
+  {
+    id: 'opencode_zen',
+    name: 'OpenCode Zen',
+    description: 'AI agent chat backend for conversational processing.',
+    capabilities: ['Agent chat'],
+  },
 ];
 
 const DEFAULTS_FALLBACK: ProviderDefaults = {
   transcription: 'openai',
   vision: 'anthropic',
   imageGeneration: 'openai',
+  agentChat: 'opencode_zen',
 };
 
 export default function ProvidersTab() {
@@ -54,6 +61,7 @@ export default function ProvidersTab() {
     openai: '',
     anthropic: '',
     google: '',
+    opencode_zen: '',
   });
 
   const providerStatusMap = useMemo(() => {
@@ -84,10 +92,11 @@ export default function ProvidersTab() {
     loadData();
   }, [loadData]);
 
-  const handleKeyChange = (providerId: ProviderId) => (event: React.ChangeEvent<HTMLInputElement>) => {
-    const value = event.target.value;
-    setKeyInputs((prev) => ({ ...prev, [providerId]: value }));
-  };
+  const handleKeyChange =
+    (providerId: ProviderId) => (event: React.ChangeEvent<HTMLInputElement>) => {
+      const value = event.target.value;
+      setKeyInputs((prev) => ({ ...prev, [providerId]: value }));
+    };
 
   const handleSaveKey = async (providerId: ProviderId) => {
     const value = keyInputs[providerId].trim();
@@ -109,10 +118,11 @@ export default function ProvidersTab() {
     }
   };
 
-  const handleDefaultsChange = (field: keyof ProviderDefaults) => (event: React.ChangeEvent<HTMLSelectElement>) => {
-    const value = event.target.value as ProviderId;
-    setDefaults((prev) => ({ ...prev, [field]: value }));
-  };
+  const handleDefaultsChange =
+    (field: keyof ProviderDefaults) => (event: React.ChangeEvent<HTMLSelectElement>) => {
+      const value = event.target.value as ProviderId;
+      setDefaults((prev) => ({ ...prev, [field]: value }));
+    };
 
   const handleSaveDefaults = async () => {
     setSavingDefaults(true);
@@ -144,7 +154,7 @@ export default function ProvidersTab() {
         </p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-4">
         {PROVIDERS.map((provider) => {
           const status = providerStatusMap.get(provider.id);
           const configured = status?.configured ?? false;
@@ -167,7 +177,9 @@ export default function ProvidersTab() {
               </div>
 
               <div className="mt-4">
-                <label className="text-[11px] font-medium text-muted-foreground uppercase">API Key</label>
+                <label className="text-[11px] font-medium text-muted-foreground uppercase">
+                  API Key
+                </label>
                 <input
                   type="password"
                   className="mt-2 h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:ring-1 focus-visible:ring-ring font-mono"
@@ -186,7 +198,9 @@ export default function ProvidersTab() {
               </div>
 
               <div className="mt-4 border-t border-border pt-4">
-                <p className="text-[11px] font-medium text-muted-foreground uppercase">Capabilities</p>
+                <p className="text-[11px] font-medium text-muted-foreground uppercase">
+                  Capabilities
+                </p>
                 <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
                   {provider.capabilities.map((capability) => (
                     <li key={capability}>• {capability}</li>
@@ -211,9 +225,11 @@ export default function ProvidersTab() {
           </p>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-4">
           <div>
-            <label className="text-[11px] font-medium text-muted-foreground uppercase">Audio Transcription</label>
+            <label className="text-[11px] font-medium text-muted-foreground uppercase">
+              Audio Transcription
+            </label>
             <select
               className="mt-2 h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:ring-1 focus-visible:ring-ring"
               value={defaults.transcription}
@@ -223,7 +239,9 @@ export default function ProvidersTab() {
             </select>
           </div>
           <div>
-            <label className="text-[11px] font-medium text-muted-foreground uppercase">Image Analysis</label>
+            <label className="text-[11px] font-medium text-muted-foreground uppercase">
+              Image Analysis
+            </label>
             <select
               className="mt-2 h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:ring-1 focus-visible:ring-ring"
               value={defaults.vision}
@@ -234,7 +252,9 @@ export default function ProvidersTab() {
             </select>
           </div>
           <div>
-            <label className="text-[11px] font-medium text-muted-foreground uppercase">Image Generation</label>
+            <label className="text-[11px] font-medium text-muted-foreground uppercase">
+              Image Generation
+            </label>
             <select
               className="mt-2 h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:ring-1 focus-visible:ring-ring"
               value={defaults.imageGeneration}
@@ -242,6 +262,18 @@ export default function ProvidersTab() {
             >
               <option value="openai">OpenAI</option>
               <option value="google">Google Gemini</option>
+            </select>
+          </div>
+          <div>
+            <label className="text-[11px] font-medium text-muted-foreground uppercase">
+              Agent Chat
+            </label>
+            <select
+              className="mt-2 h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:ring-1 focus-visible:ring-ring"
+              value={defaults.agentChat}
+              onChange={handleDefaultsChange('agentChat')}
+            >
+              <option value="opencode_zen">OpenCode Zen</option>
             </select>
           </div>
         </div>

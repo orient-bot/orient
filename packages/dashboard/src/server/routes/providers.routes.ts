@@ -10,23 +10,26 @@ import { createSecretsService } from '@orientbot/database-services';
 
 const logger = createServiceLogger('providers-routes');
 
-type ProviderId = 'openai' | 'anthropic' | 'google';
+type ProviderId = 'openai' | 'anthropic' | 'google' | 'opencode_zen';
 type ProviderDefaults = {
   transcription: ProviderId;
   vision: ProviderId;
   imageGeneration: ProviderId;
+  agentChat: ProviderId;
 };
 
 const PROVIDER_SECRETS: Record<ProviderId, string> = {
   openai: 'OPENAI_API_KEY',
   anthropic: 'ANTHROPIC_API_KEY',
   google: 'GOOGLE_GEMINI_API_KEY',
+  opencode_zen: 'OPENCODE_ZEN_API_KEY',
 };
 
 const PROVIDER_DESCRIPTIONS: Record<ProviderId, string> = {
   openai: 'OpenAI API key for transcription, vision, and image generation',
   anthropic: 'Anthropic API key for vision models',
   google: 'Google Gemini API key for image generation',
+  opencode_zen: 'OpenCode Zen API key for agent chat',
 };
 
 const DEFAULTS_SECRET_KEY = 'AI_PROVIDER_DEFAULTS';
@@ -34,16 +37,20 @@ const DEFAULTS_FALLBACK: ProviderDefaults = {
   transcription: 'openai',
   vision: 'anthropic',
   imageGeneration: 'openai',
+  agentChat: 'opencode_zen',
 };
 
 const VALID_DEFAULTS: Record<keyof ProviderDefaults, ProviderId[]> = {
   transcription: ['openai'],
   vision: ['anthropic', 'openai'],
   imageGeneration: ['openai', 'google'],
+  agentChat: ['opencode_zen'],
 };
 
 function isProviderId(value: string): value is ProviderId {
-  return value === 'openai' || value === 'anthropic' || value === 'google';
+  return (
+    value === 'openai' || value === 'anthropic' || value === 'google' || value === 'opencode_zen'
+  );
 }
 
 function normalizeDefaults(input?: Partial<ProviderDefaults>): ProviderDefaults {
@@ -57,6 +64,9 @@ function normalizeDefaults(input?: Partial<ProviderDefaults>): ProviderDefaults 
     imageGeneration: VALID_DEFAULTS.imageGeneration.includes(input?.imageGeneration as ProviderId)
       ? (input?.imageGeneration as ProviderId)
       : DEFAULTS_FALLBACK.imageGeneration,
+    agentChat: VALID_DEFAULTS.agentChat.includes(input?.agentChat as ProviderId)
+      ? (input?.agentChat as ProviderId)
+      : DEFAULTS_FALLBACK.agentChat,
   };
 }
 
@@ -79,7 +89,9 @@ export function createProvidersRoutes(
               ? 'OpenAI'
               : providerId === 'anthropic'
                 ? 'Anthropic'
-                : 'Google Gemini',
+                : providerId === 'google'
+                  ? 'Google Gemini'
+                  : 'OpenCode Zen',
           configured: Boolean(secret),
           updatedAt: secret?.updatedAt ?? null,
         };
