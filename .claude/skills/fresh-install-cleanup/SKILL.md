@@ -25,7 +25,7 @@ pnpm run build:packages
 
 - `tsc` runs without error but produces no output
 - Turbo shows "cache hit" but dist/ folders are empty
-- Turbo warns: "no output files found for task @orient/mcp-tools#build"
+- Turbo warns: "no output files found for task @orientbot/mcp-tools#build"
 - Build completes "successfully" but dependent packages fail with TS2307
 
 **Cause**: TypeScript's `.tsbuildinfo` files store incremental compilation state. When stale, tsc believes everything is up-to-date and skips compilation entirely - even when dist/ is empty.
@@ -107,7 +107,7 @@ rm -rf ../orient-fresh-*
 
 ### 6. Module Resolution Errors (TS2307)
 
-**Symptom**: Build fails with `error TS2307: Cannot find module '@orient/mcp-tools'` or similar.
+**Symptom**: Build fails with `error TS2307: Cannot find module '@orientbot/mcp-tools'` or similar.
 
 **Cause**: Turbo's dependency graph wasn't respected because:
 
@@ -204,7 +204,7 @@ cd docker
 docker compose --env-file ../.env -f docker-compose.v2.yml -f docker-compose.local.yml --profile slack up -d --no-build
 ```
 
-### 8. Port Conflicts (9000, 5432, 80)
+### 8. Port Conflicts (9000, 80)
 
 **Symptom**: `Bind for 0.0.0.0:9000 failed: port is already allocated`
 
@@ -213,8 +213,8 @@ docker compose --env-file ../.env -f docker-compose.v2.yml -f docker-compose.loc
 **Fix**: Stop dev containers first:
 
 ```bash
-docker stop orienter-nginx-0 orienter-postgres-0 orienter-minio-0
-docker rm orienter-nginx-0 orienter-postgres-0 orienter-minio-0
+docker stop orienter-nginx-0 orienter-minio-0
+docker rm orienter-nginx-0 orienter-minio-0
 ```
 
 Then start test containers:

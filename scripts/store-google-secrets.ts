@@ -8,7 +8,7 @@
  * Usage: tsx scripts/store-google-secrets.ts
  */
 
-import { SecretsService } from '@orient/database-services';
+import { SecretsService } from '@orientbot/database-services';
 import dotenv from 'dotenv';
 
 // Load .env file

@@ -9,8 +9,11 @@
 #   This allows running both simultaneously without port conflicts.
 #
 #   Test mode ports (instance 9):
-#     nginx:9080, postgres:14432, minio:18000/18001
-#     whatsapp:13097, dashboard:13098, opencode:13099
+#     nginx:9080, minio:18000/18001
+#     dashboard:13098, opencode:13099
+#
+#   Note: Docker test mode uses v2 compose files which may include PostgreSQL.
+#   Local dev mode uses SQLite (file-based database).
 #
 # Usage:
 #   ./run.sh test          # Start with local builds
@@ -74,40 +77,19 @@ log_step() {
 # =============================================================================
 
 # =============================================================================
-# Apply Database Migrations
+# Database Setup (SQLite)
 # =============================================================================
 
-apply_migrations() {
-    log_step "Applying database migrations..."
+setup_database() {
+    log_step "Setting up SQLite database..."
 
-    # Use instance-aware container name
-    local postgres_container="orienter-postgres-${AI_INSTANCE_ID:-0}"
+    # SQLite is file-based - just ensure the directory exists
+    # The application will create the database file on first access
+    local db_dir="${DATA_DIR:-$PROJECT_ROOT/.dev-data/instance-${AI_INSTANCE_ID:-0}}"
+    mkdir -p "$db_dir"
 
-    # Wait for postgres to be ready
-    local max_attempts=30
-    local attempt=0
-    while [ $attempt -lt $max_attempts ]; do
-        if docker exec "$postgres_container" pg_isready -U ${POSTGRES_USER:-orient} -d ${POSTGRES_DB:-whatsapp_bot_0} >/dev/null 2>&1; then
-            break
-        fi
-        attempt=$((attempt + 1))
-        sleep 1
-    done
-
-    if [ $attempt -eq $max_attempts ]; then
-        log_warn "Postgres not ready after ${max_attempts} seconds, skipping migrations"
-        return 1
-    fi
-
-    # Apply migrations
-    for f in "$PROJECT_ROOT/data/migrations/"*.sql; do
-        if [ -f "$f" ]; then
-            log_info "Applying: $(basename "$f")"
-            docker exec -i "$postgres_container" psql -U ${POSTGRES_USER:-orient} -d ${POSTGRES_DB:-whatsapp_bot_0} < "$f" 2>/dev/null || true
-        fi
-    done
-
-    log_info "Database migrations applied"
+    log_info "Database: SQLite (file-based at $db_dir)"
+    log_info "Database migrations will be handled by the application"
 }
 
 start_local() {
@@ -128,7 +110,7 @@ start_local() {
     sleep 10
     
     # Apply database migrations
-    apply_migrations
+    setup_database
     
     show_access_info
 }
@@ -158,7 +140,7 @@ start_pull() {
     sleep 10
     
     # Apply database migrations
-    apply_migrations
+    setup_database
     
     show_access_info
 }
@@ -244,10 +226,11 @@ show_status() {
     cd "$DOCKER_DIR"
 
     # Use instance-aware ports and container names
+    # Note: WhatsApp is now integrated into Dashboard (unified server on DASHBOARD_PORT)
+    # Note: Database is SQLite (file-based, no external server)
     local nginx_port="${NGINX_PORT:-80}"
-    local whatsapp_port="${WHATSAPP_PORT:-4097}"
+    local dashboard_port="${DASHBOARD_PORT:-4098}"
     local minio_api_port="${MINIO_API_PORT:-9000}"
-    local postgres_container="orienter-postgres-${AI_INSTANCE_ID:-0}"
 
     echo -e "\n${BLUE}Container Status:${NC}"
     docker compose $COMPOSE_FILES ps 2>/dev/null || docker compose $COMPOSE_FILES_PROD ps 2>/dev/null || echo "No containers running"
@@ -266,17 +249,15 @@ show_status() {
         echo -e "  OpenCode:     ${RED}unreachable${NC}"
     fi
 
-    if curl -sf "http://localhost:${whatsapp_port}/health" >/dev/null 2>&1; then
-        echo -e "  WhatsApp:     ${GREEN}healthy${NC}"
+    # WhatsApp health check (unified server mode - served by dashboard)
+    if curl -sf "http://localhost:${nginx_port}/whatsapp/health" >/dev/null 2>&1; then
+        echo -e "  WhatsApp:     ${GREEN}healthy${NC} (unified)"
     else
         echo -e "  WhatsApp:     ${RED}unreachable${NC}"
     fi
 
-    if docker exec "$postgres_container" pg_isready -U ${POSTGRES_USER:-aibot} -d ${POSTGRES_DB:-whatsapp_bot_0} >/dev/null 2>&1; then
-        echo -e "  PostgreSQL:   ${GREEN}healthy${NC}"
-    else
-        echo -e "  PostgreSQL:   ${RED}unreachable${NC}"
-    fi
+    # Database is SQLite (file-based)
+    echo -e "  Database:     ${GREEN}SQLite${NC} (file-based)"
 
     if curl -sf "http://localhost:${minio_api_port}/minio/health/live" >/dev/null 2>&1; then
         echo -e "  MinIO:        ${GREEN}healthy${NC}"
@@ -298,22 +279,22 @@ run_e2e_test() {
     echo -e "${CYAN}╚═══════════════════════════════════════════════════════════════╝${NC}"
     echo ""
 
-    # Use instance-aware port
-    local whatsapp_port="${WHATSAPP_PORT:-4097}"
+    # Use instance-aware port (WhatsApp is now unified with dashboard)
+    local dashboard_port="${DASHBOARD_PORT:-4098}"
 
-    # Check if WhatsApp bot is running
-    if ! curl -sf "http://localhost:${whatsapp_port}/health" >/dev/null 2>&1; then
-        log_error "WhatsApp bot is not running. Start it first with: ./run.sh test"
+    # Check if WhatsApp is running (unified server mode)
+    if ! curl -sf "http://localhost:${dashboard_port}/whatsapp/health" >/dev/null 2>&1; then
+        log_error "WhatsApp is not running. Start it first with: ./run.sh test"
         exit 1
     fi
 
     log_step "Running E2E test..."
 
     # Get the admin phone JID from the QR status endpoint
-    ADMIN_PHONE=$(curl -s "http://localhost:${whatsapp_port}/qr/status" | python3 -c "import sys, json; print(json.load(sys.stdin).get('adminPhone', ''))" 2>/dev/null)
+    ADMIN_PHONE=$(curl -s "http://localhost:${dashboard_port}/qr/status" | python3 -c "import sys, json; print(json.load(sys.stdin).get('adminPhone', ''))" 2>/dev/null)
 
     if [ -z "$ADMIN_PHONE" ]; then
-        log_error "Could not get admin phone from WhatsApp bot. Make sure WhatsApp is connected."
+        log_error "Could not get admin phone from WhatsApp. Make sure WhatsApp is connected."
         exit 1
     fi
 
@@ -321,8 +302,8 @@ run_e2e_test() {
     TEST_JID="${ADMIN_PHONE}@s.whatsapp.net"
     log_info "Using test JID: $TEST_JID"
 
-    # Call the E2E test endpoint
-    RESPONSE=$(curl -s -X POST "http://localhost:${whatsapp_port}/e2e-test" \
+    # Call the E2E test endpoint (unified server mode)
+    RESPONSE=$(curl -s -X POST "http://localhost:${dashboard_port}/e2e-test" \
         -H "Content-Type: application/json" \
         -d '{"jid": "'"$TEST_JID"'", "testMessage": "🧪 E2E Test from CLI - '"$(date -u +%Y-%m-%dT%H:%M:%SZ)"'"}')
     
@@ -368,19 +349,19 @@ run_full_e2e_test() {
     echo -e "${CYAN}╚═══════════════════════════════════════════════════════════════╝${NC}"
     echo ""
 
-    # Use instance-aware port
-    local whatsapp_port="${WHATSAPP_PORT:-4097}"
+    # Use instance-aware port (WhatsApp is now unified with dashboard)
+    local dashboard_port="${DASHBOARD_PORT:-4098}"
 
-    # Check if WhatsApp bot is running
-    if ! curl -sf "http://localhost:${whatsapp_port}/health" >/dev/null 2>&1; then
-        log_error "WhatsApp bot is not running. Start it first with: ./run.sh test"
+    # Check if WhatsApp is running (unified server mode)
+    if ! curl -sf "http://localhost:${dashboard_port}/whatsapp/health" >/dev/null 2>&1; then
+        log_error "WhatsApp is not running. Start it first with: ./run.sh test"
         exit 1
     fi
 
     log_step "Running full E2E test (WhatsApp + OpenCode AI)..."
 
-    # Call the full E2E test endpoint
-    RESPONSE=$(curl -s -X POST "http://localhost:${whatsapp_port}/e2e-test-full" \
+    # Call the full E2E test endpoint (unified server mode)
+    RESPONSE=$(curl -s -X POST "http://localhost:${dashboard_port}/e2e-test-full" \
         -H "Content-Type: application/json" \
         -d '{
             "testMessage": "🧪 Full E2E Test from CLI - '"$(date -u +%Y-%m-%dT%H:%M:%SZ)"'",

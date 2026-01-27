@@ -5,7 +5,7 @@
  * Uses the Linear GraphQL API.
  */
 
-import { createServiceLogger } from '@orient/core';
+import { createServiceLogger } from '@orientbot/core';
 
 const logger = createServiceLogger('linear-tools');
 

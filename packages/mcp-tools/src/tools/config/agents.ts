@@ -35,7 +35,7 @@ export const configUpdateAgent: MCPTool = createTool({
     model_default: z
       .string()
       .optional()
-      .describe('Default model ID (e.g., opencode/grok-code, anthropic/claude-sonnet-4)'),
+      .describe('Default model ID (e.g., openai/gpt-4o-mini, anthropic/claude-sonnet-4)'),
     model_fallback: z.string().optional().describe('Fallback model if default fails'),
   }),
   keywords: ['agent', 'configure', 'update', 'enable', 'disable', 'model', 'prompt'],
@@ -204,9 +204,9 @@ export const configListAgents: MCPTool = createTool({
  * Helper: Get agent configuration
  */
 async function getAgentConfig(agentId: string) {
-  const { getDatabase, agents, agentSkills, agentTools } = await import('@orient/database');
-  const { eq } = await import('drizzle-orm');
-  const db = getDatabase();
+  const { getDatabase, agents, agentSkills, agentTools, eq } = await import('@orientbot/database');
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const db = (await getDatabase()) as any;
 
   const [agent] = await db.select().from(agents).where(eq(agents.id, agentId));
 
@@ -234,11 +234,13 @@ async function getAgentConfig(agentId: string) {
     model_default: agent.modelDefault,
     model_fallback: agent.modelFallback,
     base_prompt: agent.basePrompt,
-    skills: skills.map((s) => ({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    skills: skills.map((s: any) => ({
       name: s.skillName,
       enabled: s.enabled,
     })),
-    tools: tools.map((t) => ({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    tools: tools.map((t: any) => ({
       pattern: t.pattern,
       type: t.type,
     })),
@@ -250,9 +252,9 @@ async function getAgentConfig(agentId: string) {
  * Helper: List all agents
  */
 async function listAllAgents(enabledOnly?: boolean) {
-  const { getDatabase, agents } = await import('@orient/database');
-  const { eq } = await import('drizzle-orm');
-  const db = getDatabase();
+  const { getDatabase, agents, eq } = await import('@orientbot/database');
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const db = (await getDatabase()) as any;
 
   const agentList = enabledOnly
     ? await db.select().from(agents).where(eq(agents.enabled, true))
@@ -260,7 +262,8 @@ async function listAllAgents(enabledOnly?: boolean) {
 
   return {
     count: agentList.length,
-    agents: agentList.map((a) => ({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    agents: agentList.map((a: any) => ({
       id: a.id,
       name: a.name,
       description: a.description,

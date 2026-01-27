@@ -1,5 +1,5 @@
 {
-  "name": "@orient/bot-slack",
+  "name": "@orientbot/bot-slack",
   "version": "1.0.0",
   "description": "Slack bot service for Orient",
   "type": "module",
@@ -28,10 +28,10 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@orient/agents": "workspace:*",
-    "@orient/core": "workspace:*",
-    "@orient/database": "workspace:*",
-    "@orient/mcp-tools": "workspace:*",
+    "@orientbot/agents": "workspace:*",
+    "@orientbot/core": "workspace:*",
+    "@orientbot/database": "workspace:*",
+    "@orientbot/mcp-tools": "workspace:*",
     "@slack/bolt": "^3.18.0",
     "@slack/web-api": "^7.0.0"
   },
@@ -50,5 +50,9 @@
   "files": [
     "dist",
     "README.md"
-  ]
+  ],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  }
 }

@@ -4,12 +4,12 @@
  * This service enables natural language conversations in Slack,
  * using Claude to understand requests and execute Jira operations.
  *
- * Exported via @orient/agents package.
+ * Exported via @orientbot/agents package.
  */
 
 import Anthropic from '@anthropic-ai/sdk';
-import { createServiceLogger } from '@orient/core';
-import type { JiraIssue, SLABreach } from '@orient/core';
+import { createServiceLogger } from '@orientbot/core';
+import type { JiraIssue, SLABreach } from '@orientbot/core';
 import {
   getAllIssues,
   getIssueByKey,
@@ -21,7 +21,7 @@ import {
   getCompletedThisWeek,
   getCreatedThisWeek,
   getIssuesByStatus,
-} from '@orient/integrations';
+} from '@orientbot/integrations';
 
 // Namespace alias for compatibility
 const jiraService = {
@@ -37,7 +37,7 @@ const jiraService = {
   getIssuesByStatus,
 };
 import { executeToolLoop, ToolResult, ToolCallingConfig } from './toolCallingService.js';
-import * as mcpTools from '@orient/mcp-tools';
+import * as mcpTools from '@orientbot/mcp-tools';
 
 const agentLogger = createServiceLogger('agent');
 
@@ -61,7 +61,7 @@ const resolveSlackJiraTools =
   (mcpTools as { default?: { getSlackJiraTools?: () => unknown } }).default?.getSlackJiraTools;
 
 if (!resolveSlackJiraTools) {
-  throw new Error('getSlackJiraTools is not available from @orient/mcp-tools');
+  throw new Error('getSlackJiraTools is not available from @orientbot/mcp-tools');
 }
 
 const TOOL_DEFINITIONS = resolveSlackJiraTools();

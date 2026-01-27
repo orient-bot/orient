@@ -59,13 +59,13 @@ pnpm build:packages
 
 This builds all packages in the `packages/` directory in dependency order:
 
-- `@orient/core` - Configuration, logging, utilities
-- `@orient/database` - Database schemas and clients
-- `@orient/database-services` - Database service layer
-- `@orient/integrations` - Third-party integrations
-- `@orient/agents` - Agent framework
-- `@orient/mcp-tools` - MCP tool implementations
-- `@orient/dashboard` - Dashboard server and API
+- `@orientbot/core` - Configuration, logging, utilities
+- `@orientbot/database` - Database schemas and clients
+- `@orientbot/database-services` - Database service layer
+- `@orientbot/integrations` - Third-party integrations
+- `@orientbot/agents` - Agent framework
+- `@orientbot/mcp-tools` - MCP tool implementations
+- `@orientbot/dashboard` - Dashboard server and API
 
 ### 4. Start Development Environment
 
@@ -225,7 +225,7 @@ tail -f logs/instance-0/dashboard-dev.log
 
 Common fixes:
 
-1. Rebuild database package: `pnpm --filter @orient/database build`
+1. Rebuild database package: `pnpm --filter @orientbot/database build`
 2. Reinstall dependencies: `pnpm install`
 3. Check port availability: `lsof -i :4098`
 

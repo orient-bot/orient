@@ -8,7 +8,7 @@
  */
 
 import { describe, it, expect, beforeAll } from 'vitest';
-import { createToolRegistry, ToolRegistry, ToolCategory } from '@orient/agents';
+import { createToolRegistry, ToolRegistry, ToolCategory } from '@orientbot/agents';
 import * as fs from 'fs';
 import * as path from 'path';
 

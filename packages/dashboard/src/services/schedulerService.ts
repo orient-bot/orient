@@ -7,8 +7,8 @@
  */
 
 import cron, { ScheduledTask } from 'node-cron';
-import { createServiceLogger } from '@orient/core';
-import { SchedulerDatabase } from './schedulerDatabase.js';
+import { createServiceLogger } from '@orientbot/core';
+import { SchedulerDatabase } from '@orientbot/database-services';
 import {
   ScheduledJob,
   CreateScheduledJobInput,

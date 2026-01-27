@@ -462,6 +462,9 @@ docker-compose.*.local.yml
 # Generated nginx config (created from template during ./run.sh dev)
 docker/nginx-local.conf
 
+# Development container data (volumes are named, but just in case)
+docker/dev-data/
+
 # ============================================================================
 # CI/CD & DEPLOYMENT
 # ============================================================================

@@ -7,7 +7,7 @@
 
 import http from 'http';
 import QRCode from 'qrcode';
-import { createServiceLogger } from '@orient/core';
+import { createServiceLogger } from '@orientbot/core';
 import type { WhatsAppConnection } from './connection.js';
 
 const logger = createServiceLogger('whatsapp-api');

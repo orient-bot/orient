@@ -58,17 +58,17 @@ source "$PROJECT_ROOT/scripts/instance-env.sh"
 echo "Test Suite: Port Calculation"
 echo "----------------------------"
 
-result=$(calculate_port 4097 0)
-assert_equals "4097" "$result" "calculate_port(4097, 0) = 4097"
+result=$(calculate_port 4098 0)
+assert_equals "4098" "$result" "calculate_port(4098, 0) = 4098"
 
-result=$(calculate_port 4097 1)
-assert_equals "5097" "$result" "calculate_port(4097, 1) = 5097"
+result=$(calculate_port 4098 1)
+assert_equals "5098" "$result" "calculate_port(4098, 1) = 5098"
 
 result=$(calculate_port 80 2)
 assert_equals "2080" "$result" "calculate_port(80, 2) = 2080"
 
-result=$(calculate_port 5432 3)
-assert_equals "8432" "$result" "calculate_port(5432, 3) = 8432"
+result=$(calculate_port 9000 3)
+assert_equals "12000" "$result" "calculate_port(9000, 3) = 12000"
 
 echo ""
 
@@ -109,24 +109,23 @@ echo "------------------------------------"
 # Save current env
 OLD_AI_INSTANCE_ID=$AI_INSTANCE_ID
 
-# Test instance 0 configuration
-unset AI_INSTANCE_ID
+# Test instance 0 configuration (explicitly set to avoid worktree detection)
+export AI_INSTANCE_ID=0
+unset WHATSAPP_ENABLED  # Reset to allow configure_instance to set default
 configure_instance
 
 assert_equals "0" "$AI_INSTANCE_ID" "Instance 0: AI_INSTANCE_ID"
 assert_equals "80" "$NGINX_PORT" "Instance 0: NGINX_PORT"
-assert_equals "4097" "$WHATSAPP_PORT" "Instance 0: WHATSAPP_PORT"
-assert_equals "4098" "$DASHBOARD_PORT" "Instance 0: DASHBOARD_PORT"
-assert_equals "5432" "$POSTGRES_PORT" "Instance 0: POSTGRES_PORT"
+assert_equals "4098" "$DASHBOARD_PORT" "Instance 0: DASHBOARD_PORT (unified with WhatsApp)"
 assert_equals "orienter-instance-0" "$COMPOSE_PROJECT_NAME" "Instance 0: COMPOSE_PROJECT_NAME"
 assert_equals "true" "$WHATSAPP_ENABLED" "Instance 0: WHATSAPP_ENABLED (should be true)"
 
-# Check database name contains instance ID
-if [[ "$POSTGRES_DB" == *"_0" ]]; then
-    echo -e "${GREEN}✓${NC} Instance 0: POSTGRES_DB contains instance ID"
+# Check SQLite database path contains instance ID
+if [[ "$SQLITE_DB_PATH" == *"instance-0"* ]]; then
+    echo -e "${GREEN}✓${NC} Instance 0: SQLITE_DB_PATH is instance-specific"
     TESTS_PASSED=$((TESTS_PASSED + 1))
 else
-    echo -e "${RED}✗${NC} Instance 0: POSTGRES_DB does not contain instance ID: $POSTGRES_DB"
+    echo -e "${RED}✗${NC} Instance 0: SQLITE_DB_PATH is not instance-specific: $SQLITE_DB_PATH"
     TESTS_FAILED=$((TESTS_FAILED + 1))
 fi
 
@@ -134,22 +133,21 @@ echo ""
 
 # Test instance 1 configuration
 export AI_INSTANCE_ID=1
+unset WHATSAPP_ENABLED  # Reset to allow configure_instance to set default
 configure_instance
 
 assert_equals "1" "$AI_INSTANCE_ID" "Instance 1: AI_INSTANCE_ID"
 assert_equals "1080" "$NGINX_PORT" "Instance 1: NGINX_PORT"
-assert_equals "5097" "$WHATSAPP_PORT" "Instance 1: WHATSAPP_PORT"
-assert_equals "5098" "$DASHBOARD_PORT" "Instance 1: DASHBOARD_PORT"
-assert_equals "6432" "$POSTGRES_PORT" "Instance 1: POSTGRES_PORT"
+assert_equals "5098" "$DASHBOARD_PORT" "Instance 1: DASHBOARD_PORT (unified with WhatsApp)"
 assert_equals "orienter-instance-1" "$COMPOSE_PROJECT_NAME" "Instance 1: COMPOSE_PROJECT_NAME"
 assert_equals "false" "$WHATSAPP_ENABLED" "Instance 1: WHATSAPP_ENABLED (should be false)"
 
-# Check database name contains instance ID
-if [[ "$POSTGRES_DB" == *"_1" ]]; then
-    echo -e "${GREEN}✓${NC} Instance 1: POSTGRES_DB contains instance ID"
+# Check SQLite database path contains instance ID
+if [[ "$SQLITE_DB_PATH" == *"instance-1"* ]]; then
+    echo -e "${GREEN}✓${NC} Instance 1: SQLITE_DB_PATH is instance-specific"
     TESTS_PASSED=$((TESTS_PASSED + 1))
 else
-    echo -e "${RED}✗${NC} Instance 1: POSTGRES_DB does not contain instance ID: $POSTGRES_DB"
+    echo -e "${RED}✗${NC} Instance 1: SQLITE_DB_PATH is not instance-specific: $SQLITE_DB_PATH"
     TESTS_FAILED=$((TESTS_FAILED + 1))
 fi
 

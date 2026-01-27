@@ -51,7 +51,7 @@ packages/dashboard-frontend/           # Frontend
 
 ```typescript
 // packages/dashboard/src/services/featureService.ts
-import { createServiceLogger } from '@orient/core';
+import { createServiceLogger } from '@orientbot/core';
 
 const logger = createServiceLogger('feature-service');
 
@@ -81,7 +81,7 @@ export function getFeatureService(): FeatureService {
 ```typescript
 // packages/dashboard/src/server/routes/feature.routes.ts
 import { Router, Request, Response } from 'express';
-import { createServiceLogger } from '@orient/core';
+import { createServiceLogger } from '@orientbot/core';
 import { getFeatureService } from '../../services/featureService.js';
 
 const logger = createServiceLogger('feature-routes');

@@ -8,13 +8,13 @@
  * - CRUD operations for agents, skills, tools, and context rules
  * - Context-based agent resolution (platform, chat, environment)
  *
- * Exported via @orient/agents package.
+ * Exported via @orientbot/agents package.
  * - Filesystem sync for OpenCode compatibility
  */
 
-import { getDatabase, eq, and, desc, sql } from '@orient/database';
-import { agents, agentSkills, agentTools, contextRules } from '@orient/database';
-import { createServiceLogger } from '@orient/core';
+import { getDatabase, eq, and, desc, sql } from '@orientbot/database';
+import { agents, agentSkills, agentTools, contextRules } from '@orientbot/database';
+import { createServiceLogger } from '@orientbot/core';
 import fs from 'fs/promises';
 import path from 'path';
 
@@ -112,7 +112,10 @@ export interface ContextQuery {
 // ============================================
 
 export class AgentRegistry {
-  private db = getDatabase();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private async getDb(): Promise<any> {
+    return await getDatabase();
+  }
 
   // ============================================
   // AGENT CRUD
@@ -122,7 +125,10 @@ export class AgentRegistry {
    * List all agents
    */
   async listAgents(): Promise<Agent[]> {
-    const result = await this.db.select().from(agents).orderBy(desc(agents.enabled), agents.name);
+    const result = await (await this.getDb())
+      .select()
+      .from(agents)
+      .orderBy(desc(agents.enabled), agents.name);
     return result;
   }
 
@@ -130,7 +136,7 @@ export class AgentRegistry {
    * Get agent by ID
    */
   async getAgent(id: string): Promise<Agent | null> {
-    const result = await this.db.select().from(agents).where(eq(agents.id, id));
+    const result = await (await this.getDb()).select().from(agents).where(eq(agents.id, id));
     return result[0] || null;
   }
 
@@ -141,9 +147,10 @@ export class AgentRegistry {
     const agent = await this.getAgent(id);
     if (!agent) return null;
 
+    const db = await this.getDb();
     const [skills, tools] = await Promise.all([
-      this.db.select().from(agentSkills).where(eq(agentSkills.agentId, id)),
-      this.db.select().from(agentTools).where(eq(agentTools.agentId, id)),
+      db.select().from(agentSkills).where(eq(agentSkills.agentId, id)),
+      db.select().from(agentTools).where(eq(agentTools.agentId, id)),
     ]);
 
     return { ...agent, skills, tools };
@@ -156,7 +163,9 @@ export class AgentRegistry {
     const op = logger.startOperation('createAgent', { id: input.id });
 
     try {
-      const result = await this.db
+      const result = await (
+        await this.getDb()
+      )
         .insert(agents)
         .values({
           id: input.id,
@@ -185,7 +194,9 @@ export class AgentRegistry {
     const op = logger.startOperation('updateAgent', { id });
 
     try {
-      const result = await this.db
+      const result = await (
+        await this.getDb()
+      )
         .update(agents)
         .set({
           ...input,
@@ -214,7 +225,7 @@ export class AgentRegistry {
     const op = logger.startOperation('deleteAgent', { id });
 
     try {
-      const result = await this.db.delete(agents).where(eq(agents.id, id)).returning();
+      const result = await (await this.getDb()).delete(agents).where(eq(agents.id, id)).returning();
       const deleted = result.length > 0;
       deleted ? op.success('Agent deleted') : op.failure('Agent not found');
       return deleted;
@@ -239,7 +250,8 @@ export class AgentRegistry {
    * Get skills for an agent
    */
   async getAgentSkills(agentId: string): Promise<AgentSkill[]> {
-    return this.db.select().from(agentSkills).where(eq(agentSkills.agentId, agentId));
+    const db = await this.getDb();
+    return db.select().from(agentSkills).where(eq(agentSkills.agentId, agentId));
   }
 
   /**
@@ -250,11 +262,11 @@ export class AgentRegistry {
 
     try {
       // Delete existing skills
-      await this.db.delete(agentSkills).where(eq(agentSkills.agentId, agentId));
+      await (await this.getDb()).delete(agentSkills).where(eq(agentSkills.agentId, agentId));
 
       // Insert new skills
       if (skillNames.length > 0) {
-        await this.db.insert(agentSkills).values(
+        await (await this.getDb()).insert(agentSkills).values(
           skillNames.map((skillName) => ({
             agentId,
             skillName,
@@ -274,7 +286,7 @@ export class AgentRegistry {
    * Add a single skill to an agent
    */
   async addAgentSkill(agentId: string, skillName: string): Promise<void> {
-    await this.db
+    await (await this.getDb())
       .insert(agentSkills)
       .values({ agentId, skillName, enabled: true })
       .onConflictDoNothing();
@@ -284,7 +296,7 @@ export class AgentRegistry {
    * Remove a skill from an agent
    */
   async removeAgentSkill(agentId: string, skillName: string): Promise<void> {
-    await this.db
+    await (await this.getDb())
       .delete(agentSkills)
       .where(and(eq(agentSkills.agentId, agentId), eq(agentSkills.skillName, skillName)));
   }
@@ -297,7 +309,8 @@ export class AgentRegistry {
    * Get tools for an agent
    */
   async getAgentTools(agentId: string): Promise<AgentTool[]> {
-    return this.db.select().from(agentTools).where(eq(agentTools.agentId, agentId));
+    const db = await this.getDb();
+    return db.select().from(agentTools).where(eq(agentTools.agentId, agentId));
   }
 
   /**
@@ -318,11 +331,11 @@ export class AgentRegistry {
 
     try {
       // Delete existing tools
-      await this.db.delete(agentTools).where(eq(agentTools.agentId, agentId));
+      await (await this.getDb()).delete(agentTools).where(eq(agentTools.agentId, agentId));
 
       // Insert new allow patterns
       if (allowPatterns.length > 0) {
-        await this.db.insert(agentTools).values(
+        await (await this.getDb()).insert(agentTools).values(
           allowPatterns.map((pattern) => ({
             agentId,
             pattern,
@@ -333,7 +346,7 @@ export class AgentRegistry {
 
       // Insert new deny patterns
       if (denyPatterns.length > 0) {
-        await this.db.insert(agentTools).values(
+        await (await this.getDb()).insert(agentTools).values(
           denyPatterns.map((pattern) => ({
             agentId,
             pattern,
@@ -344,7 +357,7 @@ export class AgentRegistry {
 
       // Insert new ask patterns
       if (askPatterns.length > 0) {
-        await this.db.insert(agentTools).values(
+        await (await this.getDb()).insert(agentTools).values(
           askPatterns.map((pattern) => ({
             agentId,
             pattern,
@@ -368,15 +381,17 @@ export class AgentRegistry {
    * Get all context rules
    */
   async getContextRules(): Promise<ContextRule[]> {
-    return this.db.select().from(contextRules).orderBy(desc(contextRules.priority));
+    const db = await this.getDb();
+    return db.select().from(contextRules).orderBy(desc(contextRules.priority));
   }
 
   /**
    * Get context rules for a specific type
    */
   async getContextRulesByType(contextType: string, contextId?: string): Promise<ContextRule[]> {
+    const db = await this.getDb();
     if (contextId) {
-      return this.db
+      return db
         .select()
         .from(contextRules)
         .where(
@@ -384,7 +399,7 @@ export class AgentRegistry {
         )
         .orderBy(desc(contextRules.priority));
     }
-    return this.db
+    return db
       .select()
       .from(contextRules)
       .where(eq(contextRules.contextType, contextType))
@@ -409,7 +424,9 @@ export class AgentRegistry {
     try {
       const skillOverridesJson = rule.skillOverrides ? JSON.stringify(rule.skillOverrides) : null;
 
-      const result = await this.db
+      const result = await (
+        await this.getDb()
+      )
         .insert(contextRules)
         .values({
           contextType: rule.contextType,
@@ -432,7 +449,10 @@ export class AgentRegistry {
    * Delete a context rule
    */
   async deleteContextRule(id: number): Promise<boolean> {
-    const result = await this.db.delete(contextRules).where(eq(contextRules.id, id)).returning();
+    const result = await (await this.getDb())
+      .delete(contextRules)
+      .where(eq(contextRules.id, id))
+      .returning();
     return result.length > 0;
   }
 
@@ -449,7 +469,7 @@ export class AgentRegistry {
 
     try {
       // Get all applicable rules, sorted by priority (highest first)
-      const allRules = await this.db
+      const allRules = await (await this.getDb())
         .select()
         .from(contextRules)
         .orderBy(desc(contextRules.priority));
@@ -658,15 +678,16 @@ export class AgentRegistry {
     totalSkills: number;
     totalContextRules: number;
   }> {
+    const db = await this.getDb();
     const [agentStats, skillCount, ruleCount] = await Promise.all([
-      this.db
+      db
         .select({
           total: sql<number>`count(*)`,
           enabled: sql<number>`sum(case when enabled then 1 else 0 end)`,
         })
         .from(agents),
-      this.db.select({ count: sql<number>`count(*)` }).from(agentSkills),
-      this.db.select({ count: sql<number>`count(*)` }).from(contextRules),
+      db.select({ count: sql<number>`count(*)` }).from(agentSkills),
+      db.select({ count: sql<number>`count(*)` }).from(contextRules),
     ]);
 
     return {

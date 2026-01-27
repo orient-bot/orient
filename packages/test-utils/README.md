@@ -1,4 +1,4 @@
-# @orient/test-utils
+# @orientbot/test-utils
 
 Shared test utilities for the Orient monorepo.
 
@@ -12,7 +12,7 @@ Shared test utilities for the Orient monorepo.
 ## Installation
 
 ```bash
-pnpm add -D @orient/test-utils
+pnpm add -D @orientbot/test-utils
 ```
 
 ## Usage
@@ -20,7 +20,7 @@ pnpm add -D @orient/test-utils
 ### Mocks
 
 ```typescript
-import { createMockLogger, createMockConfig } from '@orient/test-utils';
+import { createMockLogger, createMockConfig } from '@orientbot/test-utils';
 
 describe('MyService', () => {
   it('should use logger', () => {
@@ -38,7 +38,7 @@ describe('MyService', () => {
 ### Factories
 
 ```typescript
-import { createJiraIssue, createWhatsAppMessage } from '@orient/test-utils';
+import { createJiraIssue, createWhatsAppMessage } from '@orientbot/test-utils';
 
 describe('IssueProcessor', () => {
   it('should process issue', () => {
@@ -63,7 +63,7 @@ describe('MessageHandler', () => {
 ### Assertion Helpers
 
 ```typescript
-import { expectAsyncError, expectHasKeys } from '@orient/test-utils';
+import { expectAsyncError, expectHasKeys } from '@orientbot/test-utils';
 
 describe('ErrorHandling', () => {
   it('should throw on invalid input', async () => {
@@ -79,7 +79,7 @@ describe('ErrorHandling', () => {
 ### Database Helpers
 
 ```typescript
-import { skipIfNoDatabase, createMockDatabase } from '@orient/test-utils';
+import { skipIfNoDatabase, createMockDatabase } from '@orientbot/test-utils';
 
 describe('Database operations', () => {
   beforeAll(() => {

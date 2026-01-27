@@ -317,7 +317,7 @@ export const configListSchedules: MCPTool = createTool({
  * Helper: Get schedule by ID
  */
 async function getScheduleById(scheduleId: number) {
-  const { createSchedulerDatabase } = await import('@orient/database-services');
+  const { createSchedulerDatabase } = await import('@orientbot/database-services');
   const schedulerDb = createSchedulerDatabase();
 
   const schedule = await schedulerDb.getJob(scheduleId);
@@ -347,7 +347,7 @@ async function getScheduleById(scheduleId: number) {
  * Helper: List all schedules
  */
 async function listAllSchedules(activeOnly?: boolean) {
-  const { createSchedulerDatabase } = await import('@orient/database-services');
+  const { createSchedulerDatabase } = await import('@orientbot/database-services');
   const schedulerDb = createSchedulerDatabase();
 
   let schedules = (await schedulerDb.getAllJobs()) as ScheduleRecord[];

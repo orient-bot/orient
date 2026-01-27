@@ -244,7 +244,7 @@ describe('Dependency Consistency', () => {
     it('should have baileys in bot-whatsapp package', () => {
       const versions = getDependencyVersions(packageFiles, 'baileys');
       const botWhatsapp = versions.find(
-        (v) => v.packageName === '@orient/bot-whatsapp' || v.packagePath.includes('bot-whatsapp')
+        (v) => v.packageName === '@orientbot/bot-whatsapp' || v.packagePath.includes('bot-whatsapp')
       );
 
       expect(botWhatsapp).toBeDefined();

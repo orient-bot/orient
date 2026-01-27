@@ -291,11 +291,11 @@ check_optional_tools() {
     check_warn "curl is not installed" "Required for health checks"
   fi
   
-  # psql (for database debugging)
-  if command -v psql &> /dev/null; then
-    check_pass "psql is available (useful for debugging)"
+  # sqlite3 (for database debugging)
+  if command -v sqlite3 &> /dev/null; then
+    check_pass "sqlite3 is available (useful for debugging)"
   else
-    check_info "psql not installed (optional, for database debugging)"
+    check_info "sqlite3 not installed (optional, for database debugging)"
   fi
   
   # lsof (for port checking)
@@ -327,8 +327,8 @@ check_config_files() {
   if [ -f "$PROJECT_ROOT/.env" ]; then
     check_pass ".env file exists"
     
-    # Check for required environment variables
-    local required_vars=("POSTGRES_USER" "POSTGRES_PASSWORD" "MINIO_ROOT_USER" "MINIO_ROOT_PASSWORD" "DASHBOARD_JWT_SECRET" "ORIENT_MASTER_KEY")
+    # Check for required environment variables (SQLite - no database credentials needed)
+    local required_vars=("MINIO_ROOT_USER" "MINIO_ROOT_PASSWORD" "DASHBOARD_JWT_SECRET" "ORIENT_MASTER_KEY")
     local missing_vars=()
     
     for var in "${required_vars[@]}"; do
@@ -402,9 +402,8 @@ check_config_files() {
       
       if [ "$FIX_MODE" = true ]; then
         echo -e "    ${CYAN}→ Replacing placeholder values with defaults...${NC}"
-        # Replace placeholder passwords with working defaults
+        # Replace placeholder passwords with working defaults (SQLite - no database password)
         sed -i.bak \
-          -e "s|POSTGRES_PASSWORD=your-secure-password|POSTGRES_PASSWORD=aibot123|g" \
           -e "s|MINIO_ROOT_PASSWORD=your-secure-password|MINIO_ROOT_PASSWORD=minioadmin123|g" \
           -e "s|DASHBOARD_JWT_SECRET=your-dashboard-jwt-secret|DASHBOARD_JWT_SECRET=$(openssl rand -base64 48 | tr -d '\n')|g" \
           -e "s|ORIENT_MASTER_KEY=your-master-key|ORIENT_MASTER_KEY=$(openssl rand -base64 48 | tr -d '\n')|g" \
@@ -414,14 +413,8 @@ check_config_files() {
       fi
     fi
     
-    # Check database credentials match Docker defaults
-    local pg_user=$(grep "^POSTGRES_USER=" "$PROJECT_ROOT/.env" 2>/dev/null | cut -d'=' -f2-)
-    local pg_pass=$(grep "^POSTGRES_PASSWORD=" "$PROJECT_ROOT/.env" 2>/dev/null | cut -d'=' -f2-)
-    
-    # Warn if using non-default credentials that might not match Docker
-    if [ "$pg_user" != "aibot" ] && [ "$pg_user" != "orient" ]; then
-      check_info "Using custom POSTGRES_USER: $pg_user (ensure Docker is configured to match)"
-    fi
+    # SQLite database - no credentials needed
+    check_info "Database: SQLite (file-based, no credentials required)"
   else
     check_fail ".env file does not exist" "Copy from template: cp .env.example .env"
     
@@ -511,8 +504,8 @@ check_dependencies() {
 check_ports() {
   print_header "Port Availability"
   
-  # Default development ports
-  local ports=("80:Nginx" "4097:WhatsApp" "4098:Dashboard" "4099:OpenCode" "5173:Vite" "5432:PostgreSQL" "9000:MinIO API" "9001:MinIO Console")
+  # Default development ports (WhatsApp is now integrated into Dashboard)
+  local ports=("80:Nginx" "4098:Dashboard" "4099:OpenCode" "5173:Vite" "9000:MinIO API" "9001:MinIO Console")
   
   for port_info in "${ports[@]}"; do
     local port="${port_info%%:*}"
@@ -540,7 +533,7 @@ check_docker_images() {
     return
   fi
   
-  local images=("nginx:alpine" "postgres:16-alpine" "minio/minio:latest" "minio/mc:latest")
+  local images=("nginx:alpine" "minio/minio:latest" "minio/mc:latest")
   
   for image in "${images[@]}"; do
     if docker image inspect "$image" &> /dev/null; then

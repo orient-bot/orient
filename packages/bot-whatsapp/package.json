@@ -1,5 +1,5 @@
 {
-  "name": "@orient/bot-whatsapp",
+  "name": "@orientbot/bot-whatsapp",
   "version": "1.0.0",
   "description": "WhatsApp bot service for Orient",
   "type": "module",
@@ -28,16 +28,16 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@orient/agents": "workspace:*",
-    "@orient/core": "workspace:*",
-    "@orient/database": "workspace:*",
-    "@orient/database-services": "workspace:*",
-    "@orient/mcp-tools": "workspace:*",
+    "@orientbot/agents": "workspace:*",
+    "@orientbot/core": "workspace:*",
+    "@orientbot/database": "workspace:*",
+    "@orientbot/database-services": "workspace:*",
+    "@orientbot/mcp-tools": "workspace:*",
     "@types/hapi__boom": "^9.0.1",
     "baileys": "7.0.0-rc.9",
     "express": "^5.0.0",
     "qrcode": "^1.5.3",
-    "@orient/api-gateway": "workspace:*"
+    "@orientbot/api-gateway": "workspace:*"
   },
   "devDependencies": {
     "@types/express": "^5.0.0",
@@ -56,5 +56,9 @@
   "files": [
     "dist",
     "README.md"
-  ]
+  ],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  }
 }

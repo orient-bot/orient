@@ -158,18 +158,16 @@ stop_instance_native_processes() {
 
     log_step "Stopping native processes for instance $instance_id..."
 
-    # Calculate ports for this instance
-    local whatsapp_port=$((4097 + offset))
+    # Calculate ports for this instance (WhatsApp is now integrated into Dashboard)
     local dashboard_port=$((4098 + offset))
     local opencode_port=$((4099 + offset))
     local vite_port=$((5173 + offset))
     local nginx_port=$((80 + offset))
-    local postgres_port=$((5432 + offset))
     local minio_api_port=$((9000 + offset))
     local minio_console_port=$((9001 + offset))
 
     # Kill processes on instance ports
-    for port in $whatsapp_port $dashboard_port $opencode_port $vite_port $nginx_port $postgres_port $minio_api_port $minio_console_port; do
+    for port in $dashboard_port $opencode_port $vite_port $nginx_port $minio_api_port $minio_console_port; do
         kill_port "$port"
     done
 
@@ -178,7 +176,7 @@ stop_instance_native_processes() {
         # Main repo processes
         kill_by_pattern "tsx.*watch.*packages/bot-whatsapp" "WhatsApp tsx"
         kill_by_pattern "tsx.*watch.*packages/bot-slack" "Slack tsx"
-        kill_by_pattern "pnpm.*@orient/dashboard.*dev" "Dashboard"
+        kill_by_pattern "pnpm.*@orientbot/dashboard.*dev" "Dashboard"
         kill_by_pattern "vite.*dashboard-frontend" "Vite"
         kill_by_pattern "opencode.*serve.*--port.*4099" "OpenCode"
     fi
@@ -313,7 +311,8 @@ stop_all_native_processes() {
     kill_by_pattern "pnpm.*@orient" "pnpm orient"
 
     # Kill processes on all possible instance ports (0-9)
-    local base_ports=(4097 4098 4099 5173 80 5432 9000 9001)
+    # WhatsApp is now integrated into Dashboard (no separate port)
+    local base_ports=(4098 4099 5173 80 9000 9001)
     for base_port in "${base_ports[@]}"; do
         for i in {0..9}; do
             local port=$((base_port + i * 1000))
@@ -432,8 +431,8 @@ verify_stopped() {
             issues=true
         fi
 
-        # Check all key ports
-        local ports_to_check=(80 4097 4098 4099 5173 5432 9000 9001)
+        # Check all key ports (WhatsApp is now integrated into Dashboard)
+        local ports_to_check=(80 4098 4099 5173 9000 9001)
         for port in "${ports_to_check[@]}"; do
             if lsof -ti ":$port" >/dev/null 2>&1; then
                 local pid=$(lsof -ti ":$port" 2>/dev/null)
@@ -442,9 +441,9 @@ verify_stopped() {
             fi
         done
     else
-        # Check only current instance ports
+        # Check only current instance ports (WhatsApp is now integrated into Dashboard)
         local offset=$((AI_INSTANCE_ID * 1000))
-        local ports_to_check=($((80 + offset)) $((4097 + offset)) $((4098 + offset)) $((4099 + offset)) $((5173 + offset)) $((5432 + offset)) $((9000 + offset)) $((9001 + offset)))
+        local ports_to_check=($((80 + offset)) $((4098 + offset)) $((4099 + offset)) $((5173 + offset)) $((9000 + offset)) $((9001 + offset)))
 
         for port in "${ports_to_check[@]}"; do
             if lsof -ti ":$port" >/dev/null 2>&1; then

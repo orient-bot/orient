@@ -19,16 +19,16 @@ The multi-instance development system allows running multiple bot instances in p
 
 - **Unique instance ID** (0-9): Auto-detected from worktree path
 - **Isolated ports**: Formula-based offset calculation
-- **Separate databases**: Instance-specific PostgreSQL databases
+- **Separate databases**: Instance-specific SQLite database files
 - **Isolated storage**: Separate MinIO containers and S3 buckets
 - **Independent networks**: Instance-specific Docker networks
 
 ### Key Benefits
 
-- ✅ Test multiple features branches simultaneously
-- ✅ No resource conflicts between instances
-- ✅ WhatsApp session safety (disabled in worktrees)
-- ✅ 100% backward compatible with main repo
+- Test multiple features branches simultaneously
+- No resource conflicts between instances
+- WhatsApp session safety (disabled in worktrees)
+- 100% backward compatible with main repo
 
 ---
 
@@ -39,7 +39,7 @@ The multi-instance development system allows running multiple bot instances in p
 **Instance 0 (Main Repository)**
 
 - Path: `/Users/*/code/*/orienter` (no `claude-worktrees` in path)
-- Ports: Original values (80, 4097, 4098, etc.)
+- Ports: Original values (80, 4098, etc.)
 - WhatsApp: Enabled by default
 - Use case: Primary development environment
 
@@ -70,22 +70,22 @@ new_port = base_port + (instance_id * 1000)
 | Service       | Base | Instance 0 | Instance 1 | Instance 2 | Instance 3 |
 | ------------- | ---- | ---------- | ---------- | ---------- | ---------- |
 | Nginx         | 80   | 80         | 1080       | 2080       | 3080       |
-| WhatsApp      | 4097 | 4097       | 5097       | 6097       | 7097       |
 | Dashboard     | 4098 | 4098       | 5098       | 6098       | 7098       |
 | OpenCode      | 4099 | 4099       | 5099       | 6099       | 7099       |
 | Vite          | 5173 | 5173       | 6173       | 7173       | 8173       |
-| PostgreSQL    | 5432 | 5432       | 6432       | 7432       | 8432       |
 | MinIO API     | 9000 | 9000       | 10000      | 11000      | 12000      |
 | MinIO Console | 9001 | 9001       | 10001      | 11001      | 12001      |
+
+Note: WhatsApp is integrated into Dashboard (same port). Database is SQLite (file-based, no port).
 
 ### Resource Isolation
 
 Each instance has:
 
-- **Docker containers**: `orienter-{service}-{instance_id}`
-- **Docker volumes**: `postgres-data-{instance_id}`, `minio-data-{instance_id}`
+- **Docker containers**: `orienter-{service}-{instance_id}` (nginx, minio)
+- **Docker volumes**: `minio-data-{instance_id}`
 - **Docker network**: `orienter-network-{instance_id}`
-- **Database**: `whatsapp_bot_{instance_id}`
+- **SQLite database**: `.dev-data/instance-{instance_id}/orient.db`
 - **S3 bucket**: `orienter-data-{instance_id}`
 - **Local directories**: `.dev-data/instance-{instance_id}`, `logs/instance-{instance_id}`
 
@@ -138,7 +138,7 @@ cd ~/claude-worktrees/orienter/feature-c-*
 
 ### 3. Enabling WhatsApp in Worktree (Advanced)
 
-**⚠️ Warning:** Only enable if main repo WhatsApp is stopped.
+**Warning:** Only enable if main repo WhatsApp is stopped.
 
 ```bash
 # Stop main repo WhatsApp first
@@ -148,7 +148,7 @@ cd ~/code/genoox/orienter
 # Enable WhatsApp in worktree
 cd ~/claude-worktrees/orienter/test-feature-*
 ./run.sh dev --enable-whatsapp
-# WhatsApp now runs on port 5097 (Instance 1)
+# WhatsApp now runs on same port as Dashboard (Instance 1)
 ```
 
 **Why disabled by default?**
@@ -192,11 +192,11 @@ calculate_port() {
 
 ### 3. Environment Configuration
 
-The system exports 15+ environment variables:
+The system exports environment variables:
 
-- **Ports**: `NGINX_PORT`, `WHATSAPP_PORT`, `DASHBOARD_PORT`, etc.
+- **Ports**: `NGINX_PORT`, `DASHBOARD_PORT`, `OPENCODE_PORT`, `VITE_PORT`, etc.
 - **Docker**: `COMPOSE_PROJECT_NAME`, container names with instance ID
-- **Database**: `POSTGRES_DB` includes instance ID
+- **Database**: `SQLITE_DB_PATH` includes instance ID
 - **Storage**: `S3_BUCKET` includes instance ID
 - **Directories**: `DATA_DIR`, `LOG_DIR`, `PID_DIR` are instance-specific
 
@@ -209,16 +209,15 @@ services:
     ports:
       - '${NGINX_PORT:-80}:80'
     networks:
-      - orienter-network-${AI_INSTANCE_ID:-0}
+      - orienter-network
 
-  postgres:
-    container_name: orienter-postgres-${AI_INSTANCE_ID:-0}
+  minio:
+    container_name: orienter-minio-${AI_INSTANCE_ID:-0}
     ports:
-      - '${POSTGRES_PORT:-5432}:5432'
+      - '${MINIO_API_PORT:-9000}:9000'
+      - '${MINIO_CONSOLE_PORT:-9001}:9001'
     volumes:
-      - postgres-data-${AI_INSTANCE_ID:-0}:/var/lib/postgresql/data
-    environment:
-      - POSTGRES_DB=${POSTGRES_DB:-whatsapp_bot_0}
+      - minio-data:/data
 ```
 
 ### 5. Nginx Configuration Generation
@@ -227,7 +226,7 @@ Dynamic generation with `envsubst`:
 
 ```bash
 # In scripts/dev.sh
-envsubst '$VITE_PORT,$WHATSAPP_PORT,$DASHBOARD_PORT,$OPENCODE_PORT' \
+envsubst '$VITE_PORT,$DASHBOARD_PORT,$OPENCODE_PORT' \
   < docker/nginx-local.template.conf \
   > docker/nginx-local.conf
 ```
@@ -281,47 +280,34 @@ export AI_INSTANCE_ID=7  # Use different instance
 ./run.sh dev
 ```
 
-### Database Connection Issues
+### Database Issues
 
-**Symptom:** "ECONNREFUSED localhost:6432" or database connection errors
+**Symptom:** SQLite database errors or missing tables
 
 **Diagnosis:**
 
 ```bash
-# Check if PostgreSQL container is running
-docker ps --filter "name=orienter-postgres-1"
+# Check if database file exists
+ls -la .dev-data/instance-*/orient.db
 
-# Check PostgreSQL logs
-docker logs orienter-postgres-1
-
-# Test connection manually
-docker exec orienter-postgres-1 pg_isready -U aibot
+# Check database size
+du -h .dev-data/instance-*/orient.db
 ```
 
 **Solutions:**
 
-1. **Wait for PostgreSQL to start:**
-
-```bash
-# dev.sh includes wait logic, but you can check:
-docker exec orienter-postgres-1 pg_isready -U aibot -d whatsapp_bot_1
-```
-
-2. **Check DATABASE_URL:**
+1. **Create database directory:**
 
 ```bash
 source scripts/instance-env.sh
-echo $DATABASE_URL
-# Should show correct port (6432 for instance 1)
+mkdir -p "$(dirname "$SQLITE_DB_PATH")"
 ```
 
-3. **Restart Docker infrastructure:**
+2. **Reset database:**
 
 ```bash
-cd docker
-docker compose -f docker-compose.infra.yml down
-cd ..
-./run.sh dev
+rm .dev-data/instance-$AI_INSTANCE_ID/orient.db
+./run.sh dev  # Will recreate on startup
 ```
 
 ### Container Isolation Issues
@@ -334,30 +320,20 @@ cd ..
 # List all containers with their networks
 docker ps --format "table {{.Names}}\t{{.Networks}}\t{{.Ports}}"
 
-# Check volume mounts
-docker inspect orienter-postgres-1 | grep Mounts -A 20
-
 # List volumes
 docker volume ls | grep orienter
 ```
 
 **Solutions:**
 
-1. **Verify network isolation:**
+1. **Verify volume isolation:**
 
 ```bash
-docker network ls | grep orienter
-# Should show: orienter-network-0, orienter-network-1, etc.
+docker volume ls | grep minio-data
+# Should show: minio-data-0, minio-data-1, etc.
 ```
 
-2. **Verify volume isolation:**
-
-```bash
-docker volume ls | grep postgres-data
-# Should show: postgres-data-0, postgres-data-1, etc.
-```
-
-3. **Clean slate (nuclear option):**
+2. **Clean slate (nuclear option):**
 
 ```bash
 # Stop all instances
@@ -377,8 +353,8 @@ docker compose -f docker/docker-compose.infra.yml down -v
 **Diagnosis:**
 
 ```bash
-# Check if multiple WhatsApp instances running
-ps aux | grep whatsapp-bot
+# Check if multiple instances have WhatsApp enabled
+ps aux | grep dashboard
 
 # Check WhatsApp enabled status
 source scripts/instance-env.sh
@@ -444,13 +420,6 @@ export AI_INSTANCE_ID=2
 ./run.sh dev
 ```
 
-3. **Check instance-env.sh is sourced:**
-
-```bash
-# In scripts/dev.sh, line ~50:
-grep "source.*instance-env.sh" scripts/dev.sh
-```
-
 ---
 
 ## Best Practices
@@ -468,7 +437,7 @@ grep "source.*instance-env.sh" scripts/dev.sh
    - WhatsApp disabled by default
 
 3. **Resource Management**
-   - Monitor RAM usage (~700MB per instance)
+   - Monitor RAM usage (~500MB per instance)
    - Don't exceed 9 instances simultaneously
    - Stop unused instances: `./run.sh dev stop`
 
@@ -487,22 +456,11 @@ open http://localhost:3080  # Feature C
 2. **Database Migration Testing**
 
 ```bash
-# Each instance has separate DB
+# Each instance has separate SQLite DB
 # Test migrations independently:
 cd ~/claude-worktrees/orienter/migration-test
 ./run.sh dev
 # Run migrations (affects only Instance 1's DB)
-```
-
-3. **Integration Testing**
-
-```bash
-# Use main repo for stable environment
-cd ~/code/genoox/orienter
-./run.sh dev
-
-# Test integrations against stable base
-# (Slack, JIRA, etc.)
 ```
 
 ### Cleanup Procedures
@@ -527,6 +485,9 @@ docker volume prune -f
 
 # Clear logs
 rm -rf logs/instance-*/*.log
+
+# Clear old database files
+rm -rf .dev-data/instance-*
 ```
 
 ---
@@ -543,26 +504,21 @@ rm -rf logs/instance-*/*.log
 docker ps --filter "name=orienter-.*-1"
 
 # View logs
-tail -f logs/instance-1/whatsapp-dev.log
+tail -f logs/instance-1/dashboard-dev.log
 ```
 
 ### Verify Isolation
 
 ```bash
-# Database isolation
-docker exec orienter-postgres-0 psql -U aibot -c '\l'
-docker exec orienter-postgres-1 psql -U aibot -c '\l'
-# Should show different databases
+# Database isolation (SQLite - file-based)
+ls -la .dev-data/instance-0/orient.db
+ls -la .dev-data/instance-1/orient.db
+# Should show different files
 
 # Storage isolation
 docker exec orienter-minio-0 mc ls local/
 docker exec orienter-minio-1 mc ls local/
 # Should show different buckets
-
-# Network isolation
-docker network inspect orienter-network-0
-docker network inspect orienter-network-1
-# Should show different containers
 ```
 
 ### Performance Monitoring
@@ -572,7 +528,7 @@ docker network inspect orienter-network-1
 docker stats --filter "name=orienter-"
 
 # Check port availability
-for port in 1080 5097 5098 5099 6173 6432 10000 10001; do
+for port in 1080 5098 5099 6173 10000 10001; do
   lsof -ti :$port >/dev/null 2>&1 && echo "Port $port: IN USE" || echo "Port $port: FREE"
 done
 ```
@@ -593,21 +549,18 @@ Set in `scripts/instance-env.sh`, exported to all services:
 **Service Ports:**
 
 - `NGINX_PORT` - Nginx reverse proxy port
-- `WHATSAPP_PORT` - WhatsApp bot API port
-- `DASHBOARD_PORT` - Dashboard API port
+- `DASHBOARD_PORT` - Dashboard API port (includes WhatsApp)
 - `OPENCODE_PORT` - OpenCode server port
 - `VITE_PORT` - Vite dev server port
 
 **Infrastructure Ports:**
 
-- `POSTGRES_PORT` - PostgreSQL database port
 - `MINIO_API_PORT` - MinIO S3 API port
 - `MINIO_CONSOLE_PORT` - MinIO web console port
 
 **Database Configuration:**
 
-- `POSTGRES_DB` - Database name (includes instance ID)
-- `DATABASE_URL` - Full PostgreSQL connection string
+- `SQLITE_DB_PATH` - SQLite database file path (instance-specific)
 
 **Storage Configuration:**
 
@@ -622,7 +575,7 @@ Set in `scripts/instance-env.sh`, exported to all services:
 
 **Feature Flags:**
 
-- `WHATSAPP_ENABLED` - WhatsApp bot enabled (true/false)
+- `WHATSAPP_ENABLED` - WhatsApp integration enabled (true/false)
 
 ### Command Reference
 
@@ -690,7 +643,7 @@ export AI_INSTANCE_ID=2
 
 ### Production Considerations
 
-**⚠️ This feature is development-only:**
+**This feature is development-only:**
 
 - Production deploys still use single instance (instance 0)
 - Multi-instance is NOT for production horizontal scaling
@@ -713,7 +666,7 @@ export AI_INSTANCE_ID=2
 
 - `scripts/instance-env.sh` - Instance detection and configuration
 - `scripts/dev.sh` - Development script integration
-- `docker/docker-compose.infra.yml` - Templatized infrastructure
+- `docker/docker-compose.infra.yml` - Templatized infrastructure (nginx, minio)
 - `docker/nginx-local.template.conf` - Dynamic Nginx config
 
 **Testing:**
@@ -722,14 +675,42 @@ export AI_INSTANCE_ID=2
 - `scripts/test-*.sh` - Bash integration tests
 - `scripts/run-all-tests.sh` - Test runner
 
-**Documentation:**
+---
 
-- `IMPLEMENTATION_SUMMARY.md` - Implementation overview
-- `TESTING_GUIDE.md` - Testing instructions
-- `TEST_RESULTS.md` - Test verification results
+## Migration History
+
+### 2026-01-26: SQLite Migration (v2.0.0)
+
+**Breaking Changes:**
+
+- **Database**: Migrated from PostgreSQL to SQLite (file-based)
+- **WhatsApp**: Integrated into Dashboard (single `DASHBOARD_PORT` instead of separate `WHATSAPP_PORT`)
+- **Docker**: Removed PostgreSQL container from all compose files
+
+**Removed Environment Variables:**
+
+- `POSTGRES_PORT` - No longer needed (SQLite is file-based)
+- `POSTGRES_DB` - No longer needed
+- `POSTGRES_USER` - No longer needed
+- `POSTGRES_PASSWORD` - No longer needed
+- `DATABASE_URL` - Replaced with `SQLITE_DB_PATH`
+- `WHATSAPP_PORT` - WhatsApp now uses `DASHBOARD_PORT`
+
+**New Environment Variables:**
+
+- `SQLITE_DB_PATH` - Path to SQLite database file
+- `DATABASE_TYPE=sqlite` - Database type indicator
+
+**Migration Steps:**
+
+1. Update `.env` to remove PostgreSQL variables
+2. Run `./run.sh dev stop` to stop any running instances
+3. Remove old PostgreSQL data: `docker volume rm` any postgres volumes
+4. Start fresh with `./run.sh dev`
 
 ---
 
-**Last Updated:** 2026-01-13
-**Feature Version:** 1.0.0
-**Minimum Requirements:** Docker, Bash 4.0+, ~700MB RAM per instance
+**Last Updated:** 2026-01-26
+**Feature Version:** 2.0.0
+**Architecture:** SQLite database, unified Dashboard+WhatsApp server
+**Minimum Requirements:** Docker, Bash 4.0+, ~500MB RAM per instance

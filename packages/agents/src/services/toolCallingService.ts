@@ -12,7 +12,7 @@
  */
 
 import Anthropic from '@anthropic-ai/sdk';
-import { createServiceLogger } from '@orient/core';
+import { createServiceLogger } from '@orientbot/core';
 
 const logger = createServiceLogger('tool-calling');
 

@@ -1,5 +1,5 @@
 /**
- * @orient/integrations
+ * @orientbot/integrations
  *
  * External service integrations for the Orient.
  * Provides unified access to JIRA, Google, Linear, GitHub, and other services.
@@ -11,15 +11,15 @@
  *   getAllIssues,
  *   JiraIssue,
  *   JiraUser,
- * } from '@orient/integrations';
+ * } from '@orientbot/integrations';
  *
  * // Or use the subpath export
- * import * as jira from '@orient/integrations/jira';
- * import * as google from '@orient/integrations/google';
+ * import * as jira from '@orientbot/integrations/jira';
+ * import * as google from '@orientbot/integrations/google';
  *
  * // New catalog-based integrations
- * import * as catalog from '@orient/integrations/catalog';
- * import { IntegrationManifest } from '@orient/integrations/types';
+ * import * as catalog from '@orientbot/integrations/catalog';
+ * import { IntegrationManifest } from '@orientbot/integrations/types';
  */
 
 // Re-export JIRA types

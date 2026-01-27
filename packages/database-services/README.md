@@ -1,4 +1,4 @@
-# @orient/database-services
+# @orientbot/database-services
 
 Database service implementations for the Orient.
 
@@ -17,7 +17,7 @@ import {
   createSlackDatabase,
   createSchedulerDatabase,
   createWebhookDatabase,
-} from '@orient/database-services';
+} from '@orientbot/database-services';
 
 // SQLite message database
 const messageDb = new MessageDatabase('./data/messages.db');

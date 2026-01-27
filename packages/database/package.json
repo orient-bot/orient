@@ -1,5 +1,5 @@
 {
-  "name": "@orient/database",
+  "name": "@orientbot/database",
   "version": "1.0.0",
   "description": "Database schemas, migrations, and clients for Orient",
   "type": "module",
@@ -35,15 +35,21 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio",
+    "db:generate:sqlite": "drizzle-kit generate --config=drizzle.sqlite.config.ts",
+    "db:migrate:sqlite": "drizzle-kit migrate --config=drizzle.sqlite.config.ts",
+    "db:push:sqlite": "drizzle-kit push --config=drizzle.sqlite.config.ts",
+    "db:studio:sqlite": "drizzle-kit studio --config=drizzle.sqlite.config.ts"
   },
   "dependencies": {
-    "@orient/core": "workspace:*",
+    "@orientbot/core": "workspace:*",
+    "better-sqlite3": "^11.7.0",
     "drizzle-orm": "^0.45.1",
     "pg": "^8.13.1",
     "postgres": "^3.4.8"
   },
   "devDependencies": {
+    "@types/better-sqlite3": "^7.6.12",
     "@types/node": "^20.10.0",
     "@types/pg": "^8.15.2",
     "@vitest/coverage-v8": "^4.0.15",
@@ -61,5 +67,9 @@
     "dist",
     "drizzle.config.ts",
     "README.md"
-  ]
+  ],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  }
 }

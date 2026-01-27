@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { MCPClientManager } from '@orient/agents';
+import { MCPClientManager } from '@orientbot/agents';
 
 describe('MCPClientManager', () => {
   it('returns tools only from connected servers', () => {

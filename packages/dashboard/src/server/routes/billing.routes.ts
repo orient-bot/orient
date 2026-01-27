@@ -5,7 +5,7 @@
  */
 
 import { Router, Request, Response } from 'express';
-import { createServiceLogger } from '@orient/core';
+import { createServiceLogger } from '@orientbot/core';
 import { getBillingService } from '../../services/billingService.js';
 import { AuthenticatedRequest } from '../../auth.js';
 
