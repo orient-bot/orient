@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import Image from 'next/image'
 import ModeIndicator from '../claude/ModeIndicator'
 
@@ -110,12 +110,33 @@ const speakers = [
 
 export default function Speakers() {
   const [pressedKey, setPressedKey] = useState<string | null>(null)
+  const [highlightIndex, setHighlightIndex] = useState<number>(0)
+  const isPaused = useRef(false)
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (!isPaused.current) {
+        setHighlightIndex((prev) => {
+          let next: number
+          do {
+            next = Math.floor(Math.random() * speakers.length)
+          } while (next === prev)
+          return next
+        })
+      }
+    }, 3500)
+    return () => clearInterval(interval)
+  }, [])
 
   const handleKeyPress = useCallback((key: string, url: string) => {
     setPressedKey(key)
+    isPaused.current = true
     setTimeout(() => {
       setPressedKey(null)
       window.open(url, '_blank')
+      setTimeout(() => {
+        isPaused.current = false
+      }, 1000)
     }, 200)
   }, [])
 
@@ -134,14 +155,15 @@ export default function Speakers() {
 
         <div className="keyboard-container">
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {speakers.map((speaker) => (
+            {speakers.map((speaker, index) => (
               <button
                 key={speaker.key}
                 onClick={() => handleKeyPress(speaker.key, speaker.url)}
                 className={`
-                  key key-interactive key-ripple
+                  key key-interactive key-ripple key-backlight-transition
                   p-4 text-center relative group
                   ${pressedKey === speaker.key ? 'key-animate ripple-active' : ''}
+                  ${highlightIndex === index && pressedKey !== speaker.key ? 'key-backlight' : ''}
                 `}
               >
                 <span className="keycap-legend">{speaker.key}</span>

@@ -477,3 +477,41 @@ body {
   white-space: nowrap;
   animation: typewriter 0.8s steps(12) forwards;
 }
+
+/* Speaker backlight sweep animation */
+:root {
+  --backlight-glow: rgba(0, 0, 0, 0.18);
+  --backlight-bg: #d4d4d4;
+}
+
+.dark {
+  --backlight-glow: rgba(255, 255, 255, 0.12);
+  --backlight-bg: #383838;
+}
+
+@keyframes speakerBacklight {
+  0% {
+    background: var(--bg-key);
+    box-shadow: 0 2px 0 0 var(--border-key-shadow), 0 3px 6px rgba(0, 0, 0, 0.08);
+  }
+  20% {
+    background: var(--backlight-bg);
+    box-shadow: 0 2px 0 0 var(--border-key-shadow), 0 0 18px var(--backlight-glow), 0 0 36px var(--backlight-glow);
+  }
+  70% {
+    background: var(--backlight-bg);
+    box-shadow: 0 2px 0 0 var(--border-key-shadow), 0 0 18px var(--backlight-glow), 0 0 36px var(--backlight-glow);
+  }
+  100% {
+    background: var(--bg-key);
+    box-shadow: 0 2px 0 0 var(--border-key-shadow), 0 3px 6px rgba(0, 0, 0, 0.08);
+  }
+}
+
+.key-backlight {
+  animation: speakerBacklight 3s ease-in-out;
+}
+
+.key-backlight-transition {
+  transition: background 0.4s ease, box-shadow 0.4s ease;
+}
