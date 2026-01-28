@@ -7,7 +7,7 @@
  */
 
 import { Router, Request, Response as ExpressResponse } from 'express';
-import { createServiceLogger } from '@orientbot/core';
+import { createServiceLogger, DEFAULT_AGENT } from '@orientbot/core';
 import { createSecretsService } from '@orientbot/database-services';
 import type { AuthenticatedRequest } from '../../auth.js';
 import type { MessageDatabase } from '@orientbot/database-services';
@@ -405,7 +405,7 @@ export function createOnboarderRoutes(
 
       const contextPrefix = route ? `Context: ${route}\n\n` : '';
       const prompt = `${contextPrefix}${message}`;
-      const agentId = typeof agent === 'string' ? agent : 'onboarder';
+      const agentId = typeof agent === 'string' ? agent : DEFAULT_AGENT;
 
       let sessionId = providedSessionId as string | undefined;
       if (!sessionId) {
