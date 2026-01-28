@@ -281,7 +281,7 @@ ${bodyContent}`;
    * Get the skills directory path
    */
   getSkillsPath(): string {
-    return this.skillsPath;
+    return this.userSkillsPath;
   }
 
   private scanDirectory(dir: string, source: 'builtin' | 'user'): void {

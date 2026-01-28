@@ -44,16 +44,19 @@ vi.mock('@orientbot/apps', () => ({
 const mockFsExists = vi.fn();
 const mockFsReaddir = vi.fn();
 const mockFsReadFile = vi.fn();
+const mockFsMkdir = vi.fn();
 
 vi.mock('fs', () => ({
   default: {
     existsSync: (...args: unknown[]) => mockFsExists(...args),
     readdirSync: (...args: unknown[]) => mockFsReaddir(...args),
     readFileSync: (...args: unknown[]) => mockFsReadFile(...args),
+    mkdirSync: (...args: unknown[]) => mockFsMkdir(...args),
   },
   existsSync: (...args: unknown[]) => mockFsExists(...args),
   readdirSync: (...args: unknown[]) => mockFsReaddir(...args),
   readFileSync: (...args: unknown[]) => mockFsReadFile(...args),
+  mkdirSync: (...args: unknown[]) => mockFsMkdir(...args),
 }));
 
 import { AppsService, AppSummary } from '../src/services/appsService.js';

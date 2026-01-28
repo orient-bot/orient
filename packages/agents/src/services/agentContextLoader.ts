@@ -11,6 +11,7 @@ import { getAgentRegistry, AgentContext } from './agentRegistry.js';
 import { getContextService, Platform } from './contextService.js';
 import { createServiceLogger, getBuiltinSkillsPath, getUserSkillsPath } from '@orientbot/core';
 import fs from 'fs/promises';
+import type { Dirent } from 'node:fs';
 import path from 'path';
 
 const logger = createServiceLogger('agent-context-loader');
@@ -125,7 +126,7 @@ async function loadSkillContent(skillNames: string[]): Promise<Map<string, strin
   const skillPathByName = new Map<string, string>();
 
   const collectSkillPaths = async (currentDir: string): Promise<void> => {
-    let entries: fs.Dirent[];
+    let entries: Dirent[];
     try {
       entries = await fs.readdir(currentDir, { withFileTypes: true });
     } catch {
