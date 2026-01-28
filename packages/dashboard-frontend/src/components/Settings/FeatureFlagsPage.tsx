@@ -3,8 +3,9 @@ import { useFeatureFlags, type FeatureFlagDefinition } from '../../hooks/useFeat
 import { setFeatureFlagOverride } from '../../api';
 
 export function FeatureFlagsPage() {
-  const { flags, refresh, loading } = useFeatureFlags();
+  const { flags, refresh, loading, error } = useFeatureFlags();
   const [updating, setUpdating] = useState(false);
+  const hasError = Boolean(error);
 
   // Group flags by parent
   const rootFlags = Object.entries(flags).filter(([_, flag]) => !flag.parentFlag);
@@ -62,6 +63,22 @@ export function FeatureFlagsPage() {
         </p>
       </div>
 
+      {error && (
+        <div className="card border border-destructive/40 bg-destructive/10 p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-sm font-medium text-destructive">Failed to load feature flags</p>
+            <p className="text-xs text-muted-foreground mt-1">{error}</p>
+          </div>
+          <button
+            type="button"
+            onClick={refresh}
+            className="inline-flex items-center justify-center rounded-md border border-border bg-background px-3 py-2 text-sm font-medium text-foreground hover:bg-muted/50"
+          >
+            Retry
+          </button>
+        </div>
+      )}
+
       <div className="space-y-4">
         {rootFlags.map(([flagId, flag]) => {
           const children = Object.entries(flags).filter(([_, f]) => f.parentFlag === flagId);
@@ -83,7 +100,7 @@ export function FeatureFlagsPage() {
                     type="checkbox"
                     checked={flag.enabled}
                     onChange={(e) => updateFlag(flagId, { enabled: e.target.checked })}
-                    disabled={updating}
+                    disabled={updating || hasError}
                     className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary"
                   />
                   <span className="text-sm font-medium text-foreground">Enabled</span>
@@ -103,7 +120,7 @@ export function FeatureFlagsPage() {
                         value="hide"
                         checked={flag.uiStrategy === 'hide'}
                         onChange={() => updateFlag(flagId, { uiStrategy: 'hide' })}
-                        disabled={updating}
+                        disabled={updating || hasError}
                         className="mt-0.5 w-4 h-4 border-gray-300 text-primary focus:ring-primary"
                       />
                       <div>
@@ -122,7 +139,7 @@ export function FeatureFlagsPage() {
                         value="notify"
                         checked={flag.uiStrategy === 'notify'}
                         onChange={() => updateFlag(flagId, { uiStrategy: 'notify' })}
-                        disabled={updating}
+                        disabled={updating || hasError}
                         className="mt-0.5 w-4 h-4 border-gray-300 text-primary focus:ring-primary"
                       />
                       <div>
@@ -159,7 +176,7 @@ export function FeatureFlagsPage() {
                         <input
                           type="checkbox"
                           checked={childFlag.enabled}
-                          disabled={!flag.enabled || updating}
+                          disabled={!flag.enabled || updating || hasError}
                           onChange={(e) => updateFlag(childId, { enabled: e.target.checked })}
                           className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed"
                         />

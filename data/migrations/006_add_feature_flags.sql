@@ -40,8 +40,8 @@ INSERT INTO feature_flags (id, name, description, enabled, category, sort_order)
     ('mini_apps.share', 'Share Apps', 'Share and publish apps', false, 'ui', 13),
 
     -- Monitoring section (DISABLED by default)
-    ('monitoring', 'Monitoring', 'Server monitoring and metrics', false, 'operations', 20),
-    ('monitoring.server_health', 'Server Health', 'Server health status card', false, 'operations', 21),
+    ('operations.monitoring', 'Monitoring', 'Server monitoring and metrics', false, 'operations', 20),
+    ('operations.monitoring.server_health', 'Server Health', 'Server health status card', false, 'operations', 21),
 
     -- Agent Registry section (ENABLED)
     ('agent_registry', 'Agent Registry', 'Agent configuration management', true, 'ui', 30),
@@ -54,8 +54,8 @@ INSERT INTO feature_flags (id, name, description, enabled, category, sort_order)
 
     -- Operations section (ENABLED)
     ('operations', 'Operations', 'Server operations and management', true, 'operations', 45),
-    ('storage', 'Storage', 'Database and media storage', true, 'operations', 50),
-    ('billing', 'Billing', 'Usage and cost tracking', true, 'operations', 60)
+    ('operations.storage', 'Storage', 'Database and media storage', true, 'operations', 50),
+    ('operations.billing', 'Billing', 'Usage and cost tracking', true, 'operations', 60)
 ON CONFLICT (id) DO UPDATE SET
     name = EXCLUDED.name,
     description = EXCLUDED.description,
