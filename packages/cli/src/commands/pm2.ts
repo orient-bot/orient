@@ -8,9 +8,9 @@ import { Command } from 'commander';
 import { execSync, spawnSync } from 'child_process';
 import { existsSync } from 'fs';
 import { join } from 'path';
-import { homedir } from 'os';
+import { getOrientHome } from '@orientbot/core';
 
-const ORIENT_HOME = process.env.ORIENT_HOME || join(homedir(), '.orient');
+const ORIENT_HOME = getOrientHome();
 const ECOSYSTEM_PATH = join(ORIENT_HOME, 'ecosystem.config.cjs');
 
 function checkPM2(): boolean {

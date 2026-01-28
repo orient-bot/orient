@@ -60,7 +60,7 @@ import {
   type MessageStats,
   type StoredGroup,
 } from '@orientbot/database-services';
-import { SkillsService, createSkillsService } from '@orientbot/agents';
+import { SkillsService, clearConfigCache, createSkillsService } from '@orientbot/agents';
 import {
   googleSlidesTools,
   isGoogleSlidesTool,
@@ -72,6 +72,8 @@ import {
   generateCorrelationId,
   mcpToolLogger,
   clearCorrelationId,
+  getUserAppsPath,
+  getUserSkillsPath,
 } from '@orientbot/core';
 import { ToolDiscoveryService, formatDiscoveryResult, DiscoveryInput } from '@orientbot/agents';
 import { getToolRegistry, getToolExecutorRegistry } from '@orientbot/agents';
@@ -994,6 +996,29 @@ const tools: Tool[] = [
         },
       },
       required: ['name'],
+    },
+  },
+  {
+    name: 'skills_save',
+    description:
+      'Save or update a skill directly in the user skills directory (~/.orient/skills). Writes SKILL.md and reloads skills.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        name: {
+          type: 'string',
+          description: 'The skill name in lowercase with hyphens (e.g., "billing-api")',
+        },
+        description: {
+          type: 'string',
+          description: 'Short description of what the skill does and when to use it.',
+        },
+        content: {
+          type: 'string',
+          description: 'The full skill body content in Markdown (no frontmatter).',
+        },
+      },
+      required: ['name', 'description', 'content'],
     },
   },
   {
@@ -3381,6 +3406,7 @@ async function executeToolCall(
                   skills: skillList.map((s) => ({
                     name: s.name,
                     description: s.description,
+                    source: s.source,
                   })),
                 },
                 null,
@@ -3440,6 +3466,7 @@ async function executeToolCall(
                   name: skill.name,
                   description: skill.description,
                   content: skill.content,
+                  source: skill.source,
                 },
                 null,
                 2
@@ -3455,6 +3482,73 @@ async function executeToolCall(
               type: 'text',
               text: JSON.stringify({
                 error: `Failed to read skill: ${error instanceof Error ? error.message : String(error)}`,
+              }),
+            },
+          ],
+          isError: true,
+        };
+      }
+    }
+
+    case 'skills_save': {
+      const {
+        name: skillName,
+        description,
+        content,
+      } = args as {
+        name: string;
+        description: string;
+        content: string;
+      };
+      const op = skillLogger.startOperation('saveSkill', { skillName });
+
+      try {
+        if (!skillName || !description || !content) {
+          throw new Error('name, description, and content are required');
+        }
+
+        const fs = await import('fs/promises');
+        const skillDir = path.join(getUserSkillsPath(), skillName);
+        await fs.mkdir(skillDir, { recursive: true });
+
+        const skillBody = content.trim();
+        const skillText = `---\nname: ${skillName}\ndescription: ${description}\n---\n\n${skillBody}\n`;
+        const skillPath = path.join(skillDir, 'SKILL.md');
+        await fs.writeFile(skillPath, skillText, 'utf-8');
+
+        const skills = await getSkillsService();
+        const result = await skills.reload();
+        clearConfigCache();
+
+        op.success('Skill saved', { skillName, path: skillPath });
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(
+                {
+                  success: true,
+                  message: `Skill "${skillName}" saved successfully`,
+                  skillName,
+                  path: skillPath,
+                  previous: result.previous,
+                  current: result.current,
+                },
+                null,
+                2
+              ),
+            },
+          ],
+        };
+      } catch (error) {
+        op.failure(error instanceof Error ? error : String(error));
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify({
+                error: `Failed to save skill: ${error instanceof Error ? error.message : String(error)}`,
               }),
             },
           ],
@@ -5106,6 +5200,7 @@ async function executeToolCall(
               status: string;
               isBuilt: boolean;
               author?: string;
+              source?: string;
             }) => ({
               name: app.name,
               title: app.title,
@@ -5114,6 +5209,7 @@ async function executeToolCall(
               status: app.status,
               isBuilt: app.isBuilt,
               author: app.author,
+              source: app.source,
             })
           ),
         };
@@ -5130,6 +5226,72 @@ async function executeToolCall(
               type: 'text',
               text: JSON.stringify({
                 error: `Failed to list apps: ${error instanceof Error ? error.message : String(error)}`,
+              }),
+            },
+          ],
+          isError: true,
+        };
+      }
+    }
+
+    case 'apps_save': {
+      const op = appsLogger.startOperation('apps_save', args);
+
+      try {
+        const { name: appName, content } = args as { name: string; content: string };
+
+        if (!appName || !content) {
+          throw new Error('name and content are required');
+        }
+
+        const service = await getAppsService();
+        if (!service) {
+          throw new Error('Apps service not available');
+        }
+
+        const validation = service.validateManifestContent(content);
+        if (!validation.valid) {
+          throw new Error(`Invalid APP.yaml: ${validation.errors?.join(', ') || 'unknown error'}`);
+        }
+
+        const fs = await import('fs/promises');
+        const appDir = path.join(getUserAppsPath(), appName);
+        await fs.mkdir(appDir, { recursive: true });
+
+        const manifestPath = path.join(appDir, 'APP.yaml');
+        await fs.writeFile(manifestPath, content.trim() + '\n', 'utf-8');
+
+        const result = await service.reload();
+
+        op.success('App saved', { appName, manifestPath });
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(
+                {
+                  success: true,
+                  message: `App "${appName}" saved successfully`,
+                  appName,
+                  path: manifestPath,
+                  previous: result.previous,
+                  current: result.current,
+                },
+                null,
+                2
+              ),
+            },
+          ],
+        };
+      } catch (error) {
+        op.failure(error instanceof Error ? error : String(error));
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify({
+                error: `Failed to save app: ${error instanceof Error ? error.message : String(error)}`,
               }),
             },
           ],
@@ -5189,6 +5351,7 @@ async function executeToolCall(
             status: app.status,
             isBuilt: app.isBuilt,
             author: app.manifest.author,
+            source: app.source,
             permissions,
             capabilities: {
               scheduler: app.manifest.capabilities.scheduler,

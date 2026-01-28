@@ -139,7 +139,7 @@ install_orient() {
     log "Installing Orient to $INSTALL_DIR..."
 
     # Create directory structure
-    mkdir -p "$INSTALL_DIR"/{data/sqlite,data/media,data/whatsapp-auth,logs,bin}
+    mkdir -p "$INSTALL_DIR"/{data/sqlite,data/media,data/whatsapp-auth,logs,bin,skills,apps}
 
     # Clone or update repository
     if [[ -d "$INSTALL_DIR/orient" ]]; then

@@ -9,9 +9,10 @@ import { spawnSync } from 'child_process';
 import { existsSync, rmSync, readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { homedir } from 'os';
+import { getOrientHome } from '@orientbot/core';
 import * as readline from 'readline';
 
-const ORIENT_HOME = process.env.ORIENT_HOME || join(homedir(), '.orient');
+const ORIENT_HOME = getOrientHome();
 
 async function promptUninstallMode(): Promise<'full' | 'keep-data' | 'cancel'> {
   const rl = readline.createInterface({
