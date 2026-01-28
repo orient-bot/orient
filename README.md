@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="ori.png" alt="Ori - the Orient mascot" width="180" />
+  <img src="docs/images/ori.png" alt="Ori - the Orient mascot" width="180" />
 </p>
 
 <h1 align="center">Orient</h1>
@@ -118,7 +118,7 @@ See [Production Deployment](docs/deployment/production.md) for details.
 | ------------------------------------------------------ | ------------------------------------- |
 | [Getting Started (Demo)](docs/getting-started-demo.md) | Quick demo with Docker                |
 | [Getting Started (Dev)](docs/getting-started.md)       | Full development setup                |
-| [LLM Onboarding](README.LLM.md)                        | Guide for AI agents setting up Orient |
+| [LLM Onboarding](.claude/README.LLM.md)                | Guide for AI agents setting up Orient |
 | [Configuration](docs/configuration.md)                 | All configuration options             |
 | [Skills](docs/skills.md)                               | Create custom skills                  |
 | [Permissions](docs/permissions.md)                     | Chat permission system                |
