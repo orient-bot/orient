@@ -1,6 +1,18 @@
 import { defineConfig } from 'vitest/config';
+import path from 'path';
+
+const packagesDir = path.resolve(__dirname, '..');
 
 export default defineConfig({
+  resolve: {
+    alias: {
+      '@orientbot/core': path.resolve(packagesDir, 'core/src/index.ts'),
+      '@orientbot/database': path.resolve(packagesDir, 'database/src/index.ts'),
+      '@orientbot/database-services': path.resolve(packagesDir, 'database-services/src/index.ts'),
+      '@orientbot/agents': path.resolve(packagesDir, 'agents/src/index.ts'),
+      '@orientbot/mcp-tools': path.resolve(packagesDir, 'mcp-tools/src/index.ts'),
+    },
+  },
   test: {
     globals: true,
     environment: 'node',
