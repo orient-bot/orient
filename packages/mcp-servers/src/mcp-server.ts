@@ -1519,6 +1519,64 @@ const tools: Tool[] = [
       required: ['message'],
     },
   },
+  {
+    name: 'orient_whatsapp_send_image',
+    description:
+      'Send an image to the current WhatsApp chat. Provide either a URL or local file path to the image.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        imageUrl: {
+          type: 'string',
+          description: 'URL of the image to send',
+        },
+        imagePath: {
+          type: 'string',
+          description: 'Local file path of the image to send',
+        },
+        caption: {
+          type: 'string',
+          description: 'Optional caption for the image',
+        },
+        jid: {
+          type: 'string',
+          description: 'Optional: specific JID to send to (defaults to current chat)',
+        },
+      },
+      required: [],
+    },
+  },
+  {
+    name: 'orient_slack_send_image',
+    description:
+      'Upload and send an image to a Slack channel or DM. Provide either a URL or local file path.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        channel: {
+          type: 'string',
+          description: 'Channel name (e.g., #general) or channel ID',
+        },
+        imageUrl: {
+          type: 'string',
+          description: 'URL of the image to send',
+        },
+        imagePath: {
+          type: 'string',
+          description: 'Local file path of the image to send',
+        },
+        caption: {
+          type: 'string',
+          description: 'Optional message to accompany the image',
+        },
+        filename: {
+          type: 'string',
+          description: 'Optional filename for the uploaded image',
+        },
+      },
+      required: ['channel'],
+    },
+  },
   // Skill Management Tools - for creating/editing skills via GitHub PRs
   {
     name: 'ai_first_list_skills',
@@ -4234,6 +4292,182 @@ async function executeToolCall(
                 error: `Failed to send message: ${error instanceof Error ? error.message : String(error)}`,
                 hint: 'Make sure the WhatsApp bot is running and connected.',
               }),
+            },
+          ],
+          isError: true,
+        };
+      }
+    }
+
+    case 'orient_whatsapp_send_image': {
+      const { imageUrl, imagePath, caption, jid } = args as {
+        imageUrl?: string;
+        imagePath?: string;
+        caption?: string;
+        jid?: string;
+      };
+      const op = whatsappLogger.startOperation('sendImage');
+
+      if (!imageUrl && !imagePath) {
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify({
+                error: 'Either imageUrl or imagePath is required',
+              }),
+            },
+          ],
+          isError: true,
+        };
+      }
+
+      try {
+        const response = await fetch('http://127.0.0.1:4097/send-image', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ jid, imageUrl, imagePath, caption }),
+        });
+
+        const result = (await response.json()) as {
+          success?: boolean;
+          error?: string;
+          messageId?: string;
+        };
+
+        if (!response.ok || !result.success) {
+          throw new Error(result.error || 'Failed to send image');
+        }
+
+        op.success('Image sent via WhatsApp', { messageId: result.messageId });
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(
+                {
+                  success: true,
+                  message: 'Image sent successfully!',
+                  messageId: result.messageId,
+                },
+                null,
+                2
+              ),
+            },
+          ],
+        };
+      } catch (error) {
+        op.failure(error instanceof Error ? error : String(error));
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify({
+                error: `Failed to send image: ${error instanceof Error ? error.message : String(error)}`,
+                hint: 'Make sure the WhatsApp bot is running and connected.',
+              }),
+            },
+          ],
+          isError: true,
+        };
+      }
+    }
+
+    case 'orient_slack_send_image': {
+      const { channel, imageUrl, imagePath, caption, filename } = args as {
+        channel: string;
+        imageUrl?: string;
+        imagePath?: string;
+        caption?: string;
+        filename?: string;
+      };
+      const op = slackLogger.startOperation('sendImage');
+
+      if (!imageUrl && !imagePath) {
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify({
+                error: 'Either imageUrl or imagePath is required',
+              }),
+            },
+          ],
+          isError: true,
+        };
+      }
+
+      try {
+        ensureSlackInitialized();
+
+        // Resolve image to buffer
+        let fileBuffer: Buffer;
+        let resolvedFilename: string;
+
+        if (imageUrl) {
+          const imgResponse = await fetch(imageUrl);
+          if (!imgResponse.ok) {
+            throw new Error(
+              `Failed to fetch image from URL: ${imgResponse.status} ${imgResponse.statusText}`
+            );
+          }
+          const arrayBuffer = await imgResponse.arrayBuffer();
+          fileBuffer = Buffer.from(arrayBuffer);
+          // Extract filename from URL or use provided filename
+          resolvedFilename = filename || path.basename(new URL(imageUrl).pathname) || 'image.png';
+        } else {
+          const fs = await import('fs');
+          if (!fs.existsSync(imagePath!)) {
+            throw new Error(`File not found: ${imagePath}`);
+          }
+          fileBuffer = fs.readFileSync(imagePath!);
+          resolvedFilename = filename || path.basename(imagePath!);
+        }
+
+        // Upload and share the image using Slack's files.uploadV2
+        const uploadResult = await slackClient.files.uploadV2({
+          channel_id: channel.replace(/^#/, ''),
+          file: fileBuffer,
+          filename: resolvedFilename,
+          initial_comment: caption || undefined,
+        });
+
+        op.success('Image uploaded to Slack', { channel, filename: resolvedFilename });
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(
+                {
+                  success: true,
+                  message: 'Image uploaded and shared successfully!',
+                  details: {
+                    channel,
+                    filename: resolvedFilename,
+                  },
+                },
+                null,
+                2
+              ),
+            },
+          ],
+        };
+      } catch (error) {
+        op.failure(error instanceof Error ? error : String(error), { channel });
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(
+                {
+                  error: true,
+                  message: `Failed to upload image: ${error instanceof Error ? error.message : String(error)}`,
+                },
+                null,
+                2
+              ),
             },
           ],
           isError: true,

@@ -1288,6 +1288,47 @@ export class WhatsAppService extends EventEmitter {
   }
 
   /**
+   * Send an image message
+   *
+   * PERMISSION ENFORCED: Will throw WritePermissionDeniedError if the chat
+   * does not have explicit 'read_write' permission.
+   */
+  async sendImage(
+    jid: string,
+    image: Buffer | string,
+    options?: { caption?: string; mimetype?: string }
+  ): Promise<{ key: { id: string } } | null> {
+    // CRITICAL: Check write permission BEFORE doing anything else
+    await this.checkWritePermission(jid);
+
+    if (!this.socket || !this.isConnected) {
+      throw new Error('WhatsApp not connected');
+    }
+
+    const op = logger.startOperation('sendImage');
+
+    try {
+      const content: any =
+        typeof image === 'string'
+          ? { image: { url: image }, caption: options?.caption }
+          : { image, caption: options?.caption, mimetype: options?.mimetype || 'image/jpeg' };
+
+      const result = await this.socket.sendMessage(jid, content);
+      op.success('Image sent', { to: this.extractPhoneNumber(jid) });
+      return result
+        ? {
+            key: {
+              id: result.key.id || '',
+            },
+          }
+        : null;
+    } catch (error) {
+      op.failure(error instanceof Error ? error : String(error));
+      throw error;
+    }
+  }
+
+  /**
    * Send a formatted response with bot header
    * Note: Model attribution is added by formatResponseWithMetadata in whatsapp-bot.ts
    */

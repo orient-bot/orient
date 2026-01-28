@@ -147,6 +147,11 @@ export class WhatsAppApiServer {
             return;
           }
 
+          if (url.pathname === '/send-image' && req.method === 'POST') {
+            await this.handleSendImage(req, res);
+            return;
+          }
+
           if (url.pathname === '/current-context') {
             res.writeHead(200);
             res.end(
@@ -538,6 +543,115 @@ export class WhatsAppApiServer {
       res.end(
         JSON.stringify({
           error: error instanceof Error ? error.message : 'Failed to send message',
+        })
+      );
+    }
+  }
+
+  /**
+   * Handle /send-image endpoint
+   */
+  private async handleSendImage(
+    req: http.IncomingMessage,
+    res: http.ServerResponse
+  ): Promise<void> {
+    const body = (await this.parseBody(req)) as {
+      jid?: string;
+      imageUrl?: string;
+      imagePath?: string;
+      caption?: string;
+    };
+
+    const jid = body.jid || this.currentJid;
+
+    if (!jid) {
+      res.writeHead(400);
+      res.end(
+        JSON.stringify({
+          error: 'No JID provided and no current chat context',
+        })
+      );
+      return;
+    }
+
+    if (!body.imageUrl && !body.imagePath) {
+      res.writeHead(400);
+      res.end(
+        JSON.stringify({
+          error: 'Either imageUrl or imagePath is required',
+        })
+      );
+      return;
+    }
+
+    try {
+      let imageBuffer: Buffer;
+
+      if (body.imageUrl) {
+        // Fetch image from URL
+        const response = await fetch(body.imageUrl);
+        if (!response.ok) {
+          throw new Error(
+            `Failed to fetch image from URL: ${response.status} ${response.statusText}`
+          );
+        }
+        const arrayBuffer = await response.arrayBuffer();
+        imageBuffer = Buffer.from(arrayBuffer);
+      } else {
+        // Read image from local file path
+        const fs = await import('fs');
+        if (!fs.existsSync(body.imagePath!)) {
+          res.writeHead(400);
+          res.end(JSON.stringify({ error: `File not found: ${body.imagePath}` }));
+          return;
+        }
+        imageBuffer = fs.readFileSync(body.imagePath!);
+      }
+
+      const result = await this.whatsappService.sendImage(jid, imageBuffer, {
+        caption: body.caption,
+      });
+
+      logger.info('Image sent via API', {
+        jid,
+        source: body.imageUrl ? 'url' : 'file',
+        size: imageBuffer.length,
+      });
+
+      res.writeHead(200);
+      res.end(
+        JSON.stringify({
+          success: true,
+          messageId: result?.key?.id,
+        })
+      );
+    } catch (error) {
+      // Handle permission denied errors specifically
+      if (error instanceof WritePermissionDeniedError) {
+        logger.warn('Image blocked - write permission denied', {
+          jid: error.jid,
+          permission: error.permission,
+        });
+        res.writeHead(403);
+        res.end(
+          JSON.stringify({
+            error: 'Write permission denied',
+            chatId: jid,
+            permission: error.permission,
+            message:
+              'This chat does not have write permission. Enable "Read + Write" in the admin dashboard to allow bot messages.',
+          })
+        );
+        return;
+      }
+
+      logger.error('Failed to send image via API', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      res.writeHead(500);
+      res.end(
+        JSON.stringify({
+          error: error instanceof Error ? error.message : 'Failed to send image',
         })
       );
     }

@@ -32,6 +32,11 @@ export interface SlackServiceInterface {
   getUserInfo: (
     userId: string
   ) => Promise<{ id: string; name: string; displayName?: string } | null>;
+  uploadAndShareImage: (
+    channel: string,
+    imageSource: string,
+    options?: { filename?: string; caption?: string }
+  ) => Promise<{ ts: string; channel: string }>;
 }
 
 /**
@@ -40,6 +45,11 @@ export interface SlackServiceInterface {
 export interface WhatsAppServiceInterface {
   sendText: (jid: string, text: string) => Promise<{ key: { id: string } }>;
   sendPoll: (jid: string, question: string, options: string[]) => Promise<{ key: { id: string } }>;
+  sendImage: (
+    jid: string,
+    image: Buffer | string,
+    options?: { caption?: string }
+  ) => Promise<{ key: { id: string } } | null>;
 }
 
 /**

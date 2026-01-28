@@ -745,6 +745,48 @@ function registerMessagingTools(registry: ToolRegistry): void {
       'Find quotes from a channel',
     ],
   });
+
+  // ai_first_slack_send_image
+  registry.registerTool({
+    tool: {
+      name: 'orient_slack_send_image',
+      description:
+        'Upload and send an image to a Slack channel or DM. Provide either a URL or local file path.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          channel: {
+            type: 'string',
+            description: 'Channel name (e.g., #general) or channel ID',
+          },
+          imageUrl: {
+            type: 'string',
+            description: 'URL of the image to send',
+          },
+          imagePath: {
+            type: 'string',
+            description: 'Local file path of the image to send',
+          },
+          caption: {
+            type: 'string',
+            description: 'Optional message to accompany the image',
+          },
+          filename: {
+            type: 'string',
+            description: 'Optional filename for the uploaded image',
+          },
+        },
+        required: ['channel'],
+      },
+    },
+    category: 'messaging',
+    keywords: ['slack', 'image', 'upload', 'send', 'photo', 'picture', 'file'],
+    useCases: [
+      'Send an image to a Slack channel',
+      'Upload a photo to Slack',
+      'Share an image on Slack',
+    ],
+  });
 }
 
 /**
@@ -1020,6 +1062,44 @@ function registerWhatsAppTools(registry: ToolRegistry): void {
     category: 'whatsapp',
     keywords: ['whatsapp', 'send', 'message', 'reply', 'respond'],
     useCases: ['Send an immediate message', 'Reply to the user directly'],
+  });
+
+  // whatsapp_send_image
+  registry.registerTool({
+    tool: {
+      name: 'orient_whatsapp_send_image',
+      description:
+        'Send an image to the current WhatsApp chat. Provide either a URL or local file path to the image.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          imageUrl: {
+            type: 'string',
+            description: 'URL of the image to send',
+          },
+          imagePath: {
+            type: 'string',
+            description: 'Local file path of the image to send',
+          },
+          caption: {
+            type: 'string',
+            description: 'Optional caption for the image',
+          },
+          jid: {
+            type: 'string',
+            description: 'Optional: specific JID to send to (defaults to current chat)',
+          },
+        },
+        required: [],
+      },
+    },
+    category: 'whatsapp',
+    keywords: ['whatsapp', 'image', 'photo', 'picture', 'send', 'upload'],
+    useCases: [
+      'Send an image via WhatsApp',
+      'Share a photo in WhatsApp',
+      'Upload a picture to WhatsApp chat',
+    ],
   });
 }
 
