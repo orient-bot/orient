@@ -326,14 +326,14 @@ describe('MCP Servers E2E Tests', () => {
         expect(tools.length).toBeGreaterThanOrEqual(45);
       });
 
-      it('should include all JIRA tools', async () => {
+      it('should not include JIRA tools', async () => {
         const tools = await client.listTools();
         const toolNames = tools.map((t) => t.name);
 
-        expect(toolNames).toContain('ai_first_get_all_issues');
-        expect(toolNames).toContain('ai_first_get_issue');
-        expect(toolNames).toContain('ai_first_get_blockers');
-        expect(toolNames).toContain('ai_first_jira_create_issue_link');
+        expect(toolNames).not.toContain('ai_first_get_all_issues');
+        expect(toolNames).not.toContain('ai_first_get_issue');
+        expect(toolNames).not.toContain('ai_first_get_blockers');
+        expect(toolNames).not.toContain('ai_first_jira_create_issue_link');
       });
 
       it('should include messaging tools', async () => {
@@ -492,7 +492,7 @@ describe('MCP Servers E2E Tests', () => {
         // Expected critical tools from legacy
         const criticalTools = [
           'ai_first_health_check',
-          'ai_first_get_issue',
+          'ai_first_get_config',
           'ai_first_slides_get_presentation',
           'ai_first_create_app',
           'ai_first_list_skills',

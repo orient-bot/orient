@@ -2,42 +2,14 @@
  * AI Agent Service - Conversational AI for Slack
  *
  * This service enables natural language conversations in Slack,
- * using Claude to understand requests and execute Jira operations.
+ * using Claude to understand requests and execute Slack-focused operations.
  *
  * Exported via @orientbot/agents package.
  */
 
 import Anthropic from '@anthropic-ai/sdk';
 import { createServiceLogger } from '@orientbot/core';
-import type { JiraIssue, SLABreach } from '@orientbot/core';
-import {
-  getAllIssues,
-  getIssueByKey,
-  getInProgressIssues,
-  getBoardIssues,
-  getBlockerIssues,
-  checkSLABreaches,
-  getActiveSprintIssues,
-  getCompletedThisWeek,
-  getCreatedThisWeek,
-  getIssuesByStatus,
-} from '@orientbot/integrations';
-
-// Namespace alias for compatibility
-const jiraService = {
-  getAllIssues,
-  getIssueByKey,
-  getInProgressIssues,
-  getBoardIssues,
-  getBlockerIssues,
-  checkSLABreaches,
-  getActiveSprintIssues,
-  getCompletedThisWeek,
-  getCreatedThisWeek,
-  getIssuesByStatus,
-};
 import { executeToolLoop, ToolResult, ToolCallingConfig } from './toolCallingService.js';
-import * as mcpTools from '@orientbot/mcp-tools';
 
 const agentLogger = createServiceLogger('agent');
 
@@ -55,25 +27,10 @@ interface ConversationContext {
   lastActivity: Date;
 }
 
-// Tool definitions are now imported from shared definitions
-const resolveSlackJiraTools =
-  mcpTools.getSlackJiraTools ||
-  (mcpTools as { default?: { getSlackJiraTools?: () => unknown } }).default?.getSlackJiraTools;
-
-if (!resolveSlackJiraTools) {
-  throw new Error('getSlackJiraTools is not available from @orientbot/mcp-tools');
-}
-
-const TOOL_DEFINITIONS = resolveSlackJiraTools();
+const TOOL_DEFINITIONS: Anthropic.Tool[] = [];
 
 // System prompt for the agent
-const SYSTEM_PROMPT = `You are the Orient Task Force Assistant, a helpful bot that manages and reports on Jira issues for the Orient project team at Genoox.
-
-Your capabilities:
-- Query Jira issues (all, by status, in progress, blockers, sprint, etc.)
-- Check for SLA breaches and stale tickets
-- Report on weekly progress and velocity
-- Look up specific issue details
+const SYSTEM_PROMPT = `You are the Orient Task Force Assistant, a helpful bot for the Orient project team at Genoox.
 
 CRITICAL FORMATTING RULES FOR SLACK:
 You are responding in Slack, so use Slack's mrkdwn format, NOT standard markdown:
@@ -210,85 +167,15 @@ export class AgentService {
   /**
    * Execute a tool and return the result
    */
-  private async executeTool(toolName: string, input: Record<string, unknown>): Promise<ToolResult> {
+  private async executeTool(
+    toolName: string,
+    _input: Record<string, unknown>
+  ): Promise<ToolResult> {
     const op = agentLogger.startOperation('executeTool', { toolName });
 
     try {
-      let data: unknown;
-
-      switch (toolName) {
-        case 'get_all_issues': {
-          const limit = (input.limit as number) || 50;
-          const issues = await jiraService.getAllIssues();
-          data = this.formatIssueList(issues.slice(0, limit), issues.length);
-          break;
-        }
-
-        case 'get_issue_details': {
-          const issueKey = input.issueKey as string;
-          const issue = await jiraService.getIssueByKey(issueKey);
-          if (!issue) {
-            return { success: false, error: `Issue ${issueKey} not found` };
-          }
-          data = this.formatIssueDetails(issue);
-          break;
-        }
-
-        case 'get_in_progress_issues': {
-          const issues = await jiraService.getInProgressIssues();
-          data = this.formatIssueList(issues, issues.length);
-          break;
-        }
-
-        case 'get_board_issues': {
-          const issues = await jiraService.getBoardIssues();
-          data = this.formatIssueList(issues, issues.length);
-          break;
-        }
-
-        case 'get_blocker_issues': {
-          const issues = await jiraService.getBlockerIssues();
-          data = this.formatIssueList(issues, issues.length);
-          break;
-        }
-
-        case 'check_sla_breaches': {
-          const breaches = await jiraService.checkSLABreaches();
-          data = this.formatSLABreaches(breaches);
-          break;
-        }
-
-        case 'get_sprint_issues': {
-          const issues = await jiraService.getActiveSprintIssues();
-          data = this.formatSprintSummary(issues);
-          break;
-        }
-
-        case 'get_completed_this_week': {
-          const issues = await jiraService.getCompletedThisWeek();
-          data = this.formatCompletedSummary(issues);
-          break;
-        }
-
-        case 'get_created_this_week': {
-          const issues = await jiraService.getCreatedThisWeek();
-          data = this.formatIssueList(issues, issues.length);
-          break;
-        }
-
-        case 'get_issues_by_status': {
-          const status = input.status as string;
-          const issues = await jiraService.getIssuesByStatus(status);
-          data = this.formatIssueList(issues, issues.length);
-          break;
-        }
-
-        default:
-          return { success: false, error: `Unknown tool: ${toolName}` };
-      }
-
-      op.success('Tool executed', { toolName, resultSize: JSON.stringify(data).length });
-      return { success: true, data };
+      op.failure(`Tool ${toolName} is not available`);
+      return { success: false, error: `Tool ${toolName} is not available` };
     } catch (error) {
       op.failure(error instanceof Error ? error : String(error), { toolName });
       return {
@@ -296,112 +183,6 @@ export class AgentService {
         error: error instanceof Error ? error.message : String(error),
       };
     }
-  }
-
-  /**
-   * Format issue list for the LLM
-   */
-  private formatIssueList(issues: JiraIssue[], total: number): object {
-    return {
-      total,
-      returned: issues.length,
-      issues: issues.map((i) => ({
-        key: i.key,
-        summary: i.summary,
-        status: i.status,
-        statusCategory: i.statusCategory,
-        assignee: i.assignee?.displayName || 'Unassigned',
-        priority: i.priority,
-        storyPoints: i.storyPoints,
-        labels: i.labels,
-      })),
-    };
-  }
-
-  /**
-   * Format single issue details
-   */
-  private formatIssueDetails(issue: JiraIssue): object {
-    return {
-      key: issue.key,
-      summary: issue.summary,
-      description: issue.description,
-      status: issue.status,
-      statusCategory: issue.statusCategory,
-      assignee: issue.assignee?.displayName || 'Unassigned',
-      reporter: issue.reporter?.displayName || 'Unknown',
-      priority: issue.priority,
-      storyPoints: issue.storyPoints,
-      labels: issue.labels,
-      created: issue.created,
-      updated: issue.updated,
-    };
-  }
-
-  /**
-   * Format SLA breaches
-   */
-  private formatSLABreaches(breaches: SLABreach[]): object {
-    return {
-      total: breaches.length,
-      breaches: breaches.map((b) => ({
-        key: b.issue.key,
-        summary: b.issue.summary,
-        status: b.status,
-        daysInStatus: b.daysInStatus,
-        maxAllowedDays: b.maxAllowedDays,
-        assignee: b.issue.assignee?.displayName || 'Unassigned',
-        overdueDays: b.daysInStatus - b.maxAllowedDays,
-      })),
-    };
-  }
-
-  /**
-   * Format sprint summary
-   */
-  private formatSprintSummary(issues: JiraIssue[]): object {
-    const byStatus = {
-      todo: issues.filter((i) => i.statusCategory === 'To Do'),
-      inProgress: issues.filter((i) => i.statusCategory === 'In Progress'),
-      done: issues.filter((i) => i.statusCategory === 'Done'),
-    };
-
-    return {
-      total: issues.length,
-      totalPoints: issues.reduce((sum, i) => sum + (i.storyPoints || 0), 0),
-      completedPoints: byStatus.done.reduce((sum, i) => sum + (i.storyPoints || 0), 0),
-      summary: {
-        todoCount: byStatus.todo.length,
-        inProgressCount: byStatus.inProgress.length,
-        doneCount: byStatus.done.length,
-      },
-      issues: issues.map((i) => ({
-        key: i.key,
-        summary: i.summary,
-        status: i.status,
-        statusCategory: i.statusCategory,
-        assignee: i.assignee?.displayName || 'Unassigned',
-        storyPoints: i.storyPoints,
-      })),
-    };
-  }
-
-  /**
-   * Format completed issues summary
-   */
-  private formatCompletedSummary(issues: JiraIssue[]): object {
-    const velocityPoints = issues.reduce((sum, i) => sum + (i.storyPoints || 0), 0);
-
-    return {
-      count: issues.length,
-      velocityPoints,
-      issues: issues.map((i) => ({
-        key: i.key,
-        summary: i.summary,
-        assignee: i.assignee?.displayName || 'Unassigned',
-        storyPoints: i.storyPoints,
-      })),
-    };
   }
 
   /**

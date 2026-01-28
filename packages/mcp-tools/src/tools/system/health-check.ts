@@ -33,8 +33,7 @@ interface Output {
  */
 export class HealthCheckTool extends MCPTool<Input, Output> {
   readonly name = 'ai_first_health_check';
-  readonly description =
-    'Check the health and connectivity of the Orient, including Jira connection status and issue count.';
+  readonly description = 'Check the health and connectivity of the Orient.';
   readonly category = 'system' as const;
   readonly inputSchema = HealthCheckInput;
   readonly keywords = ['health', 'status', 'check', 'connectivity', 'system'];
@@ -48,38 +47,6 @@ export class HealthCheckTool extends MCPTool<Input, Output> {
   async execute(_input: Input, context: ToolContext): Promise<Output> {
     const services: ServiceStatus[] = [];
     let overallStatus: 'healthy' | 'degraded' | 'unhealthy' = 'healthy';
-
-    // Check JIRA connection
-    if (context.jiraClient) {
-      try {
-        const startTime = Date.now();
-        await context.jiraClient.myself.getCurrentUser();
-        const latencyMs = Date.now() - startTime;
-
-        services.push({
-          name: 'jira',
-          status: 'healthy',
-          latencyMs,
-          message: 'Connected to JIRA',
-        });
-      } catch (error) {
-        services.push({
-          name: 'jira',
-          status: 'unhealthy',
-          message: `JIRA connection failed: ${String(error)}`,
-        });
-        overallStatus = 'unhealthy';
-      }
-    } else {
-      services.push({
-        name: 'jira',
-        status: 'degraded',
-        message: 'JIRA client not configured',
-      });
-      if (overallStatus === 'healthy') {
-        overallStatus = 'degraded';
-      }
-    }
 
     // Check config
     services.push({

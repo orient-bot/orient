@@ -43,7 +43,6 @@ describe('Tool Inventory Baseline', () => {
   describe('Category Distribution', () => {
     // Based on baseline captured 2026-01-11: 64 total tools
     const expectedCategories: Record<ToolCategory, { min: number; description: string }> = {
-      jira: { min: 14, description: 'JIRA issue management tools' },
       messaging: { min: 4, description: 'Slack messaging tools' },
       whatsapp: { min: 10, description: 'WhatsApp messaging tools' },
       docs: { min: 8, description: 'Google Slides/Sheets tools' },
@@ -65,12 +64,11 @@ describe('Tool Inventory Baseline', () => {
       });
     });
 
-    it('should have all 10 categories', () => {
+    it('should have all 9 categories', () => {
       const categories = registry.getCategories();
-      expect(categories).toHaveLength(10);
+      expect(categories).toHaveLength(9);
 
       const categoryNames = categories.map((c) => c.name);
-      expect(categoryNames).toContain('jira');
       expect(categoryNames).toContain('messaging');
       expect(categoryNames).toContain('whatsapp');
       expect(categoryNames).toContain('docs');
@@ -85,12 +83,9 @@ describe('Tool Inventory Baseline', () => {
 
   describe('Critical Tools Presence', () => {
     const criticalTools = [
-      // JIRA
+      // System
       'ai_first_health_check',
-      'ai_first_get_issue',
-      'ai_first_get_all_issues',
-      'ai_first_get_blockers',
-      'ai_first_get_sprint_issues',
+      'ai_first_get_config',
 
       // Messaging
       'ai_first_slack_send_dm',
@@ -226,9 +221,9 @@ describe('Tool Inventory Baseline', () => {
 describe('Server Assignment Definitions', () => {
   describe('coding-mcp expected tools', () => {
     const codingMcpTools = [
-      // JIRA (read-only subset)
-      'ai_first_get_issue',
+      // System
       'ai_first_health_check',
+      'ai_first_get_config',
 
       // Slides (example-presentation-automation skill)
       'ai_first_slides_get_presentation',
@@ -294,7 +289,7 @@ describe('Server Assignment Definitions', () => {
 
       // assistant-mcp gets all tools that aren't exclusive to coding/core
       const assistantTools = allTools.filter((t) =>
-        ['jira', 'messaging', 'whatsapp', 'docs', 'google'].includes(t.category)
+        ['messaging', 'whatsapp', 'docs', 'google'].includes(t.category)
       );
 
       console.log('assistant-mcp expected tools:', assistantTools.length);

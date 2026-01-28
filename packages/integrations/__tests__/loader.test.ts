@@ -22,7 +22,7 @@ describe('Integration Manifest Loader', () => {
     it('should load manifests from catalog directory', async () => {
       const manifests = await loadIntegrationManifests();
 
-      // Should load at least some manifests (Google, GitHub, JIRA, Linear exist)
+      // Should load at least some manifests (Google, GitHub, Linear exist)
       expect(manifests.length).toBeGreaterThan(0);
     });
 
@@ -55,15 +55,6 @@ describe('Integration Manifest Loader', () => {
 
       expect(github).toBeDefined();
       expect(github?.title).toBe('GitHub');
-    });
-
-    it('should include JIRA integration manifest with authMethods', async () => {
-      const manifests = await loadIntegrationManifests();
-      const jira = manifests.find((m) => m.name === 'jira');
-
-      expect(jira).toBeDefined();
-      expect(jira?.authMethods).toBeDefined();
-      expect(jira?.authMethods?.length).toBeGreaterThan(1);
     });
 
     it('should include Linear integration manifest', async () => {
@@ -106,22 +97,6 @@ describe('Integration Manifest Loader', () => {
 
       expect(manifest).not.toBeNull();
       expect(manifest?.name).toBe('github');
-    });
-
-    it('should return JIRA manifest with dual auth', async () => {
-      const manifest = await loadIntegrationManifest('jira');
-
-      expect(manifest).not.toBeNull();
-      expect(manifest?.name).toBe('jira');
-      expect(manifest?.authMethods).toBeDefined();
-
-      const apiTokenMethod = manifest?.authMethods?.find((m) => m.type === 'api_token');
-      expect(apiTokenMethod).toBeDefined();
-      expect(apiTokenMethod?.requiredFields).toContain('JIRA_HOST');
-
-      const oauthMethod = manifest?.authMethods?.find((m) => m.type === 'oauth2');
-      expect(oauthMethod).toBeDefined();
-      expect(oauthMethod?.requiredFields).toContain('JIRA_OAUTH_CLIENT_ID');
     });
   });
 

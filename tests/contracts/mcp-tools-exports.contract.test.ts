@@ -90,7 +90,7 @@ describe('@orientbot/mcp-tools Public API Contract', () => {
           description: 'Test',
           inputSchema: { type: 'object' as const, properties: {} },
         },
-        category: 'jira' as const,
+        category: 'system' as const,
         keywords: ['test'],
         useCases: ['Testing'],
       };

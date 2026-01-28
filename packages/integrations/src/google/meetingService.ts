@@ -7,7 +7,6 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { createServiceLogger } from '@orientbot/core';
-import * as jiraService from '../jira/service.js';
 
 const logger = createServiceLogger('meeting-service');
 

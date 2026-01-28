@@ -20,7 +20,6 @@ const logger = createServiceLogger('tool-registry');
  * Category descriptions for discovery
  */
 const CATEGORY_DESCRIPTIONS: Record<ToolCategory, string> = {
-  jira: 'JIRA project management tools for issues, sprints, and boards',
   messaging: 'Slack communication tools for channels and messages',
   whatsapp: 'WhatsApp messaging tools for conversations and media',
   docs: 'Google Docs/Slides tools for presentations and documents',
@@ -33,7 +32,6 @@ const CATEGORY_DESCRIPTIONS: Record<ToolCategory, string> = {
  * Category keywords for matching
  */
 const CATEGORY_KEYWORDS: Record<ToolCategory, string[]> = {
-  jira: ['issue', 'ticket', 'sprint', 'board', 'backlog', 'task', 'story', 'bug', 'epic'],
   messaging: ['slack', 'channel', 'message', 'dm', 'thread', 'notification'],
   whatsapp: ['whatsapp', 'phone', 'chat', 'group', 'contact', 'poll'],
   docs: ['slides', 'presentation', 'document', 'sheets', 'spreadsheet'],
@@ -54,7 +52,6 @@ export class ToolRegistry {
   constructor() {
     // Initialize category index
     const categories: ToolCategory[] = [
-      'jira',
       'messaging',
       'whatsapp',
       'docs',
@@ -145,7 +142,6 @@ export class ToolRegistry {
    */
   getAllCategories(): CategoryInfo[] {
     const categories: ToolCategory[] = [
-      'jira',
       'messaging',
       'whatsapp',
       'docs',
@@ -248,7 +244,6 @@ export class ToolRegistry {
     initialized: boolean;
   } {
     const byCategory: Record<ToolCategory, number> = {
-      jira: 0,
       messaging: 0,
       whatsapp: 0,
       docs: 0,

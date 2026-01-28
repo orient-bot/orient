@@ -1098,9 +1098,9 @@ export class SlackBotService extends EventEmitter {
       let category = 'other';
       let simpleName = tool;
 
-      if (tool.startsWith('ai_first_') || tool.startsWith('jira_')) {
-        category = 'JIRA';
-        simpleName = tool.replace(/^(ai_first_|jira_)/, '').replace(/_/g, ' ');
+      if (tool.startsWith('ai_first_')) {
+        category = 'System';
+        simpleName = tool.replace(/^ai_first_/, '').replace(/_/g, ' ');
       } else if (tool.startsWith('slack_')) {
         category = 'Slack';
         simpleName = tool.replace('slack_', '').replace(/_/g, ' ');

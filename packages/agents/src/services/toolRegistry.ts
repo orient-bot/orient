@@ -19,7 +19,6 @@ const logger = createServiceLogger('tool-registry');
  * Tool categories for organizing tools by domain
  */
 export type ToolCategory =
-  | 'jira'
   | 'messaging'
   | 'whatsapp'
   | 'docs'
@@ -70,7 +69,6 @@ export class ToolRegistry {
   constructor() {
     // Initialize category index
     const categories: ToolCategory[] = [
-      'jira',
       'messaging',
       'whatsapp',
       'docs',
@@ -135,22 +133,6 @@ export class ToolRegistry {
   getCategories(): CategoryInfo[] {
     const categoryDescriptions: Record<ToolCategory, { description: string; keywords: string[] }> =
       {
-        jira: {
-          description:
-            'JIRA issue management - create, update, query issues, sprints, blockers, and SLA tracking',
-          keywords: [
-            'issue',
-            'ticket',
-            'sprint',
-            'blocker',
-            'backlog',
-            'kanban',
-            'story',
-            'task',
-            'bug',
-            'epic',
-          ],
-        },
         messaging: {
           description: 'Slack messaging - send DMs, channel messages, and lookup users',
           keywords: ['slack', 'message', 'dm', 'channel', 'notify', 'alert', 'communication'],
@@ -296,7 +278,6 @@ export function createToolRegistry(): ToolRegistry {
   const registry = new ToolRegistry();
 
   // Register all tools with their metadata
-  registerJiraTools(registry);
   registerMessagingTools(registry);
   registerWhatsAppTools(registry);
   registerDocsTools(registry);
@@ -311,314 +292,6 @@ export function createToolRegistry(): ToolRegistry {
 
   registry.markInitialized();
   return registry;
-}
-
-/**
- * Register JIRA tools
- */
-function registerJiraTools(registry: ToolRegistry): void {
-  // ai_first_get_all_issues
-  registry.registerTool({
-    tool: {
-      name: 'ai_first_get_all_issues',
-      description:
-        'Get all Jira issues for the YOUR_COMPONENT component. Returns issue key, summary, status, assignee, and priority.',
-      inputSchema: {
-        type: 'object',
-        properties: {
-          limit: {
-            type: 'number',
-            description: 'Maximum number of issues to return (default: 50)',
-          },
-        },
-        required: [],
-      },
-    },
-    category: 'jira',
-    keywords: ['issues', 'all', 'list', 'jira', 'tickets', 'query'],
-    useCases: [
-      'Get a list of all issues in the project',
-      'See all tickets assigned to the team',
-      'Review the full backlog',
-    ],
-    examples: [
-      { description: 'Get first 50 issues', input: {} },
-      { description: 'Get first 10 issues', input: { limit: 10 } },
-    ],
-  });
-
-  // ai_first_get_issue
-  registry.registerTool({
-    tool: {
-      name: 'ai_first_get_issue',
-      description: 'Get details of a specific Jira issue by its key (e.g., PROJ-123).',
-      inputSchema: {
-        type: 'object',
-        properties: {
-          issueKey: {
-            type: 'string',
-            description: 'The Jira issue key (e.g., PROJ-123)',
-          },
-        },
-        required: ['issueKey'],
-      },
-    },
-    category: 'jira',
-    keywords: ['issue', 'get', 'details', 'ticket', 'specific', 'lookup', 'find'],
-    useCases: [
-      'Get details of a specific ticket',
-      'Look up an issue by its key',
-      'Check the status of a particular issue',
-    ],
-    examples: [{ description: 'Get issue PROJ-123', input: { issueKey: 'PROJ-123' } }],
-  });
-
-  // ai_first_get_in_progress
-  registry.registerTool({
-    tool: {
-      name: 'ai_first_get_in_progress',
-      description: 'Get all issues currently in progress for the YOUR_COMPONENT component.',
-      inputSchema: {
-        type: 'object',
-        properties: {},
-        required: [],
-      },
-    },
-    category: 'jira',
-    keywords: ['in progress', 'wip', 'working', 'active', 'current', 'ongoing'],
-    useCases: [
-      'See what the team is currently working on',
-      'Check work in progress',
-      'Review active issues',
-    ],
-  });
-
-  // ai_first_get_board_issues
-  registry.registerTool({
-    tool: {
-      name: 'ai_first_get_board_issues',
-      description:
-        'Get all issues currently visible on the Kanban board (excluding Kanban backlog). Returns issues in columns like TO DO, IN PROGRESS, and DONE - but NOT issues in the Kanban backlog section.',
-      inputSchema: {
-        type: 'object',
-        properties: {},
-        required: [],
-      },
-    },
-    category: 'jira',
-    keywords: ['board', 'kanban', 'visible', 'open', 'active', 'columns'],
-    useCases: [
-      'See what is on the board right now',
-      'Check open issues',
-      'Review the kanban board state',
-    ],
-  });
-
-  // ai_first_get_blockers
-  registry.registerTool({
-    tool: {
-      name: 'ai_first_get_blockers',
-      description: 'Get all blocker issues or issues with blocked label for YOUR_COMPONENT.',
-      inputSchema: {
-        type: 'object',
-        properties: {},
-        required: [],
-      },
-    },
-    category: 'jira',
-    keywords: ['blocker', 'blocked', 'impediment', 'stuck', 'obstacle'],
-    useCases: ['Check for blockers', 'Find issues that are stuck', 'Identify impediments'],
-  });
-
-  // ai_first_check_sla_breaches
-  registry.registerTool({
-    tool: {
-      name: 'ai_first_check_sla_breaches',
-      description:
-        'Check for SLA breaches - tickets that have been in a status longer than allowed.',
-      inputSchema: {
-        type: 'object',
-        properties: {},
-        required: [],
-      },
-    },
-    category: 'jira',
-    keywords: ['sla', 'breach', 'overdue', 'aging', 'stale', 'stuck'],
-    useCases: ['Check for SLA violations', 'Find stale tickets', 'Identify aging issues'],
-  });
-
-  // ai_first_get_sprint_issues
-  registry.registerTool({
-    tool: {
-      name: 'ai_first_get_sprint_issues',
-      description: 'Get all issues in the current active sprint for YOUR_COMPONENT.',
-      inputSchema: {
-        type: 'object',
-        properties: {},
-        required: [],
-      },
-    },
-    category: 'jira',
-    keywords: ['sprint', 'iteration', 'current', 'active', 'cycle'],
-    useCases: ['See sprint issues', 'Check current sprint progress', 'Review sprint backlog'],
-  });
-
-  // ai_first_get_completed_this_week
-  registry.registerTool({
-    tool: {
-      name: 'ai_first_get_completed_this_week',
-      description:
-        'Get all issues completed (moved to Done) in the last 7 days for YOUR_COMPONENT.',
-      inputSchema: {
-        type: 'object',
-        properties: {},
-        required: [],
-      },
-    },
-    category: 'jira',
-    keywords: ['completed', 'done', 'finished', 'weekly', 'velocity'],
-    useCases: [
-      'Check what was completed this week',
-      'Prepare weekly summary',
-      'Calculate velocity',
-    ],
-  });
-
-  // ai_first_get_created_this_week
-  registry.registerTool({
-    tool: {
-      name: 'ai_first_get_created_this_week',
-      description: 'Get all issues created in the last 7 days for YOUR_COMPONENT.',
-      inputSchema: {
-        type: 'object',
-        properties: {},
-        required: [],
-      },
-    },
-    category: 'jira',
-    keywords: ['created', 'new', 'added', 'weekly', 'incoming'],
-    useCases: ['See new issues this week', 'Check incoming work', 'Review new tickets'],
-  });
-
-  // ai_first_get_daily_digest
-  registry.registerTool({
-    tool: {
-      name: 'ai_first_get_daily_digest',
-      description: "Get a daily digest including today's in-progress issues and blockers.",
-      inputSchema: {
-        type: 'object',
-        properties: {},
-        required: [],
-      },
-    },
-    category: 'jira',
-    keywords: ['daily', 'digest', 'summary', 'today', 'standup'],
-    useCases: ['Get daily status update', 'Prepare for standup', "Check today's priorities"],
-  });
-
-  // ai_first_get_weekly_summary
-  registry.registerTool({
-    tool: {
-      name: 'ai_first_get_weekly_summary',
-      description:
-        'Get a weekly summary including completed issues, velocity points, newly added issues, and aging tickets.',
-      inputSchema: {
-        type: 'object',
-        properties: {},
-        required: [],
-      },
-    },
-    category: 'jira',
-    keywords: ['weekly', 'summary', 'report', 'velocity', 'metrics'],
-    useCases: ['Prepare weekly report', 'Check team velocity', 'Review weekly progress'],
-  });
-
-  // ai_first_jira_create_issue_link
-  registry.registerTool({
-    tool: {
-      name: 'ai_first_jira_create_issue_link',
-      description: 'Create an issue link between two JIRA issues (e.g., blocks, relates to).',
-      inputSchema: {
-        type: 'object',
-        properties: {
-          inwardIssueKey: {
-            type: 'string',
-            description: 'The key of the inward issue (e.g., the blocking issue)',
-          },
-          outwardIssueKey: {
-            type: 'string',
-            description: 'The key of the outward issue (e.g., the blocked issue)',
-          },
-          linkType: {
-            type: 'string',
-            description:
-              'The type of link (default: "Blocks"). Common types: "Blocks", "Relates to", "Duplicates"',
-            default: 'Blocks',
-          },
-          comment: {
-            type: 'string',
-            description: 'Optional comment to add to the link',
-          },
-        },
-        required: ['inwardIssueKey', 'outwardIssueKey'],
-      },
-    },
-    category: 'jira',
-    keywords: ['link', 'blocks', 'relates', 'dependency', 'connect'],
-    useCases: [
-      'Link two issues together',
-      'Mark an issue as blocking another',
-      'Create a dependency relationship',
-    ],
-    examples: [
-      {
-        description: 'Link PROJ-100 blocks PROJ-101',
-        input: { inwardIssueKey: 'PROJ-100', outwardIssueKey: 'PROJ-101', linkType: 'Blocks' },
-      },
-    ],
-  });
-
-  // ai_first_jira_get_issue_links
-  registry.registerTool({
-    tool: {
-      name: 'ai_first_jira_get_issue_links',
-      description: 'Get all issue links for a given JIRA issue.',
-      inputSchema: {
-        type: 'object',
-        properties: {
-          issueKey: {
-            type: 'string',
-            description: 'The key of the issue to get links for',
-          },
-        },
-        required: ['issueKey'],
-      },
-    },
-    category: 'jira',
-    keywords: ['links', 'dependencies', 'related', 'connections'],
-    useCases: ['Check issue dependencies', 'See related issues', 'Find blocking relationships'],
-  });
-
-  // ai_first_jira_delete_issue_link
-  registry.registerTool({
-    tool: {
-      name: 'ai_first_jira_delete_issue_link',
-      description: 'Delete an issue link between two JIRA issues.',
-      inputSchema: {
-        type: 'object',
-        properties: {
-          linkId: {
-            type: 'string',
-            description: 'The ID of the issue link to delete',
-          },
-        },
-        required: ['linkId'],
-      },
-    },
-    category: 'jira',
-    keywords: ['delete', 'remove', 'link', 'unlink'],
-    useCases: ['Remove a link between issues', 'Delete a dependency'],
-  });
 }
 
 /**
@@ -1290,7 +963,7 @@ function registerDocsTools(registry: ToolRegistry): void {
       },
     },
     category: 'docs',
-    keywords: ['weekly', 'update', 'slides', 'status', 'jira'],
+    keywords: ['weekly', 'update', 'slides', 'status'],
     useCases: ['Update the weekly status slide', 'Create weekly presentation'],
   });
 
@@ -2526,7 +2199,7 @@ function registerConfigTools(registry: ToolRegistry): void {
           },
           category: {
             type: 'string',
-            description: 'Category for organization (e.g., jira, slack, openai, google)',
+            description: 'Category for organization (e.g., slack, openai, google)',
           },
           description: {
             type: 'string',

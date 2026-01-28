@@ -18,6 +18,7 @@ import {
   getToolRegistry,
 } from './toolRegistry.js';
 import { createServiceLogger } from '@orientbot/core';
+import { IntegrationConnectionService } from './integrationConnectionService.js';
 
 const logger = createServiceLogger('tool-discovery');
 
@@ -71,27 +72,29 @@ const SCORE_WEIGHTS = {
  */
 export class ToolDiscoveryService {
   private registry: ToolRegistry;
+  private connectionService: IntegrationConnectionService;
 
-  constructor(registry?: ToolRegistry) {
+  constructor(registry?: ToolRegistry, connectionService?: IntegrationConnectionService) {
     this.registry = registry || getToolRegistry();
+    this.connectionService = connectionService || new IntegrationConnectionService();
   }
 
   /**
    * Main discovery entry point - handles all discovery modes
    */
-  discover(input: DiscoveryInput): DiscoveryResult {
+  async discover(input: DiscoveryInput): Promise<DiscoveryResult> {
     const op = logger.startOperation('discover', { mode: input.mode });
 
     try {
       switch (input.mode) {
         case 'list_categories':
-          return this.listCategories();
+          return await this.listCategories();
 
         case 'browse':
-          return this.browseCategory(input.category as ToolCategory);
+          return await this.browseCategory(input.category as ToolCategory);
 
         case 'search':
-          return this.search(input.query || input.intent || '', input.limit);
+          return await this.search(input.query || input.intent || '', input.limit);
 
         default:
           throw new Error(`Unknown discovery mode: ${input.mode}`);
@@ -104,23 +107,38 @@ export class ToolDiscoveryService {
   /**
    * List all available categories with descriptions
    */
-  listCategories(): DiscoveryResult {
+  async listCategories(): Promise<DiscoveryResult> {
     const categories = this.registry.getCategories();
+    const availableCategories = (
+      await Promise.all(
+        categories.map(async (category) => ({
+          category,
+          available: await this.connectionService.isCategoryAvailable(category.name),
+        }))
+      )
+    )
+      .filter((entry) => entry.available)
+      .map((entry) => entry.category);
 
-    logger.debug('Listed categories', { count: categories.length });
+    logger.debug('Listed categories', { count: availableCategories.length });
 
     return {
       mode: 'list_categories',
-      categories,
+      categories: availableCategories,
     };
   }
 
   /**
    * Browse tools in a specific category
    */
-  browseCategory(category: ToolCategory): DiscoveryResult {
+  async browseCategory(category: ToolCategory): Promise<DiscoveryResult> {
     if (!category) {
       throw new Error('Category is required for browse mode');
+    }
+
+    const isAvailable = await this.connectionService.isCategoryAvailable(category);
+    if (!isAvailable) {
+      throw new Error(`Category ${category} is not available - integration not connected`);
     }
 
     const tools = this.registry.getToolsByCategory(category);
@@ -147,7 +165,7 @@ export class ToolDiscoveryService {
   /**
    * Search for tools using semantic matching
    */
-  search(query: string, limit: number = 10): DiscoveryResult {
+  async search(query: string, limit: number = 10): Promise<DiscoveryResult> {
     if (!query || query.trim().length === 0) {
       throw new Error('Query is required for search mode');
     }
@@ -160,6 +178,10 @@ export class ToolDiscoveryService {
     const scoredResults: SearchResult[] = [];
 
     for (const metadata of allTools) {
+      const isAvailable = await this.connectionService.isCategoryAvailable(metadata.category);
+      if (!isAvailable) {
+        continue;
+      }
       const { score, matchedOn } = this.scoreMatch(metadata, normalizedQuery, queryTokens);
 
       if (score > 0) {
@@ -329,7 +351,17 @@ Examples:
           },
           category: {
             type: 'string',
-            enum: ['jira', 'messaging', 'whatsapp', 'docs', 'google', 'system'],
+            enum: [
+              'messaging',
+              'whatsapp',
+              'docs',
+              'google',
+              'system',
+              'apps',
+              'agents',
+              'context',
+              'media',
+            ],
             description: 'For browse mode: the category to list tools from',
           },
           query: {

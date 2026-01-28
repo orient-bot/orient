@@ -266,15 +266,14 @@ describe('E2E Message Flow', () => {
     });
 
     it('should format response with tools used', () => {
-      const response = 'Here are your Jira tickets...';
+      const response = 'Here are your messages...';
       const model = 'grok-code';
-      const toolsUsed = ['ai_first_get_blockers', 'ai_first_search_issues'];
+      const toolsUsed = ['whatsapp_search_messages'];
 
       const formattedResponse =
         response + `\n\n_${model} • ${toolsUsed.length > 0 ? toolsUsed.join(', ') : 'no tools'}_`;
 
-      expect(formattedResponse).toContain('ai_first_get_blockers');
-      expect(formattedResponse).toContain('ai_first_search_issues');
+      expect(formattedResponse).toContain('whatsapp_search_messages');
     });
   });
 });

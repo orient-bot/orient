@@ -45,4 +45,5 @@ export * from './contextService.js';
 export * from './openCodeClient.js';
 export * from './mcpClientManager.js';
 export * from './oauthClientProvider.js';
+export * from './integrationConnectionService.js';
 export * from './openCodeMessageProcessor.js';

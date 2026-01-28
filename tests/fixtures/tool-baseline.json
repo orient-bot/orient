@@ -1,77 +1,7 @@
 {
   "exportedAt": "2026-01-28T09:03:47.123Z",
-  "totalCount": 82,
+  "totalCount": 68,
   "tools": [
-    {
-      "name": "ai_first_get_all_issues",
-      "category": "jira",
-      "description": "Get all Jira issues for the YOUR_COMPONENT component. Returns issue key, summary, status, assignee, "
-    },
-    {
-      "name": "ai_first_get_issue",
-      "category": "jira",
-      "description": "Get details of a specific Jira issue by its key (e.g., PROJ-123)."
-    },
-    {
-      "name": "ai_first_get_in_progress",
-      "category": "jira",
-      "description": "Get all issues currently in progress for the YOUR_COMPONENT component."
-    },
-    {
-      "name": "ai_first_get_board_issues",
-      "category": "jira",
-      "description": "Get all issues currently visible on the Kanban board (excluding Kanban backlog). Returns issues in c"
-    },
-    {
-      "name": "ai_first_get_blockers",
-      "category": "jira",
-      "description": "Get all blocker issues or issues with blocked label for YOUR_COMPONENT."
-    },
-    {
-      "name": "ai_first_check_sla_breaches",
-      "category": "jira",
-      "description": "Check for SLA breaches - tickets that have been in a status longer than allowed."
-    },
-    {
-      "name": "ai_first_get_sprint_issues",
-      "category": "jira",
-      "description": "Get all issues in the current active sprint for YOUR_COMPONENT."
-    },
-    {
-      "name": "ai_first_get_completed_this_week",
-      "category": "jira",
-      "description": "Get all issues completed (moved to Done) in the last 7 days for YOUR_COMPONENT."
-    },
-    {
-      "name": "ai_first_get_created_this_week",
-      "category": "jira",
-      "description": "Get all issues created in the last 7 days for YOUR_COMPONENT."
-    },
-    {
-      "name": "ai_first_get_daily_digest",
-      "category": "jira",
-      "description": "Get a daily digest including today's in-progress issues and blockers."
-    },
-    {
-      "name": "ai_first_get_weekly_summary",
-      "category": "jira",
-      "description": "Get a weekly summary including completed issues, velocity points, newly added issues, and aging tick"
-    },
-    {
-      "name": "ai_first_jira_create_issue_link",
-      "category": "jira",
-      "description": "Create an issue link between two JIRA issues (e.g., blocks, relates to)."
-    },
-    {
-      "name": "ai_first_jira_get_issue_links",
-      "category": "jira",
-      "description": "Get all issue links for a given JIRA issue."
-    },
-    {
-      "name": "ai_first_jira_delete_issue_link",
-      "category": "jira",
-      "description": "Delete an issue link between two JIRA issues."
-    },
     {
       "name": "ai_first_slack_lookup_user_by_email",
       "category": "messaging",
@@ -414,22 +344,6 @@
     }
   ],
   "byCategory": {
-    "jira": [
-      "ai_first_get_all_issues",
-      "ai_first_get_issue",
-      "ai_first_get_in_progress",
-      "ai_first_get_board_issues",
-      "ai_first_get_blockers",
-      "ai_first_check_sla_breaches",
-      "ai_first_get_sprint_issues",
-      "ai_first_get_completed_this_week",
-      "ai_first_get_created_this_week",
-      "ai_first_get_daily_digest",
-      "ai_first_get_weekly_summary",
-      "ai_first_jira_create_issue_link",
-      "ai_first_jira_get_issue_links",
-      "ai_first_jira_delete_issue_link"
-    ],
     "messaging": [
       "ai_first_slack_lookup_user_by_email",
       "ai_first_slack_send_dm",
