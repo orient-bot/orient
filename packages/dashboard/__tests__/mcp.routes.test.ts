@@ -301,9 +301,6 @@ describe('MCP Routes', () => {
       const originalEnv = { ...process.env };
       process.env.NODE_ENV = 'production';
 
-      // Re-setup mock return values cleared by vi.clearAllMocks()
-      mockAtlassianOAuthProvider.tokens.mockResolvedValue(null);
-
       const { req, res } = createMockReqRes();
       req.params = { serverName: 'atlassian' };
 
