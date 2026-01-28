@@ -14,9 +14,13 @@
  * - packages/mcp-tools/src/ - Modular tool implementations
  */
 
-import { getToolExecutorRegistry } from '@orient/agents';
-import { ToolDiscoveryService, formatDiscoveryResult, type DiscoveryInput } from '@orient/agents';
-import { createServiceLogger } from '@orient/core';
+import { getToolExecutorRegistry } from '@orientbot/agents';
+import {
+  ToolDiscoveryService,
+  formatDiscoveryResult,
+  type DiscoveryInput,
+} from '@orientbot/agents';
+import { createServiceLogger } from '@orientbot/core';
 
 const logger = createServiceLogger('tool-executor');
 const discoveryLogger = createServiceLogger('tool-discovery');
