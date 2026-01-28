@@ -430,6 +430,7 @@ Remember to:
 
     return {
       name,
+      format: 'react' as const,
       version,
       title: manifest.title,
       description: manifest.description,

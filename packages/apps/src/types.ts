@@ -267,6 +267,7 @@ export function generateAppManifestTemplate(
 ): AppManifest {
   return {
     name,
+    format: 'react',
     version: '1.0.0',
     title,
     description,
