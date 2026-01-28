@@ -303,7 +303,7 @@ module.exports = {
     {
       name: 'orient-opencode',
       script: OPENCODE_BIN,
-      args: 'serve --port 4099 --hostname 0.0.0.0',
+      args: 'serve --port 4099 --hostname 127.0.0.1',
       cwd: path.join(ORIENT_HOME, 'orient'),
       env_file: path.join(ORIENT_HOME, '.env'),
       error_file: path.join(ORIENT_HOME, 'logs/opencode-error.log'),

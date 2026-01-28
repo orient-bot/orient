@@ -379,6 +379,70 @@ orient uninstall
 
 ---
 
+## OpenCode Security Testing
+
+OpenCode uses different security models depending on the deployment mode.
+
+### Local Install (PM2 / dev-local) — No Password
+
+In local mode, OpenCode binds to `127.0.0.1` (localhost only). No password auth is needed since only local processes can reach it.
+
+**Verify localhost-only binding:**
+
+```bash
+# Start local dev
+./run.sh dev-local start
+
+# Should work — localhost access
+curl -s http://localhost:4099/global/health
+# Expected: 200 OK
+
+# Should NOT work — external access (from another machine on the network)
+# Replace <ip> with the machine's LAN IP
+curl -s http://<lan-ip>:4099/global/health
+# Expected: Connection refused
+```
+
+**Verify no password prompt:**
+
+```bash
+# Open OpenCode directly — should load without credentials
+open http://localhost:4099
+# Expected: OpenCode UI loads, no Basic Auth prompt
+```
+
+**Verify sidebar link works:**
+
+1. Open dashboard at `http://localhost:5173`
+2. Click "OpenCode" in sidebar under "Tools"
+3. Expected: OpenCode opens in new tab without password prompt
+
+### Remote / Docker (nginx) — Password Protected
+
+In Docker mode, OpenCode binds to `0.0.0.0` behind nginx. Nginx validates JWT cookies via `auth_request` and proxies to OpenCode with the server password.
+
+**Verify auth is enforced:**
+
+```bash
+# Direct access without auth should be blocked by nginx
+curl -s -o /dev/null -w "%{http_code}" http://localhost/opencode/
+# Expected: 302 (redirect to login)
+
+# With valid dashboard session cookie, should work
+curl -s -b "session_cookie" http://localhost/opencode/
+# Expected: 200 OK
+```
+
+**Verify password is set in Docker:**
+
+```bash
+# Inside the Docker container
+docker exec orienter-opencode env | grep OPENCODE_SERVER_PASSWORD
+# Expected: OPENCODE_SERVER_PASSWORD=<64-char hex>
+```
+
+---
+
 ## Known Issues (v0.2.0)
 
 - **E2E Timeouts**: Up to 4 timeout errors in E2E tests are expected due to OpenCode server load
