@@ -77,7 +77,7 @@ describe('createToolRegistry', () => {
     expect(registry.isInitialized()).toBe(true);
     expect(registry.size).toBeGreaterThan(0);
 
-    const jiraTool = registry.getTool('jira_get_issue');
+    const jiraTool = registry.getTool('ai_first_get_issue');
     expect(jiraTool).toBeDefined();
     expect(jiraTool?.category).toBe('jira');
   });
