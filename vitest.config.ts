@@ -61,7 +61,15 @@ export default defineConfig({
       '@orientbot/bot-slack': path.resolve(__dirname, 'packages/bot-slack/src/index.ts'),
       '@orientbot/api-gateway': path.resolve(__dirname, 'packages/api-gateway/src/index.ts'),
       '@orientbot/apps': path.resolve(__dirname, 'packages/apps/src/index.ts'),
-      '@orientbot/integrations': path.resolve(__dirname, 'packages/integrations/src/index.ts'),
+      // Subpath aliases must come BEFORE the base package alias
+      '@orientbot/integrations/catalog/github': path.resolve(
+        __dirname,
+        'packages/integrations/src/catalog/github/index.ts'
+      ),
+      '@orientbot/integrations/catalog/linear': path.resolve(
+        __dirname,
+        'packages/integrations/src/catalog/linear/index.ts'
+      ),
       '@orientbot/integrations/jira': path.resolve(
         __dirname,
         'packages/integrations/src/jira/index.ts'
@@ -78,14 +86,7 @@ export default defineConfig({
         __dirname,
         'packages/integrations/src/openai/index.ts'
       ),
-      '@orientbot/integrations/catalog/github': path.resolve(
-        __dirname,
-        'packages/integrations/src/catalog/github/index.ts'
-      ),
-      '@orientbot/integrations/catalog/linear': path.resolve(
-        __dirname,
-        'packages/integrations/src/catalog/linear/index.ts'
-      ),
+      '@orientbot/integrations': path.resolve(__dirname, 'packages/integrations/src/index.ts'),
       '@orientbot/dashboard': path.resolve(__dirname, 'packages/dashboard/src/index.ts'),
       '@orientbot/test-utils': path.resolve(__dirname, 'packages/test-utils/src/index.ts'),
     },

@@ -319,11 +319,9 @@ export async function initializeWhatsAppIntegration(): Promise<WhatsAppIntegrati
       if (imageUrl) {
         const response = await fetch(imageUrl);
         if (!response.ok) {
-          res
-            .status(400)
-            .json({
-              error: `Failed to fetch image from URL: ${response.status} ${response.statusText}`,
-            });
+          res.status(400).json({
+            error: `Failed to fetch image from URL: ${response.status} ${response.statusText}`,
+          });
           return;
         }
         const arrayBuffer = await response.arrayBuffer();
@@ -338,8 +336,15 @@ export async function initializeWhatsAppIntegration(): Promise<WhatsAppIntegrati
         mimetype = inferImageMimeType(imagePath);
       }
 
+      if (!imageBuffer) {
+        res
+          .status(400)
+          .json({ error: 'No image source provided (imageUrl or imagePath required)' });
+        return;
+      }
+
       const sent = await socket.sendMessage(targetJid, {
-        image: imageBuffer || undefined,
+        image: imageBuffer,
         caption,
         mimetype,
       });

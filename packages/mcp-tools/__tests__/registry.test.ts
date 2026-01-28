@@ -40,7 +40,7 @@ describe('ToolRegistry', () => {
           description: 'A test tool',
           inputSchema: { type: 'object' as const, properties: {} },
         },
-        category: 'jira' as const,
+        category: 'system' as const,
         keywords: ['test'],
         useCases: ['Testing'],
       };
@@ -60,7 +60,7 @@ describe('ToolRegistry', () => {
           description: 'Tool 1',
           inputSchema: { type: 'object' as const, properties: {} },
         },
-        category: 'jira',
+        category: 'system',
         keywords: [],
         useCases: [],
       });
@@ -85,11 +85,11 @@ describe('ToolRegistry', () => {
 
       registry.registerTool({
         tool: {
-          name: 'jira_tool',
-          description: 'JIRA Tool',
+          name: 'system_tool',
+          description: 'System Tool',
           inputSchema: { type: 'object' as const, properties: {} },
         },
-        category: 'jira',
+        category: 'system',
         keywords: [],
         useCases: [],
       });
@@ -105,9 +105,9 @@ describe('ToolRegistry', () => {
         useCases: [],
       });
 
-      const jiraTools = registry.getToolsByCategory('jira');
-      expect(jiraTools).toHaveLength(1);
-      expect(jiraTools[0].tool.name).toBe('jira_tool');
+      const systemTools = registry.getToolsByCategory('system');
+      expect(systemTools).toHaveLength(1);
+      expect(systemTools[0].tool.name).toBe('system_tool');
     });
   });
 
@@ -119,11 +119,11 @@ describe('ToolRegistry', () => {
       registry.registerTool({
         tool: {
           name: 'get_issues',
-          description: 'Get JIRA issues',
+          description: 'Get system issues',
           inputSchema: { type: 'object' as const, properties: {} },
         },
-        category: 'jira',
-        keywords: ['issue', 'ticket', 'jira'],
+        category: 'system',
+        keywords: ['issue', 'ticket'],
         useCases: ['Find issues'],
       });
 
@@ -153,7 +153,7 @@ describe('ToolRegistry', () => {
           description: 'Test',
           inputSchema: { type: 'object' as const, properties: {} },
         },
-        category: 'jira',
+        category: 'system',
         keywords: ['test'],
         useCases: ['Testing'],
       });
@@ -168,9 +168,9 @@ describe('ToolRegistry', () => {
       const { getToolRegistry } = await import('../src/registry/index.js');
       const registry = getToolRegistry();
 
-      const info = registry.getCategoryInfo('jira');
-      expect(info.name).toBe('jira');
-      expect(info.description).toContain('JIRA');
+      const info = registry.getCategoryInfo('system');
+      expect(info.name).toBe('system');
+      expect(info.description).toContain('System');
       expect(info.keywords.length).toBeGreaterThan(0);
     });
 
@@ -179,8 +179,7 @@ describe('ToolRegistry', () => {
       const registry = getToolRegistry();
 
       const categories = registry.getAllCategories();
-      expect(categories).toHaveLength(7); // jira, messaging, whatsapp, docs, google, system, media
-      expect(categories.map((c) => c.name)).toContain('jira');
+      expect(categories).toHaveLength(6); // messaging, whatsapp, docs, google, system, media
       expect(categories.map((c) => c.name)).toContain('messaging');
       expect(categories.map((c) => c.name)).toContain('media');
     });
@@ -204,7 +203,7 @@ describe('ToolRegistry', () => {
           description: 'Test',
           inputSchema: { type: 'object' as const, properties: {} },
         },
-        category: 'jira',
+        category: 'system',
         keywords: [],
         useCases: [],
       });
@@ -223,21 +222,21 @@ describe('ToolRegistry', () => {
 
       registry.registerTool({
         tool: {
-          name: 'jira1',
-          description: 'J1',
+          name: 'system1',
+          description: 'S1',
           inputSchema: { type: 'object' as const, properties: {} },
         },
-        category: 'jira',
+        category: 'system',
         keywords: [],
         useCases: [],
       });
       registry.registerTool({
         tool: {
-          name: 'jira2',
-          description: 'J2',
+          name: 'system2',
+          description: 'S2',
           inputSchema: { type: 'object' as const, properties: {} },
         },
-        category: 'jira',
+        category: 'system',
         keywords: [],
         useCases: [],
       });
@@ -256,7 +255,7 @@ describe('ToolRegistry', () => {
       const stats = registry.getStats();
 
       expect(stats.totalTools).toBe(3);
-      expect(stats.byCategory.jira).toBe(2);
+      expect(stats.byCategory.system).toBe(2);
       expect(stats.byCategory.messaging).toBe(1);
       expect(stats.initialized).toBe(true);
     });

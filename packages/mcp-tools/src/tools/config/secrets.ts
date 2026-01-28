@@ -35,12 +35,12 @@ export const configSetSecret: MCPTool = createTool({
     category: z
       .string()
       .optional()
-      .describe('Category for organization (e.g., jira, slack, openai, google)'),
+      .describe('Category for organization (e.g., slack, openai, google)'),
     description: z.string().optional().describe('Human-readable description of this secret'),
   }),
   keywords: ['secret', 'api', 'key', 'token', 'password', 'credential', 'configure'],
   useCases: [
-    'Store JIRA API token for integration',
+    'Store GitHub API token for integration',
     'Configure Slack bot token',
     'Add OpenAI API key',
     'Store Google OAuth credentials',
@@ -48,12 +48,12 @@ export const configSetSecret: MCPTool = createTool({
   ],
   examples: [
     {
-      description: 'Store JIRA API token',
+      description: 'Store GitHub API token',
       input: {
-        key: 'JIRA_API_TOKEN',
-        value: 'ATATT3xF...secretvalue',
-        category: 'jira',
-        description: 'Atlassian API token for JIRA integration',
+        key: 'GITHUB_ACCESS_TOKEN',
+        value: 'ghp_1234567890abcdef...',
+        category: 'github',
+        description: 'GitHub personal access token',
       },
     },
     {
@@ -141,7 +141,7 @@ export const configListSecrets: MCPTool = createTool({
   examples: [
     {
       description: 'List all JIRA secrets',
-      input: { category_filter: 'jira' },
+      input: { category_filter: 'slack' },
     },
     {
       description: 'List all secrets',

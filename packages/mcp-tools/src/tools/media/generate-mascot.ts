@@ -56,7 +56,7 @@ const DEFAULT_OUTPUT_DIR = 'packages/dashboard-frontend/public/mascot/variations
 const BASE_MASCOT_PATH = 'packages/dashboard-frontend/public/mascot/base.png';
 
 export class GenerateMascotTool extends MCPTool<Input, Output> {
-  name = 'ai_first_generate_mascot';
+  name = 'media_generate_mascot';
   description = `Generate a variation of the Orient mascot (border collie dog with blue bandana). Supports different poses, expressions, backgrounds, seasonal themes, accessories, and art styles. Uses Gemini Nano Banana for image generation.`;
 
   category = 'media' as const;

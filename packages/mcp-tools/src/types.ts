@@ -5,20 +5,12 @@
  */
 
 import type { Tool } from '@modelcontextprotocol/sdk/types.js';
-import type { Version3Client } from 'jira.js';
 import type { AppConfig } from '@orientbot/core';
 
 /**
  * Tool categories for organizing tools by domain
  */
-export type ToolCategory =
-  | 'jira'
-  | 'messaging'
-  | 'whatsapp'
-  | 'docs'
-  | 'google'
-  | 'system'
-  | 'media';
+export type ToolCategory = 'messaging' | 'whatsapp' | 'docs' | 'google' | 'system' | 'media';
 
 /**
  * Slack service interface for tools
@@ -70,9 +62,6 @@ export interface ToolContext {
 
   /** Correlation ID for request tracing */
   correlationId: string;
-
-  /** JIRA client (optional - may not be initialized) */
-  jiraClient?: Version3Client;
 
   /** Slack client (optional - may not be initialized) */
   slackClient?: unknown; // Use unknown to avoid requiring @slack/web-api

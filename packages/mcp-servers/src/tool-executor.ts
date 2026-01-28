@@ -121,7 +121,7 @@ export async function executeToolCallFromRegistry(
 
   // Priority 2: Handle built-in tools
   if (name === 'discover_tools') {
-    return handleDiscoverTools(args);
+    return await handleDiscoverTools(args);
   }
 
   // Priority 3: Fall back to legacy executor if available (gradual migration)
@@ -146,15 +146,15 @@ export async function executeToolCallFromRegistry(
 /**
  * Handles discover_tools requests
  */
-function handleDiscoverTools(args: Record<string, unknown>): {
+async function handleDiscoverTools(args: Record<string, unknown>): Promise<{
   content: Array<{ type: string; text: string }>;
-} {
+}> {
   const op = discoveryLogger.startOperation('discover', args);
 
   try {
     const toolDiscoveryService = new ToolDiscoveryService();
     const input = args as unknown as DiscoveryInput;
-    const result = toolDiscoveryService.discover(input);
+    const result = await toolDiscoveryService.discover(input);
     const formattedResult = formatDiscoveryResult(result, {
       includeTools: Boolean(input.includeTools),
     });

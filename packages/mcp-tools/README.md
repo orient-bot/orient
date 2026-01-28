@@ -7,7 +7,7 @@ Portable MCP tools and registry for the Orient.
 - **Base Tool Class**: Abstract class for creating type-safe MCP tools
 - **Tool Registry**: Central registry with search and discovery capabilities
 - **Tool Context**: Context factory for service injection
-- **Category Organization**: Tools organized by domain (jira, messaging, docs, etc.)
+- **Category Organization**: Tools organized by domain (messaging, docs, google, system, etc.)
 
 ## Installation
 
@@ -24,19 +24,23 @@ import { MCPTool, ToolContext } from '@orientbot/mcp-tools';
 import { z } from 'zod';
 
 // Using the base class
-class GetIssueCountTool extends MCPTool<{ projectKey: string }, number> {
-  name = 'get_issue_count';
-  description = 'Get the count of issues in a project';
-  category = 'jira' as const;
+class SendSlackDmTool extends MCPTool<{ userId: string; message: string }, { success: boolean }> {
+  name = 'slack_send_dm';
+  description = 'Send a Slack DM to a user';
+  category = 'messaging' as const;
   inputSchema = z.object({
-    projectKey: z.string().describe('JIRA project key'),
+    userId: z.string().describe('Slack user ID'),
+    message: z.string().describe('Message to send'),
   });
-  keywords = ['issue', 'count', 'jira'];
-  useCases = ['Count issues in a project'];
+  keywords = ['slack', 'dm', 'message'];
+  useCases = ['Send a direct message to a Slack user'];
 
-  async execute(input: { projectKey: string }, context: ToolContext): Promise<number> {
-    // Implementation using context.jiraClient
-    return 42;
+  async execute(
+    input: { userId: string; message: string },
+    context: ToolContext
+  ): Promise<{ success: boolean }> {
+    // Implementation would use context.services?.slack
+    return { success: true };
   }
 }
 
@@ -67,10 +71,10 @@ const registry = getToolRegistry();
 registry.registerTool(myTool.toMetadata());
 
 // Search for tools
-const results = registry.searchTools('issue management');
+const results = registry.searchTools('send message');
 
 // Get tools by category
-const jiraTools = registry.getToolsByCategory('jira');
+const messagingTools = registry.getToolsByCategory('messaging');
 
 // Get all categories
 const categories = registry.getAllCategories();
@@ -95,10 +99,10 @@ const result = await myTool.run(input, context);
 
 | Category    | Description                    |
 | ----------- | ------------------------------ |
-| `jira`      | JIRA project management tools  |
 | `messaging` | Slack communication tools      |
 | `whatsapp`  | WhatsApp messaging tools       |
 | `docs`      | Google Docs/Slides tools       |
+| `google`    | Google OAuth tools             |
 | `system`    | System and configuration tools |
 
 ## Development

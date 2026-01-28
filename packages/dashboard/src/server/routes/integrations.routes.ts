@@ -169,46 +169,6 @@ async function getLinearOAuthModule() {
   return linearOAuthModule;
 }
 
-// JIRA OAuth service lazy-loaded
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let jiraOAuthModule: any = null;
-
-async function getJiraOAuthModule() {
-  // Always reload credentials from secrets database
-  try {
-    const secretsService = createSecretsService();
-    const clientId = await secretsService.getSecret('JIRA_OAUTH_CLIENT_ID');
-    const clientSecret = await secretsService.getSecret('JIRA_OAUTH_CLIENT_SECRET');
-
-    if (clientId && clientSecret) {
-      const credentialsChanged =
-        process.env.JIRA_OAUTH_CLIENT_ID !== clientId ||
-        process.env.JIRA_OAUTH_CLIENT_SECRET !== clientSecret;
-
-      if (credentialsChanged) {
-        process.env.JIRA_OAUTH_CLIENT_ID = clientId;
-        process.env.JIRA_OAUTH_CLIENT_SECRET = clientSecret;
-        logger.info('Loaded JIRA OAuth credentials from secrets database');
-      }
-    }
-  } catch (error) {
-    logger.debug('Could not load JIRA OAuth credentials from secrets', {
-      error: error instanceof Error ? error.message : String(error),
-    });
-  }
-
-  if (!jiraOAuthModule) {
-    try {
-      jiraOAuthModule = await import('@orientbot/integrations/catalog/jira');
-    } catch (error) {
-      throw new Error(
-        `Failed to load JIRA OAuth service: ${error instanceof Error ? error.message : String(error)}`
-      );
-    }
-  }
-  return jiraOAuthModule;
-}
-
 /**
  * Build catalog entries from YAML manifests and legacy entries
  */
@@ -352,7 +312,7 @@ export function createIntegrationsRoutes(
         const provider = atlassianModule.createOAuthProvider(atlassianUrl, 'atlassian');
         const tokens = await provider.tokens();
         if (tokens?.access_token) {
-          activeIntegrations.push('jira');
+          activeIntegrations.push('atlassian');
         }
       } catch {
         // Atlassian not available
@@ -471,31 +431,6 @@ export function createIntegrationsRoutes(
               }
             } catch {
               // OAuth module not available, leave as disconnected
-            }
-          }
-
-          // Check JIRA connection status (for API token or OAuth)
-          if (integration.manifest.name === 'jira') {
-            try {
-              const oauthModule = await getJiraOAuthModule();
-              if (oauthModule.getJiraOAuthService) {
-                const jiraOAuthService = oauthModule.getJiraOAuthService();
-                const accounts = jiraOAuthService.getConnectedAccounts();
-                result.isConnected = accounts.length > 0;
-              }
-            } catch {
-              // OAuth module not available, check API token connection
-              try {
-                const secretsService = createSecretsService();
-                const host = await secretsService.getSecret('JIRA_HOST');
-                const email = await secretsService.getSecret('JIRA_EMAIL');
-                const token = await secretsService.getSecret('JIRA_API_TOKEN');
-                if (host && email && token) {
-                  result.isConnected = true; // API token credentials are configured
-                }
-              } catch {
-                // Leave as disconnected
-              }
             }
           }
 
@@ -676,7 +611,7 @@ export function createIntegrationsRoutes(
             message: 'Atlassian OAuth requires OpenCode to handle the MCP connection.',
             requiresOpenCode: true,
             openCodeUrl,
-            instructions: `Open ${openCodeUrl} and use any JIRA tool to trigger authentication.`,
+            instructions: `Open ${openCodeUrl} and use any Atlassian MCP tool to trigger authentication.`,
             callbackUrl: atlassianModule.OAUTH_CALLBACK_URL,
           });
         } catch (error) {
@@ -789,110 +724,6 @@ export function createIntegrationsRoutes(
           });
           return res.status(500).json({
             error: `Failed to initiate Linear OAuth: ${error instanceof Error ? error.message : String(error)}`,
-          });
-        }
-      }
-
-      // Handle JIRA connection (supports both API token and OAuth)
-      if (name === 'jira') {
-        try {
-          // Check if using API token method
-          if (authMethod === 'api_token') {
-            // For API token, just verify the credentials are configured
-            const secretsService = createSecretsService();
-            const host = await secretsService.getSecret('JIRA_HOST');
-            const email = await secretsService.getSecret('JIRA_EMAIL');
-            const apiToken = await secretsService.getSecret('JIRA_API_TOKEN');
-
-            if (host && email && apiToken) {
-              // Test the connection
-              try {
-                const jiraService = await import('@orientbot/integrations/jira');
-                jiraService.initializeJiraClient({
-                  jira: {
-                    host,
-                    email,
-                    apiToken,
-                    projectKey: 'TEST',
-                    component: 'TEST',
-                  },
-                  sla: [],
-                  board: { kanbanBacklogStatuses: [] },
-                });
-                const connected = await jiraService.testConnection();
-
-                if (connected) {
-                  return res.json({
-                    success: true,
-                    name,
-                    message: `Connected to JIRA at ${host}`,
-                    connected: true,
-                  });
-                }
-              } catch (testError) {
-                return res.status(400).json({
-                  error: `Failed to connect to JIRA: ${testError instanceof Error ? testError.message : String(testError)}`,
-                });
-              }
-            }
-
-            return res.status(400).json({
-              error: 'JIRA API token credentials not configured',
-              requiredSecrets: integration.manifest.requiredSecrets?.filter(
-                (s) => s.authMethod === 'api_token'
-              ),
-            });
-          }
-
-          // OAuth flow for JIRA
-          const jiraModule = await getJiraOAuthModule();
-
-          // Check if OAuth service is available
-          if (!jiraModule.getJiraOAuthService) {
-            return res.status(500).json({
-              error: 'JIRA OAuth service not available. Create the OAuth service first.',
-            });
-          }
-
-          const jiraOAuthService = jiraModule.getJiraOAuthService();
-
-          // Check if already connected
-          const accounts = jiraOAuthService.getConnectedAccounts();
-          if (accounts.length > 0) {
-            return res.json({
-              success: true,
-              name,
-              message: `Already connected as ${accounts[0].displayName || accounts[0].email}`,
-              connected: true,
-            });
-          }
-
-          // Start JIRA OAuth flow
-          const { authUrl, state } = await jiraOAuthService.startOAuthFlow();
-
-          // Ensure callback server is running (for local dev)
-          if (!jiraModule.IS_JIRA_OAUTH_PRODUCTION) {
-            await jiraOAuthService.ensureCallbackServerRunning();
-          }
-
-          logger.info('JIRA OAuth authorization URL generated', { name });
-
-          return res.json({
-            success: true,
-            name,
-            authUrl,
-            callbackUrl: jiraModule.IS_JIRA_OAUTH_PRODUCTION
-              ? process.env.JIRA_OAUTH_CALLBACK_URL
-              : jiraOAuthService.getCallbackUrl(),
-            oauthState: state,
-            instructions: 'Complete authorization in the popup window.',
-          });
-        } catch (error) {
-          logger.error('Failed to initiate JIRA connection', {
-            error: error instanceof Error ? error.message : String(error),
-          });
-          return res.status(500).json({
-            error: `Failed to initiate JIRA connection: ${error instanceof Error ? error.message : String(error)}`,
           });
         }
       }

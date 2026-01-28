@@ -6,7 +6,6 @@
  * directly from Cursor or other MCP-compatible clients.
  *
  * Tool Organization:
- * - JIRA tools: get_all_issues, get_blockers, etc.
  * - Slack tools: send_dm, send_channel_message, etc.
  * - WhatsApp tools: send_whatsapp_message, send_poll, etc.
  * - Google tools: calendar, gmail, sheets, slides, tasks
@@ -31,7 +30,6 @@ import {
 } from '@modelcontextprotocol/sdk/types.js';
 import dotenv from 'dotenv';
 import path from 'path';
-import { Version3Client } from 'jira.js';
 
 // Load environment variables from .env file
 dotenv.config();
@@ -83,6 +81,7 @@ import { GitWorktreeService, createGitWorktreeService } from '@orientbot/integra
 import { AppsService, createAppsService } from '@orientbot/apps';
 import { AppGeneratorService } from '@orientbot/apps';
 import { AppGitService, createAppGitService } from '@orientbot/apps';
+import { filterToolsByConnection } from './tool-filter.js';
 
 // Create loggers for different components
 const serverLogger = createServiceLogger('mcp-server');
@@ -139,14 +138,6 @@ interface Config {
       alerts: string;
     };
   };
-  jira: {
-    host: string;
-    baseUrl: string;
-    email: string;
-    apiToken: string;
-    projectKey: string;
-    component: string;
-  };
   cron: {
     standup: string;
     preStandup: string;
@@ -170,11 +161,6 @@ interface Config {
   googleSheets?: {
     credentialsPath: string;
   };
-  board?: {
-    // Kanban backlog statuses - issues in these statuses are NOT visible on the board
-    // Based on: https://your-domain.atlassian.net/jira/software/c/projects/YOUR_PROJECT/boards/571/settings/columns
-    kanbanBacklogStatuses: string[];
-  };
 }
 
 /**
@@ -188,9 +174,6 @@ function loadConfig(): Config {
     const config = getRawConfig() as unknown as Config;
 
     op.success('Config loaded successfully', {
-      jiraHost: config.jira?.host,
-      project: config.jira?.projectKey,
-      component: config.jira?.component,
       hasGoogleSlides: !!config.googleSlides,
       envVarsSubstituted: true,
     });
@@ -202,11 +185,6 @@ function loadConfig(): Config {
 }
 
 const config = loadConfig();
-
-// Initialize Jira client
-let jiraClient: Version3Client;
-let jiraInitialized = false;
-const jiraLogger = createServiceLogger('jira');
 
 // Initialize Slack client
 let slackClient: WebClient;
@@ -220,28 +198,6 @@ function ensureSlackInitialized() {
       slackClient = new WebClient(config.slack.botToken);
       slackInitialized = true;
       op.success('Slack client initialized');
-    } catch (error) {
-      op.failure(error instanceof Error ? error : String(error));
-      throw error;
-    }
-  }
-}
-
-function ensureJiraInitialized() {
-  if (!jiraInitialized) {
-    const op = jiraLogger.startOperation('initialize');
-    try {
-      jiraClient = new Version3Client({
-        host: config.jira.baseUrl,
-        authentication: {
-          basic: {
-            email: config.jira.email,
-            apiToken: config.jira.apiToken,
-          },
-        },
-      });
-      jiraInitialized = true;
-      op.success('Jira client initialized', { host: config.jira.baseUrl });
     } catch (error) {
       op.failure(error instanceof Error ? error : String(error));
       throw error;
@@ -302,6 +258,25 @@ function resolvePresentationId(args: {
     return args.presentationId;
   }
   return undefined; // Let the service use its default
+}
+
+// Jira integration removed; these provide empty data for slides tools that expect issue summaries.
+async function getCompletedThisWeek(): Promise<
+  Array<{ key: string; summary: string; storyPoints?: number | null }>
+> {
+  return [];
+}
+
+async function getInProgressIssues(): Promise<
+  Array<{ key: string; summary: string; assignee?: { displayName?: string | null } | null }>
+> {
+  return [];
+}
+
+async function getBlockerIssues(): Promise<
+  Array<{ key: string; summary: string; assignee?: { displayName?: string | null } | null }>
+> {
+  return [];
 }
 
 // Initialize Google Sheets service
@@ -629,459 +604,11 @@ Please fix the issues and try again.`;
   }
 }
 
-// Jira helper functions
-function buildBaseJQL(): string {
-  const jql = `project = "${config.jira.projectKey}" AND component = "${config.jira.component}"`;
-  jiraLogger.debug('Built base JQL', { jql });
-  return jql;
-}
-
-interface JiraIssue {
-  id: string;
-  key: string;
-  summary: string;
-  description: string | null;
-  status: string;
-  statusCategory: string;
-  assignee: { displayName: string; accountId: string } | null;
-  reporter: { displayName: string } | null;
-  priority: string;
-  created: string;
-  updated: string;
-  storyPoints: number | null;
-  labels: string[];
-}
-
-function transformIssue(issue: {
-  id: string;
-  key: string;
-  fields: Record<string, unknown>;
-}): JiraIssue {
-  const fields = issue.fields;
-  const status = fields.status as { name: string; statusCategory: { name: string } } | undefined;
-  const assignee = fields.assignee as { accountId: string; displayName: string } | null;
-  const reporter = fields.reporter as { displayName: string } | null;
-  const priority = fields.priority as { name: string } | undefined;
-
-  return {
-    id: issue.id,
-    key: issue.key,
-    summary: (fields.summary as string) || '',
-    description: (fields.description as string) || null,
-    status: status?.name || 'Unknown',
-    statusCategory: status?.statusCategory?.name || 'To Do',
-    assignee: assignee
-      ? { displayName: assignee.displayName, accountId: assignee.accountId }
-      : null,
-    reporter: reporter ? { displayName: reporter.displayName } : null,
-    priority: priority?.name || 'Medium',
-    created: (fields.created as string) || new Date().toISOString(),
-    updated: (fields.updated as string) || new Date().toISOString(),
-    storyPoints: (fields.customfield_10016 as number) || null,
-    labels: (fields.labels as string[]) || [],
-  };
-}
-
-async function testConnection(): Promise<boolean> {
-  const op = jiraLogger.startOperation('testConnection');
-  try {
-    ensureJiraInitialized();
-    const user = await jiraClient.myself.getCurrentUser();
-    op.success('Connection test passed', { user: user.displayName });
-    return true;
-  } catch (error) {
-    op.failure(error instanceof Error ? error : String(error));
-    return false;
-  }
-}
-
-async function getIssueCount(): Promise<number> {
-  const op = jiraLogger.startOperation('getIssueCount');
-  try {
-    ensureJiraInitialized();
-    const jql = buildBaseJQL();
-    jiraLogger.debug('Executing JQL for count', { jql });
-
-    const result = await jiraClient.issueSearch.countIssues({
-      jql,
-    });
-
-    const count = result.count || 0;
-    op.success('Got issue count', { count, jql });
-    return count;
-  } catch (error) {
-    op.failure(error instanceof Error ? error : String(error));
-    return 0;
-  }
-}
-
-async function getAllIssues(): Promise<JiraIssue[]> {
-  const op = jiraLogger.startOperation('getAllIssues');
-  ensureJiraInitialized();
-  const issues: JiraIssue[] = [];
-  const maxResults = 100;
-  const jql = buildBaseJQL();
-  let nextPageToken: string | undefined = undefined;
-
-  jiraLogger.debug('Starting paginated fetch', { jql, maxResults });
-
-  // eslint-disable-next-line no-constant-condition
-  while (true) {
-    jiraLogger.debug('Fetching page', { hasToken: !!nextPageToken, maxResults });
-
-    const result: { issues?: unknown[]; nextPageToken?: string } =
-      await jiraClient.issueSearch.searchForIssuesUsingJqlEnhancedSearchPost({
-        jql,
-        nextPageToken,
-        maxResults,
-        fields: [
-          'summary',
-          'description',
-          'status',
-          'assignee',
-          'reporter',
-          'priority',
-          'created',
-          'updated',
-          'labels',
-          'customfield_10016',
-        ],
-      });
-
-    if (!result.issues || result.issues.length === 0) {
-      jiraLogger.debug('No more issues to fetch');
-      break;
-    }
-
-    jiraLogger.debug('Received page', {
-      issuesInPage: result.issues.length,
-      hasNextPage: !!result.nextPageToken,
-    });
-
-    for (const issue of result.issues) {
-      issues.push(
-        transformIssue(issue as { id: string; key: string; fields: Record<string, unknown> })
-      );
-    }
-
-    // Use token-based pagination
-    if (!result.nextPageToken) break;
-    nextPageToken = result.nextPageToken;
-  }
-
-  op.success('Fetched all issues', { totalIssues: issues.length });
-  return issues;
-}
-
-async function getIssueByKey(issueKey: string): Promise<JiraIssue | null> {
-  const op = jiraLogger.startOperation('getIssueByKey', { issueKey });
-  try {
-    ensureJiraInitialized();
-    const issue = await jiraClient.issues.getIssue({
-      issueIdOrKey: issueKey,
-      fields: [
-        'summary',
-        'description',
-        'status',
-        'assignee',
-        'reporter',
-        'priority',
-        'created',
-        'updated',
-        'labels',
-      ],
-    });
-
-    const transformed = transformIssue(
-      issue as unknown as { id: string; key: string; fields: Record<string, unknown> }
-    );
-    op.success('Found issue', { issueKey, status: transformed.status });
-    return transformed;
-  } catch (error) {
-    op.failure(error instanceof Error ? error : String(error), { issueKey });
-    return null;
-  }
-}
-
-async function getInProgressIssues(): Promise<JiraIssue[]> {
-  const op = jiraLogger.startOperation('getInProgressIssues');
-  ensureJiraInitialized();
-  const jql = `${buildBaseJQL()} AND statusCategory = "In Progress"`;
-  jiraLogger.debug('Executing JQL', { jql });
-
-  const result = await jiraClient.issueSearch.searchForIssuesUsingJqlEnhancedSearchPost({
-    jql,
-    maxResults: 100,
-    fields: [
-      'summary',
-      'description',
-      'status',
-      'assignee',
-      'reporter',
-      'priority',
-      'created',
-      'updated',
-      'labels',
-    ],
-  });
-
-  const issues = (result.issues || []).map((issue) =>
-    transformIssue(issue as { id: string; key: string; fields: Record<string, unknown> })
-  );
-
-  op.success('Fetched in-progress issues', { count: issues.length });
-  return issues;
-}
-
-// Default Kanban backlog statuses - these are NOT visible on the board
-// Based on the board configuration at https://your-domain.atlassian.net/jira/software/c/projects/YOUR_PROJECT/boards/571/settings/columns
-const DEFAULT_KANBAN_BACKLOG_STATUSES = ['IN BACKLOG', 'BACKLOG- NEXT IN LINE', 'BACKLOG'];
-
-function getKanbanBacklogStatuses(): string[] {
-  return config.board?.kanbanBacklogStatuses || DEFAULT_KANBAN_BACKLOG_STATUSES;
-}
-
-async function getBoardIssues(): Promise<JiraIssue[]> {
-  const op = jiraLogger.startOperation('getBoardIssues');
-  ensureJiraInitialized();
-  // Exclude Kanban backlog statuses that are not visible on the board (from config or defaults)
-  const backlogStatuses = getKanbanBacklogStatuses();
-  const backlogExclusion = backlogStatuses.map((s) => `"${s}"`).join(', ');
-  const jql = `${buildBaseJQL()} AND status NOT IN (${backlogExclusion})`;
-  jiraLogger.debug('Executing JQL for board issues (excluding Kanban backlog)', {
-    jql,
-    excludedStatuses: backlogStatuses,
-  });
-
-  const result = await jiraClient.issueSearch.searchForIssuesUsingJqlEnhancedSearchPost({
-    jql,
-    maxResults: 100,
-    fields: [
-      'summary',
-      'description',
-      'status',
-      'assignee',
-      'reporter',
-      'priority',
-      'created',
-      'updated',
-      'labels',
-      'customfield_10016',
-    ],
-  });
-
-  const issues = (result.issues || []).map((issue) =>
-    transformIssue(issue as { id: string; key: string; fields: Record<string, unknown> })
-  );
-
-  op.success('Fetched board issues (excluding Kanban backlog)', { count: issues.length });
-  return issues;
-}
-
-async function getBlockerIssues(): Promise<JiraIssue[]> {
-  const op = jiraLogger.startOperation('getBlockerIssues');
-  ensureJiraInitialized();
-  const jql = `${buildBaseJQL()} AND (priority = Blocker OR labels = blocked)`;
-  jiraLogger.debug('Executing JQL', { jql });
-
-  const result = await jiraClient.issueSearch.searchForIssuesUsingJqlEnhancedSearchPost({
-    jql,
-    maxResults: 100,
-    fields: [
-      'summary',
-      'description',
-      'status',
-      'assignee',
-      'reporter',
-      'priority',
-      'created',
-      'updated',
-      'labels',
-    ],
-  });
-
-  const issues = (result.issues || []).map((issue) =>
-    transformIssue(issue as { id: string; key: string; fields: Record<string, unknown> })
-  );
-
-  op.success('Fetched blocker issues', { count: issues.length });
-  return issues;
-}
-
-async function checkSLABreaches(): Promise<
-  Array<{ issue: JiraIssue; status: string; daysInStatus: number; maxAllowedDays: number }>
-> {
-  const op = jiraLogger.startOperation('checkSLABreaches');
-  ensureJiraInitialized();
-  const breaches: Array<{
-    issue: JiraIssue;
-    status: string;
-    daysInStatus: number;
-    maxAllowedDays: number;
-  }> = [];
-
-  const slaConfigs = [
-    { status: 'In Progress', maxDays: config.sla.inProgressDays },
-    { status: 'In Review', maxDays: config.sla.inReviewDays },
-    { status: 'To Do', maxDays: config.sla.todoDays },
-  ];
-
-  for (const slaConfig of slaConfigs) {
-    try {
-      const jql = `${buildBaseJQL()} AND status = "${slaConfig.status}" AND updated < -${slaConfig.maxDays}d`;
-      jiraLogger.debug('Checking SLA for status', {
-        status: slaConfig.status,
-        maxDays: slaConfig.maxDays,
-        jql,
-      });
-
-      const result = await jiraClient.issueSearch.searchForIssuesUsingJqlEnhancedSearchPost({
-        jql,
-        maxResults: 100,
-        fields: [
-          'summary',
-          'description',
-          'status',
-          'assignee',
-          'reporter',
-          'priority',
-          'created',
-          'updated',
-          'labels',
-        ],
-      });
-
-      for (const issue of result.issues || []) {
-        const transformedIssue = transformIssue(
-          issue as { id: string; key: string; fields: Record<string, unknown> }
-        );
-        const updatedDate = new Date(transformedIssue.updated);
-        const now = new Date();
-        const daysInStatus = Math.floor(
-          (now.getTime() - updatedDate.getTime()) / (1000 * 60 * 60 * 24)
-        );
-
-        breaches.push({
-          issue: transformedIssue,
-          status: slaConfig.status,
-          daysInStatus,
-          maxAllowedDays: slaConfig.maxDays,
-        });
-      }
-
-      jiraLogger.debug('SLA check complete for status', {
-        status: slaConfig.status,
-        breachCount: (result.issues || []).length,
-      });
-    } catch (error) {
-      jiraLogger.warn(`Failed to check SLA for status ${slaConfig.status}`, {
-        error: error instanceof Error ? error.message : String(error),
-      });
-    }
-  }
-
-  op.success('SLA breach check complete', { totalBreaches: breaches.length });
-  return breaches;
-}
-
-async function getActiveSprintIssues(): Promise<JiraIssue[]> {
-  const op = jiraLogger.startOperation('getActiveSprintIssues');
-  ensureJiraInitialized();
-  const jql = `${buildBaseJQL()} AND sprint in openSprints()`;
-  jiraLogger.debug('Executing JQL', { jql });
-
-  const result = await jiraClient.issueSearch.searchForIssuesUsingJqlEnhancedSearchPost({
-    jql,
-    maxResults: 100,
-    fields: [
-      'summary',
-      'description',
-      'status',
-      'assignee',
-      'reporter',
-      'priority',
-      'created',
-      'updated',
-      'labels',
-      'customfield_10016',
-    ],
-  });
-
-  const issues = (result.issues || []).map((issue) =>
-    transformIssue(issue as { id: string; key: string; fields: Record<string, unknown> })
-  );
-
-  op.success('Fetched active sprint issues', { count: issues.length });
-  return issues;
-}
-
-async function getCompletedThisWeek(): Promise<JiraIssue[]> {
-  const op = jiraLogger.startOperation('getCompletedThisWeek');
-  ensureJiraInitialized();
-  const jql = `${buildBaseJQL()} AND statusCategory = Done AND status changed to Done after -7d`;
-  jiraLogger.debug('Executing JQL', { jql });
-
-  const result = await jiraClient.issueSearch.searchForIssuesUsingJqlEnhancedSearchPost({
-    jql,
-    maxResults: 100,
-    fields: [
-      'summary',
-      'description',
-      'status',
-      'assignee',
-      'reporter',
-      'priority',
-      'created',
-      'updated',
-      'labels',
-      'customfield_10016',
-    ],
-  });
-
-  const issues = (result.issues || []).map((issue) =>
-    transformIssue(issue as { id: string; key: string; fields: Record<string, unknown> })
-  );
-
-  op.success('Fetched completed issues this week', { count: issues.length });
-  return issues;
-}
-
-async function getCreatedThisWeek(): Promise<JiraIssue[]> {
-  const op = jiraLogger.startOperation('getCreatedThisWeek');
-  ensureJiraInitialized();
-  const jql = `${buildBaseJQL()} AND created >= -7d`;
-  jiraLogger.debug('Executing JQL', { jql });
-
-  const result = await jiraClient.issueSearch.searchForIssuesUsingJqlEnhancedSearchPost({
-    jql,
-    maxResults: 100,
-    fields: [
-      'summary',
-      'description',
-      'status',
-      'assignee',
-      'reporter',
-      'priority',
-      'created',
-      'updated',
-      'labels',
-    ],
-  });
-
-  const issues = (result.issues || []).map((issue) =>
-    transformIssue(issue as { id: string; key: string; fields: Record<string, unknown> })
-  );
-
-  op.success('Fetched issues created this week', { count: issues.length });
-  return issues;
-}
-
 // Define MCP tools
 const tools: Tool[] = [
   {
-    name: 'ai_first_health_check',
-    description:
-      'Check the health and connectivity of the Orient, including Jira connection status and issue count.',
+    name: 'system_health_check',
+    description: 'Check the health and connectivity of the Orient.',
     inputSchema: {
       type: 'object',
       properties: {},
@@ -1089,119 +616,7 @@ const tools: Tool[] = [
     },
   },
   {
-    name: 'ai_first_get_all_issues',
-    description:
-      'Get all Jira issues for the YOUR_COMPONENT component. Returns issue key, summary, status, assignee, and priority.',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        limit: {
-          type: 'number',
-          description: 'Maximum number of issues to return (default: 50)',
-        },
-      },
-      required: [],
-    },
-  },
-  {
-    name: 'ai_first_get_issue',
-    description: 'Get details of a specific Jira issue by its key (e.g., YOUR_PROJECT-123).',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        issueKey: {
-          type: 'string',
-          description: 'The Jira issue key (e.g., YOUR_PROJECT-123)',
-        },
-      },
-      required: ['issueKey'],
-    },
-  },
-  {
-    name: 'ai_first_get_in_progress',
-    description: 'Get all issues currently in progress for the YOUR_COMPONENT component.',
-    inputSchema: {
-      type: 'object',
-      properties: {},
-      required: [],
-    },
-  },
-  {
-    name: 'ai_first_get_board_issues',
-    description:
-      'Get all issues currently visible on the Kanban board (excluding Kanban backlog). Returns issues in columns like TO DO, IN PROGRESS, and DONE - but NOT issues in the Kanban backlog section. Use this when asked about "issues on the board", "open issues", "opened issues now", or what is currently visible on the Jira Kanban board.',
-    inputSchema: {
-      type: 'object',
-      properties: {},
-      required: [],
-    },
-  },
-  {
-    name: 'ai_first_get_blockers',
-    description: 'Get all blocker issues or issues with blocked label for YOUR_COMPONENT.',
-    inputSchema: {
-      type: 'object',
-      properties: {},
-      required: [],
-    },
-  },
-  {
-    name: 'ai_first_check_sla_breaches',
-    description: 'Check for SLA breaches - tickets that have been in a status longer than allowed.',
-    inputSchema: {
-      type: 'object',
-      properties: {},
-      required: [],
-    },
-  },
-  {
-    name: 'ai_first_get_sprint_issues',
-    description: 'Get all issues in the current active sprint for YOUR_COMPONENT.',
-    inputSchema: {
-      type: 'object',
-      properties: {},
-      required: [],
-    },
-  },
-  {
-    name: 'ai_first_get_completed_this_week',
-    description: 'Get all issues completed (moved to Done) in the last 7 days for YOUR_COMPONENT.',
-    inputSchema: {
-      type: 'object',
-      properties: {},
-      required: [],
-    },
-  },
-  {
-    name: 'ai_first_get_created_this_week',
-    description: 'Get all issues created in the last 7 days for YOUR_COMPONENT.',
-    inputSchema: {
-      type: 'object',
-      properties: {},
-      required: [],
-    },
-  },
-  {
-    name: 'ai_first_get_daily_digest',
-    description: "Get a daily digest including today's in-progress issues and blockers.",
-    inputSchema: {
-      type: 'object',
-      properties: {},
-      required: [],
-    },
-  },
-  {
-    name: 'ai_first_get_weekly_summary',
-    description:
-      'Get a weekly summary including completed issues, velocity points, newly added issues, and aging tickets.',
-    inputSchema: {
-      type: 'object',
-      properties: {},
-      required: [],
-    },
-  },
-  {
-    name: 'ai_first_get_config',
+    name: 'system_get_config',
     description: 'Get the current configuration for the Orient (excluding sensitive credentials).',
     inputSchema: {
       type: 'object',
@@ -1210,65 +625,9 @@ const tools: Tool[] = [
     },
   },
   ...googleSlidesTools,
-  {
-    name: 'ai_first_jira_delete_issue_link',
-    description: 'Delete an issue link between two JIRA issues.',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        linkId: {
-          type: 'string',
-          description: 'The ID of the issue link to delete',
-        },
-      },
-      required: ['linkId'],
-    },
-  },
-  {
-    name: 'ai_first_jira_create_issue_link',
-    description: 'Create an issue link between two JIRA issues (e.g., blocks, relates to).',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        inwardIssueKey: {
-          type: 'string',
-          description: 'The key of the inward issue (e.g., the blocking issue)',
-        },
-        outwardIssueKey: {
-          type: 'string',
-          description: 'The key of the outward issue (e.g., the blocked issue)',
-        },
-        linkType: {
-          type: 'string',
-          description:
-            'The type of link (default: "Blocks"). Common types: "Blocks", "Relates to", "Duplicates"',
-          default: 'Blocks',
-        },
-        comment: {
-          type: 'string',
-          description: 'Optional comment to add to the link',
-        },
-      },
-      required: ['inwardIssueKey', 'outwardIssueKey'],
-    },
-  },
-  {
-    name: 'ai_first_jira_get_issue_links',
-    description: 'Get all issue links for a given JIRA issue.',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        issueKey: {
-          type: 'string',
-          description: 'The key of the issue to get links for',
-        },
-      },
-      required: ['issueKey'],
-    },
-  },
   // Slack tools
   {
-    name: 'ai_first_slack_lookup_user_by_email',
+    name: 'slack_lookup_user',
     description:
       'Look up a Slack user by their email address. Returns user ID and profile information.',
     inputSchema: {
@@ -1283,7 +642,7 @@ const tools: Tool[] = [
     },
   },
   {
-    name: 'ai_first_slack_send_dm',
+    name: 'slack_send_dm',
     description:
       'Send a direct message to a Slack user. Can use either user ID or email address. Optionally include additional users to create a group DM.',
     inputSchema: {
@@ -1308,7 +667,7 @@ const tools: Tool[] = [
     },
   },
   {
-    name: 'ai_first_slack_send_channel_message',
+    name: 'slack_send_channel_message',
     description: 'Send a message to a Slack channel.',
     inputSchema: {
       type: 'object',
@@ -1326,7 +685,7 @@ const tools: Tool[] = [
     },
   },
   {
-    name: 'ai_first_slack_get_channel_messages',
+    name: 'slack_get_channel_messages',
     description:
       'Get messages from a Slack channel. Can filter by date range and limit the number of messages returned. Useful for reading channel history, finding quotes, or reviewing discussions.',
     inputSchema: {
@@ -1612,7 +971,7 @@ const tools: Tool[] = [
   },
   // Skill Management Tools - for creating/editing skills via GitHub PRs
   {
-    name: 'ai_first_list_skills',
+    name: 'skills_list',
     description:
       'List all available skills with their names and descriptions. Skills provide specialized knowledge modules for domain-specific guidance.',
     inputSchema: {
@@ -1622,7 +981,7 @@ const tools: Tool[] = [
     },
   },
   {
-    name: 'ai_first_read_skill',
+    name: 'skills_read',
     description:
       'Read the full content of a specific skill by name. Returns the skill body content for detailed guidance.',
     inputSchema: {
@@ -1638,7 +997,7 @@ const tools: Tool[] = [
     },
   },
   {
-    name: 'ai_first_create_skill_async',
+    name: 'skills_create_async',
     description:
       'Create a new skill and submit it as a GitHub PR. This is an ASYNC operation - it starts a background job and returns immediately. The PR link will be sent via the messaging channel when ready. ADMIN ONLY - requires loading the skill-creator skill first for guidance on creating effective skills.',
     inputSchema: {
@@ -1687,7 +1046,7 @@ const tools: Tool[] = [
     },
   },
   {
-    name: 'ai_first_edit_skill_async',
+    name: 'skills_edit_async',
     description:
       'Edit an existing skill and submit changes as a GitHub PR. This is an ASYNC operation - it starts a background job and returns immediately. The PR link will be sent via the messaging channel when ready. ADMIN ONLY. Read the existing skill first to see current content.',
     inputSchema: {
@@ -1734,7 +1093,7 @@ const tools: Tool[] = [
     },
   },
   {
-    name: 'ai_first_list_skill_prs',
+    name: 'skills_list_prs',
     description:
       'List all pending GitHub PRs for skill changes that are awaiting review. ADMIN ONLY.',
     inputSchema: {
@@ -1744,7 +1103,7 @@ const tools: Tool[] = [
     },
   },
   {
-    name: 'ai_first_reload_skills',
+    name: 'skills_reload',
     description:
       'Reload all skills from disk. Use after a skill PR is merged and deployed to refresh the skill cache. ADMIN ONLY.',
     inputSchema: {
@@ -2278,7 +1637,10 @@ const discoveryLogger = createServiceLogger('tool-discovery');
 // discovered tools would be rejected as "invalid tool" by the MCP client.
 server.setRequestHandler(ListToolsRequestSchema, async () => {
   const discoveryTool = ToolDiscoveryService.getDiscoveryToolDefinition();
-  const allRegisteredTools = getToolRegistry().getAllToolDefinitions();
+  const allRegisteredTools = await filterToolsByConnection({
+    categories: 'all',
+    includeDiscovery: false,
+  });
   const allTools = [discoveryTool, ...allRegisteredTools];
 
   serverLogger.debug('ListTools request received', {
@@ -2354,7 +1716,7 @@ async function executeToolCall(
 
       try {
         const input = args as unknown as DiscoveryInput;
-        const result = toolDiscoveryService.discover(input);
+        const result = await toolDiscoveryService.discover(input);
         const formattedResult = formatDiscoveryResult(result, {
           includeTools: Boolean(input.includeTools),
         });
@@ -2390,10 +1752,7 @@ async function executeToolCall(
       }
     }
 
-    case 'ai_first_health_check': {
-      const jiraConnected = await testConnection();
-      const issueCount = jiraConnected ? await getIssueCount() : 0;
-
+    case 'system_health_check': {
       return {
         content: [
           {
@@ -2401,13 +1760,6 @@ async function executeToolCall(
             text: JSON.stringify(
               {
                 status: 'ok',
-                jira: {
-                  connected: jiraConnected,
-                  host: config.jira.host,
-                  project: config.jira.projectKey,
-                  component: config.jira.component,
-                  issueCount,
-                },
                 sla: config.sla,
               },
               null,
@@ -2418,332 +1770,13 @@ async function executeToolCall(
       };
     }
 
-    case 'ai_first_get_all_issues': {
-      const limit = (args as { limit?: number })?.limit || 50;
-      const issues = await getAllIssues();
-      const limitedIssues = issues.slice(0, limit);
-
+    case 'system_get_config': {
       return {
         content: [
           {
             type: 'text',
             text: JSON.stringify(
               {
-                total: issues.length,
-                returned: limitedIssues.length,
-                issues: limitedIssues.map((i) => ({
-                  key: i.key,
-                  summary: i.summary,
-                  status: i.status,
-                  statusCategory: i.statusCategory,
-                  assignee: i.assignee?.displayName || 'Unassigned',
-                  priority: i.priority,
-                  storyPoints: i.storyPoints,
-                  updated: i.updated,
-                })),
-              },
-              null,
-              2
-            ),
-          },
-        ],
-      };
-    }
-
-    case 'ai_first_get_issue': {
-      const issueKey = (args as { issueKey: string }).issueKey;
-      const issue = await getIssueByKey(issueKey);
-
-      if (!issue) {
-        return {
-          content: [
-            { type: 'text', text: JSON.stringify({ error: `Issue ${issueKey} not found` }) },
-          ],
-        };
-      }
-
-      return {
-        content: [{ type: 'text', text: JSON.stringify(issue, null, 2) }],
-      };
-    }
-
-    case 'ai_first_get_in_progress': {
-      const issues = await getInProgressIssues();
-
-      return {
-        content: [
-          {
-            type: 'text',
-            text: JSON.stringify(
-              {
-                count: issues.length,
-                issues: issues.map((i) => ({
-                  key: i.key,
-                  summary: i.summary,
-                  status: i.status,
-                  assignee: i.assignee?.displayName || 'Unassigned',
-                  updated: i.updated,
-                })),
-              },
-              null,
-              2
-            ),
-          },
-        ],
-      };
-    }
-
-    case 'ai_first_get_board_issues': {
-      const issues = await getBoardIssues();
-
-      return {
-        content: [
-          {
-            type: 'text',
-            text: JSON.stringify(
-              {
-                count: issues.length,
-                description: 'Issues on the board (excluding backlog)',
-                issues: issues.map((i) => ({
-                  key: i.key,
-                  summary: i.summary,
-                  status: i.status,
-                  statusCategory: i.statusCategory,
-                  assignee: i.assignee?.displayName || 'Unassigned',
-                  priority: i.priority,
-                  storyPoints: i.storyPoints,
-                  updated: i.updated,
-                })),
-              },
-              null,
-              2
-            ),
-          },
-        ],
-      };
-    }
-
-    case 'ai_first_get_blockers': {
-      const issues = await getBlockerIssues();
-
-      return {
-        content: [
-          {
-            type: 'text',
-            text: JSON.stringify(
-              {
-                count: issues.length,
-                issues: issues.map((i) => ({
-                  key: i.key,
-                  summary: i.summary,
-                  status: i.status,
-                  priority: i.priority,
-                  assignee: i.assignee?.displayName || 'Unassigned',
-                  labels: i.labels,
-                })),
-              },
-              null,
-              2
-            ),
-          },
-        ],
-      };
-    }
-
-    case 'ai_first_check_sla_breaches': {
-      const breaches = await checkSLABreaches();
-
-      return {
-        content: [
-          {
-            type: 'text',
-            text: JSON.stringify(
-              {
-                count: breaches.length,
-                breaches: breaches.map((b) => ({
-                  key: b.issue.key,
-                  summary: b.issue.summary,
-                  status: b.status,
-                  daysInStatus: b.daysInStatus,
-                  maxAllowedDays: b.maxAllowedDays,
-                  assignee: b.issue.assignee?.displayName || 'Unassigned',
-                })),
-              },
-              null,
-              2
-            ),
-          },
-        ],
-      };
-    }
-
-    case 'ai_first_get_sprint_issues': {
-      const issues = await getActiveSprintIssues();
-
-      return {
-        content: [
-          {
-            type: 'text',
-            text: JSON.stringify(
-              {
-                count: issues.length,
-                totalPoints: issues.reduce((sum, i) => sum + (i.storyPoints || 0), 0),
-                issues: issues.map((i) => ({
-                  key: i.key,
-                  summary: i.summary,
-                  status: i.status,
-                  statusCategory: i.statusCategory,
-                  assignee: i.assignee?.displayName || 'Unassigned',
-                  storyPoints: i.storyPoints,
-                })),
-              },
-              null,
-              2
-            ),
-          },
-        ],
-      };
-    }
-
-    case 'ai_first_get_completed_this_week': {
-      const issues = await getCompletedThisWeek();
-
-      return {
-        content: [
-          {
-            type: 'text',
-            text: JSON.stringify(
-              {
-                count: issues.length,
-                velocityPoints: issues.reduce((sum, i) => sum + (i.storyPoints || 0), 0),
-                issues: issues.map((i) => ({
-                  key: i.key,
-                  summary: i.summary,
-                  assignee: i.assignee?.displayName || 'Unassigned',
-                  storyPoints: i.storyPoints,
-                  updated: i.updated,
-                })),
-              },
-              null,
-              2
-            ),
-          },
-        ],
-      };
-    }
-
-    case 'ai_first_get_created_this_week': {
-      const issues = await getCreatedThisWeek();
-
-      return {
-        content: [
-          {
-            type: 'text',
-            text: JSON.stringify(
-              {
-                count: issues.length,
-                issues: issues.map((i) => ({
-                  key: i.key,
-                  summary: i.summary,
-                  status: i.status,
-                  priority: i.priority,
-                  assignee: i.assignee?.displayName || 'Unassigned',
-                  created: i.created,
-                })),
-              },
-              null,
-              2
-            ),
-          },
-        ],
-      };
-    }
-
-    case 'ai_first_get_daily_digest': {
-      const [inProgress, blockers] = await Promise.all([getInProgressIssues(), getBlockerIssues()]);
-
-      return {
-        content: [
-          {
-            type: 'text',
-            text: JSON.stringify(
-              {
-                date: new Date().toISOString().split('T')[0],
-                inProgressToday: inProgress.map((i) => ({
-                  key: i.key,
-                  summary: i.summary,
-                  assignee: i.assignee?.displayName || 'Unassigned',
-                })),
-                blockers: blockers.map((b) => ({
-                  key: b.key,
-                  summary: b.summary,
-                  assignee: b.assignee?.displayName || 'Unassigned',
-                })),
-              },
-              null,
-              2
-            ),
-          },
-        ],
-      };
-    }
-
-    case 'ai_first_get_weekly_summary': {
-      const [completed, created, breaches, sprintIssues] = await Promise.all([
-        getCompletedThisWeek(),
-        getCreatedThisWeek(),
-        checkSLABreaches(),
-        getActiveSprintIssues(),
-      ]);
-
-      const velocityPoints = completed.reduce((sum, i) => sum + (i.storyPoints || 0), 0);
-
-      return {
-        content: [
-          {
-            type: 'text',
-            text: JSON.stringify(
-              {
-                weekEnding: new Date().toISOString().split('T')[0],
-                summary: {
-                  completedCount: completed.length,
-                  velocityPoints,
-                  addedCount: created.length,
-                  agingCount: breaches.length,
-                  sprintIssuesCount: sprintIssues.length,
-                },
-                completed: completed.slice(0, 10).map((i) => ({
-                  key: i.key,
-                  summary: i.summary,
-                  points: i.storyPoints,
-                })),
-                aging: breaches.slice(0, 5).map((b) => ({
-                  key: b.issue.key,
-                  summary: b.issue.summary,
-                  status: b.status,
-                  daysInStatus: b.daysInStatus,
-                })),
-              },
-              null,
-              2
-            ),
-          },
-        ],
-      };
-    }
-
-    case 'ai_first_get_config': {
-      return {
-        content: [
-          {
-            type: 'text',
-            text: JSON.stringify(
-              {
-                jira: {
-                  host: config.jira.host,
-                  projectKey: config.jira.projectKey,
-                  component: config.jira.component,
-                },
                 slack: {
                   channels: config.slack.channels,
                 },
@@ -2766,7 +1799,7 @@ async function executeToolCall(
     }
 
     // Google Slides tool handlers
-    case 'ai_first_slides_get_presentation': {
+    case 'slides_get_presentation': {
       const { presentationUrl } = args as { presentationUrl?: string };
       const slides = getSlidesService();
       const presentationId = resolvePresentationId({ presentationUrl });
@@ -2782,7 +1815,7 @@ async function executeToolCall(
       };
     }
 
-    case 'ai_first_slides_get_slide': {
+    case 'slides_get_slide': {
       const { slideId: providedSlideId, presentationUrl } = args as {
         slideId?: string;
         presentationUrl?: string;
@@ -2828,7 +1861,7 @@ async function executeToolCall(
       };
     }
 
-    case 'ai_first_slides_update_text': {
+    case 'slides_update_text': {
       const { replacements, presentationUrl } = args as {
         replacements: TextReplacement[];
         presentationUrl?: string;
@@ -2856,7 +1889,7 @@ async function executeToolCall(
       };
     }
 
-    case 'ai_first_slides_update_slide_text': {
+    case 'slides_update_slide_text': {
       const {
         slideId: providedSlideId,
         replacements,
@@ -2917,7 +1950,7 @@ async function executeToolCall(
       };
     }
 
-    case 'ai_first_slides_duplicate_template': {
+    case 'slides_duplicate_template': {
       const { templateSlideId, replacements, insertAtIndex, presentationUrl } = args as {
         templateSlideId: string;
         replacements?: TextReplacement[];
@@ -2952,14 +1985,14 @@ async function executeToolCall(
       };
     }
 
-    case 'ai_first_slides_update_weekly': {
+    case 'slides_update_weekly': {
       const { templateSlideId, insertAtIndex, presentationUrl } = args as {
         templateSlideId?: string;
         insertAtIndex?: number;
         presentationUrl?: string;
       };
 
-      // Fetch Jira data
+      // Fetch weekly data
       const [completed, inProgress, blockers] = await Promise.all([
         getCompletedThisWeek(),
         getInProgressIssues(),
@@ -3034,7 +2067,7 @@ async function executeToolCall(
       };
     }
 
-    case 'ai_first_slides_delete_slide': {
+    case 'slides_delete_slide': {
       const { slideId, presentationUrl } = args as { slideId: string; presentationUrl?: string };
       const slides = getSlidesService();
       const presentationId = resolvePresentationId({ presentationUrl });
@@ -3058,7 +2091,7 @@ async function executeToolCall(
       };
     }
 
-    case 'ai_first_slides_create_table': {
+    case 'slides_create_table': {
       const {
         slideId,
         presentationUrl,
@@ -3106,200 +2139,8 @@ async function executeToolCall(
       };
     }
 
-    case 'ai_first_jira_delete_issue_link': {
-      const { linkId } = args as { linkId: string };
-      const op = jiraLogger.startOperation('deleteIssueLink');
-
-      try {
-        await jiraClient.issueLinks.deleteIssueLink({ linkId });
-        op.success('Issue link deleted', { linkId });
-
-        return {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify(
-                {
-                  success: true,
-                  message: `Issue link ${linkId} deleted successfully`,
-                },
-                null,
-                2
-              ),
-            },
-          ],
-        };
-      } catch (error) {
-        op.failure(error instanceof Error ? error : String(error), { linkId });
-        return {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify(
-                {
-                  error: true,
-                  message: `Failed to delete issue link: ${error instanceof Error ? error.message : String(error)}`,
-                },
-                null,
-                2
-              ),
-            },
-          ],
-          isError: true,
-        };
-      }
-    }
-
-    case 'ai_first_jira_create_issue_link': {
-      const {
-        inwardIssueKey,
-        outwardIssueKey,
-        linkType = 'Blocks',
-        comment,
-      } = args as {
-        inwardIssueKey: string;
-        outwardIssueKey: string;
-        linkType?: string;
-        comment?: string;
-      };
-      const op = jiraLogger.startOperation('createIssueLink');
-
-      try {
-        const linkPayload: any = {
-          type: { name: linkType },
-          inwardIssue: { key: inwardIssueKey },
-          outwardIssue: { key: outwardIssueKey },
-        };
-
-        if (comment) {
-          linkPayload.comment = {
-            body: {
-              type: 'doc',
-              version: 1,
-              content: [
-                {
-                  type: 'paragraph',
-                  content: [
-                    {
-                      type: 'text',
-                      text: comment,
-                    },
-                  ],
-                },
-              ],
-            },
-          };
-        }
-
-        await jiraClient.issueLinks.linkIssues(linkPayload);
-
-        op.success('Issue link created', {
-          inwardIssue: inwardIssueKey,
-          outwardIssue: outwardIssueKey,
-          linkType,
-        });
-
-        return {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify(
-                {
-                  success: true,
-                  message: `Issue link created: ${inwardIssueKey} ${linkType} ${outwardIssueKey}`,
-                  link: {
-                    inwardIssue: inwardIssueKey,
-                    outwardIssue: outwardIssueKey,
-                    type: linkType,
-                  },
-                },
-                null,
-                2
-              ),
-            },
-          ],
-        };
-      } catch (error) {
-        op.failure(error instanceof Error ? error : String(error), {
-          inwardIssue: inwardIssueKey,
-          outwardIssue: outwardIssueKey,
-          linkType,
-        });
-        return {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify(
-                {
-                  error: true,
-                  message: `Failed to create issue link: ${error instanceof Error ? error.message : String(error)}`,
-                },
-                null,
-                2
-              ),
-            },
-          ],
-          isError: true,
-        };
-      }
-    }
-
-    case 'ai_first_jira_get_issue_links': {
-      const { issueKey } = args as { issueKey: string };
-      const op = jiraLogger.startOperation('getIssueLinks');
-
-      try {
-        const issue = await jiraClient.issues.getIssue({
-          issueIdOrKey: issueKey,
-          fields: ['issuelinks'],
-        });
-
-        const links = (issue.fields as any).issuelinks || [];
-
-        op.success('Issue links retrieved', {
-          issueKey,
-          linkCount: links.length,
-        });
-
-        return {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify(
-                {
-                  issueKey,
-                  linkCount: links.length,
-                  links,
-                },
-                null,
-                2
-              ),
-            },
-          ],
-        };
-      } catch (error) {
-        op.failure(error instanceof Error ? error : String(error), { issueKey });
-        return {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify(
-                {
-                  error: true,
-                  message: `Failed to get issue links: ${error instanceof Error ? error.message : String(error)}`,
-                },
-                null,
-                2
-              ),
-            },
-          ],
-          isError: true,
-        };
-      }
-    }
-
     // Slack tool handlers
-    case 'ai_first_slack_lookup_user_by_email': {
+    case 'slack_lookup_user': {
       const { email } = args as { email: string };
       const op = slackLogger.startOperation('lookupUserByEmail');
 
@@ -3359,7 +2200,7 @@ async function executeToolCall(
       }
     }
 
-    case 'ai_first_slack_send_dm': {
+    case 'slack_send_dm': {
       const { userIdOrEmail, message, ccUsers } = args as {
         userIdOrEmail: string;
         message: string;
@@ -3472,7 +2313,7 @@ async function executeToolCall(
       }
     }
 
-    case 'ai_first_slack_send_channel_message': {
+    case 'slack_send_channel_message': {
       const { channel, message } = args as { channel: string; message: string };
       const op = slackLogger.startOperation('sendChannelMessage');
 
@@ -3531,7 +2372,7 @@ async function executeToolCall(
       }
     }
 
-    case 'ai_first_slack_get_channel_messages': {
+    case 'slack_get_channel_messages': {
       const { channel, limit, oldest, latest, includeReplies } = args as {
         channel: string;
         limit?: number;
@@ -4521,7 +3362,7 @@ async function executeToolCall(
 
     // ========== Skill Management Tools ==========
 
-    case 'ai_first_list_skills': {
+    case 'skills_list': {
       const op = skillLogger.startOperation('listSkills');
 
       try {
@@ -4564,7 +3405,7 @@ async function executeToolCall(
       }
     }
 
-    case 'ai_first_read_skill': {
+    case 'skills_read': {
       const { name: skillName } = args as { name: string };
       const op = skillLogger.startOperation('readSkill', { skillName });
 
@@ -4580,7 +3421,7 @@ async function executeToolCall(
                 type: 'text',
                 text: JSON.stringify({
                   error: `Skill "${skillName}" not found`,
-                  hint: 'Use ai_first_list_skills to see available skills.',
+                  hint: 'Use skills_list to see available skills.',
                 }),
               },
             ],
@@ -4622,7 +3463,7 @@ async function executeToolCall(
       }
     }
 
-    case 'ai_first_create_skill_async': {
+    case 'skills_create_async': {
       const {
         name: skillName,
         description,
@@ -4697,7 +3538,7 @@ async function executeToolCall(
               {
                 type: 'text',
                 text: JSON.stringify({
-                  error: `Skill "${skillName}" already exists. Use ai_first_edit_skill_async to modify it.`,
+                  error: `Skill "${skillName}" already exists. Use skills_edit_async to modify it.`,
                 }),
               },
             ],
@@ -4758,7 +3599,7 @@ async function executeToolCall(
       }
     }
 
-    case 'ai_first_edit_skill_async': {
+    case 'skills_edit_async': {
       const {
         name: skillName,
         description,
@@ -4833,7 +3674,7 @@ async function executeToolCall(
               {
                 type: 'text',
                 text: JSON.stringify({
-                  error: `Skill "${skillName}" does not exist. Use ai_first_create_skill_async to create it.`,
+                  error: `Skill "${skillName}" does not exist. Use skills_create_async to create it.`,
                 }),
               },
             ],
@@ -4894,7 +3735,7 @@ async function executeToolCall(
       }
     }
 
-    case 'ai_first_list_skill_prs': {
+    case 'skills_list_prs': {
       const op = skillLogger.startOperation('listSkillPRs');
 
       try {
@@ -4957,7 +3798,7 @@ async function executeToolCall(
       }
     }
 
-    case 'ai_first_reload_skills': {
+    case 'skills_reload': {
       const op = skillLogger.startOperation('reloadSkills');
 
       try {
@@ -6110,8 +4951,8 @@ async function executeToolCall(
     // Mini-Apps Tools
     // =========================================================================
 
-    case 'ai_first_create_app': {
-      const op = appsLogger.startOperation('ai_first_create_app', args);
+    case 'apps_create': {
+      const op = appsLogger.startOperation('apps_create', args);
 
       try {
         const {
@@ -6229,8 +5070,8 @@ async function executeToolCall(
       }
     }
 
-    case 'ai_first_list_apps': {
-      const op = appsLogger.startOperation('ai_first_list_apps', args);
+    case 'apps_list': {
+      const op = appsLogger.startOperation('apps_list', args);
 
       try {
         const { status, limit } = args as {
@@ -6297,8 +5138,8 @@ async function executeToolCall(
       }
     }
 
-    case 'ai_first_get_app': {
-      const op = appsLogger.startOperation('ai_first_get_app', args);
+    case 'apps_get': {
+      const op = appsLogger.startOperation('apps_get', args);
 
       try {
         const { name: appName } = args as { name: string };
@@ -6322,7 +5163,7 @@ async function executeToolCall(
                 type: 'text',
                 text: JSON.stringify({
                   found: false,
-                  message: `App "${appName}" not found. Use ai_first_list_apps to see available apps.`,
+                  message: `App "${appName}" not found. Use apps_list to see available apps.`,
                 }),
               },
             ],
@@ -6384,8 +5225,8 @@ async function executeToolCall(
       }
     }
 
-    case 'ai_first_share_app': {
-      const op = appsLogger.startOperation('ai_first_share_app', args);
+    case 'apps_share': {
+      const op = appsLogger.startOperation('apps_share', args);
 
       try {
         const {
@@ -6409,9 +5250,7 @@ async function executeToolCall(
 
         const app = service.getApp(appName);
         if (!app) {
-          throw new Error(
-            `App "${appName}" not found. Use ai_first_list_apps to see available apps.`
-          );
+          throw new Error(`App "${appName}" not found. Use apps_list to see available apps.`);
         }
 
         // Generate a share token
@@ -6452,8 +5291,8 @@ async function executeToolCall(
       }
     }
 
-    case 'ai_first_update_app': {
-      const op = appsLogger.startOperation('ai_first_update_app', args);
+    case 'apps_update': {
+      const op = appsLogger.startOperation('apps_update', args);
 
       try {
         const { name: appName, updateRequest } = args as {
@@ -6483,9 +5322,7 @@ async function executeToolCall(
 
         const existingApp = service.getApp(appName);
         if (!existingApp) {
-          throw new Error(
-            `App "${appName}" not found. Use ai_first_list_apps to see available apps.`
-          );
+          throw new Error(`App "${appName}" not found. Use apps_list to see available apps.`);
         }
 
         // Read existing code
@@ -6593,7 +5430,7 @@ async function executeToolCall(
     // MEDIA GENERATION TOOLS
     // ============================================
 
-    case 'ai_first_generate_mascot': {
+    case 'media_generate_mascot': {
       const mediaLogger = createServiceLogger('media-tools');
       const op = mediaLogger.startOperation('generateMascot', args);
 
@@ -6760,7 +5597,7 @@ CRITICAL: Generate PNG with TRANSPARENT background. Keep same cartoon style with
     // AGENT ORCHESTRATION TOOLS
     // ============================================
 
-    case 'ai_first_get_agent_context': {
+    case 'agents_get_context': {
       const { getAgentContextTool } = await import('@orientbot/mcp-tools');
       const minContext = {
         correlationId: '',
@@ -6780,7 +5617,7 @@ CRITICAL: Generate PNG with TRANSPARENT background. Keep same cartoon style with
       };
     }
 
-    case 'ai_first_list_agents': {
+    case 'agents_list': {
       const { listAgentsTool } = await import('@orientbot/mcp-tools');
       const minContext = {
         correlationId: '',
@@ -6800,7 +5637,7 @@ CRITICAL: Generate PNG with TRANSPARENT background. Keep same cartoon style with
       };
     }
 
-    case 'ai_first_handoff_to_agent': {
+    case 'agents_handoff': {
       const { handoffToAgentTool } = await import('@orientbot/mcp-tools');
       const minContext = {
         correlationId: '',
@@ -6821,7 +5658,7 @@ CRITICAL: Generate PNG with TRANSPARENT background. Keep same cartoon style with
     }
 
     // Context persistence tools
-    case 'ai_first_read_context': {
+    case 'context_read': {
       const { readContextTool } = await import('@orientbot/mcp-tools');
       const minContext = {
         correlationId: '',
@@ -6849,7 +5686,7 @@ CRITICAL: Generate PNG with TRANSPARENT background. Keep same cartoon style with
       };
     }
 
-    case 'ai_first_update_context': {
+    case 'context_update': {
       const { updateContextTool } = await import('@orientbot/mcp-tools');
       const minContext = {
         correlationId: '',

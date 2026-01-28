@@ -91,6 +91,13 @@ export {
   type SearchResult,
 } from './services/toolDiscovery.js';
 
+export {
+  IntegrationConnectionService,
+  CATEGORY_INTEGRATION_MAP,
+  type IntegrationName,
+  type ToolCategoryIntegration,
+} from './services/integrationConnectionService.js';
+
 // Export permissions system
 export * from './permissions/index.js';
 

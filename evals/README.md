@@ -24,12 +24,12 @@ npm run eval -- --ci
 
 The eval system tests four key aspects of agent behavior:
 
-| Type                  | Purpose                                      | Example                                                        |
-| --------------------- | -------------------------------------------- | -------------------------------------------------------------- |
-| `tool_selection`      | Agent picks the right tool for the task      | "Find blockers" → uses `ai_first_get_blockers`                 |
-| `response_quality`    | Response is clear, complete, well-structured | Weekly summaries include all key metrics                       |
-| `skill_invocation`    | Agent loads appropriate skills when needed   | Creating issues loads `personal-jira-project-management` skill |
-| `multi_step_workflow` | Agent completes multi-step tasks correctly   | Query JIRA → Update slides                                     |
+| Type                  | Purpose                                      | Example                                     |
+| --------------------- | -------------------------------------------- | ------------------------------------------- |
+| `tool_selection`      | Agent picks the right tool for the task      | "Health check" → uses `system_health_check` |
+| `response_quality`    | Response is clear, complete, well-structured | Weekly summaries include all key metrics    |
+| `skill_invocation`    | Agent loads appropriate skills when needed   | Creating apps loads the `mini-apps` skill   |
+| `multi_step_workflow` | Agent completes multi-step tasks correctly   | Query data → Update slides                  |
 
 ## Directory Structure
 
@@ -69,9 +69,9 @@ input:
 expect:
   tool_calls:
     required:
-      - name: ai_first_tool_name
+      - name: system_health_check
     forbidden:
-      - ai_first_wrong_tool
+      - wrong_tool_name
 
   assertions:
     - type: response_matches
@@ -189,7 +189,7 @@ Results are saved to `eval-results/` as JSON:
       "status": "passed",
       "assertions": [...],
       "executionTrace": {
-        "toolCalls": ["ai_first_get_blockers"],
+        "toolCalls": ["system_health_check"],
         "responseText": "...",
         "latencyMs": 2500
       }

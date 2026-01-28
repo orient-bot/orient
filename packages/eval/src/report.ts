@@ -225,12 +225,14 @@ function formatCost(usd: number): string {
 
 function padRight(str: string, len: number): string {
   // Strip ANSI for length calculation
+  // eslint-disable-next-line no-control-regex
   const stripped = str.replace(/\x1b\[[0-9;]*m/g, '');
   const pad = Math.max(0, len - stripped.length);
   return str + ' '.repeat(pad);
 }
 
 function padLeft(str: string, len: number): string {
+  // eslint-disable-next-line no-control-regex
   const stripped = str.replace(/\x1b\[[0-9;]*m/g, '');
   const pad = Math.max(0, len - stripped.length);
   return ' '.repeat(pad) + str;

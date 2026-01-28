@@ -481,7 +481,7 @@ export const agentTools = pgTable(
     agentId: text('agent_id')
       .notNull()
       .references(() => agents.id, { onDelete: 'cascade' }),
-    pattern: text('pattern').notNull(), // 'ai_first_*', 'write', 'bash'
+    pattern: text('pattern').notNull(), // 'slack_*', 'apps_*', 'system_*', 'write', 'bash'
     type: text('type').notNull(), // 'allow' | 'deny'
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   },
