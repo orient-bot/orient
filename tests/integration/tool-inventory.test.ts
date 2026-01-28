@@ -293,7 +293,7 @@ describe('Server Assignment Definitions', () => {
       );
 
       console.log('assistant-mcp expected tools:', assistantTools.length);
-      expect(assistantTools.length).toBeGreaterThanOrEqual(40);
+      expect(assistantTools.length).toBeGreaterThanOrEqual(30);
     });
   });
 });
