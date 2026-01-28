@@ -13,6 +13,7 @@ vi.mock('@orientbot/core', () => ({
     debug: vi.fn(),
     warn: vi.fn(),
   }),
+  DEFAULT_AGENT: 'ori',
 }));
 
 import { createOnboarderRoutes } from '../src/server/routes/onboarder.routes.js';
