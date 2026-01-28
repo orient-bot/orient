@@ -14,6 +14,7 @@ import {
   setSecretOverrides,
   startConfigPoller,
   WHATSAPP_DEFAULT_MODEL,
+  DEFAULT_AGENT,
 } from '@orientbot/core';
 import {
   createSecretsService,
@@ -552,7 +553,7 @@ async function main(): Promise<void> {
                   : messageText!;
                 return openCodeClient.chat(contextKey, prompt, {
                   sessionTitle,
-                  agent: 'pm-assistant', // Use the PM assistant agent
+                  agent: DEFAULT_AGENT,
                 });
               },
               {

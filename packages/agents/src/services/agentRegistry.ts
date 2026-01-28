@@ -14,7 +14,7 @@
 
 import { getDatabase, eq, and, desc, sql } from '@orientbot/database';
 import { agents, agentSkills, agentTools, contextRules } from '@orientbot/database';
-import { createServiceLogger } from '@orientbot/core';
+import { createServiceLogger, DEFAULT_AGENT } from '@orientbot/core';
 import fs from 'fs/promises';
 import path from 'path';
 
@@ -500,9 +500,9 @@ export class AgentRegistry {
         }
       }
 
-      // If no agent selected, use the default (pm-assistant)
+      // If no agent selected, use the default
       if (!selectedAgent) {
-        selectedAgent = await this.getAgent('pm-assistant');
+        selectedAgent = await this.getAgent(DEFAULT_AGENT);
       }
 
       if (!selectedAgent) {
@@ -536,7 +536,7 @@ export class AgentRegistry {
       const deniedTools = agentToolsList.filter((t) => t.type === 'deny').map((t) => t.pattern);
       const askTools = agentToolsList.filter((t) => t.type === 'ask').map((t) => t.pattern);
 
-      const fallbackModel = await this.getAgent('pm-assistant');
+      const fallbackModel = await this.getAgent(DEFAULT_AGENT);
       const resolvedModel =
         selectedAgent.modelDefault ||
         fallbackModel?.modelDefault ||

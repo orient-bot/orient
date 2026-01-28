@@ -8,7 +8,7 @@
  */
 
 import { OpenCodeClient, createOpenCodeClient } from './openCodeClient.js';
-import { createServiceLogger } from '@orientbot/core';
+import { createServiceLogger, DEFAULT_AGENT } from '@orientbot/core';
 
 const logger = createServiceLogger('opencode-bot');
 
@@ -38,10 +38,6 @@ export async function handleWhatsAppMessage(
   });
 
   try {
-    // Use the pm-assistant agent for project management queries
-    // Use the build agent for general coding questions
-    const isPMQuery = /\b(jira|issue|sprint|blocker|status|ticket|task)\b/i.test(message.body);
-
     // Use group name if available, otherwise fall back to group ID
     const groupIdentifier = message.groupName || message.groupId;
 
@@ -49,7 +45,7 @@ export async function handleWhatsAppMessage(
       sessionTitle: message.isGroup
         ? `WhatsApp Group: ${groupIdentifier}`
         : `WhatsApp: ${message.from}`,
-      agent: isPMQuery ? 'pm-assistant' : undefined,
+      agent: DEFAULT_AGENT,
     });
 
     logger.info('Response generated', {

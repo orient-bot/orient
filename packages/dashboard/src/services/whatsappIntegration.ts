@@ -18,6 +18,7 @@ import {
   getConfig,
   startConfigPoller,
   WHATSAPP_DEFAULT_MODEL,
+  DEFAULT_AGENT,
 } from '@orientbot/core';
 import { MessageDatabase, createChatPermissionService } from '@orientbot/database-services';
 import { createOpenCodeClient } from '@orientbot/agents';
@@ -389,7 +390,7 @@ export async function initializeWhatsAppIntegration(): Promise<WhatsAppIntegrati
                 : messageText!;
               return openCodeClient.chat(contextKey, prompt, {
                 sessionTitle,
-                agent: 'pm-assistant',
+                agent: DEFAULT_AGENT,
               });
             },
             {

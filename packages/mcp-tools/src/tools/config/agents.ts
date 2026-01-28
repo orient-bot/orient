@@ -29,7 +29,7 @@ export const configUpdateAgent: MCPTool = createTool({
   inputSchema: z.object({
     agent_id: z
       .string()
-      .describe('Agent ID (e.g., pm-assistant, communicator, onboarder, explorer)'),
+      .describe('Agent ID (e.g., ori, communicator, scheduler, explorer, app-builder)'),
     enabled: z.boolean().optional().describe('Enable or disable the agent'),
     base_prompt: z.string().optional().describe('Update the base system prompt for the agent'),
     model_default: z
@@ -78,7 +78,7 @@ export const configUpdateAgent: MCPTool = createTool({
     if (!current.exists) {
       return {
         success: false,
-        message: `Agent "${input.agent_id}" not found. Available agents: pm-assistant, communicator, scheduler, explorer, app-builder, onboarder.`,
+        message: `Agent "${input.agent_id}" not found. Available agents: ori, communicator, scheduler, explorer, app-builder.`,
       };
     }
 
@@ -143,7 +143,7 @@ export const configGetAgent: MCPTool = createTool({
   inputSchema: z.object({
     agent_id: z
       .string()
-      .describe('Agent ID (e.g., pm-assistant, communicator, onboarder, explorer)'),
+      .describe('Agent ID (e.g., ori, communicator, scheduler, explorer, app-builder)'),
   }),
   keywords: ['agent', 'get', 'check', 'config', 'details'],
   useCases: [
