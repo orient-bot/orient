@@ -4229,7 +4229,10 @@ async function executeToolCall(
 
       try {
         // Call the WhatsApp bot's API server to send the poll
-        const response = await fetch('http://127.0.0.1:4097/send-poll', {
+        const baseUrl =
+          process.env.WHATSAPP_API_BASE ||
+          `http://127.0.0.1:${process.env.WHATSAPP_API_PORT || '4097'}`;
+        const response = await fetch(`${baseUrl.replace(/\/+$/, '')}/send-poll`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ question, options, selectableCount, context }),
@@ -4288,7 +4291,10 @@ async function executeToolCall(
 
       try {
         // Call the WhatsApp bot's API server to send the message
-        const response = await fetch('http://127.0.0.1:4097/send-message', {
+        const baseUrl =
+          process.env.WHATSAPP_API_BASE ||
+          `http://127.0.0.1:${process.env.WHATSAPP_API_PORT || '4097'}`;
+        const response = await fetch(`${baseUrl.replace(/\/+$/, '')}/send-message`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ message }),
@@ -4358,7 +4364,10 @@ async function executeToolCall(
       }
 
       try {
-        const response = await fetch('http://127.0.0.1:4097/send-image', {
+        const baseUrl =
+          process.env.WHATSAPP_API_BASE ||
+          `http://127.0.0.1:${process.env.WHATSAPP_API_PORT || '4097'}`;
+        const response = await fetch(`${baseUrl.replace(/\/+$/, '')}/send-image`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ jid, imageUrl, imagePath, caption }),

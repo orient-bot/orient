@@ -746,6 +746,10 @@ start_dev() {
     # Unset OpenCode password — not needed for local mode (localhost-only binding)
     unset OPENCODE_SERVER_PASSWORD
 
+    if [ "$ENABLE_WHATSAPP" = true ]; then
+        export WHATSAPP_API_BASE="http://127.0.0.1:${DASHBOARD_PORT}"
+    fi
+
     # Step 4: Start OpenCode server (dashboard must be ready first)
     log_step "Starting OpenCode server..."
 

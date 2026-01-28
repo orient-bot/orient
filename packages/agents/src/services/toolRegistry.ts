@@ -2610,7 +2610,7 @@ function registerConfigTools(registry: ToolRegistry): void {
         properties: {
           agent_id: {
             type: 'string',
-            description: 'Agent ID (e.g., pm-assistant, communicator, onboarder, explorer)',
+            description: 'Agent ID (e.g., ori, communicator, scheduler, explorer, app-builder)',
           },
           enabled: {
             type: 'boolean',
@@ -2652,7 +2652,7 @@ function registerConfigTools(registry: ToolRegistry): void {
         properties: {
           agent_id: {
             type: 'string',
-            description: 'Agent ID (e.g., pm-assistant, communicator, onboarder, explorer)',
+            description: 'Agent ID (e.g., ori, communicator, scheduler, explorer, app-builder)',
           },
         },
         required: ['agent_id'],
@@ -3506,6 +3506,133 @@ function registerGoogleToolHandlers(registry: ToolExecutorRegistry): void {
     }
   );
 
+  // Google Tasks - List Tasks
+  registry.registerHandler('google_tasks_list', async (args: Record<string, unknown>) => {
+    const { taskListId, showCompleted, maxResults, accountEmail } = args as {
+      taskListId?: string;
+      showCompleted?: boolean;
+      maxResults?: number;
+      accountEmail?: string;
+    };
+
+    try {
+      const { getTasksService } = await import('@orientbot/integrations/google');
+      const tasks = getTasksService();
+      const taskItems = await tasks.listTasks(
+        {
+          taskListId,
+          showCompleted,
+          maxResults,
+        },
+        accountEmail
+      );
+
+      return createToolResult(
+        JSON.stringify(
+          {
+            count: taskItems.length,
+            tasks: taskItems.map(
+              (t: { id: string; title: string; notes?: string; due?: Date; status: string }) => ({
+                id: t.id,
+                title: t.title,
+                notes: t.notes,
+                dueDate: t.due?.toISOString(),
+                status: t.status,
+              })
+            ),
+          },
+          null,
+          2
+        )
+      );
+    } catch (error) {
+      return createToolError(
+        `Failed to list tasks: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  });
+
+  // Google Tasks - Create Task
+  registry.registerHandler('google_tasks_create', async (args: Record<string, unknown>) => {
+    const { title, notes, dueDate, taskListId, accountEmail } = args as {
+      title: string;
+      notes?: string;
+      dueDate?: string;
+      taskListId?: string;
+      accountEmail?: string;
+    };
+
+    try {
+      const { getTasksService } = await import('@orientbot/integrations/google');
+      const tasks = getTasksService();
+      const task = await tasks.createTask(
+        {
+          title,
+          notes,
+          due: dueDate ? new Date(dueDate) : undefined,
+          taskListId,
+        },
+        accountEmail
+      );
+
+      return createToolResult(
+        JSON.stringify(
+          {
+            success: true,
+            message: `Task created: ${task.title}`,
+            task: {
+              id: task.id,
+              title: task.title,
+              notes: task.notes,
+              dueDate: task.due?.toISOString(),
+            },
+          },
+          null,
+          2
+        )
+      );
+    } catch (error) {
+      return createToolError(
+        `Failed to create task: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  });
+
+  // Google Tasks - Complete Task
+  registry.registerHandler('google_tasks_complete', async (args: Record<string, unknown>) => {
+    const { taskId, taskListId, accountEmail } = args as {
+      taskId: string;
+      taskListId?: string;
+      accountEmail?: string;
+    };
+
+    try {
+      const { getTasksService } = await import('@orientbot/integrations/google');
+      const tasks = getTasksService();
+      const task = await tasks.completeTask(taskId, taskListId || '@default', accountEmail);
+
+      return createToolResult(
+        JSON.stringify(
+          {
+            success: true,
+            message: `Task completed: ${task.title}`,
+            task: {
+              id: task.id,
+              title: task.title,
+              status: task.status,
+            },
+          },
+          null,
+          2
+        )
+      );
+    } catch (error) {
+      return createToolError(
+        `Failed to complete task: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  });
+
   logger.info('Google tool handlers registered synchronously', {
     tools: [
       'google_oauth_status',
@@ -3513,6 +3640,9 @@ function registerGoogleToolHandlers(registry: ToolExecutorRegistry): void {
       'google_calendar_create_event',
       'google_calendar_update_event',
       'google_calendar_delete_event',
+      'google_tasks_list',
+      'google_tasks_create',
+      'google_tasks_complete',
     ],
   });
 }
@@ -3932,7 +4062,10 @@ function registerWhatsAppToolHandlers(registry: ToolExecutorRegistry): void {
     };
 
     try {
-      const response = await fetch('http://127.0.0.1:4097/send-poll', {
+      const baseUrl =
+        process.env.WHATSAPP_API_BASE ||
+        `http://127.0.0.1:${process.env.WHATSAPP_API_PORT || '4097'}`;
+      const response = await fetch(`${baseUrl.replace(/\/+$/, '')}/send-poll`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ question, options, selectableCount, context }),
@@ -3973,7 +4106,10 @@ function registerWhatsAppToolHandlers(registry: ToolExecutorRegistry): void {
     const { message } = args as { message: string };
 
     try {
-      const response = await fetch('http://127.0.0.1:4097/send-message', {
+      const baseUrl =
+        process.env.WHATSAPP_API_BASE ||
+        `http://127.0.0.1:${process.env.WHATSAPP_API_PORT || '4097'}`;
+      const response = await fetch(`${baseUrl.replace(/\/+$/, '')}/send-message`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message }),
@@ -4002,6 +4138,57 @@ function registerWhatsAppToolHandlers(registry: ToolExecutorRegistry): void {
     }
   });
 
+  // orient_whatsapp_send_image
+  registry.registerHandler('orient_whatsapp_send_image', async (args: Record<string, unknown>) => {
+    const { imageUrl, imagePath, caption, jid } = args as {
+      imageUrl?: string;
+      imagePath?: string;
+      caption?: string;
+      jid?: string;
+    };
+
+    if (!imageUrl && !imagePath) {
+      return createToolError('Either imageUrl or imagePath is required');
+    }
+
+    try {
+      const baseUrl =
+        process.env.WHATSAPP_API_BASE ||
+        `http://127.0.0.1:${process.env.WHATSAPP_API_PORT || '4097'}`;
+      const response = await fetch(`${baseUrl.replace(/\/+$/, '')}/send-image`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jid, imageUrl, imagePath, caption }),
+      });
+
+      const result = (await response.json()) as {
+        success?: boolean;
+        error?: string;
+        messageId?: string;
+      };
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || 'Failed to send image');
+      }
+
+      return createToolResult(
+        JSON.stringify(
+          {
+            success: true,
+            messageId: result.messageId,
+            message: 'Image sent successfully!',
+          },
+          null,
+          2
+        )
+      );
+    } catch (error) {
+      return createToolError(
+        `Failed to send image: ${error instanceof Error ? error.message : String(error)}. Make sure the WhatsApp bot is running and connected.`
+      );
+    }
+  });
+
   logger.info('WhatsApp tool handlers registered', {
     tools: [
       'whatsapp_search_messages',
@@ -4014,6 +4201,7 @@ function registerWhatsAppToolHandlers(registry: ToolExecutorRegistry): void {
       'whatsapp_get_media',
       'whatsapp_send_poll',
       'whatsapp_send_message',
+      'orient_whatsapp_send_image',
     ],
   });
 }
