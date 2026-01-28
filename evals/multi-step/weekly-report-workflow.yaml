@@ -8,7 +8,7 @@ input:
 
 mocks:
   jira:
-    ai_first_get_sprint_issues:
+    jira_get_sprint_issues:
       response:
         sprint:
           name: 'Sprint 23'
@@ -32,7 +32,7 @@ mocks:
         inProgressPoints: 8
 
   google:
-    ai_first_slides_get_presentation:
+    slides_get_presentation:
       response:
         presentationId: '1ABC123XYZ'
         title: 'Weekly Rolling Presentation'
@@ -42,7 +42,7 @@ mocks:
           - objectId: 'slide_template'
             title: 'Template Slide'
 
-    ai_first_slides_update_weekly:
+    slides_update_weekly:
       response:
         success: true
         slideId: 'slide_new_001'
@@ -51,8 +51,8 @@ mocks:
 expect:
   tool_calls:
     required:
-      - name: ai_first_get_sprint_issues
-      - name: ai_first_slides_update_weekly
+      - name: jira_get_sprint_issues
+      - name: slides_update_weekly
 
   assertions:
     # Check response discusses sprint and presentation workflow

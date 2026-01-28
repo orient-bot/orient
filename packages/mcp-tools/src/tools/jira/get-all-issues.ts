@@ -38,7 +38,7 @@ interface Output {
  * Get All Issues Tool Implementation
  */
 export class GetAllIssuesTool extends MCPTool<Input, Output> {
-  readonly name = 'ai_first_get_all_issues';
+  readonly name = 'jira_get_all_issues';
   readonly description =
     'Get all Jira issues for the YOUR_COMPONENT component. Returns issue key, summary, status, assignee, and priority.';
   readonly category = 'jira' as const;

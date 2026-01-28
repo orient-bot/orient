@@ -8,7 +8,7 @@ input:
 
 mocks:
   jira:
-    ai_first_jira_create_issue:
+    jira_create_issue:
       response:
         success: true
         issue:
@@ -20,7 +20,7 @@ mocks:
 expect:
   tool_calls:
     required:
-      - name: ai_first_jira_create_issue
+      - name: jira_create_issue
 
   assertions:
     # Check response discusses issue creation

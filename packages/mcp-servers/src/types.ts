@@ -95,10 +95,10 @@ export const SERVER_CONFIGS: Record<McpServerType, McpServerConfig> = {
       categories: ['docs', 'apps', 'agents', 'media'],
       includeTools: [
         // JIRA read-only subset
-        'ai_first_get_issue',
-        'ai_first_health_check',
+        'jira_get_issue',
+        'system_health_check',
         // System
-        'ai_first_get_config',
+        'system_get_config',
       ],
       includeDiscovery: true,
     },

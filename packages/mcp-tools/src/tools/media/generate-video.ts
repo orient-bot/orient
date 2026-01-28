@@ -47,7 +47,7 @@ interface Output {
 const DEFAULT_OUTPUT_DIR = 'website/static/video';
 
 export class GenerateVideoTool extends MCPTool<Input, Output> {
-  name = 'ai_first_generate_video';
+  name = 'media_generate_video';
   description = `Generate a video using Google's Veo API. Supports text-to-video and image-to-video generation with optional audio. Great for creating demo videos, marketing content, or product showcases.`;
 
   category = 'media' as const;

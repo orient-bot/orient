@@ -441,7 +441,7 @@ export default function AgentsTab({ onUpdate }: AgentsTabProps) {
                   value={editAllowTools}
                   onChange={(e) => setEditAllowTools(e.target.value)}
                   className="w-full px-3 py-2 border border-border rounded-lg bg-background font-mono text-sm"
-                  placeholder="ai_first_*, discover_tools"
+                  placeholder="jira_*, slack_*, discover_tools"
                 />
               </div>
               <div>

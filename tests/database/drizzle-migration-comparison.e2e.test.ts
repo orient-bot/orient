@@ -16,9 +16,12 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import { getDatabase, messages, slackMessages, eq, and, desc } from '@orient/database';
 
-// Skip these tests unless explicitly enabled and a database URL is available.
-const runDbTests = process.env.RUN_DB_TESTS === 'true' || process.env.E2E_TESTS === 'true';
-const skipE2E = !runDbTests || (!process.env.DATABASE_URL && !process.env.TEST_DATABASE_URL);
+// Skip these tests unless explicitly enabled and a PostgreSQL URL is provided.
+const runDbTests = process.env.RUN_DB_TESTS === 'true';
+const databaseUrl = process.env.TEST_DATABASE_URL || process.env.DATABASE_URL || '';
+const isPostgresUrl =
+  databaseUrl.startsWith('postgres://') || databaseUrl.startsWith('postgresql://');
+const skipE2E = !runDbTests || !isPostgresUrl;
 
 describe.skipIf(skipE2E)('Drizzle Migration Comparison', () => {
   describe('Message Queries', () => {

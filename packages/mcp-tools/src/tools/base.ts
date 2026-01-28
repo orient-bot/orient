@@ -87,7 +87,7 @@ function zodToJsonSchema(schema: ZodSchema): Record<string, unknown> {
  * - Registry integration
  */
 export abstract class MCPTool<TInput = unknown, TOutput = unknown> {
-  /** Unique tool name (e.g., "ai_first_get_all_issues") */
+  /** Unique tool name (e.g., "jira_get_all_issues") */
   abstract readonly name: string;
 
   /** Human-readable description */

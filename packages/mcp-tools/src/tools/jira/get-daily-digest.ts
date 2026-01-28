@@ -40,7 +40,7 @@ interface Output {
  * Get Daily Digest Tool Implementation
  */
 export class GetDailyDigestTool extends MCPTool<Input, Output> {
-  readonly name = 'ai_first_get_daily_digest';
+  readonly name = 'jira_get_daily_digest';
   readonly description = "Get a daily digest including today's in-progress issues and blockers.";
   readonly category = 'jira' as const;
   readonly inputSchema = GetDailyDigestInput;

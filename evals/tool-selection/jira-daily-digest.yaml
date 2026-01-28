@@ -8,7 +8,7 @@ input:
 
 mocks:
   jira:
-    ai_first_get_daily_digest:
+    jira_get_daily_digest:
       response:
         date: '2024-01-19'
         inProgress:
@@ -43,7 +43,7 @@ mocks:
 expect:
   tool_calls:
     required:
-      - name: ai_first_get_daily_digest
+      - name: jira_get_daily_digest
 
   assertions:
     # Check response discusses daily status

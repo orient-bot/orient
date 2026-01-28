@@ -24,7 +24,7 @@ export interface ToolResponse {
 
 export const googleSlidesTools: Tool[] = [
   {
-    name: 'ai_first_slides_get_presentation',
+    name: 'slides_get_presentation',
     description:
       'Get presentation metadata and list of all slides with their titles. Can work with any Google Slides presentation by providing a URL or ID.',
     inputSchema: {
@@ -40,7 +40,7 @@ export const googleSlidesTools: Tool[] = [
     },
   },
   {
-    name: 'ai_first_slides_get_slide',
+    name: 'slides_get_slide',
     description:
       'Get the content of a specific slide by its ID. The slide ID can be found in the presentation URL fragment (e.g., #slide=id.SLIDE_ID) or from the slides list.',
     inputSchema: {
@@ -60,7 +60,7 @@ export const googleSlidesTools: Tool[] = [
     },
   },
   {
-    name: 'ai_first_slides_update_text',
+    name: 'slides_update_text',
     description:
       'Update text placeholders on ALL slides globally. Placeholders should be in format {{PLACEHOLDER_NAME}}.',
     inputSchema: {
@@ -93,7 +93,7 @@ export const googleSlidesTools: Tool[] = [
     },
   },
   {
-    name: 'ai_first_slides_update_slide_text',
+    name: 'slides_update_slide_text',
     description:
       'Update text on a SPECIFIC slide only (not globally). Use this to modify content on a single slide.',
     inputSchema: {
@@ -131,7 +131,7 @@ export const googleSlidesTools: Tool[] = [
     },
   },
   {
-    name: 'ai_first_slides_duplicate_template',
+    name: 'slides_duplicate_template',
     description:
       'Duplicate a template slide and optionally replace placeholders. Useful for creating new slides based on a template.',
     inputSchema: {
@@ -166,7 +166,7 @@ export const googleSlidesTools: Tool[] = [
     },
   },
   {
-    name: 'ai_first_slides_update_weekly',
+    name: 'slides_update_weekly',
     description:
       'Update weekly status slide placeholders with Jira data. Optionally duplicates a template slide first.',
     inputSchema: {
@@ -189,7 +189,7 @@ export const googleSlidesTools: Tool[] = [
     },
   },
   {
-    name: 'ai_first_slides_delete_slide',
+    name: 'slides_delete_slide',
     description: 'Delete a slide by its ID.',
     inputSchema: {
       type: 'object',
@@ -204,7 +204,7 @@ export const googleSlidesTools: Tool[] = [
     },
   },
   {
-    name: 'ai_first_slides_create_table',
+    name: 'slides_create_table',
     description: 'Create a table on a slide with provided data.',
     inputSchema: {
       type: 'object',
@@ -259,7 +259,7 @@ export async function handleGoogleSlidesToolCall(
   deps: SlidesToolDeps
 ): Promise<ToolResponse> {
   switch (name) {
-    case 'ai_first_slides_get_presentation': {
+    case 'slides_get_presentation': {
       const { presentationUrl } = args as { presentationUrl?: string };
       const slides = deps.getSlidesService();
       const presentationId = deps.resolvePresentationId({ presentationUrl });
@@ -275,7 +275,7 @@ export async function handleGoogleSlidesToolCall(
       };
     }
 
-    case 'ai_first_slides_get_slide': {
+    case 'slides_get_slide': {
       const { slideId: providedSlideId, presentationUrl } = args as {
         slideId?: string;
         presentationUrl?: string;
@@ -321,7 +321,7 @@ export async function handleGoogleSlidesToolCall(
       };
     }
 
-    case 'ai_first_slides_update_text': {
+    case 'slides_update_text': {
       const { replacements, presentationUrl } = args as {
         replacements: TextReplacement[];
         presentationUrl?: string;
@@ -349,7 +349,7 @@ export async function handleGoogleSlidesToolCall(
       };
     }
 
-    case 'ai_first_slides_update_slide_text': {
+    case 'slides_update_slide_text': {
       const {
         slideId: providedSlideId,
         replacements,
@@ -410,7 +410,7 @@ export async function handleGoogleSlidesToolCall(
       };
     }
 
-    case 'ai_first_slides_duplicate_template': {
+    case 'slides_duplicate_template': {
       const { templateSlideId, replacements, insertAtIndex, presentationUrl } = args as {
         templateSlideId: string;
         replacements?: TextReplacement[];
@@ -445,7 +445,7 @@ export async function handleGoogleSlidesToolCall(
       };
     }
 
-    case 'ai_first_slides_update_weekly': {
+    case 'slides_update_weekly': {
       const { templateSlideId, insertAtIndex, presentationUrl } = args as {
         templateSlideId?: string;
         insertAtIndex?: number;
@@ -527,7 +527,7 @@ export async function handleGoogleSlidesToolCall(
       };
     }
 
-    case 'ai_first_slides_delete_slide': {
+    case 'slides_delete_slide': {
       const { slideId, presentationUrl } = args as { slideId: string; presentationUrl?: string };
       const slides = deps.getSlidesService();
       const presentationId = deps.resolvePresentationId({ presentationUrl });
@@ -551,7 +551,7 @@ export async function handleGoogleSlidesToolCall(
       };
     }
 
-    case 'ai_first_slides_create_table': {
+    case 'slides_create_table': {
       const {
         slideId,
         presentationUrl,

@@ -34,7 +34,7 @@ interface Output {
  * Get Blockers Tool Implementation
  */
 export class GetBlockersTool extends MCPTool<Input, Output> {
-  readonly name = 'ai_first_get_blockers';
+  readonly name = 'jira_get_blockers';
   readonly description = 'Get all blocker issues or issues with blocked label for YOUR_COMPONENT.';
   readonly category = 'jira' as const;
   readonly inputSchema = GetBlockersInput;

@@ -32,7 +32,7 @@ interface Output {
  * Health Check Tool Implementation
  */
 export class HealthCheckTool extends MCPTool<Input, Output> {
-  readonly name = 'ai_first_health_check';
+  readonly name = 'system_health_check';
   readonly description =
     'Check the health and connectivity of the Orient, including Jira connection status and issue count.';
   readonly category = 'system' as const;

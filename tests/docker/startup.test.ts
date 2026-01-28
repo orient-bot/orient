@@ -18,6 +18,7 @@ const shouldSkip = () => {
   }
   try {
     execSync('docker --version', { stdio: 'ignore' });
+    execSync('docker info', { stdio: 'ignore' });
     return false;
   } catch {
     return true;

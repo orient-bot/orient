@@ -74,8 +74,8 @@ export class GoogleMockService extends BaseMockService {
   private setupDefaults(): void {
     // ========== Google Slides Tools ==========
 
-    // ai_first_slides_get_presentation - Get presentation
-    this.defaultResponses.set('ai_first_slides_get_presentation', () => ({
+    // slides_get_presentation - Get presentation
+    this.defaultResponses.set('slides_get_presentation', () => ({
       response: {
         presentationId: 'presentation-123',
         title: 'Test Presentation',
@@ -83,42 +83,32 @@ export class GoogleMockService extends BaseMockService {
       },
     }));
 
-    // ai_first_slides_duplicate_template - Duplicate template slide
-    this.defaultResponses.set('ai_first_slides_duplicate_template', () => ({
+    // slides_duplicate_template - Duplicate template slide
+    this.defaultResponses.set('slides_duplicate_template', () => ({
       response: {
         success: true,
         newSlideId: `slide-${Date.now()}`,
       },
     }));
 
-    // ai_first_slides_update_slide_text - Update slide text
-    this.defaultResponses.set('ai_first_slides_update_slide_text', () => ({
+    // slides_update_slide_text - Update slide text
+    this.defaultResponses.set('slides_update_slide_text', () => ({
       response: {
         success: true,
         updatedElements: 1,
       },
     }));
 
-    // ai_first_slides_create_table - Create table on slide
-    this.defaultResponses.set('ai_first_slides_create_table', () => ({
+    // slides_create_table - Create table on slide
+    this.defaultResponses.set('slides_create_table', () => ({
       response: {
         success: true,
         tableId: `table-${Date.now()}`,
       },
     }));
 
-    // ai_first_slides_list_slides - List all slides
-    this.defaultResponses.set('ai_first_slides_list_slides', () => ({
-      response: {
-        slides: [
-          createMockSlide({ slideId: 'slide-1', title: 'Title Slide' }),
-          createMockSlide({ slideId: 'slide-2', title: 'Content Slide' }),
-        ],
-      },
-    }));
-
-    // ai_first_slides_get_slide_content - Get slide content
-    this.defaultResponses.set('ai_first_slides_get_slide_content', () => ({
+    // slides_get_slide_content - Get slide content
+    this.defaultResponses.set('slides_get_slide_content', () => ({
       response: {
         slideId: 'slide-1',
         title: 'Test Slide',
@@ -130,36 +120,36 @@ export class GoogleMockService extends BaseMockService {
 
     // ========== Google Calendar Tools ==========
 
-    // ai_first_calendar_list_events - List calendar events
-    this.defaultResponses.set('ai_first_calendar_list_events', () => ({
+    // google_calendar_list_events - List calendar events
+    this.defaultResponses.set('google_calendar_list_events', () => ({
       response: {
         events: [],
       },
     }));
 
-    // ai_first_calendar_create_event - Create calendar event
-    this.defaultResponses.set('ai_first_calendar_create_event', () => ({
+    // google_calendar_create_event - Create calendar event
+    this.defaultResponses.set('google_calendar_create_event', () => ({
       response: {
         success: true,
         event: createMockCalendarEvent(),
       },
     }));
 
-    // ai_first_calendar_get_event - Get event details
-    this.defaultResponses.set('ai_first_calendar_get_event', () => ({
+    // google_calendar_get_event - Get event details
+    this.defaultResponses.set('google_calendar_get_event', () => ({
       response: createMockCalendarEvent(),
     }));
 
-    // ai_first_calendar_update_event - Update event
-    this.defaultResponses.set('ai_first_calendar_update_event', () => ({
+    // google_calendar_update_event - Update event
+    this.defaultResponses.set('google_calendar_update_event', () => ({
       response: {
         success: true,
         event: createMockCalendarEvent(),
       },
     }));
 
-    // ai_first_calendar_delete_event - Delete event
-    this.defaultResponses.set('ai_first_calendar_delete_event', () => ({
+    // google_calendar_delete_event - Delete event
+    this.defaultResponses.set('google_calendar_delete_event', () => ({
       response: {
         success: true,
       },
@@ -167,15 +157,15 @@ export class GoogleMockService extends BaseMockService {
 
     // ========== Google Tasks Tools ==========
 
-    // ai_first_tasks_list - List tasks
-    this.defaultResponses.set('ai_first_tasks_list', () => ({
+    // google_tasks_list - List tasks
+    this.defaultResponses.set('google_tasks_list', () => ({
       response: {
         tasks: [],
       },
     }));
 
-    // ai_first_tasks_create - Create task
-    this.defaultResponses.set('ai_first_tasks_create', () => ({
+    // google_tasks_create - Create task
+    this.defaultResponses.set('google_tasks_create', () => ({
       response: {
         success: true,
         taskId: `task-${Date.now()}`,
@@ -184,16 +174,16 @@ export class GoogleMockService extends BaseMockService {
 
     // ========== Google Sheets Tools ==========
 
-    // ai_first_sheets_read_range - Read sheet range
-    this.defaultResponses.set('ai_first_sheets_read_range', () => ({
+    // google_sheets_read - Read sheet range
+    this.defaultResponses.set('google_sheets_read', () => ({
       response: {
         values: [],
         range: 'Sheet1!A1:Z100',
       },
     }));
 
-    // ai_first_sheets_write_range - Write to sheet
-    this.defaultResponses.set('ai_first_sheets_write_range', () => ({
+    // google_sheets_write - Write to sheet
+    this.defaultResponses.set('google_sheets_write', () => ({
       response: {
         success: true,
         updatedCells: 0,

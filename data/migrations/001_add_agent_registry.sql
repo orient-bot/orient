@@ -50,7 +50,7 @@ COMMENT ON TABLE agent_skills IS 'Skills assigned to each agent';
 CREATE TABLE IF NOT EXISTS agent_tools (
     id SERIAL PRIMARY KEY,
     agent_id TEXT NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
-    pattern TEXT NOT NULL,                  -- 'ai_first_*', 'write', 'bash'
+    pattern TEXT NOT NULL,                  -- 'jira_*', 'write', 'bash'
     type TEXT NOT NULL CHECK (type IN ('allow', 'deny')),
     created_at TIMESTAMPTZ DEFAULT NOW(),
     UNIQUE(agent_id, pattern, type)         -- Prevent duplicate rules
@@ -60,7 +60,7 @@ CREATE INDEX IF NOT EXISTS idx_agent_tools_agent ON agent_tools(agent_id);
 CREATE INDEX IF NOT EXISTS idx_agent_tools_type ON agent_tools(type);
 
 COMMENT ON TABLE agent_tools IS 'Tool access patterns (allow/deny) per agent';
-COMMENT ON COLUMN agent_tools.pattern IS 'Tool pattern with wildcards (e.g., ai_first_*)';
+COMMENT ON COLUMN agent_tools.pattern IS 'Tool pattern with wildcards (e.g., jira_*)';
 
 -- ============================================
 -- CONTEXT_RULES TABLE

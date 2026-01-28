@@ -26,7 +26,7 @@ The eval system tests four key aspects of agent behavior:
 
 | Type                  | Purpose                                      | Example                                                        |
 | --------------------- | -------------------------------------------- | -------------------------------------------------------------- |
-| `tool_selection`      | Agent picks the right tool for the task      | "Find blockers" → uses `ai_first_get_blockers`                 |
+| `tool_selection`      | Agent picks the right tool for the task      | "Find blockers" → uses `jira_get_blockers`                     |
 | `response_quality`    | Response is clear, complete, well-structured | Weekly summaries include all key metrics                       |
 | `skill_invocation`    | Agent loads appropriate skills when needed   | Creating issues loads `personal-jira-project-management` skill |
 | `multi_step_workflow` | Agent completes multi-step tasks correctly   | Query JIRA → Update slides                                     |
@@ -69,9 +69,9 @@ input:
 expect:
   tool_calls:
     required:
-      - name: ai_first_tool_name
+      - name: jira_get_issue
     forbidden:
-      - ai_first_wrong_tool
+      - slack_send_dm
 
   assertions:
     - type: response_matches
@@ -189,7 +189,7 @@ Results are saved to `eval-results/` as JSON:
       "status": "passed",
       "assertions": [...],
       "executionTrace": {
-        "toolCalls": ["ai_first_get_blockers"],
+        "toolCalls": ["jira_get_blockers"],
         "responseText": "...",
         "latencyMs": 2500
       }

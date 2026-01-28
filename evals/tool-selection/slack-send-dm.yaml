@@ -11,13 +11,13 @@ input:
 
 mocks:
   slack:
-    ai_first_slack_lookup_user_by_email:
+    slack_lookup_user_by_email:
       response:
         id: U12345678
         displayName: John Smith
         email: john@example.com
 
-    ai_first_slack_send_dm:
+    slack_send_dm:
       response:
         success: true
         ts: '1705670400.000000'
@@ -26,7 +26,7 @@ mocks:
 expect:
   tool_calls:
     required:
-      - name: ai_first_slack_send_dm
+      - name: slack_send_dm
 
   assertions:
     # Check response confirms message action

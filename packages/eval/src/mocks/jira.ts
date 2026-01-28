@@ -53,37 +53,37 @@ export class JiraMockService extends BaseMockService {
   }
 
   private setupDefaults(): void {
-    // ai_first_get_blockers - Get blocked issues
-    this.defaultResponses.set('ai_first_get_blockers', () => ({
+    // jira_get_blockers - Get blocked issues
+    this.defaultResponses.set('jira_get_blockers', () => ({
       response: {
         count: 0,
         issues: [],
       },
     }));
 
-    // ai_first_get_in_progress - Get in-progress issues
-    this.defaultResponses.set('ai_first_get_in_progress', () => ({
+    // jira_get_in_progress - Get in-progress issues
+    this.defaultResponses.set('jira_get_in_progress', () => ({
       response: {
         count: 0,
         issues: [],
       },
     }));
 
-    // ai_first_get_all_issues - Get all issues
-    this.defaultResponses.set('ai_first_get_all_issues', () => ({
+    // jira_get_all_issues - Get all issues
+    this.defaultResponses.set('jira_get_all_issues', () => ({
       response: {
         total: 0,
         issues: [],
       },
     }));
 
-    // ai_first_get_issue - Get single issue
-    this.defaultResponses.set('ai_first_get_issue', () => ({
+    // jira_get_issue - Get single issue
+    this.defaultResponses.set('jira_get_issue', () => ({
       response: createMockJiraIssue(),
     }));
 
-    // ai_first_get_weekly_summary - Get weekly summary
-    this.defaultResponses.set('ai_first_get_weekly_summary', () => ({
+    // jira_get_weekly_summary - Get weekly summary
+    this.defaultResponses.set('jira_get_weekly_summary', () => ({
       response: {
         weekEnding: new Date().toISOString().split('T')[0],
         summary: {
@@ -98,47 +98,47 @@ export class JiraMockService extends BaseMockService {
       },
     }));
 
-    // ai_first_check_overdue - Check overdue issues
-    this.defaultResponses.set('ai_first_check_overdue', () => ({
+    // jira_check_overdue - Check overdue issues
+    this.defaultResponses.set('jira_check_overdue', () => ({
       response: {
         count: 0,
         issues: [],
       },
     }));
 
-    // ai_first_jira_create_issue - Create issue
-    this.defaultResponses.set('ai_first_jira_create_issue', () => ({
+    // jira_create_issue - Create issue
+    this.defaultResponses.set('jira_create_issue', () => ({
       response: {
         success: true,
         issue: createMockJiraIssue({ key: 'PROJ-999' }),
       },
     }));
 
-    // ai_first_jira_update_issue - Update issue
-    this.defaultResponses.set('ai_first_jira_update_issue', () => ({
+    // jira_update_issue - Update issue
+    this.defaultResponses.set('jira_update_issue', () => ({
       response: {
         success: true,
         issue: createMockJiraIssue(),
       },
     }));
 
-    // ai_first_jira_transition_issue - Transition issue
-    this.defaultResponses.set('ai_first_jira_transition_issue', () => ({
+    // jira_transition_issue - Transition issue
+    this.defaultResponses.set('jira_transition_issue', () => ({
       response: {
         success: true,
       },
     }));
 
-    // ai_first_jira_add_comment - Add comment
-    this.defaultResponses.set('ai_first_jira_add_comment', () => ({
+    // jira_add_comment - Add comment
+    this.defaultResponses.set('jira_add_comment', () => ({
       response: {
         success: true,
         commentId: 'comment-123',
       },
     }));
 
-    // ai_first_health_check - Health check
-    this.defaultResponses.set('ai_first_health_check', () => ({
+    // system_health_check - Health check
+    this.defaultResponses.set('system_health_check', () => ({
       response: {
         status: 'ok',
         jira: {

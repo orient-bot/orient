@@ -32,7 +32,7 @@ interface Output {
  * Get In Progress Issues Tool Implementation
  */
 export class GetInProgressTool extends MCPTool<Input, Output> {
-  readonly name = 'ai_first_get_in_progress';
+  readonly name = 'jira_get_in_progress';
   readonly description = 'Get all issues currently in progress for the YOUR_COMPONENT component.';
   readonly category = 'jira' as const;
   readonly inputSchema = GetInProgressInput;

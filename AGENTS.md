@@ -8,7 +8,7 @@ This project uses **dynamic agent configuration** via the Agent Registry.
 
 At session start, discover your assigned role and capabilities:
 
-1. Call `ai_first_get_agent_context` to see your agent role, skills, and tool permissions
+1. Call `agents_get_context` to see your agent role, skills, and tool permissions
 2. Call `discover_tools` to find all available MCP tools
 
 Your capabilities vary based on:
@@ -19,7 +19,7 @@ Your capabilities vary based on:
 
 ## Available Skills
 
-Skills are stored in `.claude/skills/` (the single source of truth) and loaded dynamically from the Agent Registry. The `ai_first_get_agent_context` tool returns your enabled skills.
+Skills are stored in `.claude/skills/` (the single source of truth) and loaded dynamically from the Agent Registry. The `agents_get_context` tool returns your enabled skills.
 
 **Skills location:** `.claude/skills/<skill-name>/SKILL.md`
 
@@ -85,11 +85,11 @@ When asked to create an app, form, scheduler, or dashboard, use the **app-builde
 
 **Available tools:**
 
-- `ai_first_create_app` - Generate a new app from a prompt
-- `ai_first_list_apps` - List existing apps
-- `ai_first_get_app` - Get app details
-- `ai_first_update_app` - Update an existing app
-- `ai_first_share_app` - Generate a shareable link
+- `apps_create` - Generate a new app from a prompt
+- `apps_list` - List existing apps
+- `apps_get` - Get app details
+- `apps_update` - Update an existing app
+- `apps_share` - Generate a shareable link
 
 See the `mini-apps` skill for detailed usage instructions.
 

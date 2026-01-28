@@ -8,7 +8,7 @@ input:
 
 mocks:
   google:
-    ai_first_list_apps:
+    apps_list:
       response:
         apps:
           - id: 'app-101'
@@ -23,7 +23,7 @@ mocks:
 expect:
   tool_calls:
     required:
-      - name: ai_first_list_apps
+      - name: apps_list
 
   assertions:
     - type: response_matches

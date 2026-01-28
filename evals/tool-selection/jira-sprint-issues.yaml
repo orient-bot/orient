@@ -8,7 +8,7 @@ input:
 
 mocks:
   jira:
-    ai_first_get_sprint_issues:
+    jira_get_sprint_issues:
       response:
         sprint:
           id: 42
@@ -47,7 +47,7 @@ mocks:
 expect:
   tool_calls:
     required:
-      - name: ai_first_get_sprint_issues
+      - name: jira_get_sprint_issues
 
   assertions:
     # Check response discusses sprint content (not mock IDs)

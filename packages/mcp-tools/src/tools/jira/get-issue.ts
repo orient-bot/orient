@@ -38,7 +38,7 @@ interface Output {
  * Get Issue Tool Implementation
  */
 export class GetIssueTool extends MCPTool<Input, Output> {
-  readonly name = 'ai_first_get_issue';
+  readonly name = 'jira_get_issue';
   readonly description = 'Get details of a specific Jira issue by its key (e.g., PROJ-123).';
   readonly category = 'jira' as const;
   readonly inputSchema = GetIssueInput;

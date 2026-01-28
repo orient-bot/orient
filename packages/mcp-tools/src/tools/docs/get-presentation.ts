@@ -26,7 +26,7 @@ interface Output {
 }
 
 export class GetPresentationTool extends MCPTool<Input, Output> {
-  name = 'ai_first_slides_get_presentation';
+  name = 'slides_get_presentation';
   description = 'Get presentation metadata and list of all slides with their titles.';
   category = 'docs' as const;
   keywords = ['slides', 'presentation', 'google', 'get', 'list'];

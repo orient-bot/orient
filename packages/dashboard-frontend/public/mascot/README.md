@@ -22,7 +22,7 @@ mascot/
 
 ## Usage
 
-Mascot variations are generated using the `ai_first_generate_mascot` MCP tool.
+Mascot variations are generated using the `media_generate_mascot` MCP tool.
 See the `mascot-generator` skill for usage documentation.
 
 ## Generated Variations

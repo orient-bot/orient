@@ -41,7 +41,7 @@ interface Output {
  * Get Weekly Summary Tool Implementation
  */
 export class GetWeeklySummaryTool extends MCPTool<Input, Output> {
-  readonly name = 'ai_first_get_weekly_summary';
+  readonly name = 'jira_get_weekly_summary';
   readonly description =
     'Get a weekly summary including completed issues, velocity points, newly added issues, and aging tickets.';
   readonly category = 'jira' as const;
