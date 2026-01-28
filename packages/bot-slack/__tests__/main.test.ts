@@ -1,13 +1,13 @@
 /**
  * Tests for Slack Bot Entry Point
- * 
+ *
  * Verifies the main.ts module structure and startup logic.
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // Mock dependencies before imports
-vi.mock('@orient/core', () => ({
+vi.mock('@orientbot/core', () => ({
   createServiceLogger: () => ({
     info: vi.fn(),
     error: vi.fn(),
@@ -80,7 +80,7 @@ vi.mock('@slack/bolt', () => {
   };
 });
 
-vi.mock('@orient/database-services', () => ({
+vi.mock('@orientbot/database-services', () => ({
   SlackDatabase: class MockSlackDatabase {},
   SlackChannelType: {
     GROUP: 'group',
@@ -89,7 +89,7 @@ vi.mock('@orient/database-services', () => ({
   },
 }));
 
-vi.mock('@orient/agents', async (importOriginal) => {
+vi.mock('@orientbot/agents', async (importOriginal) => {
   const actual = await importOriginal();
   return {
     ...actual,
@@ -128,13 +128,13 @@ describe('Slack Bot Entry Point', () => {
   describe('SlackBotConfig', () => {
     it('should require botToken, appToken, and signingSecret', async () => {
       const { SlackConnection } = await import('../src/services/connection.js');
-      
+
       const config = {
         botToken: 'xoxb-test',
         appToken: 'xapp-test',
         signingSecret: 'secret',
       };
-      
+
       const connection = new SlackConnection(config);
       expect(connection).toBeDefined();
       expect(connection.getIsConnected()).toBe(false);
@@ -144,48 +144,48 @@ describe('Slack Bot Entry Point', () => {
   describe('Connection Lifecycle', () => {
     it('should connect and start the Slack app', async () => {
       const { SlackConnection } = await import('../src/services/connection.js');
-      
+
       const connection = new SlackConnection({
         botToken: 'xoxb-test',
         appToken: 'xapp-test',
         signingSecret: 'secret',
       });
-      
+
       await connection.connect();
-      
+
       expect(connection.getIsConnected()).toBe(true);
       expect(connection.getBotUserId()).toBe('U123');
     });
 
     it('should handle disconnect gracefully', async () => {
       const { SlackConnection } = await import('../src/services/connection.js');
-      
+
       const connection = new SlackConnection({
         botToken: 'xoxb-test',
         appToken: 'xapp-test',
         signingSecret: 'secret',
       });
-      
+
       await connection.connect();
       await connection.disconnect();
-      
+
       expect(connection.getIsConnected()).toBe(false);
     });
 
     it('should emit events on connection', async () => {
       const { SlackConnection } = await import('../src/services/connection.js');
-      
+
       const connection = new SlackConnection({
         botToken: 'xoxb-test',
         appToken: 'xapp-test',
         signingSecret: 'secret',
       });
-      
+
       const readyHandler = vi.fn();
       connection.on('ready', readyHandler);
-      
+
       await connection.connect();
-      
+
       expect(readyHandler).toHaveBeenCalled();
     });
   });

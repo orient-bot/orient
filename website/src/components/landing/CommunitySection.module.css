@@ -1,0 +1,118 @@
+.section {
+  padding: 5rem 2rem;
+}
+
+.sectionAlt {
+  background: var(--ifm-background-surface-color);
+}
+
+.sectionContent {
+  max-width: 1000px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.sectionTitle {
+  font-size: 2.25rem;
+  font-weight: 700;
+  margin: 0 0 0.5rem;
+  text-align: center;
+}
+
+.sectionSubtitle {
+  font-size: 1.25rem;
+  color: var(--ifm-font-color-secondary);
+  text-align: center;
+  margin: 0 0 1.5rem;
+}
+
+.badges {
+  margin-bottom: 1rem;
+}
+
+.extensibility {
+  font-size: 1rem;
+  color: var(--ifm-font-color-secondary);
+  margin: 0 0 2rem;
+}
+
+.ctaGroup {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+}
+
+.secondaryButton {
+  background: transparent;
+  color: var(--ifm-font-color-base);
+  border: 2px solid var(--ifm-font-color-base);
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  border-radius: 0.375rem;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.secondaryButton:hover {
+  background: var(--ifm-font-color-base);
+  border-color: var(--ifm-font-color-base);
+  color: var(--ifm-background-color);
+  text-decoration: none;
+}
+
+.secondaryButton:active {
+  transform: scale(0.97);
+}
+
+.outlineButton {
+  background: transparent;
+  color: #3b82f6;
+  border: 2px solid #3b82f6;
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  border-radius: 0.375rem;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: background 0.15s ease;
+}
+
+.outlineButton:hover {
+  background: rgba(59, 130, 246, 0.08);
+  color: #3b82f6;
+  text-decoration: none;
+}
+
+.outlineButton:active {
+  transform: scale(0.97);
+}
+
+.githubIcon {
+  width: 18px;
+  height: 18px;
+}
+
+@media (max-width: 600px) {
+  .section {
+    padding: 3rem 1.5rem;
+  }
+
+  .sectionTitle {
+    font-size: 1.75rem;
+  }
+
+  .sectionSubtitle {
+    font-size: 1rem;
+  }
+
+  .ctaGroup {
+    flex-direction: column;
+    align-items: center;
+  }
+}

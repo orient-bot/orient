@@ -1,5 +1,5 @@
 /**
- * @orient/mcp-tools
+ * @orientbot/mcp-tools
  *
  * Portable MCP tools and registry for the Orient.
  *

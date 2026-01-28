@@ -1,5 +1,5 @@
 /**
- * @orient/core
+ * @orientbot/core
  *
  * Shared utilities, types, and configuration for the Orient.
  *

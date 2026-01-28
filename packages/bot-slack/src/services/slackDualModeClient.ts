@@ -8,7 +8,7 @@
  * Features:
  * - Per-message mode selection
  *
- * Exported via @orient/bot-slack package.
+ * Exported via @orientbot/bot-slack package.
  * - Per-channel mode overrides
  * - Automatic fallback if user token unavailable
  * - Consistent API regardless of mode
@@ -17,7 +17,7 @@
 import { WebClient, ChatPostMessageArguments } from '@slack/web-api';
 import type { Block, KnownBlock } from '@slack/bolt';
 import { SlackUserTokenService } from './slackUserTokenService.js';
-import { createDedicatedServiceLogger } from '@orient/core';
+import { createDedicatedServiceLogger } from '@orientbot/core';
 
 const logger = createDedicatedServiceLogger('slack-dual-mode', {
   maxSize: '20m',

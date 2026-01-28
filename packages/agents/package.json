@@ -1,5 +1,5 @@
 {
-  "name": "@orient/agents",
+  "name": "@orientbot/agents",
   "version": "1.0.0",
   "description": "AI agent services for the Orient",
   "type": "module",
@@ -25,11 +25,11 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.5.0",
-    "@orient/core": "workspace:*",
-    "@orient/database": "workspace:*",
-    "@orient/database-services": "workspace:*",
-    "@orient/integrations": "workspace:*",
-    "@orient/mcp-tools": "workspace:*",
+    "@orientbot/core": "workspace:*",
+    "@orientbot/database": "workspace:*",
+    "@orientbot/database-services": "workspace:*",
+    "@orientbot/integrations": "workspace:*",
+    "@orientbot/mcp-tools": "workspace:*",
     "@anthropic-ai/sdk": "^0.39.0",
     "openai": "^4.104.0"
   },
@@ -47,5 +47,9 @@
   "files": [
     "dist",
     "README.md"
-  ]
+  ],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  }
 }

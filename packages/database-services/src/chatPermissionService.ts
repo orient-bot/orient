@@ -20,7 +20,7 @@
  * - checkWritePermission(): For outgoing messages - strict database check only
  */
 
-import { createServiceLogger } from '@orient/core';
+import { createServiceLogger } from '@orientbot/core';
 import type { ChatPermission, ChatType, ChatPermissionRecord } from './types/index.js';
 
 const logger = createServiceLogger('chat-permission');
@@ -75,7 +75,7 @@ export interface ChatPermissionDatabaseInterface {
   ): Promise<number>;
   getGroup(
     chatId: string
-  ): Promise<{ group_name: string | null; participant_count: number | null } | undefined>;
+  ): Promise<{ groupName: string | null; participantCount: number | null } | undefined>;
 }
 
 /**
@@ -240,11 +240,11 @@ export class ChatPermissionService {
     // Check if this is a solo group (only 1 participant - the admin)
     if (isGroup) {
       const group = await this.db.getGroup(chatId);
-      if (group && group.participant_count === 1) {
+      if (group && group.participantCount === 1) {
         logger.debug('Smart default: Solo group detected - allowing write', {
           chatId,
-          groupName: group.group_name,
-          participantCount: group.participant_count,
+          groupName: group.groupName,
+          participantCount: group.participantCount,
         });
         return { permission: 'read_write', isSmartDefault: true };
       }
@@ -252,8 +252,8 @@ export class ChatPermissionService {
       if (group) {
         logger.debug('Smart default: Multi-participant group - read only', {
           chatId,
-          groupName: group.group_name,
-          participantCount: group.participant_count,
+          groupName: group.groupName,
+          participantCount: group.participantCount,
         });
         return { permission: 'read_only', isSmartDefault: true };
       }

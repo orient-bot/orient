@@ -5,7 +5,7 @@
  * Supports both OAuth Apps and GitHub Apps authentication.
  */
 
-import { createServiceLogger } from '@orient/core';
+import { createServiceLogger } from '@orientbot/core';
 
 const logger = createServiceLogger('github-oauth');
 

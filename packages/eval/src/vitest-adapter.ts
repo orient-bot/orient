@@ -5,7 +5,8 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { EvalRunner, createEvalRunner, loadEvalCases } from './runner/index.js';
+import { EvalRunner, createEvalRunner } from './runner/index.js';
+import { loadEvalCasesSync } from './runner/loader-sync.js';
 import { EvalCase, EvalResult } from './types.js';
 import { summarizeAssertions } from './runner/assertions.js';
 
@@ -40,33 +41,43 @@ export interface EvalTestOptions {
  * ```
  */
 export function createEvalTestSuites(options: EvalTestOptions = {}): void {
-  let runner: EvalRunner;
-  let evalCases: EvalCase[] = [];
-
-  beforeAll(async () => {
-    // Load eval cases
-    const result = await loadEvalCases({
-      baseDir: options.baseDir,
-      type: options.type as never,
-      agent: options.agent,
-    });
-
-    evalCases = result.cases;
-
-    // Create runner
-    runner = createEvalRunner({
-      serverConfig: { port: 0 },
-      judgeConfig: options.enableJudge
-        ? { model: options.model || 'claude-sonnet-4-20250514' }
-        : undefined,
-    });
+  // Load eval cases synchronously during test collection
+  const evalCases = loadEvalCasesSync({
+    baseDir: options.baseDir,
+    type: options.type as never,
+    agent: options.agent,
   });
 
-  afterAll(async () => {
-    // Cleanup if needed
-  });
+  if (evalCases.length === 0) {
+    describe('Agent Evaluations', () => {
+      it('no eval cases found', () => {
+        console.warn('No eval cases found in', options.baseDir || 'default evals directory');
+      });
+    });
+    return;
+  }
 
   describe('Agent Evaluations', () => {
+    let runner: EvalRunner;
+
+    beforeAll(async () => {
+      // Create and start runner
+      runner = createEvalRunner({
+        serverConfig: { port: 0 },
+        judgeConfig: options.enableJudge
+          ? { model: options.model || 'openai/gpt-4o-mini' }
+          : undefined,
+      });
+      await runner.start();
+    });
+
+    afterAll(async () => {
+      // Stop the runner
+      if (runner) {
+        await runner.stop();
+      }
+    });
+
     // Group by type
     const types = [...new Set(evalCases.map((c) => c.type))];
 
@@ -78,7 +89,7 @@ export function createEvalTestSuites(options: EvalTestOptions = {}): void {
           it(evalCase.description || evalCase.name, async () => {
             const result = await runner.executeEval(
               evalCase,
-              options.model || 'anthropic/claude-sonnet-4-20250514'
+              options.model || 'openai/gpt-4o-mini'
             );
 
             // Check all assertions passed
@@ -106,7 +117,7 @@ export function createEvalTestSuites(options: EvalTestOptions = {}): void {
  */
 export async function runEvalAsTest(
   evalCase: EvalCase,
-  model: string = 'anthropic/claude-sonnet-4-20250514'
+  model: string = 'openai/gpt-4o-mini'
 ): Promise<EvalResult> {
   const runner = createEvalRunner({
     serverConfig: { port: 0 },

@@ -31,9 +31,9 @@ export {
 } from './openCodeHandlerBase.js';
 
 export * from './agentService.js';
-// whatsappAgentService moved to @orient/bot-whatsapp to avoid circular dependency
+// whatsappAgentService moved to @orientbot/bot-whatsapp to avoid circular dependency
 // export * from './whatsappAgentService.js';
-// notificationService depends on @orient/bot-whatsapp, excluded from @orient/agents
+// notificationService depends on @orientbot/bot-whatsapp, excluded from @orientbot/agents
 // export * from './notificationService.js';
 export * from './toolCallingService.js';
 export * from './agentRegistry.js';

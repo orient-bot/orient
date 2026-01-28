@@ -9,7 +9,7 @@
  * - Graceful error handling (no crashes on network failure)
  */
 
-import { createServiceLogger } from '@orient/core';
+import { createServiceLogger } from '@orientbot/core';
 import * as fs from 'fs';
 import * as path from 'path';
 

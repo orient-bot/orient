@@ -5,7 +5,7 @@
  * Provides specialized support for mascot variation generation.
  */
 
-import { createServiceLogger, getEnvWithSecrets } from '@orient/core';
+import { createServiceLogger, getEnvWithSecrets } from '@orientbot/core';
 import { getGeminiClient, getImageModel } from './client.js';
 import type {
   ImageGenerationResult,

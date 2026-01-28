@@ -1,4 +1,4 @@
-# @orient/agents
+# @orientbot/agents
 
 AI agent services for the Orient.
 
@@ -14,13 +14,13 @@ This package provides:
 ## Installation
 
 ```bash
-pnpm add @orient/agents
+pnpm add @orientbot/agents
 ```
 
 ## Usage
 
 ```typescript
-import { AgentService, ToolCallingService, AgentRegistry } from '@orient/agents';
+import { AgentService, ToolCallingService, AgentRegistry } from '@orientbot/agents';
 
 // Initialize the agent service
 const agentService = new AgentService({

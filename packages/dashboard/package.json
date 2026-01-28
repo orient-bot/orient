@@ -1,5 +1,5 @@
 {
-  "name": "@orient/dashboard",
+  "name": "@orientbot/dashboard",
   "version": "1.0.0",
   "description": "Dashboard frontend for Orient",
   "type": "module",
@@ -22,7 +22,7 @@
   },
   "scripts": {
     "build": "tsc",
-    "predev": "node --input-type=module -e \"import {existsSync} from 'fs'; import {resolve, dirname} from 'path'; import {fileURLToPath} from 'url'; const __dirname = dirname(fileURLToPath(import.meta.url)); const db = resolve(__dirname, '../database/dist/index.js'); if(!existsSync(db)){console.error('ERROR: @orient/database not built. Run: pnpm --filter @orient/database build'); process.exit(1);}\"",
+    "predev": "node --input-type=module -e \"import {existsSync} from 'fs'; import {resolve, dirname} from 'path'; import {fileURLToPath} from 'url'; const __dirname = dirname(fileURLToPath(import.meta.url)); const db = resolve(__dirname, '../database/dist/index.js'); if(!existsSync(db)){console.error('ERROR: @orientbot/database not built. Run: pnpm --filter @orientbot/database build'); process.exit(1);}\"",
     "dev": "tsx watch --conditions=source --clear-screen=false src/main.ts",
     "dev:watch": "tsc --watch",
     "start": "node dist/main.js",
@@ -31,12 +31,14 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@orient/apps": "workspace:^",
-    "@orient/core": "workspace:*",
-    "@orient/database": "workspace:*",
-    "@orient/database-services": "workspace:*",
-    "@orient/integrations": "workspace:*",
-    "@orient/mcp-servers": "workspace:*",
+    "@orientbot/agents": "workspace:*",
+    "@orientbot/apps": "workspace:^",
+    "@orientbot/bot-whatsapp": "workspace:*",
+    "@orientbot/core": "workspace:*",
+    "@orientbot/database": "workspace:*",
+    "@orientbot/database-services": "workspace:*",
+    "@orientbot/integrations": "workspace:*",
+    "@orientbot/mcp-servers": "workspace:*",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "express": "^5.0.0",
@@ -53,5 +55,13 @@
     "@types/pg": "^8.11.10",
     "typescript": "^5.4.0",
     "vitest": "^4.0.0"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
   }
 }

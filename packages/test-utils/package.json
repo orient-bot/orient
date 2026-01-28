@@ -1,5 +1,5 @@
 {
-  "name": "@orient/test-utils",
+  "name": "@orientbot/test-utils",
   "version": "1.0.0",
   "description": "Shared test utilities, mocks, and factories for Orient",
   "type": "module",
@@ -41,8 +41,8 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@orient/core": "workspace:*",
-    "@orient/database": "workspace:*",
+    "@orientbot/core": "workspace:*",
+    "@orientbot/database": "workspace:*",
     "vitest": "^4.0.15"
   },
   "devDependencies": {
@@ -58,5 +58,9 @@
   "files": [
     "dist",
     "README.md"
-  ]
+  ],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  }
 }

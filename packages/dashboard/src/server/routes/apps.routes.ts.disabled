@@ -6,7 +6,7 @@
  */
 
 import { Router, Request, Response } from 'express';
-import { createServiceLogger } from '@orient/core';
+import { createServiceLogger } from '@orientbot/core';
 import { MiniappEditService } from '../../../../../src/services/miniappEditService.js';
 
 const logger = createServiceLogger('apps-routes');

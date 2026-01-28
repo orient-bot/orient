@@ -13,13 +13,13 @@ import {
   getConfig,
   setSecretOverrides,
   startConfigPoller,
-} from '@orient/core';
+} from '@orientbot/core';
 import {
   createSecretsService,
   MessageDatabase,
   createChatPermissionService,
-} from '@orient/database-services';
-import { createOpenCodeClient } from '@orient/agents';
+} from '@orientbot/database-services';
+import { createOpenCodeClient } from '@orientbot/agents';
 import { downloadMediaMessage } from 'baileys';
 import { TranscriptionService } from './services/index.js';
 import type { WhatsAppBotConfig } from './types.js';
@@ -225,7 +225,7 @@ async function main(): Promise<void> {
       process.env.OPENCODE_URL || `http://localhost:${process.env.OPENCODE_PORT || 4099}`;
 
     // Initialize OpenCode client for AI processing
-    const openCodeClient = createOpenCodeClient(openCodeUrl, 'opencode/grok-code');
+    const openCodeClient = createOpenCodeClient(openCodeUrl, 'openai/gpt-4o-mini');
     logger.info('OpenCode client initialized', { url: openCodeUrl });
 
     // Initialize transcription service for audio messages

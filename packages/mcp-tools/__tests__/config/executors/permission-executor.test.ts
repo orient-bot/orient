@@ -1,10 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { getPendingActionsStore, resetPendingActionsStore } from '../../../src/tools/config/pending-store.js';
+import {
+  getPendingActionsStore,
+  resetPendingActionsStore,
+} from '../../../src/tools/config/pending-store.js';
 import { registerPermissionExecutor } from '../../../src/tools/config/executors/permission-executor.js';
 
 let setChatPermissionSpy: ReturnType<typeof vi.fn>;
 
-vi.mock('@orient/database-services', () => ({
+vi.mock('@orientbot/database-services', () => ({
   createMessageDatabase: () => ({
     setChatPermission: setChatPermissionSpy,
   }),

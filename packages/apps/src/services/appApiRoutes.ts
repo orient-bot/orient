@@ -4,11 +4,11 @@
  * Express routes for the Mini-Apps feature.
  * Handles app listing, details, tool execution, and sharing.
  *
- * Exported via @orient/apps package.
+ * Exported via @orientbot/apps package.
  */
 
 import { Router, Request, Response } from 'express';
-import { createServiceLogger } from '@orient/core';
+import { createServiceLogger } from '@orientbot/core';
 import { AppsService } from './appsService.js';
 import { AppRuntimeService } from './appRuntimeService.js';
 

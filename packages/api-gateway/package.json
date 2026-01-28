@@ -1,5 +1,5 @@
 {
-  "name": "@orient/api-gateway",
+  "name": "@orientbot/api-gateway",
   "version": "1.0.0",
   "description": "REST API gateway for Orient - webhooks, scheduler, and health monitoring",
   "type": "module",
@@ -41,9 +41,9 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@orient/core": "workspace:*",
-    "@orient/database": "workspace:*",
-    "@orient/database-services": "workspace:*",
+    "@orientbot/core": "workspace:*",
+    "@orientbot/database": "workspace:*",
+    "@orientbot/database-services": "workspace:*",
     "express": "^5.0.0",
     "node-cron": "^3.0.0"
   },
@@ -64,5 +64,9 @@
   "files": [
     "dist",
     "README.md"
-  ]
+  ],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  }
 }

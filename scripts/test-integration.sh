@@ -2,6 +2,9 @@
 #
 # Integration tests for instance startup and isolation
 #
+# Database: SQLite (file-based, no external database server)
+# WhatsApp: Integrated into Dashboard (unified server)
+#
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -24,10 +27,10 @@ assert_true() {
 
     if eval "$condition"; then
         echo -e "${GREEN}✓${NC} $test_name"
-        ((TESTS_PASSED++))
+        TESTS_PASSED=$((TESTS_PASSED + 1))
     else
         echo -e "${RED}✗${NC} $test_name"
-        ((TESTS_FAILED++))
+        TESTS_FAILED=$((TESTS_FAILED + 1))
     fi
 }
 
@@ -43,7 +46,7 @@ echo -e "${BLUE}Current Instance Configuration:${NC}"
 echo "  Instance ID: $AI_INSTANCE_ID"
 echo "  Nginx Port: $NGINX_PORT"
 echo "  Dashboard Port: $DASHBOARD_PORT"
-echo "  Database: $POSTGRES_DB"
+echo "  Database: SQLite (${SQLITE_DB_PATH})"
 echo ""
 
 # Test 1: Environment setup
@@ -52,15 +55,13 @@ echo "-----------------------------"
 
 assert_true "[ -n '$AI_INSTANCE_ID' ]" "AI_INSTANCE_ID is set"
 assert_true "[ -n '$NGINX_PORT' ]" "NGINX_PORT is set"
-assert_true "[ -n '$WHATSAPP_PORT' ]" "WHATSAPP_PORT is set"
-assert_true "[ -n '$DASHBOARD_PORT' ]" "DASHBOARD_PORT is set"
+assert_true "[ -n '$DASHBOARD_PORT' ]" "DASHBOARD_PORT is set (unified with WhatsApp)"
 assert_true "[ -n '$OPENCODE_PORT' ]" "OPENCODE_PORT is set"
 assert_true "[ -n '$VITE_PORT' ]" "VITE_PORT is set"
-assert_true "[ -n '$POSTGRES_PORT' ]" "POSTGRES_PORT is set"
 assert_true "[ -n '$MINIO_API_PORT' ]" "MINIO_API_PORT is set"
 assert_true "[ -n '$MINIO_CONSOLE_PORT' ]" "MINIO_CONSOLE_PORT is set"
 assert_true "[ -n '$COMPOSE_PROJECT_NAME' ]" "COMPOSE_PROJECT_NAME is set"
-assert_true "[ -n '$POSTGRES_DB' ]" "POSTGRES_DB is set"
+assert_true "[ -n '$SQLITE_DB_PATH' ]" "SQLITE_DB_PATH is set"
 assert_true "[ -n '$S3_BUCKET' ]" "S3_BUCKET is set"
 assert_true "[ -n '$DATA_DIR' ]" "DATA_DIR is set"
 assert_true "[ -n '$LOG_DIR' ]" "LOG_DIR is set"
@@ -72,17 +73,17 @@ echo ""
 echo "Test Suite: Port Uniqueness"
 echo "---------------------------"
 
-# All ports should be unique
-ALL_PORTS="$NGINX_PORT $WHATSAPP_PORT $DASHBOARD_PORT $OPENCODE_PORT $VITE_PORT $POSTGRES_PORT $MINIO_API_PORT $MINIO_CONSOLE_PORT"
+# All ports should be unique (WhatsApp is unified with Dashboard, no PostgreSQL)
+ALL_PORTS="$NGINX_PORT $DASHBOARD_PORT $OPENCODE_PORT $VITE_PORT $MINIO_API_PORT $MINIO_CONSOLE_PORT"
 UNIQUE_PORTS=$(echo "$ALL_PORTS" | tr ' ' '\n' | sort -u | wc -l)
 TOTAL_PORTS=$(echo "$ALL_PORTS" | wc -w)
 
 if [ "$UNIQUE_PORTS" -eq "$TOTAL_PORTS" ]; then
     echo -e "${GREEN}✓${NC} All ports are unique ($UNIQUE_PORTS ports)"
-    ((TESTS_PASSED++))
+    TESTS_PASSED=$((TESTS_PASSED + 1))
 else
     echo -e "${RED}✗${NC} Duplicate ports detected (unique: $UNIQUE_PORTS, total: $TOTAL_PORTS)"
-    ((TESTS_FAILED++))
+    TESTS_FAILED=$((TESTS_FAILED + 1))
 fi
 
 echo ""
@@ -91,10 +92,10 @@ echo ""
 echo "Test Suite: Port Availability"
 echo "-----------------------------"
 
-for port in $NGINX_PORT $WHATSAPP_PORT $DASHBOARD_PORT $OPENCODE_PORT $VITE_PORT $POSTGRES_PORT $MINIO_API_PORT $MINIO_CONSOLE_PORT; do
+for port in $NGINX_PORT $DASHBOARD_PORT $OPENCODE_PORT $VITE_PORT $MINIO_API_PORT $MINIO_CONSOLE_PORT; do
     if ! lsof -ti ":$port" >/dev/null 2>&1; then
         echo -e "${GREEN}✓${NC} Port $port is available"
-        ((TESTS_PASSED++))
+        TESTS_PASSED=$((TESTS_PASSED + 1))
     else
         echo -e "${YELLOW}⊗${NC} Port $port is already in use (may be from running instance)"
         # Don't fail the test - ports might be in use from a running instance
@@ -110,8 +111,8 @@ echo "---------------------------------------"
 assert_true "[[ '$COMPOSE_PROJECT_NAME' == *'$AI_INSTANCE_ID'* ]]" \
     "Compose project name includes instance ID"
 
-assert_true "[[ '$POSTGRES_DB' == *'$AI_INSTANCE_ID'* ]]" \
-    "Database name includes instance ID"
+assert_true "[[ '$SQLITE_DB_PATH' == *'instance-$AI_INSTANCE_ID'* ]]" \
+    "SQLite database path is instance-specific"
 
 assert_true "[[ '$S3_BUCKET' == *'$AI_INSTANCE_ID'* ]]" \
     "S3 bucket name includes instance ID"
@@ -178,10 +179,10 @@ assert_true "[ -x '$PROJECT_ROOT/run.sh' ]" \
 # Test instances command
 if "$PROJECT_ROOT/run.sh" instances >/dev/null 2>&1; then
     echo -e "${GREEN}✓${NC} ./run.sh instances command works"
-    ((TESTS_PASSED++))
+    TESTS_PASSED=$((TESTS_PASSED + 1))
 else
     echo -e "${RED}✗${NC} ./run.sh instances command failed"
-    ((TESTS_FAILED++))
+    TESTS_FAILED=$((TESTS_FAILED + 1))
 fi
 
 echo ""
@@ -190,41 +191,44 @@ echo ""
 echo "Test Suite: Nginx Config Generation"
 echo "-----------------------------------"
 
-# Generate nginx config
+# Generate nginx config (WhatsApp is unified with Dashboard)
 TEMP_NGINX_CONF="/tmp/nginx-integration-test-$$.conf"
-if envsubst '$VITE_PORT,$WHATSAPP_PORT,$DASHBOARD_PORT,$OPENCODE_PORT' \
+if envsubst '$VITE_PORT,$DASHBOARD_PORT,$OPENCODE_PORT' \
     < "$PROJECT_ROOT/docker/nginx-local.template.conf" > "$TEMP_NGINX_CONF" 2>/dev/null; then
     echo -e "${GREEN}✓${NC} Nginx config generation succeeds"
-    ((TESTS_PASSED++))
+    TESTS_PASSED=$((TESTS_PASSED + 1))
 
     # Verify it's valid nginx config (basic check)
     if grep -q "upstream.*{" "$TEMP_NGINX_CONF" && grep -q "server {" "$TEMP_NGINX_CONF"; then
         echo -e "${GREEN}✓${NC} Generated Nginx config has valid structure"
-        ((TESTS_PASSED++))
+        TESTS_PASSED=$((TESTS_PASSED + 1))
     else
         echo -e "${RED}✗${NC} Generated Nginx config structure invalid"
-        ((TESTS_FAILED++))
+        TESTS_FAILED=$((TESTS_FAILED + 1))
     fi
 else
     echo -e "${RED}✗${NC} Nginx config generation failed"
-    ((TESTS_FAILED++))
+    TESTS_FAILED=$((TESTS_FAILED + 1))
 fi
 
 rm -f "$TEMP_NGINX_CONF"
 
 echo ""
 
-# Test 9: Database URL construction
-echo "Test Suite: Database URL"
-echo "-----------------------"
+# Test 9: SQLite database path
+echo "Test Suite: SQLite Database"
+echo "--------------------------"
 
-assert_true "[ -n '$DATABASE_URL' ]" "DATABASE_URL is set"
+assert_true "[ -n '$SQLITE_DB_PATH' ]" "SQLITE_DB_PATH is set"
 
-assert_true "[[ '$DATABASE_URL' == *':$POSTGRES_PORT/'* ]]" \
-    "DATABASE_URL uses correct port ($POSTGRES_PORT)"
-
-assert_true "[[ '$DATABASE_URL' == *'/$POSTGRES_DB'* ]] || [[ '$DATABASE_URL' == *'/$POSTGRES_DB?'* ]]" \
-    "DATABASE_URL uses correct database name ($POSTGRES_DB)"
+# Check that DATA_DIR exists or can be created
+if mkdir -p "$(dirname "$SQLITE_DB_PATH")" 2>/dev/null; then
+    echo -e "${GREEN}✓${NC} Database directory can be created"
+    TESTS_PASSED=$((TESTS_PASSED + 1))
+else
+    echo -e "${RED}✗${NC} Cannot create database directory"
+    TESTS_FAILED=$((TESTS_FAILED + 1))
+fi
 
 echo ""
 
@@ -232,12 +236,12 @@ echo ""
 echo "Test Suite: Container Isolation"
 echo "-------------------------------"
 
-# Check for any existing containers with this instance ID
+# Check for any existing containers with this instance ID (nginx and minio only - SQLite is file-based)
 EXISTING_CONTAINERS=$(docker ps -a --filter "name=orienter-.*-$AI_INSTANCE_ID" --format "{{.Names}}" 2>/dev/null || true)
 
 if [ -z "$EXISTING_CONTAINERS" ]; then
     echo -e "${GREEN}✓${NC} No existing containers for instance $AI_INSTANCE_ID"
-    ((TESTS_PASSED++))
+    TESTS_PASSED=$((TESTS_PASSED + 1))
 else
     echo -e "${YELLOW}⊗${NC} Found existing containers for instance $AI_INSTANCE_ID:"
     echo "$EXISTING_CONTAINERS" | sed 's/^/    /'
@@ -249,7 +253,7 @@ OTHER_NGINX=$(docker ps --filter "name=orienter-nginx-" --filter "expose=$NGINX_
 
 if [ -z "$OTHER_NGINX" ]; then
     echo -e "${GREEN}✓${NC} No port conflicts with other instances"
-    ((TESTS_PASSED++))
+    TESTS_PASSED=$((TESTS_PASSED + 1))
 else
     echo -e "${YELLOW}⊗${NC} Warning: Another instance may be using port $NGINX_PORT"
 fi

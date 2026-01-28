@@ -5,7 +5,7 @@
  */
 
 import { Router, Request, Response } from 'express';
-import { createServiceLogger } from '@orient/core';
+import { createServiceLogger } from '@orientbot/core';
 import { WebhookService } from '../../services/webhookService.js';
 import { AuthenticatedRequest } from '../../auth.js';
 import { CreateWebhookInput, UpdateWebhookInput } from '../../types/webhook.js';

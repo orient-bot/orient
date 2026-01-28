@@ -7,7 +7,7 @@
  *
  * Based on OpenCode's implementation:
  *
- * Exported via @orient/integrations package.
+ * Exported via @orientbot/integrations package.
  * - Uses localhost callback URL for OAuth flow
  * - Supports dynamic client registration
  * - Implements PKCE (code verifier) management
@@ -19,7 +19,7 @@ import net from 'net';
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
-import { createServiceLogger } from '@orient/core';
+import { createServiceLogger } from '@orientbot/core';
 import type { OAuthClientProvider } from '@modelcontextprotocol/sdk/client/auth.js';
 import type {
   OAuthClientMetadata,

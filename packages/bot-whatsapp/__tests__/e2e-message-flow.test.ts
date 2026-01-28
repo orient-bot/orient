@@ -1,6 +1,6 @@
 /**
  * E2E Tests for WhatsApp Bot Message Flow
- * 
+ *
  * Tests the complete message handling flow:
  * 1. Message reception from Baileys
  * 2. Permission checking
@@ -11,7 +11,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // Mock all external dependencies
-vi.mock('@orient/core', () => ({
+vi.mock('@orientbot/core', () => ({
   createServiceLogger: () => ({
     info: vi.fn(),
     error: vi.fn(),
@@ -37,7 +37,7 @@ vi.mock('@orient/core', () => ({
   startConfigPoller: vi.fn(),
 }));
 
-vi.mock('@orient/database-services', () => ({
+vi.mock('@orientbot/database-services', () => ({
   createSecretsService: vi.fn().mockReturnValue({
     getAllSecrets: vi.fn().mockResolvedValue({}),
   }),
@@ -46,7 +46,7 @@ vi.mock('@orient/database-services', () => ({
   })),
 }));
 
-vi.mock('@orient/agents', () => ({
+vi.mock('@orientbot/agents', () => ({
   createOpenCodeClient: vi.fn().mockReturnValue({
     chat: vi.fn().mockResolvedValue({
       response: 'Hello! How can I help you today?',
@@ -68,7 +68,9 @@ vi.mock('baileys', () => ({
     saveCreds: vi.fn(),
   }),
   makeCacheableSignalKeyStore: vi.fn().mockReturnValue({}),
-  fetchLatestBaileysVersion: vi.fn().mockResolvedValue({ version: [2, 3000, 1014], isLatest: true }),
+  fetchLatestBaileysVersion: vi
+    .fn()
+    .mockResolvedValue({ version: [2, 3000, 1014], isLatest: true }),
 }));
 
 vi.mock('fs', () => ({
@@ -102,8 +104,8 @@ describe('E2E Message Flow', () => {
     it('should identify allowed chat IDs', () => {
       // Test the allowed chat IDs configuration
       const ALLOWED_CHAT_IDS = new Set([
-        TEST_DM_JID,      // Example DM
-        TEST_GROUP_JID,   // Example GROUP
+        TEST_DM_JID, // Example DM
+        TEST_GROUP_JID, // Example GROUP
       ]);
 
       expect(ALLOWED_CHAT_IDS.has(TEST_DM_JID)).toBe(true);
@@ -255,8 +257,8 @@ describe('E2E Message Flow', () => {
       const model = 'grok-code';
       const toolsUsed: string[] = [];
 
-      const formattedResponse = response + 
-        `\n\n_${model} • ${toolsUsed.length > 0 ? toolsUsed.join(', ') : 'no tools'}_`;
+      const formattedResponse =
+        response + `\n\n_${model} • ${toolsUsed.length > 0 ? toolsUsed.join(', ') : 'no tools'}_`;
 
       expect(formattedResponse).toContain('Hello! How can I help you?');
       expect(formattedResponse).toContain('grok-code');
@@ -268,8 +270,8 @@ describe('E2E Message Flow', () => {
       const model = 'grok-code';
       const toolsUsed = ['ai_first_get_blockers', 'ai_first_search_issues'];
 
-      const formattedResponse = response + 
-        `\n\n_${model} • ${toolsUsed.length > 0 ? toolsUsed.join(', ') : 'no tools'}_`;
+      const formattedResponse =
+        response + `\n\n_${model} • ${toolsUsed.length > 0 ? toolsUsed.join(', ') : 'no tools'}_`;
 
       expect(formattedResponse).toContain('ai_first_get_blockers');
       expect(formattedResponse).toContain('ai_first_search_issues');

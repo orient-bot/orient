@@ -1,5 +1,5 @@
 {
-  "name": "@orient/eval",
+  "name": "@orientbot/eval",
   "version": "1.0.0",
   "type": "module",
   "main": "dist/index.js",
@@ -24,9 +24,9 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",
-    "@orient/agents": "workspace:*",
-    "@orient/core": "workspace:*",
-    "@orient/mcp-tools": "workspace:*",
+    "@orientbot/agents": "workspace:*",
+    "@orientbot/core": "workspace:*",
+    "@orientbot/mcp-tools": "workspace:*",
     "commander": "^11.1.0",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
@@ -41,6 +41,15 @@
     "@types/js-yaml": "^4.0.9",
     "@types/uuid": "^9.0.8",
     "typescript": "^5.4.0",
+    "vite-tsconfig-paths": "^6.0.5",
     "vitest": "^1.6.0"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
   }
 }

@@ -4,7 +4,7 @@
  * Create test data for JIRA-related tests.
  */
 
-import type { JiraIssue, JiraUser, JiraSprint } from '@orient/core';
+import type { JiraIssue, JiraUser, JiraSprint } from '@orientbot/core';
 
 let issueCounter = 1;
 

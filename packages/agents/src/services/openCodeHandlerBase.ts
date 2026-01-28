@@ -1,4 +1,4 @@
-import type { ServiceLogger } from '@orient/core';
+import type { ServiceLogger } from '@orientbot/core';
 import type { PromptService } from './promptService.js';
 
 export interface OpenCodeHandlerConfig {
