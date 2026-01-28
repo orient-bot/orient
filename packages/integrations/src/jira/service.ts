@@ -8,7 +8,7 @@
  */
 
 import { Version3Client } from 'jira.js';
-import { createServiceLogger } from '@orient/core';
+import { createServiceLogger } from '@orientbot/core';
 import type {
   JiraIssue,
   JiraUser,

@@ -5,9 +5,8 @@
  * Run with: npx tsx data/seeds/test-permissions.ts
  */
 
-import { getDatabase } from '../../src/db/client.js';
-import { chatPermissions, slackChannelPermissions } from '../../src/db/schema.js';
-import { createServiceLogger } from '../../src/utils/logger.js';
+import { getDatabase, chatPermissions, slackChannelPermissions } from '@orientbot/database';
+import { createServiceLogger } from '@orientbot/core';
 
 const logger = createServiceLogger('test-permissions-seed');
 
@@ -78,18 +77,16 @@ export async function seedTestPermissions(options: { force?: boolean } = {}): Pr
 
   // Check if chat_permissions table exists (it may not in isolated worktrees with limited migrations)
   try {
-    const existingWA = await db
-      .select()
-      .from(chatPermissions)
-      .limit(1);
+    const existingWA = await db.select().from(chatPermissions).limit(1);
 
     // Check if test permissions already exist
     if (existingWA.length > 0 && !options.force) {
       const testPermissions = await db
         .select()
         .from(chatPermissions)
-        .where((table: typeof chatPermissions.$inferSelect) =>
-          table.chatId?.startsWith?.('test-') ?? false
+        .where(
+          (table: typeof chatPermissions.$inferSelect) =>
+            table.chatId?.startsWith?.('test-') ?? false
         );
 
       if (testPermissions.length > 0) {
@@ -101,9 +98,12 @@ export async function seedTestPermissions(options: { force?: boolean } = {}): Pr
     }
   } catch (err) {
     // Table doesn't exist - skip seeding test permissions
-    logger.warn('chat_permissions table does not exist, skipping test permissions seed. Run Drizzle push to create all tables.', {
-      error: err instanceof Error ? err.message : String(err),
-    });
+    logger.warn(
+      'chat_permissions table does not exist, skipping test permissions seed. Run Drizzle push to create all tables.',
+      {
+        error: err instanceof Error ? err.message : String(err),
+      }
+    );
     return;
   }
 

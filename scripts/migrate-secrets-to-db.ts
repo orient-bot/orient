@@ -7,7 +7,7 @@
 
 import fs from 'fs';
 import path from 'path';
-import { createSecretsService } from '@orient/database-services';
+import { createSecretsService } from '@orientbot/database-services';
 
 const SENSITIVE_KEYS = [
   // Infrastructure

@@ -8,7 +8,7 @@
 import { z, ZodSchema } from 'zod';
 import type { Tool } from '@modelcontextprotocol/sdk/types.js';
 import type { ToolCategory, ToolContext, ToolMetadata, ToolResult } from '../types.js';
-import { createServiceLogger } from '@orient/core';
+import { createServiceLogger } from '@orientbot/core';
 
 /**
  * Convert a Zod schema to JSON Schema format for MCP

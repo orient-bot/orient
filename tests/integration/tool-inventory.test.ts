@@ -8,7 +8,12 @@
  */
 
 import { describe, it, expect, beforeAll } from 'vitest';
-import { createToolRegistry, ToolRegistry, ToolCategory } from '@orient/agents';
+import {
+  createToolRegistry,
+  ToolRegistry,
+  ToolCategory,
+  getToolExecutorRegistry,
+} from '@orientbot/agents';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -294,6 +299,66 @@ describe('Server Assignment Definitions', () => {
 
       console.log('assistant-mcp expected tools:', assistantTools.length);
       expect(assistantTools.length).toBeGreaterThanOrEqual(40);
+    });
+  });
+});
+
+/**
+ * Tool Executor Registry Tests
+ *
+ * Verify that all tool handlers are registered in the ToolExecutorRegistry,
+ * ensuring tools are accessible via the assistant MCP server (base-server.ts).
+ */
+describe('Tool Executor Registry', () => {
+  const executorRegistry = getToolExecutorRegistry();
+
+  describe('WhatsApp tool handlers', () => {
+    const whatsappTools = [
+      'whatsapp_search_messages',
+      'whatsapp_get_recent',
+      'whatsapp_get_conversation',
+      'whatsapp_get_group_messages',
+      'whatsapp_get_stats',
+      'whatsapp_list_contacts',
+      'whatsapp_list_groups',
+      'whatsapp_get_media',
+      'whatsapp_send_poll',
+      'whatsapp_send_message',
+    ];
+
+    whatsappTools.forEach((toolName) => {
+      it(`should have handler registered: ${toolName}`, () => {
+        expect(executorRegistry.hasHandler(toolName)).toBe(true);
+      });
+    });
+
+    it('should have all 10 WhatsApp tool handlers', () => {
+      const registeredCount = whatsappTools.filter((t) => executorRegistry.hasHandler(t)).length;
+      expect(registeredCount).toBe(10);
+    });
+  });
+
+  describe('Google tool handlers (regression)', () => {
+    const googleTools = [
+      'google_oauth_status',
+      'google_calendar_list_events',
+      'google_calendar_create_event',
+    ];
+
+    googleTools.forEach((toolName) => {
+      it(`should have handler registered: ${toolName}`, () => {
+        expect(executorRegistry.hasHandler(toolName)).toBe(true);
+      });
+    });
+  });
+
+  describe('Total handler count', () => {
+    it('should have a minimum number of registered handlers', () => {
+      const handlers = executorRegistry.getRegisteredHandlers();
+      console.log(`Total executor handlers registered: ${handlers.length}`);
+      console.log('Registered handlers:', handlers);
+      // At minimum: media + config + google + whatsapp handlers
+      expect(handlers.length).toBeGreaterThanOrEqual(15);
     });
   });
 });

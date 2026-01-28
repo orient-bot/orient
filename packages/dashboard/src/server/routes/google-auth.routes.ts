@@ -11,10 +11,10 @@ import { google, Auth } from 'googleapis';
 import { CodeChallengeMethod } from 'google-auth-library';
 import crypto from 'crypto';
 import { DashboardAuth } from '../../auth.js';
-import { MessageDatabase } from '../../services/messageDatabase.js';
-import { createServiceLogger } from '@orient/core';
-import { createSecretsService } from '@orient/database-services';
-import { getGoogleOAuthService, DEFAULT_SCOPES } from '@orient/integrations';
+import type { MessageDatabase } from '@orientbot/database-services';
+import { createServiceLogger } from '@orientbot/core';
+import { createSecretsService } from '@orientbot/database-services';
+import { getGoogleOAuthService, DEFAULT_SCOPES } from '@orientbot/integrations';
 
 const logger = createServiceLogger('google-auth-routes');
 
@@ -75,17 +75,17 @@ function getCallbackUrl(): string {
 
   // Production: Use HTTPS with app domain
   if (isProduction && appDomain) {
-    return `https://${appDomain}/auth/google/callback`;
+    return `https://${appDomain}/api/auth/google/callback`;
   }
 
   // Staging: Use HTTPS with staging domain (if exists)
   if (nodeEnv === 'staging' && appDomain) {
-    return `https://staging.${appDomain}/auth/google/callback`;
+    return `https://staging.${appDomain}/api/auth/google/callback`;
   }
 
   // Local/Development: Use localhost with dashboard port
   const port = process.env.DASHBOARD_PORT || '4098';
-  return `http://localhost:${port}/auth/google/callback`;
+  return `http://localhost:${port}/api/auth/google/callback`;
 }
 
 /**

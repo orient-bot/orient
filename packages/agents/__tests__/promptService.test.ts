@@ -8,24 +8,24 @@ import type { PromptDatabaseInterface, PromptPlatform, SystemPromptRecord } from
 // Mock database implementation
 function createMockDb(): PromptDatabaseInterface {
   const prompts = new Map<string, SystemPromptRecord>();
-  
+
   return {
     async getSystemPromptText(platform: PromptPlatform, chatId: string) {
       const key = `${platform}:${chatId}`;
       const record = prompts.get(key);
       if (record) return record.promptText;
-      
+
       // Check for platform default
       const defaultKey = `${platform}:*`;
       const defaultRecord = prompts.get(defaultKey);
       return defaultRecord?.promptText;
     },
-    
+
     async getSystemPrompt(platform: PromptPlatform, chatId: string) {
       const key = `${platform}:${chatId}`;
       return prompts.get(key);
     },
-    
+
     async setSystemPrompt(platform: PromptPlatform, chatId: string, promptText: string) {
       const key = `${platform}:${chatId}`;
       const record: SystemPromptRecord = {
@@ -40,23 +40,23 @@ function createMockDb(): PromptDatabaseInterface {
       prompts.set(key, record);
       return record;
     },
-    
+
     async deleteSystemPrompt(platform: PromptPlatform, chatId: string) {
       const key = `${platform}:${chatId}`;
       return prompts.delete(key);
     },
-    
+
     async getDefaultPrompt(platform: PromptPlatform) {
       return prompts.get(`${platform}:*`);
     },
-    
+
     async getDefaultPrompts() {
       return {
         whatsapp: prompts.get('whatsapp:*'),
         slack: prompts.get('slack:*'),
       };
     },
-    
+
     async listSystemPrompts(platform?: PromptPlatform) {
       const result = [];
       for (const [key, record] of prompts) {
@@ -69,7 +69,7 @@ function createMockDb(): PromptDatabaseInterface {
       }
       return result;
     },
-    
+
     async seedDefaultPrompts() {
       // No-op for tests
     },
@@ -88,7 +88,7 @@ describe('PromptService', () => {
   describe('getPromptForChat', () => {
     it('should return embedded default when no database prompt exists', async () => {
       const prompt = await service.getPromptForChat('whatsapp', 'test-chat');
-      expect(prompt).toContain('Orient Project Management assistant');
+      expect(prompt).toContain('Ori');
     });
 
     it('should return custom prompt when set', async () => {
@@ -142,13 +142,13 @@ describe('PromptService', () => {
   describe('getEmbeddedDefault', () => {
     it('should return embedded default for whatsapp', () => {
       const prompt = service.getEmbeddedDefault('whatsapp');
-      expect(prompt).toContain('Orient Project Management assistant');
+      expect(prompt).toContain('Ori');
       expect(prompt).toContain('Mini-Apps');
     });
 
     it('should return embedded default for slack with formatting rules', () => {
       const prompt = service.getEmbeddedDefault('slack');
-      expect(prompt).toContain('CRITICAL FORMATTING RULES FOR SLACK');
+      expect(prompt).toContain('SLACK FORMATTING');
       expect(prompt).toContain('mrkdwn');
     });
   });

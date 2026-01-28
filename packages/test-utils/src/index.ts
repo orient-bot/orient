@@ -1,5 +1,5 @@
 /**
- * @orient/test-utils
+ * @orientbot/test-utils
  *
  * Shared test utilities for the Orient monorepo.
  *
@@ -11,7 +11,7 @@
  *
  * @example
  * ```typescript
- * import { createMockLogger, createJiraIssue } from '@orient/test-utils';
+ * import { createMockLogger, createJiraIssue } from '@orientbot/test-utils';
  *
  * describe('MyService', () => {
  *   it('should log on success', () => {

@@ -7,17 +7,17 @@
  * Note: This module was refactored to remove internal config loading.
  * Use SlackBotService for full bot initialization.
  *
- * Exported via @orient/bot-slack package.
+ * Exported via @orientbot/bot-slack package.
  */
 import type { App, Block, KnownBlock } from '@slack/bolt';
-import { createServiceLogger } from '@orient/core';
+import { createServiceLogger } from '@orientbot/core';
 import type {
   StandupSummary,
   DailyDigest,
   SLABreach,
   DigestTransition,
   JiraIssue,
-} from '@orient/core';
+} from '@orientbot/core';
 
 const logger = createServiceLogger('slack-service');
 

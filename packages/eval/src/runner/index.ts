@@ -4,7 +4,7 @@
  * Main orchestrator for running agent evaluations.
  */
 
-import { createServiceLogger } from '@orient/core';
+import { createServiceLogger } from '@orientbot/core';
 import { EvalServer, startEvalServer } from '../http-wrapper/server.js';
 import { AgentInvokeRequest } from '../http-wrapper/types.js';
 import { LLMJudge } from '../judge/index.js';
@@ -336,6 +336,20 @@ export class EvalRunner {
    */
   getResults(): EvalResult[] {
     return this.results;
+  }
+
+  /**
+   * Start the eval server (for use with vitest adapter)
+   */
+  async start(): Promise<void> {
+    await this.startServer();
+  }
+
+  /**
+   * Stop the eval server (for use with vitest adapter)
+   */
+  async stop(): Promise<void> {
+    await this.stopServer();
   }
 }
 

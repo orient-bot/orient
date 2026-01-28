@@ -185,7 +185,7 @@ Results are saved to `eval-results/` as JSON:
   "results": [
     {
       "evalName": "jira-blockers-detection",
-      "model": "opencode/grok-code",
+      "model": "openai/gpt-4o-mini",
       "status": "passed",
       "assertions": [...],
       "executionTrace": {
@@ -205,11 +205,11 @@ Configure models in `evals/config/models.yaml`:
 ```yaml
 models:
   default:
-    - opencode/grok-code # Free Grok model for testing
+    - openai/gpt-4o-mini # Free Grok model for testing
   fast:
     - anthropic/claude-haiku-3-5-20241022
   full_matrix:
-    - opencode/grok-code
+    - openai/gpt-4o-mini
     - anthropic/claude-sonnet-4-20250514
     - anthropic/claude-haiku-3-5-20241022
 ```
@@ -291,4 +291,4 @@ Ensure `ANTHROPIC_API_KEY` is set in your `.env` file. The eval CLI loads dotenv
 Run `npm run eval` to see current pass rates. As of the last run:
 
 - **Pass rate:** 83.3% (10/12 passing)
-- **Default model:** `opencode/grok-code`
+- **Default model:** `openai/gpt-4o-mini`

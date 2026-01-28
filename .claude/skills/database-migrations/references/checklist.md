@@ -66,5 +66,5 @@ After deployment to production:
 
 ```bash
 # Quick production verification
-ssh opc@$OCI_HOST "docker exec orienter-postgres psql -U aibot -d whatsapp_bot -c 'SELECT table_name FROM information_schema.tables WHERE table_schema = '\''public'\'' ORDER BY table_name'"
+ssh opc@$OCI_HOST "docker exec orienter-dashboard sqlite3 /app/data/orient.db '.tables'"
 ```

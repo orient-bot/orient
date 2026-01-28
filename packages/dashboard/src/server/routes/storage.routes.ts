@@ -5,7 +5,7 @@
  */
 
 import { Router, Request, Response } from 'express';
-import { createServiceLogger } from '@orient/core';
+import { createServiceLogger } from '@orientbot/core';
 import { getStorageService } from '../../services/storageService.js';
 
 const logger = createServiceLogger('storage-routes');

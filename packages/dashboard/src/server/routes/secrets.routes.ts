@@ -10,8 +10,8 @@ import {
   invalidateConfigCache,
   setSecretOverrides,
   removeSecretOverride,
-} from '@orient/core';
-import { createSecretsService } from '@orient/database-services';
+} from '@orientbot/core';
+import { createSecretsService } from '@orientbot/database-services';
 
 const logger = createServiceLogger('secrets-routes');
 

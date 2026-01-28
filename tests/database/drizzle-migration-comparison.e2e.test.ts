@@ -14,7 +14,7 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
-import { getDatabase, messages, slackMessages, eq, and, desc } from '@orient/database';
+import { getDatabase, messages, slackMessages, eq, and, desc } from '@orientbot/database';
 
 // Skip these tests unless explicitly enabled and a PostgreSQL URL is provided.
 const runDbTests = process.env.RUN_DB_TESTS === 'true';

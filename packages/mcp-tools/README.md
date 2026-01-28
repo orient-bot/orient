@@ -1,4 +1,4 @@
-# @orient/mcp-tools
+# @orientbot/mcp-tools
 
 Portable MCP tools and registry for the Orient.
 
@@ -12,7 +12,7 @@ Portable MCP tools and registry for the Orient.
 ## Installation
 
 ```bash
-pnpm add @orient/mcp-tools
+pnpm add @orientbot/mcp-tools
 ```
 
 ## Usage
@@ -20,7 +20,7 @@ pnpm add @orient/mcp-tools
 ### Creating a Tool
 
 ```typescript
-import { MCPTool, ToolContext } from '@orient/mcp-tools';
+import { MCPTool, ToolContext } from '@orientbot/mcp-tools';
 import { z } from 'zod';
 
 // Using the base class
@@ -41,7 +41,7 @@ class GetIssueCountTool extends MCPTool<{ projectKey: string }, number> {
 }
 
 // Using the factory function
-import { createTool } from '@orient/mcp-tools';
+import { createTool } from '@orientbot/mcp-tools';
 
 const myTool = createTool({
   name: 'my_tool',
@@ -59,7 +59,7 @@ const myTool = createTool({
 ### Using the Registry
 
 ```typescript
-import { getToolRegistry, ToolRegistry } from '@orient/mcp-tools';
+import { getToolRegistry, ToolRegistry } from '@orientbot/mcp-tools';
 
 const registry = getToolRegistry();
 
@@ -79,8 +79,8 @@ const categories = registry.getAllCategories();
 ### Creating Tool Context
 
 ```typescript
-import { createToolContext, loadConfig } from '@orient/mcp-tools';
-import { loadConfig } from '@orient/core';
+import { createToolContext, loadConfig } from '@orientbot/mcp-tools';
+import { loadConfig } from '@orientbot/core';
 
 const config = loadConfig();
 const context = createToolContext(config, {

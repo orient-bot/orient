@@ -53,6 +53,22 @@ run_test_suite() {
 }
 
 # Run test suites
+if run_test_suite "$SCRIPT_DIR/test-opencode-isolation.sh" "OpenCode Isolation"; then
+    ((TOTAL_PASSED++))
+else
+    ((TOTAL_FAILED++))
+fi
+
+echo ""
+
+if run_test_suite "$SCRIPT_DIR/test-instance-env.sh" "Instance Environment"; then
+    ((TOTAL_PASSED++))
+else
+    ((TOTAL_FAILED++))
+fi
+
+echo ""
+
 if run_test_suite "$SCRIPT_DIR/test-config-templates.sh" "Configuration Templates"; then
     ((TOTAL_PASSED++))
 else

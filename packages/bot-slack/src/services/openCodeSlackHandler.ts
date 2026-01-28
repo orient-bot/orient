@@ -4,10 +4,10 @@
  * This service handles Slack messages by delegating AI processing to an OpenCode server.
  * It manages sessions per channel/thread for conversation continuity and supports model switching.
  *
- * Exported via @orient/bot-slack package.
+ * Exported via @orientbot/bot-slack package.
  */
 
-import { createServiceLogger } from '@orient/core';
+import { createServiceLogger } from '@orientbot/core';
 import type {
   SlackInternalContext,
   SlackProcessedResponse,
@@ -33,7 +33,7 @@ import {
   OpenCodeHandlerBase,
   type PromptService,
   createOpenCodeClient,
-} from '@orient/agents';
+} from '@orientbot/agents';
 
 const logger = createServiceLogger('opencode-slack');
 

@@ -1,0 +1,18 @@
+# Tool Selection: Config Get Agent
+# Tests that agent uses config_get_agent to get specific agent details
+
+name: config_get_agent
+description: Agent uses config_get_agent to get specific agent configuration
+type: tool_selection
+agent: default
+
+input:
+  prompt: 'What is pm-assistant configured to do?'
+
+expect:
+  tool_calls:
+    required:
+      - name: config_get_agent
+    forbidden:
+      - config_list_agents
+      - config_update_agent

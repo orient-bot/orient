@@ -4,8 +4,8 @@
 # This is the new per-package containerization setup.
 # Each service builds from its own Dockerfile in packages/<name>/Dockerfile
 #
-# Migration: This file replaces the monolithic docker-compose.yml
-# See docs/docker-migration-plan.md for details
+# Database: SQLite (file-based, no external database server)
+# WhatsApp: Integrated into Dashboard (unified server)
 #
 # Quick Start:
 #   docker compose -f docker-compose.v2.yml -f docker-compose.local.yml up -d
@@ -22,8 +22,6 @@ services:
     restart: unless-stopped
     depends_on:
       opencode:
-        condition: service_healthy
-      bot-whatsapp:
         condition: service_healthy
       dashboard:
         condition: service_healthy
@@ -45,35 +43,6 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 10s
-    logging:
-      driver: json-file
-      options:
-        max-size: '5m'
-        max-file: '2'
-
-  # ===========================================================================
-  # PostgreSQL - Database for messages and permissions
-  # ===========================================================================
-  postgres:
-    image: postgres:16-alpine
-    container_name: orienter-postgres-${AI_INSTANCE_ID:-0}
-    restart: unless-stopped
-    environment:
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - POSTGRES_DB=${POSTGRES_DB:-whatsapp_bot_0}
-    volumes:
-      - postgres-data:/var/lib/postgresql/data
-    ports:
-      - '${POSTGRES_PORT:-5432}:5432'
-    networks:
-      - orienter-network
-    healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB:-whatsapp_bot_0}']
-      interval: 10s
-      timeout: 5s
-      retries: 5
       start_period: 10s
     logging:
       driver: json-file
@@ -155,8 +124,6 @@ services:
       minio-setup:
         condition: service_completed_successfully
         required: false
-      postgres:
-        condition: service_healthy
     env_file:
       - ../.env
     environment:
@@ -166,7 +133,9 @@ services:
       - OPENCODE_HOSTNAME=0.0.0.0
       - DATA_DIR=/app/data
       - LOG_DIR=/app/logs
-      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-whatsapp_bot_0}
+      # SQLite database (file-based)
+      - DATABASE_TYPE=sqlite
+      - SQLITE_DATABASE=/app/data/orient.db
       - S3_BUCKET=${S3_BUCKET:-orienter-data}
       - S3_SYNC_INTERVAL=${S3_SYNC_INTERVAL:-60}
       - AWS_ACCESS_KEY_ID=${MINIO_ROOT_USER}
@@ -203,70 +172,6 @@ services:
         max-file: '3'
 
   # ===========================================================================
-  # WhatsApp Bot
-  # Uses per-package Dockerfile from packages/bot-whatsapp/
-  # ===========================================================================
-  bot-whatsapp:
-    build:
-      context: ..
-      dockerfile: packages/bot-whatsapp/Dockerfile
-    container_name: orienter-bot-whatsapp-${AI_INSTANCE_ID:-0}
-    restart: unless-stopped
-    depends_on:
-      opencode:
-        condition: service_healthy
-      minio:
-        condition: service_healthy
-        required: false
-      postgres:
-        condition: service_healthy
-    env_file:
-      - ../.env
-    environment:
-      - NODE_ENV=production
-      - TZ=Asia/Jerusalem
-      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-whatsapp_bot_0}
-      - OPENCODE_SERVER_URL=http://opencode:${OPENCODE_PORT:-4099}
-      - OPENCODE_URL=http://opencode:${OPENCODE_PORT:-4099}
-      - OPENCODE_ENABLED=true
-      - S3_BUCKET=${S3_BUCKET:-orienter-data}
-      - S3_SYNC_INTERVAL=${S3_SYNC_INTERVAL:-60}
-      - AWS_ACCESS_KEY_ID=${MINIO_ROOT_USER}
-      - AWS_SECRET_ACCESS_KEY=${MINIO_ROOT_PASSWORD}
-      - AWS_ENDPOINT_URL=http://minio:9000
-      - AWS_REGION=us-east-1
-      - WHATSAPP_CLOUD_API_ENABLED=${WHATSAPP_CLOUD_API_ENABLED:-false}
-      - WHATSAPP_CLOUD_API_PHONE_NUMBER_ID=${WHATSAPP_CLOUD_API_PHONE_NUMBER_ID:-}
-      - WHATSAPP_CLOUD_API_ACCESS_TOKEN=${WHATSAPP_CLOUD_API_ACCESS_TOKEN:-}
-      - WHATSAPP_CLOUD_API_BUSINESS_ACCOUNT_ID=${WHATSAPP_CLOUD_API_BUSINESS_ACCOUNT_ID:-}
-      - WHATSAPP_CLOUD_API_WEBHOOK_VERIFY_TOKEN=${WHATSAPP_CLOUD_API_WEBHOOK_VERIFY_TOKEN:-}
-      - WHATSAPP_CLOUD_API_APP_SECRET=${WHATSAPP_CLOUD_API_APP_SECRET:-}
-      - WEBHOOK_FORWARD_SECRET=${WEBHOOK_FORWARD_SECRET:-}
-      - ORIENT_MASTER_KEY=${ORIENT_MASTER_KEY}
-    volumes:
-      - ../data:/app/data
-      - ../.mcp.config.local.json:/app/.mcp.config.json:ro
-      - ../logs:/app/logs
-      - ../credentials:/app/credentials:ro
-    ports:
-      - '${WHATSAPP_PORT:-4097}:4097'
-    networks:
-      - orienter-network
-    stdin_open: true
-    tty: true
-    healthcheck:
-      test: ['CMD', 'curl', '-f', 'http://localhost:4097/health']
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 120s
-    logging:
-      driver: json-file
-      options:
-        max-size: '10m'
-        max-file: '3'
-
-  # ===========================================================================
   # Slack Bot (Optional)
   # Uses per-package Dockerfile from packages/bot-slack/
   # ===========================================================================
@@ -281,14 +186,14 @@ services:
     depends_on:
       opencode:
         condition: service_healthy
-      postgres:
-        condition: service_healthy
     env_file:
       - ../.env
     environment:
       - NODE_ENV=production
       - TZ=Asia/Jerusalem
-      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-whatsapp_bot_0}
+      # SQLite database (file-based)
+      - DATABASE_TYPE=sqlite
+      - SQLITE_DATABASE=/app/data/orient.db
       - OPENCODE_SERVER_URL=http://opencode:${OPENCODE_PORT:-4099}
       - OPENCODE_URL=http://opencode:${OPENCODE_PORT:-4099}
       - OPENCODE_ENABLED=true
@@ -306,6 +211,7 @@ services:
       - SKILL_ADMIN_SLACK_IDS=${SKILL_ADMIN_SLACK_IDS}
       - ORIENT_MASTER_KEY=${ORIENT_MASTER_KEY}
     volumes:
+      - opencode-data:/app/data
       - ../logs:/app/logs
       - ../.mcp.config.local.json:/app/.mcp.config.json:ro
       - ../credentials:/app/credentials:ro
@@ -335,17 +241,17 @@ services:
     restart: unless-stopped
     profiles:
       - api
-    depends_on:
-      postgres:
-        condition: service_healthy
     env_file:
       - ../.env
     environment:
       - NODE_ENV=production
       - TZ=Asia/Jerusalem
-      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-whatsapp_bot_0}
+      # SQLite database (file-based)
+      - DATABASE_TYPE=sqlite
+      - SQLITE_DATABASE=/app/data/orient.db
       - API_GATEWAY_PORT=4100
     volumes:
+      - opencode-data:/app/data
       - ../logs:/app/logs
       - ../.mcp.config.local.json:/app/.mcp.config.json:ro
     ports:
@@ -365,8 +271,9 @@ services:
         max-file: '3'
 
   # ===========================================================================
-  # Dashboard - Standalone dashboard service
+  # Dashboard - Unified server (Dashboard + WhatsApp)
   # Uses per-package Dockerfile from packages/dashboard/
+  # Handles both Dashboard API and WhatsApp endpoints on single port
   # ===========================================================================
   dashboard:
     build:
@@ -375,7 +282,7 @@ services:
     container_name: orienter-dashboard-${AI_INSTANCE_ID:-0}
     restart: unless-stopped
     depends_on:
-      postgres:
+      opencode:
         condition: service_healthy
     env_file:
       - ../.env
@@ -383,35 +290,46 @@ services:
       - NODE_ENV=production
       - TZ=Asia/Jerusalem
       - DASHBOARD_PORT=4098
-      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-whatsapp_bot_0}
+      # SQLite database (file-based)
+      - DATABASE_TYPE=sqlite
+      - SQLITE_DATABASE=/app/data/orient.db
       - DASHBOARD_JWT_SECRET=${DASHBOARD_JWT_SECRET}
       - ORIENT_MASTER_KEY=${ORIENT_MASTER_KEY}
       # Path to .env file for setup wizard to write non-sensitive values
       - ORIENT_ENV_PATH=/app/.env
       # SSH key path for production monitoring (mounted from ~/.ssh)
       - SSH_KEY_PATH=/app/.ssh/id_rsa
+      # WhatsApp integration (unified server mode)
+      - WHATSAPP_ENABLED=true
+      - OPENCODE_URL=http://opencode:${OPENCODE_PORT:-4099}
+      - SESSION_PATH=/app/data/whatsapp-auth
     volumes:
+      - opencode-data:/app/data
       - ../logs:/app/logs
       # Mount .env file for setup wizard to write non-sensitive config values
       - ../.env:/app/.env
       # Mount SSH key for production server monitoring (from docker/.ssh directory)
       # Copy your SSH key to docker/.ssh/id_rsa with readable permissions
       - ./.ssh:/app/.ssh:ro
+      # WhatsApp session data
+      - ../data:/app/data
     ports:
       - '${DASHBOARD_PORT:-4098}:4098'
     networks:
       - orienter-network
+    stdin_open: true
+    tty: true
     healthcheck:
       test: ['CMD', 'curl', '-f', 'http://localhost:4098/health']
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 30s
+      start_period: 60s
     logging:
       driver: json-file
       options:
-        max-size: '5m'
-        max-file: '2'
+        max-size: '10m'
+        max-file: '3'
 
   # ===========================================================================
   # S3 Sync Service (Optional - for data persistence to MinIO/S3)
@@ -458,8 +376,6 @@ networks:
 # Volumes
 # =============================================================================
 volumes:
-  postgres-data:
-    driver: local
   minio-data:
     driver: local
   opencode-data:

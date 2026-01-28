@@ -1,0 +1,148 @@
+# Orient Development Container
+# All development happens inside this container
+
+FROM node:22-bookworm
+
+ARG TARGETARCH
+ARG USER_UID=501
+ARG USER_GID=20
+
+# ============================================
+# System packages
+# ============================================
+RUN apt-get update && apt-get install -y \
+    # Core utilities
+    curl \
+    wget \
+    git \
+    vim \
+    nano \
+    jq \
+    unzip \
+    zip \
+    ca-certificates \
+    gnupg \
+    lsb-release \
+    # Build tools (for native Node modules)
+    build-essential \
+    python3 \
+    python3-pip \
+    # Database clients
+    postgresql-client \
+    # Networking tools
+    dnsutils \
+    iputils-ping \
+    netcat-openbsd \
+    lsof \
+    # Text processing
+    gettext-base \
+    # Security
+    openssl \
+    # For dropping privileges in entrypoint
+    gosu \
+    && rm -rf /var/lib/apt/lists/*
+
+# ============================================
+# Docker CLI (to control host Docker via socket)
+# ============================================
+RUN curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg \
+    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/debian $(lsb_release -cs) stable" > /etc/apt/sources.list.d/docker.list \
+    && apt-get update \
+    && apt-get install -y docker-ce-cli docker-compose-plugin \
+    && rm -rf /var/lib/apt/lists/*
+
+# ============================================
+# AWS CLI v2
+# ============================================
+RUN AWS_CLI_ARCH=$([ "$TARGETARCH" = "arm64" ] && echo "aarch64" || echo "x86_64") \
+    && curl "https://awscli.amazonaws.com/awscli-exe-linux-${AWS_CLI_ARCH}.zip" -o "/tmp/awscliv2.zip" \
+    && unzip -q /tmp/awscliv2.zip -d /tmp \
+    && /tmp/aws/install \
+    && rm -rf /tmp/aws /tmp/awscliv2.zip
+
+# ============================================
+# Google Cloud SDK
+# ============================================
+RUN echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" > /etc/apt/sources.list.d/google-cloud-sdk.list \
+    && curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg \
+    && apt-get update \
+    && apt-get install -y google-cloud-cli \
+    && rm -rf /var/lib/apt/lists/*
+
+# ============================================
+# GitHub CLI
+# ============================================
+RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg \
+    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" > /etc/apt/sources.list.d/github-cli.list \
+    && apt-get update \
+    && apt-get install -y gh \
+    && rm -rf /var/lib/apt/lists/*
+
+# ============================================
+# Node.js package managers & global tools
+# ============================================
+RUN corepack enable && corepack prepare pnpm@9.0.0 --activate
+
+# Global npm packages (excluding Claude Code - using native installer)
+RUN npm install -g \
+    vercel \
+    tsx \
+    typescript
+
+# ============================================
+# Claude Code (native installer)
+# ============================================
+# Use native installer instead of npm for better performance
+# The installer creates a symlink at ~/.local/bin/claude -> ~/.local/share/claude/versions/X.X.X
+# We need to copy the actual binary, not the symlink
+RUN curl -fsSL https://claude.ai/install.sh | bash \
+    && cp -L /root/.local/bin/claude /usr/local/bin/claude \
+    && chmod +x /usr/local/bin/claude \
+    && rm -rf /root/.claude /root/.local/bin/claude /root/.local/share/claude
+
+# ============================================
+# OpenCode
+# ============================================
+# Install OpenCode to /usr/local/bin so it's available for all users
+RUN curl -fsSL https://opencode.ai/install | bash -s -- --no-modify-path \
+    && mv /root/.opencode/bin/opencode /usr/local/bin/opencode \
+    && rm -rf /root/.opencode
+
+# ============================================
+# Create non-root user with host UID/GID
+# ============================================
+# The node:22-bookworm image has user "node" with UID 1000.
+# We modify it to match the host macOS UID (501) for proper file permissions.
+# This avoids permission issues when mounting host directories.
+RUN usermod -u $USER_UID node \
+    && groupmod -g 1001 node \
+    && mkdir -p /home/node/.claude /home/node/.config /home/node/.aws /home/node/.ssh /home/node/.local/bin /home/node/.local/share/pnpm /home/node/.cache/node/corepack \
+    && chown -R node:node /home/node \
+    # Create docker group for socket access
+    # On macOS Docker Desktop, the socket is owned by root:root with mode 0660
+    # Adding user to docker group allows access
+    && groupadd -g 999 docker || true \
+    && usermod -aG docker node
+
+# ============================================
+# Entrypoint to fix Docker socket permissions
+# ============================================
+COPY docker/dev-entrypoint.sh /usr/local/bin/dev-entrypoint.sh
+RUN chmod +x /usr/local/bin/dev-entrypoint.sh
+
+# ============================================
+# Working directory
+# ============================================
+WORKDIR /workspace
+
+# Set environment (these apply regardless of user)
+ENV SHELL=/bin/bash
+ENV PNPM_HOME=/home/node/.local/share/pnpm
+ENV PATH="$PNPM_HOME:/home/node/.local/bin:$PATH"
+ENV HOME=/home/node
+
+# Start as root - entrypoint will fix Docker socket permissions and drop to node
+ENTRYPOINT ["/usr/local/bin/dev-entrypoint.sh"]
+
+# Default command
+CMD ["bash"]

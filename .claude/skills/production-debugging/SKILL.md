@@ -67,13 +67,11 @@ cd ~/orient/docker
 
 ## Container Overview
 
-| Container             | Port       | Purpose                        |
-| --------------------- | ---------- | ------------------------------ |
-| orienter-nginx        | 80, 443    | Reverse proxy, SSL termination |
-| orienter-dashboard    | 4098       | Dashboard web app + API        |
-| orienter-bot-whatsapp | 4097       | WhatsApp bot + QR/pairing      |
-| orienter-opencode     | 4099, 8765 | AI agent API + OAuth callback  |
-| orienter-postgres     | 5432       | Database                       |
+| Container          | Port       | Purpose                        |
+| ------------------ | ---------- | ------------------------------ |
+| orienter-nginx     | 80, 443    | Reverse proxy, SSL termination |
+| orienter-dashboard | 4098       | Dashboard web app + API        |
+| orienter-opencode  | 4099, 8765 | AI agent API + OAuth callback  |
 
 ## Container Logs
 
@@ -122,7 +120,7 @@ docker logs orienter-dashboard 2>&1 | grep -i error | tail -20
 | Check dashboard logs         | `docker logs orienter-dashboard --tail 100`                                          |
 | Check OpenCode logs          | `docker logs orienter-opencode --tail 100`                                           |
 | Restart dashboard            | `docker restart orienter-dashboard`                                                  |
-| Check database               | `docker exec orienter-postgres psql -U aibot -c "SELECT 1"`                          |
+| Check database               | `sqlite3 /app/data/orient.db "SELECT 1"`                                             |
 | View env vars                | `cat ~/orient/.env`                                                                  |
 | Check container env vars     | `docker exec <container> env \| grep <VAR_NAME>`                                     |
 | Missing env var (crash loop) | Add to .env, then `docker compose --env-file ../.env -f compose.yml up -d <service>` |
@@ -162,14 +160,14 @@ app.get('/{*splat}', (req, res) => { ... });
 
 #### Database Connection Error
 
-**Error**: `ECONNREFUSED` or `connection refused`
+**Error**: `SQLITE_CANTOPEN` or database file not found
 
 ```bash
-# Check postgres is running
-docker ps | grep postgres
+# Check SQLite database file exists
+docker exec orienter-dashboard ls -la /app/data/orient.db
 
-# Check DATABASE_URL
-docker exec orienter-dashboard env | grep DATABASE_URL
+# Check SQLITE_DB_PATH
+docker exec orienter-dashboard env | grep SQLITE_DB_PATH
 ```
 
 ### 2. Dashboard Assets Not Loading (text/html error)
@@ -252,7 +250,7 @@ Error: DASHBOARD_JWT_SECRET environment variable is required
 **Common missing variables**:
 
 - `DASHBOARD_JWT_SECRET` (production) or `DASHBOARD_JWT_SECRET_STAGING` (staging)
-- `DATABASE_URL`
+- `SQLITE_DB_PATH`
 - OAuth credentials (`GOOGLE_OAUTH_CLIENT_ID`, etc.)
 - API keys (Anthropic, OpenAI, etc.)
 
@@ -493,7 +491,6 @@ docker compose ${COMPOSE_FILES} restart
 ```bash
 docker exec -it orienter-dashboard sh
 docker exec -it orienter-opencode bash
-docker exec orienter-postgres psql -U aibot -d whatsapp_bot
 ```
 
 ### Check Container Files
@@ -536,7 +533,7 @@ curl -sf https://code.orient.bot/global/health && echo "OpenCode: OK" || echo "O
 ### Check Database
 
 ```bash
-docker exec orienter-postgres pg_isready -U aibot -d whatsapp_bot
+docker exec orienter-dashboard sqlite3 /app/data/orient.db "SELECT 1;"
 ```
 
 ## Deployment Management
@@ -584,7 +581,7 @@ docker image prune -a -f --filter "until=168h"  # Remove images older than 7 day
 | `Missing parameter name at index 1: *`      | Express 5 bare wildcard      | Use `/{*splat}` instead of `*`                                              |
 | `Failed to load module script: text/html`   | Nginx proxy_pass wrong       | Fix nginx to strip path prefix                                              |
 | `Connection Closed` (WhatsApp)              | WebSocket died               | Restart bot-whatsapp container                                              |
-| `ECONNREFUSED postgres`                     | Database not ready           | Wait or restart postgres                                                    |
+| `SQLITE_CANTOPEN`                           | Database file missing        | Check SQLITE_DB_PATH and /app/data/ directory                               |
 | `502 Bad Gateway`                           | Upstream container down      | Check container status and logs                                             |
 | `container is unhealthy`                    | Health check failing         | Check container logs                                                        |
 | `DASHBOARD_JWT_SECRET variable is required` | Missing env var              | Add to .env, recreate with docker-compose                                   |
@@ -597,12 +594,9 @@ docker image prune -a -f --filter "until=168h"  # Remove images older than 7 day
 
 ```
 /home/opc/orient/data/
-├── whatsapp-auth/     # WhatsApp session files
-│   ├── creds.json     # Credentials
-│   └── .pairing-mode  # Pairing mode marker
+├── orient.db          # SQLite database
 ├── media/             # Uploaded media files
-├── oauth-tokens/      # OAuth tokens
-└── postgres/          # Database files (volume)
+└── oauth-tokens/      # OAuth tokens
 ```
 
 ## Log Locations

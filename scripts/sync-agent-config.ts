@@ -19,9 +19,9 @@
  *   --force-seed            Force re-seed even if agents exist
  */
 
-import { getAgentRegistry } from '@orient/agents';
-import { createServiceLogger } from '@orient/core';
-import { closeDatabase } from '@orient/database';
+import { getAgentRegistry } from '@orientbot/agents';
+import { createServiceLogger } from '@orientbot/core';
+import { closeDatabase } from '@orientbot/database';
 import { seedAgents } from '../data/seeds/agents.js';
 import path from 'path';
 

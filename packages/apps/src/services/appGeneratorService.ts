@@ -5,11 +5,11 @@
  * Takes a user prompt and generates a complete React application
  * that follows the design system and can use the available tools.
  *
- * Exported via @orient/apps package.
+ * Exported via @orientbot/apps package.
  */
 
 import Anthropic from '@anthropic-ai/sdk';
-import { createServiceLogger } from '@orient/core';
+import { createServiceLogger } from '@orientbot/core';
 import { AppManifest, AppPermissions, generateAppManifestTemplate } from '../types.js';
 
 const logger = createServiceLogger('app-generator');

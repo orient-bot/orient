@@ -1,0 +1,18 @@
+# Skill Invocation: Mini Apps
+# Tests that agent discovers mini-apps for dashboard app creation
+
+name: skill_invocation_mini_apps
+description: Agent discovers mini-apps for building dashboard apps
+type: skill_invocation
+agent: explorer
+
+input:
+  prompt: 'Build me a dashboard app'
+
+expect:
+  skills:
+    activated:
+      - mini-apps
+  assertions:
+    - type: skill_activated
+      skill: mini-apps

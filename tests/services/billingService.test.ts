@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
-import { BillingService } from '@orient/dashboard';
+import { BillingService } from '@orientbot/dashboard';
 
 describe('BillingService', () => {
   it('returns error when Anthropic admin key missing', async () => {

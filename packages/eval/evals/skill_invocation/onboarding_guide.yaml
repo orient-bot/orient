@@ -1,0 +1,18 @@
+# Skill Invocation: Onboarding Guide
+# Tests that agent discovers onboarding-guide for new users
+
+name: skill_invocation_onboarding_guide
+description: Agent discovers onboarding-guide for new users
+type: skill_invocation
+agent: explorer
+
+input:
+  prompt: "I'm new to Orient, how do I start?"
+
+expect:
+  skills:
+    activated:
+      - onboarding-guide
+  assertions:
+    - type: skill_activated
+      skill: onboarding-guide

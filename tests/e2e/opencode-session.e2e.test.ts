@@ -14,7 +14,7 @@
 
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import { execSync } from 'child_process';
-import { OpenCodeClient, createOpenCodeClient } from '@orient/agents';
+import { OpenCodeClient, createOpenCodeClient } from '@orientbot/agents';
 
 // Configuration
 // Default to port 4099 (dev environment) - see ./run.sh dev

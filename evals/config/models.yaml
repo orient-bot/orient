@@ -5,17 +5,17 @@
 models:
   # Default: Run with Grok Code (FREE via OpenCode Zen)
   default:
-    - opencode/grok-code
+    - openai/gpt-4o-mini
 
   # Full matrix: Test across all models
   full_matrix:
-    - opencode/grok-code
+    - openai/gpt-4o-mini
     - anthropic/claude-sonnet-4-20250514
     - anthropic/claude-opus-4-20250514
 
   # Fast: Quick iteration with free Grok
   fast:
-    - opencode/grok-code
+    - openai/gpt-4o-mini
 
   # Quality: High-quality testing with Opus
   quality:
@@ -28,5 +28,5 @@ models:
 
   # Comparison: Free vs paid
   cost_comparison:
-    - opencode/grok-code
+    - openai/gpt-4o-mini
     - anthropic/claude-sonnet-4-20250514

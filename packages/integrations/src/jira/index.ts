@@ -10,7 +10,7 @@
  *   getInProgressIssues,
  *   JiraIssue,
  *   JiraUser,
- * } from '@orient/integrations/jira';
+ * } from '@orientbot/integrations/jira';
  *
  * // Initialize with config
  * initializeJiraClient({

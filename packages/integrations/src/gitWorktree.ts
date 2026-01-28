@@ -11,7 +11,7 @@ import { promisify } from 'util';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import { createServiceLogger } from '@orient/core';
+import { createServiceLogger } from '@orientbot/core';
 
 const execAsync = promisify(exec);
 const logger = createServiceLogger('git-worktree');

@@ -1,4 +1,4 @@
-# @orient/integrations
+# @orientbot/integrations
 
 External service integrations for the Orient.
 
@@ -11,10 +11,10 @@ External service integrations for the Orient.
 
 ```typescript
 // JIRA
-import { JiraService, getAllIssues, getIssueByKey } from '@orient/integrations/jira';
+import { JiraService, getAllIssues, getIssueByKey } from '@orientbot/integrations/jira';
 
 // Google
-import { SlidesService, SheetsService, GmailService } from '@orient/integrations/google';
+import { SlidesService, SheetsService, GmailService } from '@orientbot/integrations/google';
 ```
 
 ## Directory Structure

@@ -53,10 +53,10 @@ COPY packages/mcp-servers ./packages/mcp-servers
 COPY packages/apps ./packages/apps
 
 # Build workspace packages using turbo for correct dependency ordering
-RUN pnpm turbo run build --filter='@orient/core' --filter='@orient/database' \
-    --filter='@orient/database-services' --filter='@orient/integrations' \
-    --filter='@orient/mcp-tools' --filter='@orient/agents' \
-    --filter='@orient/mcp-servers' --filter='@orient/apps'
+RUN pnpm turbo run build --filter='@orientbot/core' --filter='@orientbot/database' \
+    --filter='@orientbot/database-services' --filter='@orientbot/integrations' \
+    --filter='@orientbot/mcp-tools' --filter='@orientbot/agents' \
+    --filter='@orientbot/mcp-servers' --filter='@orientbot/apps'
 
 # Note: Root-level build removed - using package-level builds only
 

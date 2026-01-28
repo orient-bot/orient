@@ -5,14 +5,14 @@
  */
 
 import { Router, Request, Response } from 'express';
-import { createServiceLogger } from '@orient/core';
+import { createServiceLogger } from '@orientbot/core';
 import {
   getAgentRegistry,
   getToolRegistry,
   createOpenCodeClient,
   OpenCodeClient,
   OpenCodeMessage,
-} from '@orient/agents';
+} from '@orientbot/agents';
 import { createMockRegistry, MockServiceRegistry } from '../mocks/index.js';
 import {
   AgentInvokeRequest,
@@ -28,17 +28,27 @@ import { v4 as uuidv4 } from 'uuid';
 
 // OpenCode server configuration
 const OPENCODE_BASE_URL = process.env.OPENCODE_URL || 'http://localhost:4099';
-const OPENCODE_DEFAULT_MODEL = process.env.OPENCODE_MODEL || 'opencode/grok-code'; // Free Grok model
+const OPENCODE_DEFAULT_MODEL = process.env.OPENCODE_MODEL || 'anthropic/claude-haiku-4-5-20251001';
 
 const logger = createServiceLogger('eval-routes');
 
 /**
+ * Routes configuration
+ */
+interface RoutesConfig {
+  /** OpenCode server password for authentication */
+  openCodePassword?: string;
+}
+
+/**
  * Create eval API routes
  */
-export function createEvalRoutes(): Router {
+export function createEvalRoutes(config?: RoutesConfig): Router {
   const router = Router();
   const mockRegistry = createMockRegistry();
   const startTime = Date.now();
+  // Get password from config or fall back to environment variable
+  const openCodePassword = config?.openCodePassword || process.env.OPENCODE_SERVER_PASSWORD;
 
   // Health check
   router.get('/health', (_req: Request, res: Response) => {
@@ -175,7 +185,7 @@ export function createEvalRoutes(): Router {
       }
 
       // Execute agent invocation
-      const trace = await executeAgentInvocation(request, mockRegistry);
+      const trace = await executeAgentInvocation(request, mockRegistry, openCodePassword);
 
       const response: AgentInvokeResponse = {
         requestId,
@@ -299,7 +309,8 @@ export function createEvalRoutes(): Router {
  */
 async function executeAgentInvocation(
   request: AgentInvokeRequest,
-  _mockRegistry: MockServiceRegistry
+  _mockRegistry: MockServiceRegistry,
+  openCodePassword?: string
 ): Promise<ExecutionTrace> {
   const startTime = Date.now();
 
@@ -324,29 +335,42 @@ async function executeAgentInvocation(
     });
   }
 
-  // Create OpenCode client and invoke real agent
-  const client = createOpenCodeClient(OPENCODE_BASE_URL, request.model || OPENCODE_DEFAULT_MODEL);
-
-  // Create a unique context key for this eval run
-  const contextKey = `eval-${request.agentId}-${uuidv4()}`;
+  // Create OpenCode client with longer timeout for evals (agent may do multiple MCP calls)
+  const client = createOpenCodeClient(
+    OPENCODE_BASE_URL,
+    request.model || OPENCODE_DEFAULT_MODEL,
+    openCodePassword
+  );
 
   logger.info('Invoking real OpenCode agent', {
     agentId: request.agentId,
     model: request.model || OPENCODE_DEFAULT_MODEL,
     promptLength: request.prompt.length,
-    contextKey,
   });
 
   try {
-    // Call the real OpenCode server
-    const result = await client.chat(contextKey, request.prompt, {
-      sessionTitle: `Eval: ${request.agentId}`,
-      agent: request.agentId,
+    // Always create a FRESH session for each eval to prevent context bleed
+    // (getOrCreateSession reuses sessions by title, which contaminates eval results)
+    const session = await client.createSession(`Eval: ${request.agentId} ${uuidv4().slice(0, 8)}`);
+
+    const result = await client.sendMessage(session.id, request.prompt, {
       model: request.model,
     });
 
+    // Extract response text and tools used
+    const responseText = client.extractTextResponse(result);
+
+    // Get full tool history from session messages
+    let toolsUsed: string[] = [];
+    try {
+      const messages = await client.getSessionMessages(session.id);
+      toolsUsed = client.extractAllToolsUsed(messages);
+    } catch {
+      toolsUsed = client.extractToolsUsed(result);
+    }
+
     // Convert tools used to ToolCall format
-    const toolCalls: ToolCall[] = result.toolsUsed.map((toolName: string) => ({
+    const toolCalls: ToolCall[] = toolsUsed.map((toolName: string) => ({
       name: toolName,
       arguments: {}, // OpenCode doesn't return arguments in the summary
       result: { success: true }, // Simplified - we don't have the actual result
@@ -355,19 +379,19 @@ async function executeAgentInvocation(
 
     logger.info('OpenCode agent response received', {
       agentId: request.agentId,
-      responseLength: result.response.length,
-      toolsUsed: result.toolsUsed,
-      tokens: result.tokens,
-      cost: result.cost,
+      responseLength: responseText.length,
+      toolsUsed,
+      tokens: result.info.tokens,
+      cost: result.info.cost,
     });
 
     return {
       toolCalls,
       skillActivations,
-      responseText: result.response,
+      responseText,
       tokens: {
-        input: result.tokens.input,
-        output: result.tokens.output,
+        input: result.info.tokens.input,
+        output: result.info.tokens.output,
       },
       latencyMs: Date.now() - startTime,
     };

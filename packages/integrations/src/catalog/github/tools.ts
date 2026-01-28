@@ -5,7 +5,7 @@
  * Uses the GitHub REST API v3.
  */
 
-import { createServiceLogger } from '@orient/core';
+import { createServiceLogger } from '@orientbot/core';
 
 const logger = createServiceLogger('github-tools');
 
