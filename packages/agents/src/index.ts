@@ -103,6 +103,7 @@ export * from './permissions/index.js';
 
 export { MCPClientManager } from './services/mcpClientManager.js';
 export { getAgentRegistry } from './services/agentRegistry.js';
+export { clearConfigCache } from './services/agentContextLoader.js';
 
 // Export OpenCode message processor utilities (model config, session handling, etc.)
 export {
