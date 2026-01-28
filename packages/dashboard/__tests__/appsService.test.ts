@@ -16,6 +16,10 @@ vi.mock('@orientbot/core', () => ({
       failure: vi.fn(),
     }),
   }),
+  getBuiltinAppsPath: vi.fn((projectRoot?: string) =>
+    projectRoot ? `${projectRoot}/apps` : '/test/path/apps'
+  ),
+  getUserAppsPath: vi.fn(() => '/user/apps'),
 }));
 
 // Mock @orientbot/apps
@@ -75,6 +79,7 @@ describe('AppsService', () => {
         status: 'draft',
         isBuilt: false,
         author: 'Test Author',
+        source: 'builtin',
         permissions: {
           calendar: { read: true, write: false },
           slack: { read: true, write: true },
@@ -94,6 +99,7 @@ describe('AppsService', () => {
         version: '1.0.0',
         status: 'draft',
         isBuilt: false,
+        source: 'builtin',
       };
 
       expect(summary.permissions).toBeUndefined();
@@ -107,6 +113,7 @@ describe('AppsService', () => {
         version: '1.0.0',
         status: 'draft',
         isBuilt: false,
+        source: 'builtin',
         capabilities: {
           scheduler: { enabled: true },
           storage: { enabled: true },
@@ -127,6 +134,7 @@ describe('AppsService', () => {
         version: '1.0.0',
         status: 'draft',
         isBuilt: false,
+        source: 'builtin',
       };
 
       expect(summary.capabilities).toBeUndefined();

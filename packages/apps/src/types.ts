@@ -129,6 +129,7 @@ export const AppManifestSchema = z.object({
     .regex(/^[a-z0-9-]+$/, 'App name must be lowercase with hyphens only')
     .min(3)
     .max(50),
+  format: z.enum(['react', 'declarative']).default('react'),
   version: z
     .string()
     .regex(/^\d+\.\d+\.\d+$/, 'Version must be semver format')
@@ -162,6 +163,7 @@ export interface App {
   isBuilt: boolean;
   shareToken?: string;
   status: AppStatus;
+  source: 'builtin' | 'user';
   createdAt?: Date;
   updatedAt?: Date;
   publishedAt?: Date;
@@ -175,6 +177,7 @@ export interface AppSummary {
   status: AppStatus;
   isBuilt: boolean;
   author?: string;
+  source: 'builtin' | 'user';
 }
 
 // ============================================

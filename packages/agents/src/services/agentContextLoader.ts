@@ -9,7 +9,7 @@
 
 import { getAgentRegistry, AgentContext } from './agentRegistry.js';
 import { getContextService, Platform } from './contextService.js';
-import { createServiceLogger } from '@orientbot/core';
+import { createServiceLogger, getBuiltinSkillsPath, getUserSkillsPath } from '@orientbot/core';
 import fs from 'fs/promises';
 import path from 'path';
 
@@ -120,63 +120,73 @@ export async function loadAgentConfig(
 async function loadSkillContent(skillNames: string[]): Promise<Map<string, string>> {
   const content = new Map<string, string>();
 
-  const skillsDir = path.join(process.cwd(), '.claude', 'skills');
+  const builtinDir = getBuiltinSkillsPath();
+  const userDir = getUserSkillsPath();
+  const skillPathByName = new Map<string, string>();
 
-  const skillFiles: string[] = [];
+  const collectSkillPaths = async (currentDir: string): Promise<void> => {
+    let entries: fs.Dirent[];
+    try {
+      entries = await fs.readdir(currentDir, { withFileTypes: true });
+    } catch {
+      return;
+    }
 
-  const collectSkillFiles = async (currentDir: string): Promise<void> => {
-    const entries = await fs.readdir(currentDir, { withFileTypes: true });
     const hasSkillFile = entries.some(
       (entry) => entry.isFile() && entry.name.toLowerCase() === 'skill.md'
     );
 
     if (hasSkillFile) {
-      skillFiles.push(path.join(currentDir, 'SKILL.md'));
+      const skillFile = path.join(currentDir, 'SKILL.md');
+      try {
+        const skillText = await fs.readFile(skillFile, 'utf-8');
+        const frontmatterMatch = skillText.match(/^---\s*\n([\s\S]*?)\n---\s*\n/);
+        const frontmatter = frontmatterMatch?.[1] ?? '';
+        const nameMatch = frontmatter.match(/^name:\s*(.+)$/m);
+        const skillName = nameMatch?.[1]?.trim() || path.basename(path.dirname(skillFile));
+        skillPathByName.set(skillName, skillFile);
+      } catch {
+        // Skip unreadable skill files
+      }
       return;
     }
 
     for (const entry of entries) {
       if (!entry.isDirectory()) continue;
-      await collectSkillFiles(path.join(currentDir, entry.name));
+      await collectSkillPaths(path.join(currentDir, entry.name));
     }
   };
 
-  try {
-    await collectSkillFiles(skillsDir);
-  } catch {
-    // If skills directory is missing, return empty map
-    return content;
-  }
-
-  const skillPathByName = new Map<string, string>();
-
-  for (const skillFile of skillFiles) {
-    try {
-      const skillText = await fs.readFile(skillFile, 'utf-8');
-      const frontmatterMatch = skillText.match(/^---\s*\n([\s\S]*?)\n---\s*\n/);
-      const frontmatter = frontmatterMatch?.[1] ?? '';
-      const nameMatch = frontmatter.match(/^name:\s*(.+)$/m);
-      const skillName = nameMatch?.[1]?.trim() || path.basename(path.dirname(skillFile));
-      skillPathByName.set(skillName, skillFile);
-    } catch {
-      // Skip unreadable skill files
-    }
-  }
+  await collectSkillPaths(builtinDir);
+  await collectSkillPaths(userDir);
 
   for (const skillName of skillNames) {
-    try {
-      const skillPath =
-        skillPathByName.get(skillName) || path.join(skillsDir, skillName, 'SKILL.md');
-      const skillText = await fs.readFile(skillPath, 'utf-8');
+    const candidates = [
+      skillPathByName.get(skillName),
+      path.join(userDir, skillName, 'SKILL.md'),
+      path.join(builtinDir, skillName, 'SKILL.md'),
+    ].filter((candidate): candidate is string => !!candidate);
 
-      // Extract just the body (remove YAML frontmatter)
-      const bodyMatch = skillText.match(/^---[\s\S]*?---\s*([\s\S]*)$/);
-      const body = bodyMatch ? bodyMatch[1].trim() : skillText;
+    let loaded = false;
+    for (const skillPath of candidates) {
+      try {
+        const skillText = await fs.readFile(skillPath, 'utf-8');
 
-      content.set(skillName, body);
-    } catch (error) {
-      // Skill file not found - skip silently
-      logger.debug('Could not load skill content', { skillName, error: String(error) });
+        // Extract just the body (remove YAML frontmatter)
+        const bodyMatch = skillText.match(/^---[\s\S]*?---\s*([\s\S]*)$/);
+        const body = bodyMatch ? bodyMatch[1].trim() : skillText;
+
+        content.set(skillName, body);
+        loaded = true;
+        break;
+      } catch (error) {
+        // Try next candidate
+        logger.debug('Could not load skill content', { skillName, error: String(error) });
+      }
+    }
+
+    if (!loaded) {
+      logger.debug('Skill not found in merged directories', { skillName });
     }
   }
 

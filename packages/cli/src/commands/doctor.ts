@@ -8,10 +8,10 @@ import { Command } from 'commander';
 import { execSync } from 'child_process';
 import { existsSync, readFileSync, statSync } from 'fs';
 import { join } from 'path';
-import { homedir } from 'os';
+import { getOrientHome } from '@orientbot/core';
 import * as net from 'net';
 
-const ORIENT_HOME = process.env.ORIENT_HOME || join(homedir(), '.orient');
+const ORIENT_HOME = getOrientHome();
 
 // Colors
 const GREEN = '\x1b[32m';

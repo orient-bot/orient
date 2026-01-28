@@ -1330,6 +1330,36 @@ function registerSkillTools(registry: ToolRegistry): void {
     ],
   });
 
+  // skills_save
+  registry.registerTool({
+    tool: {
+      name: 'skills_save',
+      description:
+        'Save or update a skill directly in the user skills directory (~/.orient/skills). Writes SKILL.md and reloads skills.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          name: {
+            type: 'string',
+            description: 'The skill name in lowercase with hyphens (e.g., "billing-api")',
+          },
+          description: {
+            type: 'string',
+            description: 'Short description of what the skill does and when to use it.',
+          },
+          content: {
+            type: 'string',
+            description: 'The full skill body content in Markdown (no frontmatter).',
+          },
+        },
+        required: ['name', 'description', 'content'],
+      },
+    },
+    category: 'system',
+    keywords: ['skill', 'save', 'write', 'update', 'user', 'local'],
+    useCases: ['Save a skill to the user directory', 'Update a user skill'],
+  });
+
   // skills_create_async
   registry.registerTool({
     tool: {
@@ -1539,6 +1569,32 @@ function registerAppsTools(registry: ToolRegistry): void {
       { description: 'List all apps', input: {} },
       { description: 'List only published apps', input: { status: 'published' } },
     ],
+  });
+
+  // apps_save
+  registry.registerTool({
+    tool: {
+      name: 'apps_save',
+      description:
+        'Save or update a Mini-App manifest directly in the user apps directory (~/.orient/apps). Writes APP.yaml and reloads apps.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          name: {
+            type: 'string',
+            description: 'The app name (lowercase with hyphens).',
+          },
+          content: {
+            type: 'string',
+            description: 'The full APP.yaml content.',
+          },
+        },
+        required: ['name', 'content'],
+      },
+    },
+    category: 'apps',
+    keywords: ['app', 'save', 'write', 'update', 'manifest', 'user'],
+    useCases: ['Save an app manifest to the user directory', 'Update a user app manifest'],
   });
 
   // apps_get

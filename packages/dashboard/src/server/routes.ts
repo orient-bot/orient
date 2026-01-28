@@ -679,7 +679,7 @@ export function createDashboardRouter(services: DashboardServices): Router {
       const skills = skillsList.map((skill) => ({
         name: skill.name,
         description: skill.description,
-        location: 'project' as const,
+        location: skill.source,
       }));
 
       res.json({
