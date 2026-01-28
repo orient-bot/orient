@@ -83,9 +83,8 @@ If found in discovery but not in executor, the tool needs migration.
 assistant-server.ts
     └── base-server.ts
         └── executeToolCallFromRegistry()
-            └── ToolExecutorRegistry.execute()
-                ↓ (if not found)
-            └── Returns "Unknown tool" error
+            ├── ToolExecutorRegistry.execute()  ← checks here first
+            └── Returns "Unknown tool" error    ← if not found
 ```
 
 **CRITICAL**: `base-server.ts` does NOT automatically have access to the legacy `mcp-server.ts` switch statement. Tools MUST be in `ToolExecutorRegistry` to work with assistant-server.

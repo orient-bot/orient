@@ -5,8 +5,8 @@
  * built-in tools like discover_tools.
  */
 
-import { getToolExecutorRegistry } from '@orientbot/agents';
 import {
+  getToolExecutorRegistry,
   ToolDiscoveryService,
   formatDiscoveryResult,
   type DiscoveryInput,
