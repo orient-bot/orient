@@ -364,17 +364,8 @@ export class OpenCodeClient {
         await this.autoCompact(contextKey, session.id);
       }
 
-      // Fetch session history to get all tool calls (they're not in the immediate response)
-      let toolsUsed: string[] = [];
-      try {
-        const messages = await this.getSessionMessages(session.id);
-        toolsUsed = this.extractAllToolsUsed(messages);
-      } catch (historyError) {
-        logger.warn('Failed to fetch session history for tool calls', {
-          sessionId: session.id,
-          error: historyError instanceof Error ? historyError.message : String(historyError),
-        });
-      }
+      // Extract tools used from the current reply only (not full session history)
+      const toolsUsed = this.extractToolsUsed(result);
 
       return {
         response: this.extractTextResponse(result),

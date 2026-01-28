@@ -86,7 +86,7 @@ export const SLACK_DEFAULT_MODEL =
 export const SLACK_DEFAULT_MODEL_NAME = 'Claude Haiku 4.5';
 
 /** Default agent for all bot integrations */
-export const DEFAULT_AGENT = 'pm-assistant';
+export const DEFAULT_AGENT = 'ori';
 
 // ============================================
 // VISION MODEL CONFIGURATION
