@@ -83,9 +83,7 @@ If found in discovery but not in executor, the tool needs migration.
 assistant-server.ts
     └── base-server.ts
         └── executeToolCallFromRegistry()
-            └── ToolExecutorRegistry.execute()  ← ONLY checks here
-                ↓ (if not found)
-            └── legacyExecutor  ← ONLY if setLegacyExecutor() was called
+            └── ToolExecutorRegistry.execute()
                 ↓ (if not found)
             └── Returns "Unknown tool" error
 ```

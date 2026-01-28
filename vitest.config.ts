@@ -88,9 +88,6 @@ export default defineConfig({
       ),
       '@orientbot/integrations': path.resolve(__dirname, 'packages/integrations/src/index.ts'),
       '@orientbot/dashboard': path.resolve(__dirname, 'packages/dashboard/src/index.ts'),
-      // Subpath aliases must come BEFORE the base package alias
-      '@orientbot/mcp-servers/oauth': path.resolve(__dirname, 'packages/mcp-servers/src/oauth.ts'),
-      '@orientbot/mcp-servers': path.resolve(__dirname, 'packages/mcp-servers/src/index.ts'),
       '@orientbot/test-utils': path.resolve(__dirname, 'packages/test-utils/src/index.ts'),
     },
   },
