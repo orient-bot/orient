@@ -60,5 +60,5 @@ Policy engine tests live in `packages/agents/__tests__/policyEngine.test.ts`.
 Run:
 
 ```
-pnpm --filter @orient/agents test
+pnpm --filter @orientbot/agents test
 ```

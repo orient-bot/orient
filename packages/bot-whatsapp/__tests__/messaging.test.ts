@@ -5,7 +5,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // Mock core
-vi.mock('@orient/core', () => ({
+vi.mock('@orientbot/core', () => ({
   createServiceLogger: () => ({
     info: vi.fn(),
     error: vi.fn(),
@@ -54,11 +54,7 @@ describe('WhatsAppMessaging', () => {
 
       const result = await messaging.sendText(jid, text);
 
-      expect(mockSocket.sendMessage).toHaveBeenCalledWith(
-        jid,
-        { text },
-        { quoted: undefined }
-      );
+      expect(mockSocket.sendMessage).toHaveBeenCalledWith(jid, { text }, { quoted: undefined });
       expect(result.key.id).toBe('msg-123');
     });
   });
@@ -83,16 +79,13 @@ describe('WhatsAppMessaging', () => {
 
       const result = await messaging.sendPoll(jid, question, options);
 
-      expect(mockSocket.sendMessage).toHaveBeenCalledWith(
-        jid,
-        {
-          poll: {
-            name: question,
-            values: options,
-            selectableCount: 1,
-          },
-        }
-      );
+      expect(mockSocket.sendMessage).toHaveBeenCalledWith(jid, {
+        poll: {
+          name: question,
+          values: options,
+          selectableCount: 1,
+        },
+      });
       expect(result.key.id).toBe('msg-123');
     });
   });
@@ -104,20 +97,17 @@ describe('WhatsAppMessaging', () => {
 
       await messaging.react(jid, messageId, '👍');
 
-      expect(mockSocket.sendMessage).toHaveBeenCalledWith(
-        jid,
-        {
-          react: {
-            text: '👍',
-            key: {
-              remoteJid: jid,
-              id: messageId,
-              fromMe: false,
-              participant: undefined,
-            },
+      expect(mockSocket.sendMessage).toHaveBeenCalledWith(jid, {
+        react: {
+          text: '👍',
+          key: {
+            remoteJid: jid,
+            id: messageId,
+            fromMe: false,
+            participant: undefined,
           },
-        }
-      );
+        },
+      });
     });
   });
 
@@ -211,9 +201,9 @@ describe('WhatsAppMessaging', () => {
     it('should throw error when sending without socket', async () => {
       const noSocketMessaging = new WhatsAppMessaging();
 
-      await expect(
-        noSocketMessaging.sendText('1234567890@s.whatsapp.net', 'test')
-      ).rejects.toThrow('WhatsApp socket not connected');
+      await expect(noSocketMessaging.sendText('1234567890@s.whatsapp.net', 'test')).rejects.toThrow(
+        'WhatsApp socket not connected'
+      );
     });
   });
 
@@ -221,9 +211,9 @@ describe('WhatsAppMessaging', () => {
     it('should deny message when permission checker returns false', async () => {
       messaging.setWritePermissionChecker(async () => false);
 
-      await expect(
-        messaging.sendText('1234567890@s.whatsapp.net', 'test')
-      ).rejects.toThrow('Write permission denied');
+      await expect(messaging.sendText('1234567890@s.whatsapp.net', 'test')).rejects.toThrow(
+        'Write permission denied'
+      );
     });
 
     it('should allow message when permission checker returns true', async () => {

@@ -4,7 +4,7 @@
  * Tests for the integration catalog and OAuth connection routes.
  *
  * NOTE: These tests are currently skipped due to complex mock requirements
- * with the route handler extraction pattern and @orient/database-services
+ * with the route handler extraction pattern and @orientbot/database-services
  * module resolution issues. The functionality is covered by manual testing.
  */
 
@@ -16,7 +16,6 @@ const {
   mockGoogleOAuthService,
   mockGitHubOAuthService,
   mockLinearOAuthService,
-  mockJiraOAuthService,
   mockSecretsService,
 } = vi.hoisted(() => ({
   mockGoogleOAuthService: {
@@ -43,14 +42,6 @@ const {
     }),
     ensureCallbackServerRunning: vi.fn().mockResolvedValue(undefined),
   },
-  mockJiraOAuthService: {
-    getConnectedAccounts: vi.fn().mockReturnValue([]),
-    startOAuthFlow: vi.fn().mockResolvedValue({
-      authUrl: 'https://auth.atlassian.com/authorize?test=1',
-      state: 'test-state',
-    }),
-    ensureCallbackServerRunning: vi.fn().mockResolvedValue(undefined),
-  },
   mockSecretsService: {
     getSecret: vi.fn().mockResolvedValue(null),
     setSecret: vi.fn().mockResolvedValue(undefined),
@@ -59,7 +50,7 @@ const {
 }));
 
 // Mock core
-vi.mock('@orient/core', () => ({
+vi.mock('@orientbot/core', () => ({
   createServiceLogger: () => ({
     info: vi.fn(),
     error: vi.fn(),
@@ -69,12 +60,12 @@ vi.mock('@orient/core', () => ({
 }));
 
 // Mock database-services
-vi.mock('@orient/database-services', () => ({
+vi.mock('@orientbot/database-services', () => ({
   createSecretsService: () => mockSecretsService,
 }));
 
 // Mock manifest loader
-vi.mock('@orient/integrations/catalog/loader', () => ({
+vi.mock('@orientbot/integrations/catalog/loader', () => ({
   loadIntegrationManifests: vi.fn().mockResolvedValue([
     {
       name: 'google',
@@ -102,64 +93,30 @@ vi.mock('@orient/integrations/catalog/loader', () => ({
       ],
       tools: [{ name: 'github.repos.list', description: 'List repos' }],
     },
-    {
-      name: 'jira',
-      title: 'JIRA',
-      description: 'JIRA integration with dual auth',
-      version: '1.0.0',
-      status: 'stable',
-      oauth: { type: 'oauth2' },
-      authMethods: [
-        {
-          type: 'api_token',
-          name: 'API Token',
-          description: 'Use API token',
-          requiredFields: ['JIRA_HOST', 'JIRA_EMAIL', 'JIRA_API_TOKEN'],
-        },
-        {
-          type: 'oauth2',
-          name: 'OAuth 2.0',
-          description: 'Use OAuth',
-          requiredFields: ['JIRA_OAUTH_CLIENT_ID', 'JIRA_OAUTH_CLIENT_SECRET'],
-        },
-      ],
-      requiredSecrets: [
-        { name: 'JIRA_HOST', description: 'Host', authMethod: 'api_token' },
-        { name: 'JIRA_EMAIL', description: 'Email', authMethod: 'api_token' },
-        { name: 'JIRA_API_TOKEN', description: 'Token', authMethod: 'api_token' },
-        { name: 'JIRA_OAUTH_CLIENT_ID', description: 'Client ID', authMethod: 'oauth2' },
-        { name: 'JIRA_OAUTH_CLIENT_SECRET', description: 'Client Secret', authMethod: 'oauth2' },
-      ],
-      tools: [],
-    },
+    {},
   ]),
   loadIntegrationManifest: vi.fn(),
 }));
 
 // Mock Google OAuth module
-vi.mock('@orient/integrations/google', () => ({
+vi.mock('@orientbot/integrations/google', () => ({
   getGoogleOAuthService: () => mockGoogleOAuthService,
   DEFAULT_SCOPES: ['email', 'profile'],
   IS_GOOGLE_OAUTH_PRODUCTION: false,
 }));
 
 // Mock GitHub OAuth module
-vi.mock('@orient/integrations/catalog/github', () => ({
+vi.mock('@orientbot/integrations/catalog/github', () => ({
   getGitHubOAuthService: () => mockGitHubOAuthService,
 }));
 
 // Mock Linear OAuth module
-vi.mock('@orient/integrations/catalog/linear', () => ({
+vi.mock('@orientbot/integrations/catalog/linear', () => ({
   getLinearOAuthService: () => mockLinearOAuthService,
 }));
 
-// Mock JIRA OAuth module
-vi.mock('@orient/integrations/catalog/jira', () => ({
-  getJiraOAuthService: () => mockJiraOAuthService,
-}));
-
 // Mock Atlassian OAuth module
-vi.mock('@orient/mcp-servers/oauth', () => ({
+vi.mock('@orientbot/mcp-servers/oauth', () => ({
   setSuppressBrowserOpen: vi.fn(),
   IS_PRODUCTION_OAUTH: false,
   OAUTH_CALLBACK_URL: 'http://localhost:8766/oauth/atlassian/callback',
@@ -249,7 +206,7 @@ describe.skip('Integrations Routes', () => {
       const names = response.map((i: { manifest: { name: string } }) => i.manifest.name);
       expect(names).toContain('google');
       expect(names).toContain('github');
-      expect(names).toContain('jira');
+      expect(names).not.toContain('jira');
     });
 
     it('should include Atlassian as a legacy entry', async () => {
@@ -442,14 +399,12 @@ describe.skip('Integrations Routes', () => {
 
     it('should save credentials with authMethod parameter', async () => {
       const { req, res } = createMockReqRes();
-      req.params = { name: 'jira' };
+      req.params = { name: 'google' };
       req.body = {
         credentials: {
-          JIRA_HOST: 'https://example.atlassian.net',
-          JIRA_EMAIL: 'test@example.com',
-          JIRA_API_TOKEN: 'test-token',
+          GOOGLE_OAUTH_CLIENT_ID: 'client-id',
+          GOOGLE_OAUTH_CLIENT_SECRET: 'client-secret',
         },
-        authMethod: 'api_token',
       };
 
       const credentialsRoute = router.stack.find(
@@ -461,11 +416,11 @@ describe.skip('Integrations Routes', () => {
         await handler(req, res, () => {});
       }
 
-      expect(mockSecretsService.setSecret).toHaveBeenCalledTimes(3);
+      expect(mockSecretsService.setSecret).toHaveBeenCalledTimes(2);
       expect(res.json).toHaveBeenCalledWith({
         success: true,
         secretsConfigured: true,
-        message: 'Credentials saved for jira',
+        message: 'Credentials saved for google',
       });
     });
   });
@@ -533,57 +488,6 @@ describe.skip('Integrations Routes', () => {
       const response = vi.mocked(res.json).mock.calls[0][0];
 
       expect(response.success).toBe(true);
-    });
-  });
-
-  describe.skip('JIRA dual-auth', () => {
-    it('should check multiple auth methods for secretsConfigured', async () => {
-      // Configure only API token secrets
-      mockSecretsService.getSecret.mockImplementation((key: string) => {
-        if (key === 'JIRA_HOST') return Promise.resolve('https://test.atlassian.net');
-        if (key === 'JIRA_EMAIL') return Promise.resolve('test@example.com');
-        if (key === 'JIRA_API_TOKEN') return Promise.resolve('test-token');
-        return Promise.resolve(null);
-      });
-
-      const { req, res } = createMockReqRes();
-
-      const catalogRoute = router.stack.find((layer) => layer.route?.path === '/catalog');
-      const handler = catalogRoute?.route?.stack[1]?.handle;
-
-      if (handler) {
-        await handler(req, res, () => {});
-      }
-
-      const response = vi.mocked(res.json).mock.calls[0][0];
-      const jira = response.find((i: { manifest: { name: string } }) => i.manifest.name === 'jira');
-
-      // API token method is fully configured, so secretsConfigured should be true
-      expect(jira.secretsConfigured).toBe(true);
-    });
-
-    it('should check OAuth auth method for secretsConfigured', async () => {
-      // Configure only OAuth secrets
-      mockSecretsService.getSecret.mockImplementation((key: string) => {
-        if (key === 'JIRA_OAUTH_CLIENT_ID') return Promise.resolve('test-id');
-        if (key === 'JIRA_OAUTH_CLIENT_SECRET') return Promise.resolve('test-secret');
-        return Promise.resolve(null);
-      });
-
-      const { req, res } = createMockReqRes();
-
-      const catalogRoute = router.stack.find((layer) => layer.route?.path === '/catalog');
-      const handler = catalogRoute?.route?.stack[1]?.handle;
-
-      if (handler) {
-        await handler(req, res, () => {});
-      }
-
-      const response = vi.mocked(res.json).mock.calls[0][0];
-      const jira = response.find((i: { manifest: { name: string } }) => i.manifest.name === 'jira');
-
-      // OAuth method is fully configured, so secretsConfigured should be true
-      expect(jira.secretsConfigured).toBe(true);
     });
   });
 });

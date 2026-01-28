@@ -4,11 +4,11 @@
  * Provides functionality to interact with Google Tasks using OAuth 2.0.
  * Supports listing, creating, updating, and completing tasks and task lists.
  *
- * Exported via @orient/integrations package.
+ * Exported via @orientbot/integrations package.
  */
 
 import { google, tasks_v1 } from 'googleapis';
-import { createServiceLogger } from '@orient/core';
+import { createServiceLogger } from '@orientbot/core';
 import { getGoogleOAuthService } from './oauth.js';
 
 const logger = createServiceLogger('tasks-service');

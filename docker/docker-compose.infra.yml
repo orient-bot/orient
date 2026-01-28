@@ -3,8 +3,10 @@
 # =============================================================================
 # This compose file contains only infrastructure services for local development:
 # - Nginx (reverse proxy to native services via host.docker.internal)
-# - PostgreSQL (database)
 # - MinIO (S3-compatible storage)
+#
+# Database: SQLite (file-based, no Docker container needed)
+# WhatsApp: Integrated into Dashboard (unified server)
 #
 # Usage:
 #   docker compose -f docker/docker-compose.infra.yml up -d
@@ -12,7 +14,7 @@
 # Or via the run script:
 #   ./run.sh dev
 #
-# Native services (OpenCode, WhatsApp bot) run on the host with hot-reload.
+# Native services (Dashboard+WhatsApp, OpenCode) run on the host with hot-reload.
 # =============================================================================
 
 services:
@@ -37,35 +39,6 @@ services:
       timeout: 5s
       retries: 3
       start_period: 5s
-    logging:
-      driver: json-file
-      options:
-        max-size: '5m'
-        max-file: '2'
-
-  # ===========================================================================
-  # PostgreSQL - Database for messages and permissions
-  # ===========================================================================
-  postgres:
-    image: postgres:16-alpine
-    container_name: orienter-postgres-${AI_INSTANCE_ID:-0}
-    restart: unless-stopped
-    environment:
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - POSTGRES_DB=${POSTGRES_DB:-whatsapp_bot_0}
-    volumes:
-      - postgres-data:/var/lib/postgresql/data
-    ports:
-      - '${POSTGRES_PORT:-5432}:5432'
-    networks:
-      - orienter-network
-    healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB:-whatsapp_bot_0}']
-      interval: 5s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
     logging:
       driver: json-file
       options:
@@ -139,7 +112,5 @@ networks:
 # Volumes
 # =============================================================================
 volumes:
-  postgres-data:
-    driver: local
   minio-data:
     driver: local

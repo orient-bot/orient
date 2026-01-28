@@ -166,6 +166,6 @@ export type {
   PromptPlatform,
   SystemPromptRecord,
   SystemPromptWithInfo,
-} from '@orient/database-services';
+} from '@orientbot/database-services';
 
 // PromptServiceConfig and PromptDatabaseInterface are exported from the promptService.ts file

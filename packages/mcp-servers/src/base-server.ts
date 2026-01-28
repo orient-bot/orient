@@ -20,11 +20,11 @@ import {
   generateCorrelationId,
   mcpToolLogger,
   clearCorrelationId,
-} from '@orient/core';
-import { setSecretOverrides } from '@orient/core';
-import { createSecretsService } from '@orient/database-services';
+} from '@orientbot/core';
+import { setSecretOverrides } from '@orientbot/core';
+import { createSecretsService } from '@orientbot/database-services';
 import { McpServerConfig, McpServerType, SERVER_CONFIGS } from './types.js';
-import { filterTools, isToolAvailable } from './tool-filter.js';
+import { filterTools, filterToolsByConnection, isToolAvailable } from './tool-filter.js';
 
 // Import the executeToolCall function from the main server
 // This keeps all tool execution logic in one place
@@ -32,6 +32,44 @@ import { executeToolCallFromRegistry } from './tool-executor.js';
 
 const serverLogger = createServiceLogger('mcp-server');
 const secretsService = createSecretsService();
+const DEFAULT_MAX_CONTENT_CHARS = 200_000;
+
+function getMaxContentChars(): number {
+  const raw = process.env.ORIENT_MCP_MAX_CONTENT_CHARS;
+  if (!raw) return DEFAULT_MAX_CONTENT_CHARS;
+  const parsed = Number.parseInt(raw, 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_MAX_CONTENT_CHARS;
+}
+
+function truncateToolResult(result: {
+  content: Array<{ type: string; text?: string }>;
+  isError?: boolean;
+  truncated?: boolean;
+}): {
+  content: Array<{ type: string; text?: string }>;
+  isError?: boolean;
+  truncated?: boolean;
+} {
+  if (!result?.content?.length) return result;
+
+  const maxChars = getMaxContentChars();
+  let truncated = false;
+
+  const content = result.content.map((item) => {
+    if (item?.type !== 'text' || typeof item.text !== 'string') return item;
+    if (item.text.length <= maxChars) return item;
+
+    truncated = true;
+    const trimmed = item.text.slice(0, maxChars);
+    return {
+      ...item,
+      text: `${trimmed}\n\n[truncated ${item.text.length - maxChars} chars]`,
+    };
+  });
+
+  if (!truncated) return result;
+  return { ...result, content, truncated: true };
+}
 
 /**
  * Creates an MCP server with the specified configuration
@@ -55,17 +93,17 @@ export function createMcpServer(config: McpServerConfig): Server {
     version: config.version,
   });
 
-  // Get filtered tools for this server
-  const availableTools = filterTools(config.tools);
+  const configuredTools = filterTools(config.tools);
 
   serverLogger.info('Tools configured', {
     serverType: config.type,
-    toolCount: availableTools.length,
-    tools: availableTools.map((t) => t.name),
+    toolCount: configuredTools.length,
+    tools: configuredTools.map((t) => t.name),
   });
 
   // Handle list tools request - return only filtered tools
   server.setRequestHandler(ListToolsRequestSchema, async () => {
+    const availableTools = await filterToolsByConnection(config.tools);
     serverLogger.debug('ListTools request received', {
       serverType: config.type,
       toolCount: availableTools.length,
@@ -109,7 +147,7 @@ export function createMcpServer(config: McpServerConfig): Server {
       mcpToolLogger.toolSuccess(name, result, duration);
       clearCorrelationId();
 
-      return result;
+      return truncateToolResult(result);
     } catch (error) {
       const duration = Date.now() - startTime;
 
@@ -172,7 +210,7 @@ export async function startMcpServer(type: McpServerType): Promise<void> {
   serverLogger.info('MCP server running on stdio', {
     type: config.type,
     name: config.name,
-    tools: filterTools(config.tools).map((t) => t.name),
+    tools: (await filterToolsByConnection(config.tools)).map((t) => t.name),
   });
 }
 

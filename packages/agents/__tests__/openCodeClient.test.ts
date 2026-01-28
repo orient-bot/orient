@@ -10,7 +10,7 @@
 import { describe, it, expect, vi } from 'vitest';
 
 // Mock core
-vi.mock('@orient/core', () => ({
+vi.mock('@orientbot/core', () => ({
   createServiceLogger: () => ({
     info: vi.fn(),
     error: vi.fn(),
@@ -324,16 +324,16 @@ describe('createOpenCodeClient factory', () => {
       defaultModel,
     });
 
-    const result = factoryFunction('http://localhost:4099', 'opencode/grok-code');
+    const result = factoryFunction('http://localhost:4099', 'openai/gpt-4o-mini');
     expect(result.baseUrl).toBe('http://localhost:4099');
-    expect(result.defaultModel).toBe('opencode/grok-code');
+    expect(result.defaultModel).toBe('openai/gpt-4o-mini');
   });
 
   it('should have sensible defaults', () => {
     const defaultBaseUrl = 'http://localhost:4099';
-    const defaultModel = 'opencode/grok-code';
+    const defaultModel = 'openai/gpt-4o-mini';
 
     expect(defaultBaseUrl).toBe('http://localhost:4099');
-    expect(defaultModel).toBe('opencode/grok-code');
+    expect(defaultModel).toBe('openai/gpt-4o-mini');
   });
 });

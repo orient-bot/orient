@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
-import { createServiceLogger, invalidateConfigCache, setSecretOverrides } from '@orient/core';
-import { createSecretsService, createMessageDatabase } from '@orient/database-services';
+import { createServiceLogger, invalidateConfigCache, setSecretOverrides } from '@orientbot/core';
+import { createSecretsService, createMessageDatabase } from '@orientbot/database-services';
 
 const logger = createServiceLogger('setup-wizard');
 const secretsService = createSecretsService();
@@ -376,17 +376,14 @@ async function checkAndTriggerSlackOnboarding(
       });
 
       await service.sendOnboardingDM();
-      await db.markOnboardingCompleted('slack', 'system', { dm_sent: true });
+      await db.markOnboardingCompleted('slack');
       logger.info('Slack onboarding DM sent successfully');
     } catch (error) {
       logger.warn('Slack onboarding DM failed, dashboard notification will be shown', {
         error: String(error),
       });
       // Still mark as completed so we don't retry
-      await db.markOnboardingCompleted('slack', 'system', {
-        dm_sent: false,
-        error: String(error),
-      });
+      await db.markOnboardingCompleted('slack');
     }
   } catch (error) {
     logger.error('Failed to check/trigger Slack onboarding', { error: String(error) });

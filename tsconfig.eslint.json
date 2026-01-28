@@ -2,6 +2,7 @@
   "extends": "./tsconfig.json",
   "include": [
     "packages/*/src/**/*",
+    "packages/database/*.config.ts",
     "tests/**/*.ts",
     "tests/**/*.tsx",
     "website/src/**/*.ts",

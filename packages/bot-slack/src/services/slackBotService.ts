@@ -9,7 +9,7 @@
  *
  * Uses Socket Mode for real-time communication without needing a public URL.
  *
- * Exported via @orient/bot-slack package.
+ * Exported via @orientbot/bot-slack package.
  */
 
 import pkg from '@slack/bolt';
@@ -28,9 +28,12 @@ import type {
 } from '@slack/bolt';
 const { App, LogLevel } = pkg;
 import { EventEmitter } from 'events';
-import { createDedicatedServiceLogger } from '@orient/core';
-import { SlackDatabase, SlackChannelType as DbSlackChannelType } from '@orient/database-services';
-import { PromptService } from '@orient/agents';
+import { createDedicatedServiceLogger } from '@orientbot/core';
+import {
+  SlackDatabase,
+  SlackChannelType as DbSlackChannelType,
+} from '@orientbot/database-services';
+import { PromptService } from '@orientbot/agents';
 import { OpenCodeSlackHandler, createOpenCodeSlackHandler } from './openCodeSlackHandler.js';
 import type {
   SlackBotConfig,
@@ -40,7 +43,7 @@ import type {
   SlackChannelPermission,
   OpenCodeSlackConfig,
 } from '../types.js';
-import { createProgressiveResponder } from '@orient/agents';
+import { createProgressiveResponder } from '@orientbot/agents';
 
 // Create a dedicated logger for the Slack bot
 const logger = createDedicatedServiceLogger('slack-bot', {
@@ -1095,15 +1098,39 @@ export class SlackBotService extends EventEmitter {
       let category = 'other';
       let simpleName = tool;
 
-      if (tool.startsWith('ai_first_') || tool.startsWith('jira_')) {
-        category = 'JIRA';
-        simpleName = tool.replace(/^(ai_first_|jira_)/, '').replace(/_/g, ' ');
+      if (tool.startsWith('system_')) {
+        category = 'System';
+        simpleName = tool.replace('system_', '').replace(/_/g, ' ');
+      } else if (tool.startsWith('skills_')) {
+        category = 'Skills';
+        simpleName = tool.replace('skills_', '').replace(/_/g, ' ');
+      } else if (tool.startsWith('apps_')) {
+        category = 'Apps';
+        simpleName = tool.replace('apps_', '').replace(/_/g, ' ');
+      } else if (tool.startsWith('agents_')) {
+        category = 'Agents';
+        simpleName = tool.replace('agents_', '').replace(/_/g, ' ');
+      } else if (tool.startsWith('context_')) {
+        category = 'Context';
+        simpleName = tool.replace('context_', '').replace(/_/g, ' ');
+      } else if (tool.startsWith('media_')) {
+        category = 'Media';
+        simpleName = tool.replace('media_', '').replace(/_/g, ' ');
+      } else if (tool.startsWith('config_')) {
+        category = 'Config';
+        simpleName = tool.replace('config_', '').replace(/_/g, ' ');
       } else if (tool.startsWith('slack_')) {
         category = 'Slack';
         simpleName = tool.replace('slack_', '').replace(/_/g, ' ');
       } else if (tool.startsWith('slides_')) {
         category = 'Slides';
         simpleName = tool.replace('slides_', '').replace(/_/g, ' ');
+      } else if (tool.startsWith('whatsapp_')) {
+        category = 'WhatsApp';
+        simpleName = tool.replace('whatsapp_', '').replace(/_/g, ' ');
+      } else if (tool.startsWith('google_')) {
+        category = 'Google';
+        simpleName = tool.replace('google_', '').replace(/_/g, ' ');
       }
 
       if (!toolCategories[category]) {

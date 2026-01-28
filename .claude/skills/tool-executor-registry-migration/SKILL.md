@@ -149,8 +149,8 @@ export function getToolExecutorRegistry(): ToolExecutorRegistry {
 
 ```bash
 # Build affected packages
-pnpm --filter @orient/agents build
-pnpm --filter @orient/mcp-servers build
+pnpm --filter @orientbot/agents build
+pnpm --filter @orientbot/mcp-servers build
 
 # Copy to root dist (CRITICAL - often forgotten!)
 cp packages/mcp-servers/dist/*.js dist/mcp-servers/
@@ -227,7 +227,7 @@ After migration, verify:
 1. **Build succeeds**:
 
    ```bash
-   pnpm --filter @orient/agents build
+   pnpm --filter @orientbot/agents build
    ```
 
 2. **Handler is registered** (check built file):

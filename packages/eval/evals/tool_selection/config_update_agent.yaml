@@ -1,0 +1,17 @@
+# Tool Selection: Config Update Agent
+# Tests that agent uses config_update_agent to modify agent settings
+
+name: config_update_agent
+description: Agent uses config_update_agent to disable an agent
+type: tool_selection
+agent: default
+
+input:
+  prompt: 'Disable the scheduler agent'
+
+expect:
+  tool_calls:
+    required:
+      - name: config_update_agent
+    forbidden:
+      - config_delete_agent

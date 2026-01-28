@@ -5,8 +5,8 @@
  */
 
 import { Router, Request, Response } from 'express';
-import { createServiceLogger, getConfigVersion } from '@orient/core';
-import { createSkillsService } from '@orient/agents';
+import { createServiceLogger, getConfigVersion } from '@orientbot/core';
+import { createSkillsService } from '@orientbot/agents';
 import type { DashboardServices } from './index.js';
 import { AuthenticatedRequest, createAuthMiddleware } from '../auth.js';
 import { ChatPermission, ChatType } from '../types/index.js';
@@ -95,8 +95,8 @@ export function createDashboardRouter(services: DashboardServices): Router {
 
       const meeting = await db.createDemoMeeting({
         title,
-        description: typeof description === 'string' ? description : null,
-        attendees: typeof attendees === 'string' ? attendees : null,
+        description: typeof description === 'string' ? description : undefined,
+        attendees: typeof attendees === 'string' ? attendees : undefined,
         startTime: parsedDate,
         durationMinutes: duration,
         sendReminder: sendReminder !== false,

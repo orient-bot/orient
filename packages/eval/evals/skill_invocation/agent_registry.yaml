@@ -1,0 +1,18 @@
+# Skill Invocation: Agent Registry
+# Tests that agent discovers agent-registry for agent configuration
+
+name: skill_invocation_agent_registry
+description: Agent discovers agent-registry for agent configuration
+type: skill_invocation
+agent: explorer
+
+input:
+  prompt: 'How do I configure a new agent?'
+
+expect:
+  skills:
+    activated:
+      - agent-registry
+  assertions:
+    - type: skill_activated
+      skill: agent-registry

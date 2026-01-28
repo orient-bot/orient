@@ -4,7 +4,7 @@
  * Provides intelligent tool discovery through category browsing and semantic search.
  * Implements the "Tool Search Tool" pattern from Anthropic's advanced tool use guide.
  *
- * Exported via @orient/mcp-tools package.
+ * Exported via @orientbot/mcp-tools package.
  *
  * @see https://www.anthropic.com/engineering/advanced-tool-use
  */
@@ -17,7 +17,8 @@ import {
   CategoryInfo,
   getToolRegistry,
 } from './toolRegistry.js';
-import { createServiceLogger } from '@orient/core';
+import { createServiceLogger } from '@orientbot/core';
+import { IntegrationConnectionService } from './integrationConnectionService.js';
 
 const logger = createServiceLogger('tool-discovery');
 
@@ -51,6 +52,7 @@ export interface DiscoveryInput {
   query?: string;
   intent?: string;
   limit?: number;
+  includeTools?: boolean;
 }
 
 /**
@@ -70,27 +72,29 @@ const SCORE_WEIGHTS = {
  */
 export class ToolDiscoveryService {
   private registry: ToolRegistry;
+  private connectionService: IntegrationConnectionService;
 
-  constructor(registry?: ToolRegistry) {
+  constructor(registry?: ToolRegistry, connectionService?: IntegrationConnectionService) {
     this.registry = registry || getToolRegistry();
+    this.connectionService = connectionService || new IntegrationConnectionService();
   }
 
   /**
    * Main discovery entry point - handles all discovery modes
    */
-  discover(input: DiscoveryInput): DiscoveryResult {
+  async discover(input: DiscoveryInput): Promise<DiscoveryResult> {
     const op = logger.startOperation('discover', { mode: input.mode });
 
     try {
       switch (input.mode) {
         case 'list_categories':
-          return this.listCategories();
+          return await this.listCategories();
 
         case 'browse':
-          return this.browseCategory(input.category as ToolCategory);
+          return await this.browseCategory(input.category as ToolCategory);
 
         case 'search':
-          return this.search(input.query || input.intent || '', input.limit);
+          return await this.search(input.query || input.intent || '', input.limit);
 
         default:
           throw new Error(`Unknown discovery mode: ${input.mode}`);
@@ -103,23 +107,38 @@ export class ToolDiscoveryService {
   /**
    * List all available categories with descriptions
    */
-  listCategories(): DiscoveryResult {
+  async listCategories(): Promise<DiscoveryResult> {
     const categories = this.registry.getCategories();
+    const availableCategories = (
+      await Promise.all(
+        categories.map(async (category) => ({
+          category,
+          available: await this.connectionService.isCategoryAvailable(category.name),
+        }))
+      )
+    )
+      .filter((entry) => entry.available)
+      .map((entry) => entry.category);
 
-    logger.debug('Listed categories', { count: categories.length });
+    logger.debug('Listed categories', { count: availableCategories.length });
 
     return {
       mode: 'list_categories',
-      categories,
+      categories: availableCategories,
     };
   }
 
   /**
    * Browse tools in a specific category
    */
-  browseCategory(category: ToolCategory): DiscoveryResult {
+  async browseCategory(category: ToolCategory): Promise<DiscoveryResult> {
     if (!category) {
       throw new Error('Category is required for browse mode');
+    }
+
+    const isAvailable = await this.connectionService.isCategoryAvailable(category);
+    if (!isAvailable) {
+      throw new Error(`Category ${category} is not available - integration not connected`);
     }
 
     const tools = this.registry.getToolsByCategory(category);
@@ -146,7 +165,7 @@ export class ToolDiscoveryService {
   /**
    * Search for tools using semantic matching
    */
-  search(query: string, limit: number = 10): DiscoveryResult {
+  async search(query: string, limit: number = 10): Promise<DiscoveryResult> {
     if (!query || query.trim().length === 0) {
       throw new Error('Query is required for search mode');
     }
@@ -159,6 +178,10 @@ export class ToolDiscoveryService {
     const scoredResults: SearchResult[] = [];
 
     for (const metadata of allTools) {
+      const isAvailable = await this.connectionService.isCategoryAvailable(metadata.category);
+      if (!isAvailable) {
+        continue;
+      }
       const { score, matchedOn } = this.scoreMatch(metadata, normalizedQuery, queryTokens);
 
       if (score > 0) {
@@ -328,7 +351,17 @@ Examples:
           },
           category: {
             type: 'string',
-            enum: ['jira', 'messaging', 'whatsapp', 'docs', 'google', 'system'],
+            enum: [
+              'messaging',
+              'whatsapp',
+              'docs',
+              'google',
+              'system',
+              'apps',
+              'agents',
+              'context',
+              'media',
+            ],
             description: 'For browse mode: the category to list tools from',
           },
           query: {
@@ -344,6 +377,11 @@ Examples:
             type: 'number',
             description: 'Maximum number of tools to return in search mode (default: 10)',
           },
+          includeTools: {
+            type: 'boolean',
+            description:
+              'If true, include full tool definitions (schemas) in the response. Defaults to false to reduce context size.',
+          },
         },
         required: ['mode'],
       },
@@ -354,7 +392,12 @@ Examples:
 /**
  * Format discovery results for display to agents
  */
-export function formatDiscoveryResult(result: DiscoveryResult): string {
+export function formatDiscoveryResult(
+  result: DiscoveryResult,
+  options?: { includeTools?: boolean }
+): string {
+  const includeTools = options?.includeTools ?? false;
+
   switch (result.mode) {
     case 'list_categories':
       return JSON.stringify(
@@ -374,7 +417,12 @@ export function formatDiscoveryResult(result: DiscoveryResult): string {
       return JSON.stringify(
         {
           message: `Found ${result.totalMatched} tools in category.`,
-          tools: result.tools,
+          tools: includeTools
+            ? result.tools
+            : result.tools?.map((tool) => ({
+                name: tool.name,
+                description: tool.description,
+              })),
         },
         null,
         2
@@ -391,8 +439,8 @@ export function formatDiscoveryResult(result: DiscoveryResult): string {
             relevance: r.score,
             matchedOn: r.matchedOn,
           })),
-          // Include full tool definitions for immediate use
-          tools: result.tools,
+          // Include full tool definitions only when explicitly requested
+          ...(includeTools ? { tools: result.tools } : {}),
         },
         null,
         2

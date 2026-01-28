@@ -1,0 +1,18 @@
+# Skill Invocation: Tool Discovery
+# Tests that agent discovers tool-discovery for finding tools
+
+name: skill_invocation_tool_discovery
+description: Agent discovers tool-discovery for finding available tools
+type: skill_invocation
+agent: explorer
+
+input:
+  prompt: 'Find a tool to send WhatsApp messages'
+
+expect:
+  skills:
+    activated:
+      - tool-discovery
+  assertions:
+    - type: skill_activated
+      skill: tool-discovery

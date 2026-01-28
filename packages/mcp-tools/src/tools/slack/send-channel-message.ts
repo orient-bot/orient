@@ -20,7 +20,7 @@ interface Output {
 }
 
 export class SlackSendChannelMessageTool extends MCPTool<Input, Output> {
-  name = 'ai_first_slack_send_channel_message';
+  name = 'slack_send_channel_message';
   description = 'Send a message to a Slack channel.';
   category = 'messaging' as const;
   keywords = ['slack', 'channel', 'message', 'send', 'post', 'announce'];

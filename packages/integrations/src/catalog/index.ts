@@ -15,6 +15,3 @@ export * as linear from './linear/index.js';
 
 // Google integration (catalog-based)
 export * as google from './google/index.js';
-
-// JIRA integration (catalog-based, supports API token + OAuth)
-export * as jira from './jira/index.js';

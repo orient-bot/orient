@@ -5,7 +5,7 @@
  * the monolithic MCP server into task-focused servers.
  */
 
-import type { ToolCategory } from '@orient/agents';
+import type { ToolCategory } from '@orientbot/agents';
 
 /**
  * Server types for the multi-server architecture
@@ -67,7 +67,6 @@ export interface McpServerConfig {
    * Only initialize what's needed to reduce startup time
    */
   services: {
-    jira?: boolean;
     slack?: boolean;
     whatsapp?: boolean;
     googleSlides?: boolean;
@@ -85,7 +84,7 @@ export interface McpServerConfig {
 export const SERVER_CONFIGS: Record<McpServerType, McpServerConfig> = {
   /**
    * Coding server: Minimal toolset for Cursor/Claude Code
-   * Focus: Slides (example-presentation-automation), Apps, Agents, basic JIRA
+   * Focus: Slides (example-presentation-automation), Apps, Agents
    */
   coding: {
     type: 'coding',
@@ -94,16 +93,13 @@ export const SERVER_CONFIGS: Record<McpServerType, McpServerConfig> = {
     tools: {
       categories: ['docs', 'apps', 'agents', 'media'],
       includeTools: [
-        // JIRA read-only subset
-        'ai_first_get_issue',
-        'ai_first_health_check',
         // System
-        'ai_first_get_config',
+        'system_health_check',
+        'system_get_config',
       ],
       includeDiscovery: true,
     },
     services: {
-      jira: true, // For health check and get_issue
       googleSlides: true, // For example-presentation-automation skill
       apps: true,
       agents: true,
@@ -118,11 +114,10 @@ export const SERVER_CONFIGS: Record<McpServerType, McpServerConfig> = {
     name: 'assistant-mcp',
     version: '1.0.0',
     tools: {
-      categories: ['jira', 'messaging', 'whatsapp', 'docs', 'google', 'context', 'system'],
+      categories: ['messaging', 'whatsapp', 'docs', 'google', 'context', 'system'],
       includeDiscovery: true,
     },
     services: {
-      jira: true,
       slack: true,
       whatsapp: true,
       googleSlides: true,
@@ -144,7 +139,6 @@ export const SERVER_CONFIGS: Record<McpServerType, McpServerConfig> = {
       includeDiscovery: true,
     },
     services: {
-      jira: true, // For health check
       skills: true,
       agents: true,
     },

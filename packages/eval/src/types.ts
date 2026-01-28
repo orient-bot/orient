@@ -60,6 +60,9 @@ export interface EvalCase {
 
   /** Source file path (added during loading) */
   sourceFile?: string;
+
+  /** Whether the eval is enabled (default: true) */
+  enabled?: boolean;
 }
 
 /**
@@ -450,6 +453,9 @@ export interface EvalServerConfig {
 
   /** Enable debug logging */
   debug?: boolean;
+
+  /** OpenCode server password for authentication */
+  openCodePassword?: string;
 }
 
 /**

@@ -23,7 +23,7 @@ interface Output {
 }
 
 export class SlackLookupUserTool extends MCPTool<Input, Output> {
-  name = 'ai_first_slack_lookup_user_by_email';
+  name = 'slack_lookup_user';
   description =
     'Look up a Slack user by their email address. Returns user ID and profile information.';
   category = 'messaging' as const;

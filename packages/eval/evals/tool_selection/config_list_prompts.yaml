@@ -1,0 +1,18 @@
+# Tool Selection: Config List Prompts
+# Tests that agent uses config_list_prompts to show all custom prompts
+
+name: config_list_prompts
+description: Agent uses config_list_prompts to show all custom prompts
+type: tool_selection
+agent: default
+
+input:
+  prompt: 'Show all custom prompts'
+
+expect:
+  tool_calls:
+    required:
+      - name: config_list_prompts
+    forbidden:
+      - config_set_prompt
+      - config_get_prompt

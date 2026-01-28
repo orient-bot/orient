@@ -1,15 +1,15 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
-// TODO: Re-enable when agent tools are migrated to @orient/mcp-tools
+// TODO: Re-enable when agent tools are migrated to @orientbot/mcp-tools
 // These tools are currently stubs - see packages/mcp-tools/src/tools/agents/index.ts
-// import type { ToolContext } from '@orient/mcp-tools';
-// import { handoffToAgentTool } from '@orient/mcp-tools';
+// import type { ToolContext } from '@orientbot/mcp-tools';
+// import { handoffToAgentTool } from '@orientbot/mcp-tools';
 
 const context = { config: {}, correlationId: 'test' } as any;
 
 let getAgentSpy: ReturnType<typeof vi.fn>;
 
-vi.mock('@orient/agents', () => ({
+vi.mock('@orientbot/agents', () => ({
   getAgentRegistry: () => ({
     getAgent: getAgentSpy,
   }),

@@ -5,8 +5,8 @@
  */
 
 import { Router, Request, Response } from 'express';
-import { createServiceLogger } from '@orient/core';
-import { SlackDatabase } from '../../services/slackDatabase.js';
+import { createServiceLogger } from '@orientbot/core';
+import type { SlackDatabase } from '@orientbot/database-services';
 import { AuthenticatedRequest } from '../../auth.js';
 import { SlackChannelPermission } from '../../types/slack.js';
 

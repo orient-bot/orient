@@ -11,7 +11,7 @@ mocks:
     discover_tools:
       response:
         tools:
-          - name: ai_first_get_blockers
+          - name: jira_get_blockers
             description: Get blocked JIRA issues
           - name: ai_first_get_sprint_issues
             description: Get issues in current sprint

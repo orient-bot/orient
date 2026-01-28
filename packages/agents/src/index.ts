@@ -1,5 +1,5 @@
 /**
- * @orient/agents
+ * @orientbot/agents
  *
  * AI agent services for the Orient.
  *
@@ -15,7 +15,7 @@
  *   AgentContext,
  *   ToolCallingConfig,
  *   ToolCallingResult,
- * } from '@orient/agents';
+ * } from '@orientbot/agents';
  */
 
 // Export all types
@@ -90,6 +90,13 @@ export {
   type DiscoveryResult,
   type SearchResult,
 } from './services/toolDiscovery.js';
+
+export {
+  IntegrationConnectionService,
+  CATEGORY_INTEGRATION_MAP,
+  type IntegrationName,
+  type ToolCategoryIntegration,
+} from './services/integrationConnectionService.js';
 
 // Export permissions system
 export * from './permissions/index.js';

@@ -289,10 +289,10 @@ When `per_session` or `per_category` is used, grants are stored in `approval_gra
 
 ```bash
 # Run permissions tests
-pnpm --filter @orient/agents test permissions
+pnpm --filter @orientbot/agents test permissions
 
 # Test specific adapter
-pnpm --filter @orient/agents test adapters
+pnpm --filter @orientbot/agents test adapters
 ```
 
 ## Troubleshooting

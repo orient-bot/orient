@@ -37,7 +37,7 @@ ESM requires explicit `.js` extensions in import paths, even for TypeScript file
 ```typescript
 // ✅ Correct - explicit .js extension
 import { loadConfig } from './config/index.js';
-import { createLogger } from '@orient/core';
+import { createLogger } from '@orientbot/core';
 
 // ❌ Wrong - missing extension (works in CJS, fails in ESM)
 import { loadConfig } from './config/index';
@@ -48,7 +48,7 @@ import { loadConfig } from './config/index';
 This error occurs when CJS modules are re-exported incorrectly in ESM:
 
 ```
-Error: The requested module '@orient/package' does not provide
+Error: The requested module '@orientbot/package' does not provide
 an export named 'SomeClass'
 ```
 
@@ -74,9 +74,9 @@ Circular dependencies cause runtime failures, especially when ESM and CJS mix.
 ### Pattern: Circular Dependency Chain
 
 ```
-@orient/mcp-tools
-    └── imports @orient/agents (to get PromptService)
-            └── imports @orient/mcp-tools (for tool definitions)
+@orientbot/mcp-tools
+    └── imports @orientbot/agents (to get PromptService)
+            └── imports @orientbot/mcp-tools (for tool definitions)
                 └── CIRCULAR!
 ```
 
@@ -86,10 +86,10 @@ Instead of importing a high-level package that re-exports, import the specific l
 
 ```typescript
 // ❌ Creates circular dependency
-import { PromptService } from '@orient/agents';
+import { PromptService } from '@orientbot/agents';
 
 // ✅ Import the actual implementation package
-import { MessageDatabase } from '@orient/database-services';
+import { MessageDatabase } from '@orientbot/database-services';
 // Use MessageDatabase.setSystemPrompt directly
 ```
 
@@ -117,19 +117,19 @@ Follow this dependency direction to avoid cycles:
 ┌─────────────────────────────────────────────────┐
 │              Allowed Import Direction           │
 │                                                 │
-│  @orient/core                                   │
+│  @orientbot/core                                   │
 │      ↓                                         │
-│  @orient/database                              │
+│  @orientbot/database                              │
 │      ↓                                         │
-│  @orient/database-services                     │
+│  @orientbot/database-services                     │
 │      ↓                                         │
-│  @orient/integrations                          │
+│  @orientbot/integrations                          │
 │      ↓                                         │
-│  @orient/agents                                │
+│  @orientbot/agents                                │
 │      ↓                                         │
-│  @orient/mcp-tools                             │
+│  @orientbot/mcp-tools                             │
 │      ↓                                         │
-│  @orient/bot-whatsapp | @orient/bot-slack      │
+│  @orientbot/bot-whatsapp | @orientbot/bot-slack      │
 └─────────────────────────────────────────────────┘
 ```
 
@@ -187,7 +187,7 @@ Tests may use different module resolution (esbuild/vite transforms). Check:
 ls packages/*/dist/
 
 # Rebuild the package
-pnpm --filter @orient/package-name build
+pnpm --filter @orientbot/package-name build
 
 # Check exports in package.json match dist/ structure
 ```

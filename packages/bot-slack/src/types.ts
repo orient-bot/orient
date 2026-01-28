@@ -5,8 +5,8 @@
  * These types match the interfaces used in the main slackBotService.ts
  */
 
-// Re-export core types from @orient/core
-export type { StandupSummary, DailyDigest, SLABreach } from '@orient/core';
+// Re-export core types from @orientbot/core
+export type { StandupSummary, DailyDigest, SLABreach } from '@orientbot/core';
 
 // ============================================================================
 // Configuration Types

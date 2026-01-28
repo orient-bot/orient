@@ -7,10 +7,10 @@
  * - Access to MCP tools (JIRA, Slack, etc.)
  * - Support for multiple LLM providers
  *
- * Exported via @orient/bot-whatsapp package.
+ * Exported via @orientbot/bot-whatsapp package.
  */
 
-import { createDedicatedServiceLogger } from '@orient/core';
+import { createDedicatedServiceLogger } from '@orientbot/core';
 import {
   DEFAULT_AGENT,
   WHATSAPP_DEFAULT_MODEL,
@@ -36,7 +36,7 @@ import {
   OpenCodeHandlerBase,
   type PromptService,
   createOpenCodeClient,
-} from '@orient/agents';
+} from '@orientbot/agents';
 
 // Use dedicated WhatsApp logger
 const logger = createDedicatedServiceLogger('whatsapp', {

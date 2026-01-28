@@ -209,28 +209,28 @@ describe('MCP Servers E2E Tests', () => {
         const tools = await client.listTools();
         const toolNames = tools.map((t) => t.name);
 
-        expect(toolNames).toContain('ai_first_slides_get_presentation');
-        expect(toolNames).toContain('ai_first_slides_duplicate_template');
-        expect(toolNames).toContain('ai_first_slides_update_text');
-        expect(toolNames).toContain('ai_first_slides_update_slide_text');
+        expect(toolNames).toContain('slides_get_presentation');
+        expect(toolNames).toContain('slides_duplicate_template');
+        expect(toolNames).toContain('slides_update_text');
+        expect(toolNames).toContain('slides_update_slide_text');
       });
 
       it('should include apps tools', async () => {
         const tools = await client.listTools();
         const toolNames = tools.map((t) => t.name);
 
-        expect(toolNames).toContain('ai_first_create_app');
-        expect(toolNames).toContain('ai_first_list_apps');
-        expect(toolNames).toContain('ai_first_get_app');
+        expect(toolNames).toContain('apps_create');
+        expect(toolNames).toContain('apps_list');
+        expect(toolNames).toContain('apps_get');
       });
 
       it('should include agents tools', async () => {
         const tools = await client.listTools();
         const toolNames = tools.map((t) => t.name);
 
-        expect(toolNames).toContain('ai_first_get_agent_context');
-        expect(toolNames).toContain('ai_first_list_agents');
-        expect(toolNames).toContain('ai_first_handoff_to_agent');
+        expect(toolNames).toContain('agents_get_context');
+        expect(toolNames).toContain('agents_list');
+        expect(toolNames).toContain('agents_handoff');
       });
 
       it('should include discover_tools', async () => {
@@ -244,7 +244,7 @@ describe('MCP Servers E2E Tests', () => {
         const tools = await client.listTools();
         const toolNames = tools.map((t) => t.name);
 
-        expect(toolNames).not.toContain('ai_first_slack_send_dm');
+        expect(toolNames).not.toContain('slack_send_dm');
         expect(toolNames).not.toContain('whatsapp_send_message');
       });
     });
@@ -272,24 +272,24 @@ describe('MCP Servers E2E Tests', () => {
         const tools = await client.listTools();
         const toolNames = tools.map((t) => t.name);
 
-        expect(toolNames).toContain('ai_first_health_check');
-        expect(toolNames).toContain('ai_first_get_config');
+        expect(toolNames).toContain('system_health_check');
+        expect(toolNames).toContain('system_get_config');
       });
 
       it('should include skills tools', async () => {
         const tools = await client.listTools();
         const toolNames = tools.map((t) => t.name);
 
-        expect(toolNames).toContain('ai_first_list_skills');
-        expect(toolNames).toContain('ai_first_read_skill');
+        expect(toolNames).toContain('skills_list');
+        expect(toolNames).toContain('skills_read');
       });
 
       it('should include agents tools', async () => {
         const tools = await client.listTools();
         const toolNames = tools.map((t) => t.name);
 
-        expect(toolNames).toContain('ai_first_get_agent_context');
-        expect(toolNames).toContain('ai_first_handoff_to_agent');
+        expect(toolNames).toContain('agents_get_context');
+        expect(toolNames).toContain('agents_handoff');
       });
 
       it('should include discover_tools', async () => {
@@ -303,8 +303,8 @@ describe('MCP Servers E2E Tests', () => {
         const tools = await client.listTools();
         const toolNames = tools.map((t) => t.name);
 
-        expect(toolNames).not.toContain('ai_first_get_all_issues');
-        expect(toolNames).not.toContain('ai_first_get_blockers');
+        expect(toolNames).not.toContain('jira_get_all_issues');
+        expect(toolNames).not.toContain('jira_get_blockers');
       });
     });
 
@@ -326,22 +326,22 @@ describe('MCP Servers E2E Tests', () => {
         expect(tools.length).toBeGreaterThanOrEqual(45);
       });
 
-      it('should include all JIRA tools', async () => {
+      it('should not include JIRA tools', async () => {
         const tools = await client.listTools();
         const toolNames = tools.map((t) => t.name);
 
-        expect(toolNames).toContain('ai_first_get_all_issues');
-        expect(toolNames).toContain('ai_first_get_issue');
-        expect(toolNames).toContain('ai_first_get_blockers');
-        expect(toolNames).toContain('ai_first_jira_create_issue_link');
+        expect(toolNames).not.toContain('jira_get_all_issues');
+        expect(toolNames).not.toContain('jira_get_issue');
+        expect(toolNames).not.toContain('jira_get_blockers');
+        expect(toolNames).not.toContain('jira_create_issue_link');
       });
 
       it('should include messaging tools', async () => {
         const tools = await client.listTools();
         const toolNames = tools.map((t) => t.name);
 
-        expect(toolNames).toContain('ai_first_slack_send_dm');
-        expect(toolNames).toContain('ai_first_slack_send_channel_message');
+        expect(toolNames).toContain('slack_send_dm');
+        expect(toolNames).toContain('slack_send_channel_message');
       });
 
       it('should include WhatsApp tools', async () => {
@@ -398,8 +398,8 @@ describe('MCP Servers E2E Tests', () => {
         expect(text.length).toBeGreaterThan(10);
       });
 
-      it('should execute ai_first_list_apps and return response', async () => {
-        const result = (await client.callTool('ai_first_list_apps', {})) as {
+      it('should execute apps_list and return response', async () => {
+        const result = (await client.callTool('apps_list', {})) as {
           content: Array<{ type: string; text: string }>;
         };
 
@@ -410,7 +410,7 @@ describe('MCP Servers E2E Tests', () => {
       });
 
       it('should reject tools not in coding-mcp', async () => {
-        const result = (await client.callTool('ai_first_slack_send_dm', {
+        const result = (await client.callTool('slack_send_dm', {
           userId: 'test',
           message: 'test',
         })) as { content: Array<{ type: string; text: string }>; isError?: boolean };
@@ -433,8 +433,8 @@ describe('MCP Servers E2E Tests', () => {
         await client.stop();
       });
 
-      it('should execute ai_first_list_skills and return response', async () => {
-        const result = (await client.callTool('ai_first_list_skills', {})) as {
+      it('should execute skills_list and return response', async () => {
+        const result = (await client.callTool('skills_list', {})) as {
           content: Array<{ type: string; text: string }>;
         };
 
@@ -444,8 +444,8 @@ describe('MCP Servers E2E Tests', () => {
         expect(result.content[0].text).toBeDefined();
       });
 
-      it('should execute ai_first_list_agents and return response', async () => {
-        const result = (await client.callTool('ai_first_list_agents', {})) as {
+      it('should execute agents_list and return response', async () => {
+        const result = (await client.callTool('agents_list', {})) as {
           content: Array<{ type: string; text: string }>;
         };
 
@@ -491,15 +491,15 @@ describe('MCP Servers E2E Tests', () => {
 
         // Expected critical tools from legacy
         const criticalTools = [
-          'ai_first_health_check',
-          'ai_first_get_issue',
-          'ai_first_slides_get_presentation',
-          'ai_first_create_app',
-          'ai_first_list_skills',
-          'ai_first_get_agent_context',
+          'system_health_check',
+          'system_get_config',
+          'slides_get_presentation',
+          'apps_create',
+          'skills_list',
+          'agents_get_context',
           'discover_tools',
           'whatsapp_send_message',
-          'ai_first_slack_send_dm',
+          'slack_send_dm',
           'google_calendar_list_events',
         ];
 

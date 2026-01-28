@@ -7,10 +7,10 @@
  */
 
 import { Router, Request, Response as ExpressResponse } from 'express';
-import { createServiceLogger } from '@orient/core';
-import { createSecretsService } from '@orient/database-services';
+import { createServiceLogger, DEFAULT_AGENT } from '@orientbot/core';
+import { createSecretsService } from '@orientbot/database-services';
 import type { AuthenticatedRequest } from '../../auth.js';
-import type { MessageDatabase, OnboarderSessionRecord } from '../../services/messageDatabase.js';
+import type { MessageDatabase } from '@orientbot/database-services';
 
 const logger = createServiceLogger('onboarder-routes');
 const secretsService = createSecretsService();
@@ -51,6 +51,13 @@ function parseActions(content: string): { cleanContent: string; actions: Onboard
 
 type FetchResponse = globalThis.Response;
 
+function getAuthHeaders(): Record<string, string> {
+  const password = process.env.OPENCODE_SERVER_PASSWORD;
+  if (!password) return {};
+  const credentials = Buffer.from(`opencode:${password}`).toString('base64');
+  return { Authorization: `Basic ${credentials}` };
+}
+
 async function opencodeFetch(path: string, options?: RequestInit): Promise<FetchResponse> {
   const baseUrl = getOpenCodeUrl();
   if (!baseUrl) {
@@ -61,6 +68,10 @@ async function opencodeFetch(path: string, options?: RequestInit): Promise<Fetch
   try {
     return await fetch(`${baseUrl}${path}`, {
       ...options,
+      headers: {
+        ...options?.headers,
+        ...getAuthHeaders(),
+      },
       signal: controller.signal,
     });
   } catch (error) {
@@ -394,7 +405,7 @@ export function createOnboarderRoutes(
 
       const contextPrefix = route ? `Context: ${route}\n\n` : '';
       const prompt = `${contextPrefix}${message}`;
-      const agentId = typeof agent === 'string' ? agent : 'onboarder';
+      const agentId = typeof agent === 'string' ? agent : DEFAULT_AGENT;
 
       let sessionId = providedSessionId as string | undefined;
       if (!sessionId) {

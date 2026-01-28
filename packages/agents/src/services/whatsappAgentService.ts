@@ -2,23 +2,16 @@
  * WhatsApp Agent Service - Conversational AI for WhatsApp
  *
  * This service enables natural language conversations via WhatsApp,
- * using Claude to understand requests and execute Jira operations.
+ * using Claude to understand requests and execute operations.
  * Formatting is adapted for WhatsApp's text rendering.
  *
- * Exported via @orient/bot-whatsapp package.
+ * Exported via @orientbot/bot-whatsapp package.
  */
 
 import Anthropic from '@anthropic-ai/sdk';
-import { createDedicatedServiceLogger } from '@orient/core';
-import {
-  JiraIssue,
-  SLABreach,
-  AgentMessage,
-  WhatsAppMediaType,
-  ClarificationQuestion,
-} from '@orient/core';
-import * as jiraService from '@orient/integrations/jira';
-import { MessageDatabase, type StoredMessage } from '@orient/database-services';
+import { createDedicatedServiceLogger } from '@orientbot/core';
+import { AgentMessage, WhatsAppMediaType, ClarificationQuestion } from '@orientbot/core';
+import { MessageDatabase, type StoredMessage } from '@orientbot/database-services';
 import {
   SkillsService,
   PolicyEngine,
@@ -37,7 +30,6 @@ import {
   successResult,
   failureResult,
 } from './toolCallingService.js';
-import { getWhatsAppJiraTools } from '@orient/mcp-tools';
 
 // Use dedicated WhatsApp logger - logs go to logs/whatsapp-debug-*.log and logs/whatsapp-error-*.log
 const logger = createDedicatedServiceLogger('whatsapp', {
@@ -68,9 +60,6 @@ export interface MessageInput {
     mediaType: WhatsAppMediaType;
   };
 }
-
-// JIRA tool definitions are imported from shared definitions
-const JIRA_TOOLS = getWhatsAppJiraTools();
 
 // Additional WhatsApp-specific tool definitions (message history, media, clarification, skills)
 const WHATSAPP_SPECIFIC_TOOLS: Anthropic.Tool[] = [
@@ -302,7 +291,7 @@ const WHATSAPP_SPECIFIC_TOOLS: Anthropic.Tool[] = [
   {
     name: 'list_available_skills',
     description:
-      'List all available skills that provide specialized domain knowledge. Skills contain detailed guidance on specific topics like JIRA management, Slack formatting, workflow management, etc. Use this to discover what specialized knowledge is available.',
+      'List all available skills that provide specialized domain knowledge. Skills contain detailed guidance on specific topics like Slack formatting, workflow management, and presentation updates. Use this to discover what specialized knowledge is available.',
     input_schema: {
       type: 'object' as const,
       properties: {},
@@ -312,7 +301,7 @@ const WHATSAPP_SPECIFIC_TOOLS: Anthropic.Tool[] = [
   {
     name: 'read_skill',
     description:
-      'Read a specific skill to get detailed domain knowledge. Use this when you need specialized guidance on topics like: JIRA issue management, Slack message formatting, weekly workflows, presentation updates, or debugging. The skill content provides step-by-step instructions, best practices, and specific rules to follow.',
+      'Read a specific skill to get detailed domain knowledge. Use this when you need specialized guidance on topics like: Jira issue management, Slack message formatting, weekly workflows, presentation updates, or debugging. The skill content provides step-by-step instructions, best practices, and specific rules to follow.',
     input_schema: {
       type: 'object' as const,
       properties: {
@@ -328,17 +317,12 @@ const WHATSAPP_SPECIFIC_TOOLS: Anthropic.Tool[] = [
 ];
 
 // Combined tool definitions for the WhatsApp agent
-const TOOL_DEFINITIONS: Anthropic.Tool[] = [...JIRA_TOOLS, ...WHATSAPP_SPECIFIC_TOOLS];
+const TOOL_DEFINITIONS: Anthropic.Tool[] = [...WHATSAPP_SPECIFIC_TOOLS];
 
 // Default system prompt for WhatsApp (adapted formatting)
-const DEFAULT_SYSTEM_PROMPT = `You are the Orient Task Force Assistant, a helpful bot that manages and reports on Jira issues for the Orient project team at Genoox. You communicate via WhatsApp.
+const DEFAULT_SYSTEM_PROMPT = `You are the Orient Task Force Assistant, a helpful bot for the Orient project team at Genoox. You communicate via WhatsApp.
 
 Your capabilities:
-- Query Jira issues (all, by status, in progress, blockers, sprint, etc.)
-- Check for SLA breaches and stale tickets
-- Report on weekly progress and velocity
-- Look up specific issue details
-- Provide daily digests and weekly summaries
 - *Analyze images* - You can see and understand images sent to you! Users may send screenshots, diagrams, photos of whiteboards, or any visual content for analysis.
 - *Access WhatsApp message history* - You can read and search past messages from WhatsApp groups! Use search_groups_by_name or get_all_groups_with_names to find groups by name (e.g., "NFTom"), then get_group_messages to retrieve conversations. Great for summarizing discussions, finding past decisions, or catching up on group activity.
 - *Access saved media* - Images and voice messages are saved! Use get_media_messages, get_group_media, or get_voice_messages to find media shared in chats. Voice messages include their transcriptions so you can reference what was said.
@@ -346,20 +330,19 @@ Your capabilities:
   • Use \`ask_clarifying_question\` for open-ended questions where the user should type a response
   • Use \`send_poll_question\` when there are specific options to choose from (2-12 choices) - this is more convenient for mobile users who can just tap!
 - *Access specialized skills* - You have access to domain-specific knowledge through skills! Use \`list_available_skills\` to see what's available, then \`read_skill\` to load detailed guidance on topics like:
-  • JIRA management (issue types, hierarchy rules, required fields, linking)
+  • Jira best practices (issue types, hierarchy rules, required fields, linking)
   • Slack message formatting (mrkdwn syntax differences from Markdown)
   • Workflow management (weekly planning, meeting notes, action items)
-  • Presentation updates (updating Google Slides with JIRA data)
+  • Presentation updates (weekly status slides)
   • MCP debugging (log analysis, troubleshooting)
 - *External MCP Tools* - You may have access to external MCP (Model Context Protocol) servers! These are powerful tools from external services like Atlassian (Jira/Confluence), databases, and more. MCP tools are prefixed with \`mcp_ServerName_\` (e.g., \`mcp_Atlassian-MCP-Server_searchJiraIssuesUsingJql\`). Use these for:
-  • Advanced Jira queries and operations via the Atlassian MCP
+  • Jira queries and operations via the Atlassian MCP
   • Confluence page access and editing
   • Database queries via PostgreSQL MCP
   • Any other connected MCP services
 
 WHEN TO USE EXTERNAL MCP TOOLS:
-- When you need more advanced Jira capabilities than built-in tools provide
-- When asked to search or edit Confluence pages
+- When you need Jira or Confluence data
 - When database queries are needed
 - The MCP tools provide direct access to external services with full API capabilities
 
@@ -893,149 +876,6 @@ export class WhatsAppAgentService {
       let data: unknown;
 
       switch (toolName) {
-        case 'get_all_issues': {
-          const limit = (input.limit as number) || 20; // Lower default for WhatsApp
-          const issues = await jiraService.getAllIssues();
-          data = this.formatIssueList(issues.slice(0, limit), issues.length);
-          break;
-        }
-
-        case 'get_issue_details': {
-          const issueKey = input.issueKey as string;
-          const issue = await jiraService.getIssueByKey(issueKey);
-          if (!issue) {
-            return { success: false, error: `Issue ${issueKey} not found` };
-          }
-          data = this.formatIssueDetails(issue);
-          break;
-        }
-
-        case 'get_in_progress_issues': {
-          const issues = await jiraService.getInProgressIssues();
-          data = this.formatIssueList(issues, issues.length);
-          break;
-        }
-
-        case 'get_board_issues': {
-          const issues = await jiraService.getBoardIssues();
-          data = this.formatIssueList(issues, issues.length);
-          break;
-        }
-
-        case 'get_blocker_issues': {
-          const issues = await jiraService.getBlockerIssues();
-          data = this.formatIssueList(issues, issues.length);
-          break;
-        }
-
-        case 'check_sla_breaches': {
-          const breaches = await jiraService.checkSLABreaches();
-          data = this.formatSLABreaches(breaches);
-          break;
-        }
-
-        case 'get_sprint_issues': {
-          const issues = await jiraService.getActiveSprintIssues();
-          data = this.formatSprintSummary(issues);
-          break;
-        }
-
-        case 'get_completed_this_week': {
-          const issues = await jiraService.getCompletedThisWeek();
-          data = this.formatCompletedSummary(issues);
-          break;
-        }
-
-        case 'get_created_this_week': {
-          const issues = await jiraService.getCreatedThisWeek();
-          data = this.formatIssueList(issues, issues.length);
-          break;
-        }
-
-        case 'get_weekly_summary': {
-          const [completed, created, breaches, sprintIssues, inProgress, blockers] =
-            await Promise.all([
-              jiraService.getCompletedThisWeek(),
-              jiraService.getCreatedThisWeek(),
-              jiraService.checkSLABreaches(),
-              jiraService.getActiveSprintIssues(),
-              jiraService.getInProgressIssues(),
-              jiraService.getBlockerIssues(),
-            ]);
-
-          data = {
-            weekEnding: new Date().toISOString().split('T')[0],
-            completed: {
-              count: completed.length,
-              points: completed.reduce((sum, i) => sum + (i.storyPoints || 0), 0),
-              issues: completed.slice(0, 5).map((i) => ({
-                key: i.key,
-                summary: i.summary,
-                assignee: i.assignee?.displayName || 'Unassigned',
-              })),
-            },
-            inProgress: {
-              count: inProgress.length,
-              issues: inProgress.map((i) => ({
-                key: i.key,
-                summary: i.summary,
-                assignee: i.assignee?.displayName || 'Unassigned',
-              })),
-            },
-            blockers: {
-              count: blockers.length,
-              issues: blockers.map((b) => ({
-                key: b.key,
-                summary: b.summary,
-              })),
-            },
-            slaBreaches: {
-              count: breaches.length,
-              issues: breaches.slice(0, 3).map((b) => ({
-                key: b.issue.key,
-                status: b.status,
-                daysOverdue: b.daysInStatus - b.maxAllowedDays,
-              })),
-            },
-            created: {
-              count: created.length,
-            },
-            sprint: {
-              count: sprintIssues.length,
-              points: sprintIssues.reduce((sum, i) => sum + (i.storyPoints || 0), 0),
-            },
-          };
-          break;
-        }
-
-        case 'get_daily_digest': {
-          const [inProgress, blockers] = await Promise.all([
-            jiraService.getInProgressIssues(),
-            jiraService.getBlockerIssues(),
-          ]);
-
-          data = {
-            date: new Date().toISOString().split('T')[0],
-            inProgress: {
-              count: inProgress.length,
-              issues: inProgress.map((i) => ({
-                key: i.key,
-                summary: i.summary,
-                assignee: i.assignee?.displayName || 'Unassigned',
-              })),
-            },
-            blockers: {
-              count: blockers.length,
-              issues: blockers.map((b) => ({
-                key: b.key,
-                summary: b.summary,
-                assignee: b.assignee?.displayName || 'Unassigned',
-              })),
-            },
-          };
-          break;
-        }
-
         // WhatsApp Message History Tools
         case 'list_whatsapp_groups': {
           if (!this.messageDb) {
@@ -1568,111 +1408,6 @@ export class WhatsAppAgentService {
       op.failure(error instanceof Error ? error : new Error(errorMessage));
       return { success: false, error: errorMessage };
     }
-  }
-
-  /**
-   * Format issue list for the LLM
-   */
-  private formatIssueList(issues: JiraIssue[], total: number): object {
-    return {
-      total,
-      returned: issues.length,
-      issues: issues.map((i) => ({
-        key: i.key,
-        summary: i.summary,
-        status: i.status,
-        statusCategory: i.statusCategory,
-        assignee: i.assignee?.displayName || 'Unassigned',
-        priority: i.priority,
-        storyPoints: i.storyPoints,
-      })),
-    };
-  }
-
-  /**
-   * Format single issue details
-   */
-  private formatIssueDetails(issue: JiraIssue): object {
-    return {
-      key: issue.key,
-      summary: issue.summary,
-      description: issue.description?.substring(0, 500) || 'No description', // Truncate for WhatsApp
-      status: issue.status,
-      statusCategory: issue.statusCategory,
-      assignee: issue.assignee?.displayName || 'Unassigned',
-      reporter: issue.reporter?.displayName || 'Unknown',
-      priority: issue.priority,
-      storyPoints: issue.storyPoints,
-      labels: issue.labels,
-      created: issue.created,
-      updated: issue.updated,
-    };
-  }
-
-  /**
-   * Format SLA breaches
-   */
-  private formatSLABreaches(breaches: SLABreach[]): object {
-    return {
-      total: breaches.length,
-      breaches: breaches.map((b) => ({
-        key: b.issue.key,
-        summary: b.issue.summary,
-        status: b.status,
-        daysInStatus: b.daysInStatus,
-        maxAllowedDays: b.maxAllowedDays,
-        overdueDays: b.daysInStatus - b.maxAllowedDays,
-        assignee: b.issue.assignee?.displayName || 'Unassigned',
-      })),
-    };
-  }
-
-  /**
-   * Format sprint summary
-   */
-  private formatSprintSummary(issues: JiraIssue[]): object {
-    const byStatus = {
-      todo: issues.filter((i) => i.statusCategory === 'To Do'),
-      inProgress: issues.filter((i) => i.statusCategory === 'In Progress'),
-      done: issues.filter((i) => i.statusCategory === 'Done'),
-    };
-
-    return {
-      total: issues.length,
-      totalPoints: issues.reduce((sum, i) => sum + (i.storyPoints || 0), 0),
-      completedPoints: byStatus.done.reduce((sum, i) => sum + (i.storyPoints || 0), 0),
-      summary: {
-        todoCount: byStatus.todo.length,
-        inProgressCount: byStatus.inProgress.length,
-        doneCount: byStatus.done.length,
-      },
-      issues: issues.slice(0, 15).map((i) => ({
-        key: i.key,
-        summary: i.summary,
-        status: i.status,
-        statusCategory: i.statusCategory,
-        assignee: i.assignee?.displayName || 'Unassigned',
-        storyPoints: i.storyPoints,
-      })),
-    };
-  }
-
-  /**
-   * Format completed issues summary
-   */
-  private formatCompletedSummary(issues: JiraIssue[]): object {
-    const velocityPoints = issues.reduce((sum, i) => sum + (i.storyPoints || 0), 0);
-
-    return {
-      count: issues.length,
-      velocityPoints,
-      issues: issues.slice(0, 10).map((i) => ({
-        key: i.key,
-        summary: i.summary,
-        assignee: i.assignee?.displayName || 'Unassigned',
-        storyPoints: i.storyPoints,
-      })),
-    };
   }
 
   /**

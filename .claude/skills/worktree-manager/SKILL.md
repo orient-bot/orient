@@ -50,7 +50,7 @@ Then run:
    - `.env`
    - `.claude/settings.local.json`
 5. Starts `pnpm install` in background
-6. If `--isolated`: Creates dedicated database and seeds it with test data
+6. If `--isolated`: Creates dedicated SQLite database and seeds it with test data
 7. Returns the worktree path immediately
 
 ### When to Use --isolated
@@ -139,9 +139,9 @@ tail -f <worktree-path>/.pnpm-install.log
 
 When using `--isolated`, the script automatically:
 
-1. Creates a new PostgreSQL database: `worktree_<timestamp>`
-2. Updates the worktree's `.env` with the new DATABASE_URL
-3. Runs all migrations from `data/migrations/`
+1. Creates a new SQLite database: `worktree_<timestamp>.db`
+2. Updates the worktree's `.env` with the new SQLITE_DB_PATH
+3. Pushes schema using Drizzle
 4. Seeds the database with test data
 
 Database seeding starts after pnpm install completes. Check progress:
@@ -212,7 +212,8 @@ Values with special characters MUST be quoted:
 
 ```bash
 # Correct - quoted values
-DATABASE_URL="postgresql://user:pass@localhost:5432/db"
+DATABASE_TYPE=sqlite
+SQLITE_DB_PATH=".dev-data/instance-0/orient.db"
 STANDUP_CRON="30 9 * * 1-5"
 STANDUP_CHANNEL="#orienter-standups"
 
@@ -223,10 +224,11 @@ STANDUP_CHANNEL=#orienter-standups  # Shell treats # as comment
 
 ### Required Variables
 
-For database seeding to work, ensure `DATABASE_URL` is set:
+For database operations, ensure these are set:
 
 ```bash
-DATABASE_URL="postgresql://aibot:aibot123@localhost:5432/whatsapp_bot"
+DATABASE_TYPE=sqlite
+SQLITE_DB_PATH=".dev-data/instance-0/orient.db"
 ```
 
 ## Troubleshooting
@@ -265,9 +267,9 @@ cat <worktree-path>/.db-seed.log
 
 Common issues:
 
-- PostgreSQL not running: `docker compose -f docker/docker-compose.infra.yml up -d postgres`
-- Invalid DATABASE_URL: Check quotes and format
-- Missing tables: Run `npm run db:migrate` first
+- Database directory not created: `mkdir -p .dev-data/instance-N`
+- Invalid SQLITE_DB_PATH: Check quotes and format
+- Missing schema: Run `pnpm --filter @orientbot/database run db:push:sqlite` first
 
 ### Worktree creation failed
 

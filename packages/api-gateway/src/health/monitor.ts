@@ -4,7 +4,7 @@
  * Monitors the health of various system components.
  */
 
-import { createServiceLogger } from '@orient/core';
+import { createServiceLogger } from '@orientbot/core';
 import type { HealthCheckResult, SystemHealth } from '../types.js';
 
 const logger = createServiceLogger('health-monitor');

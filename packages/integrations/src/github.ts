@@ -5,7 +5,7 @@
  * and managing skill-related branches.
  */
 
-import { createServiceLogger } from '@orient/core';
+import { createServiceLogger } from '@orientbot/core';
 
 const logger = createServiceLogger('github-service');
 

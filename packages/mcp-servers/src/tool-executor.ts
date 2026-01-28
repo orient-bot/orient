@@ -5,9 +5,13 @@
  * built-in tools like discover_tools.
  */
 
-import { getToolExecutorRegistry } from '@orient/agents';
-import { ToolDiscoveryService, formatDiscoveryResult, type DiscoveryInput } from '@orient/agents';
-import { createServiceLogger } from '@orient/core';
+import { getToolExecutorRegistry } from '@orientbot/agents';
+import {
+  ToolDiscoveryService,
+  formatDiscoveryResult,
+  type DiscoveryInput,
+} from '@orientbot/agents';
+import { createServiceLogger } from '@orientbot/core';
 
 const logger = createServiceLogger('tool-executor');
 const discoveryLogger = createServiceLogger('tool-discovery');
@@ -46,7 +50,7 @@ export async function executeToolCallFromRegistry(
 
   // Handle built-in tools
   if (name === 'discover_tools') {
-    return handleDiscoverTools(args);
+    return await handleDiscoverTools(args);
   }
 
   // Tool not found in any executor
@@ -60,16 +64,18 @@ export async function executeToolCallFromRegistry(
 /**
  * Handles discover_tools requests
  */
-function handleDiscoverTools(args: Record<string, unknown>): {
+async function handleDiscoverTools(args: Record<string, unknown>): Promise<{
   content: Array<{ type: string; text: string }>;
-} {
+}> {
   const op = discoveryLogger.startOperation('discover', args);
 
   try {
     const toolDiscoveryService = new ToolDiscoveryService();
     const input = args as unknown as DiscoveryInput;
-    const result = toolDiscoveryService.discover(input);
-    const formattedResult = formatDiscoveryResult(result);
+    const result = await toolDiscoveryService.discover(input);
+    const formattedResult = formatDiscoveryResult(result, {
+      includeTools: Boolean(input.includeTools),
+    });
 
     op.success('Discovery completed', {
       mode: input.mode,

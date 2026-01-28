@@ -5,20 +5,12 @@
  */
 
 import type { Tool } from '@modelcontextprotocol/sdk/types.js';
-import type { Version3Client } from 'jira.js';
-import type { AppConfig } from '@orient/core';
+import type { AppConfig } from '@orientbot/core';
 
 /**
  * Tool categories for organizing tools by domain
  */
-export type ToolCategory =
-  | 'jira'
-  | 'messaging'
-  | 'whatsapp'
-  | 'docs'
-  | 'google'
-  | 'system'
-  | 'media';
+export type ToolCategory = 'messaging' | 'whatsapp' | 'docs' | 'google' | 'system' | 'media';
 
 /**
  * Slack service interface for tools
@@ -32,6 +24,11 @@ export interface SlackServiceInterface {
   getUserInfo: (
     userId: string
   ) => Promise<{ id: string; name: string; displayName?: string } | null>;
+  uploadAndShareImage: (
+    channel: string,
+    imageSource: string,
+    options?: { filename?: string; caption?: string }
+  ) => Promise<{ ts: string; channel: string }>;
 }
 
 /**
@@ -40,6 +37,11 @@ export interface SlackServiceInterface {
 export interface WhatsAppServiceInterface {
   sendText: (jid: string, text: string) => Promise<{ key: { id: string } }>;
   sendPoll: (jid: string, question: string, options: string[]) => Promise<{ key: { id: string } }>;
+  sendImage: (
+    jid: string,
+    image: Buffer | string,
+    options?: { caption?: string }
+  ) => Promise<{ key: { id: string } } | null>;
 }
 
 /**
@@ -60,9 +62,6 @@ export interface ToolContext {
 
   /** Correlation ID for request tracing */
   correlationId: string;
-
-  /** JIRA client (optional - may not be initialized) */
-  jiraClient?: Version3Client;
 
   /** Slack client (optional - may not be initialized) */
   slackClient?: unknown; // Use unknown to avoid requiring @slack/web-api
