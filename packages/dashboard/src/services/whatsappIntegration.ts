@@ -336,8 +336,13 @@ export async function initializeWhatsAppIntegration(): Promise<WhatsAppIntegrati
         mimetype = inferImageMimeType(imagePath);
       }
 
+      if (!imageBuffer) {
+        res.status(400).json({ error: 'No image provided. Specify imageUrl or imagePath.' });
+        return;
+      }
+
       const sent = await socket.sendMessage(targetJid, {
-        image: imageBuffer || undefined,
+        image: imageBuffer,
         caption,
         mimetype,
       });
