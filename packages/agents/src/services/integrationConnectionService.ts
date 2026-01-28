@@ -97,7 +97,14 @@ export class IntegrationConnectionService {
   private hasSlackConfig(): boolean {
     try {
       const config = getRawConfig() as {
-        integrations?: { slack?: { botToken?: string; signingSecret?: string; appToken?: string } };
+        integrations?: {
+          slack?: {
+            botToken?: string;
+            signingSecret?: string;
+            appToken?: string;
+            bot?: { token?: string };
+          };
+        };
         slack?: {
           botToken?: string;
           signingSecret?: string;
