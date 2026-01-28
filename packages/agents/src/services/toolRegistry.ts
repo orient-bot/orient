@@ -2937,6 +2937,8 @@ export function getToolExecutorRegistry(): ToolExecutorRegistry {
     registerConfigToolHandlers(executorInstance);
     // Register Google tool handlers (Calendar, Gmail, Tasks, OAuth)
     registerGoogleToolHandlers(executorInstance);
+    // Register WhatsApp tool handlers
+    registerWhatsAppToolHandlers(executorInstance);
   }
   return executorInstance;
 }
@@ -3431,6 +3433,507 @@ function registerGoogleToolHandlers(registry: ToolExecutorRegistry): void {
       'google_calendar_create_event',
       'google_calendar_update_event',
       'google_calendar_delete_event',
+    ],
+  });
+}
+
+/**
+ * Registers WhatsApp tool handlers for message database access and sending
+ *
+ * Uses lazy imports inside each handler to ensure synchronous registration
+ * while deferring the actual service loading until the handler is called.
+ */
+function registerWhatsAppToolHandlers(registry: ToolExecutorRegistry): void {
+  // Lazy-loaded database instance
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let messageDb: any = null;
+  let messageDbInitialized = false;
+
+  async function getMessageDatabase() {
+    const { createMessageDatabase } = await import('@orientbot/database-services');
+    if (!messageDb) {
+      messageDb = createMessageDatabase();
+    }
+    if (!messageDbInitialized) {
+      await messageDb.initialize();
+      messageDbInitialized = true;
+    }
+    return messageDb;
+  }
+
+  // whatsapp_search_messages
+  registry.registerHandler('whatsapp_search_messages', async (args: Record<string, unknown>) => {
+    const {
+      text,
+      phone,
+      direction,
+      isGroup,
+      fromDate,
+      toDate,
+      limit = 50,
+    } = args as {
+      text?: string;
+      phone?: string;
+      direction?: 'incoming' | 'outgoing';
+      isGroup?: boolean;
+      fromDate?: string;
+      toDate?: string;
+      limit?: number;
+    };
+
+    try {
+      const db = await getMessageDatabase();
+      const messages = await db.searchMessages({
+        text,
+        phone,
+        direction,
+        isGroup,
+        fromDate: fromDate ? new Date(fromDate) : undefined,
+        toDate: toDate ? new Date(toDate) : undefined,
+        limit,
+      });
+
+      return createToolResult(
+        JSON.stringify(
+          {
+            count: messages.length,
+            messages: messages.map(
+              (m: {
+                id: number;
+                direction: string;
+                phone: string;
+                text: string;
+                isGroup: boolean;
+                groupId: string | null;
+                timestamp: Date;
+                mediaType: string | null;
+              }) => ({
+                id: m.id,
+                direction: m.direction,
+                phone: m.phone,
+                text: m.text,
+                isGroup: m.isGroup,
+                groupId: m.groupId,
+                timestamp: m.timestamp,
+                mediaType: m.mediaType,
+              })
+            ),
+          },
+          null,
+          2
+        )
+      );
+    } catch (error) {
+      return createToolError(
+        `Search failed: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  });
+
+  // whatsapp_get_recent
+  registry.registerHandler('whatsapp_get_recent', async (args: Record<string, unknown>) => {
+    const { limit = 50 } = args as { limit?: number };
+
+    try {
+      const db = await getMessageDatabase();
+      const messages = await db.getRecentMessages(limit);
+
+      return createToolResult(
+        JSON.stringify(
+          {
+            count: messages.length,
+            messages: messages.map(
+              (m: {
+                id: number;
+                direction: string;
+                phone: string;
+                text: string;
+                isGroup: boolean;
+                groupId: string | null;
+                timestamp: Date;
+                mediaType: string | null;
+              }) => ({
+                id: m.id,
+                direction: m.direction,
+                phone: m.phone,
+                text: m.text,
+                isGroup: m.isGroup,
+                groupId: m.groupId,
+                timestamp: m.timestamp,
+                mediaType: m.mediaType,
+              })
+            ),
+          },
+          null,
+          2
+        )
+      );
+    } catch (error) {
+      return createToolError(
+        `Failed to get recent messages: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  });
+
+  // whatsapp_get_conversation
+  registry.registerHandler('whatsapp_get_conversation', async (args: Record<string, unknown>) => {
+    const { phone, limit = 100 } = args as { phone: string; limit?: number };
+
+    try {
+      const db = await getMessageDatabase();
+      const messages = await db.getConversationHistory(phone, limit);
+
+      return createToolResult(
+        JSON.stringify(
+          {
+            phone,
+            count: messages.length,
+            messages: messages.map(
+              (m: {
+                id: number;
+                direction: string;
+                text: string;
+                timestamp: Date;
+                mediaType: string | null;
+                transcribedText: string | null;
+              }) => ({
+                id: m.id,
+                direction: m.direction,
+                text: m.text,
+                timestamp: m.timestamp,
+                mediaType: m.mediaType,
+                transcribedText: m.transcribedText,
+              })
+            ),
+          },
+          null,
+          2
+        )
+      );
+    } catch (error) {
+      return createToolError(
+        `Failed to get conversation: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  });
+
+  // whatsapp_get_group_messages
+  registry.registerHandler('whatsapp_get_group_messages', async (args: Record<string, unknown>) => {
+    const { groupId, limit = 100 } = args as { groupId: string; limit?: number };
+
+    try {
+      const db = await getMessageDatabase();
+
+      // Try to find the group by name first if it doesn't look like a JID
+      let actualGroupId = groupId;
+      if (!groupId.includes('@')) {
+        const group = await db.findGroupByName(groupId);
+        if (group) {
+          actualGroupId = group.groupId;
+        }
+      }
+
+      const messages = await db.getMessagesByGroup(actualGroupId, limit);
+      const groupInfo = await db.getGroup(actualGroupId);
+
+      return createToolResult(
+        JSON.stringify(
+          {
+            groupId: actualGroupId,
+            groupName: groupInfo?.groupName || null,
+            groupSubject: groupInfo?.groupSubject || null,
+            count: messages.length,
+            messages: messages.map(
+              (m: {
+                id: number;
+                direction: string;
+                phone: string;
+                text: string;
+                timestamp: Date;
+                mediaType: string | null;
+              }) => ({
+                id: m.id,
+                direction: m.direction,
+                phone: m.phone,
+                text: m.text,
+                timestamp: m.timestamp,
+                mediaType: m.mediaType,
+              })
+            ),
+          },
+          null,
+          2
+        )
+      );
+    } catch (error) {
+      return createToolError(
+        `Failed to get group messages: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  });
+
+  // whatsapp_get_stats
+  registry.registerHandler('whatsapp_get_stats', async () => {
+    try {
+      const db = await getMessageDatabase();
+      const stats = await db.getStats();
+      const mediaStats = await db.getMediaStats();
+
+      return createToolResult(
+        JSON.stringify(
+          {
+            ...stats,
+            media: mediaStats,
+          },
+          null,
+          2
+        )
+      );
+    } catch (error) {
+      return createToolError(
+        `Failed to get stats: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  });
+
+  // whatsapp_list_contacts
+  registry.registerHandler('whatsapp_list_contacts', async () => {
+    try {
+      const db = await getMessageDatabase();
+      const contacts = await db.getUniqueContacts();
+
+      return createToolResult(
+        JSON.stringify(
+          {
+            count: contacts.length,
+            contacts,
+          },
+          null,
+          2
+        )
+      );
+    } catch (error) {
+      return createToolError(
+        `Failed to list contacts: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  });
+
+  // whatsapp_list_groups
+  registry.registerHandler('whatsapp_list_groups', async (args: Record<string, unknown>) => {
+    const { search } = args as { search?: string };
+
+    try {
+      const db = await getMessageDatabase();
+      let groups;
+
+      if (search) {
+        groups = await db.searchGroups(search);
+      } else {
+        groups = await db.getAllGroups();
+      }
+
+      // Also get groups without names (from messages table)
+      const groupIdsWithoutNames = await db.getGroupsWithoutNames();
+
+      return createToolResult(
+        JSON.stringify(
+          {
+            namedGroupsCount: groups.length,
+            unnamedGroupsCount: groupIdsWithoutNames.length,
+            groups: groups.map(
+              (g: {
+                groupId: string;
+                groupName: string;
+                groupSubject: string;
+                participantCount: number;
+                lastUpdated: Date;
+              }) => ({
+                groupId: g.groupId,
+                name: g.groupName,
+                subject: g.groupSubject,
+                participantCount: g.participantCount,
+                lastUpdated: g.lastUpdated,
+              })
+            ),
+            groupsWithoutNames: groupIdsWithoutNames,
+          },
+          null,
+          2
+        )
+      );
+    } catch (error) {
+      return createToolError(
+        `Failed to list groups: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  });
+
+  // whatsapp_get_media
+  registry.registerHandler('whatsapp_get_media', async (args: Record<string, unknown>) => {
+    const {
+      mediaType,
+      groupId,
+      limit = 50,
+    } = args as {
+      mediaType?: 'image' | 'audio' | 'video' | 'document';
+      groupId?: string;
+      limit?: number;
+    };
+
+    try {
+      const db = await getMessageDatabase();
+      let messages;
+
+      if (groupId) {
+        messages = await db.getMediaMessagesByGroup(groupId, limit, mediaType);
+      } else {
+        messages = await db.getMediaMessages(limit, mediaType);
+      }
+
+      return createToolResult(
+        JSON.stringify(
+          {
+            count: messages.length,
+            mediaType: mediaType || 'all',
+            messages: messages.map(
+              (m: {
+                id: number;
+                direction: string;
+                phone: string;
+                text: string;
+                isGroup: boolean;
+                groupId: string | null;
+                timestamp: Date;
+                mediaType: string | null;
+                mediaPath: string | null;
+                mediaMimeType: string | null;
+                transcribedText: string | null;
+                transcribedLanguage: string | null;
+              }) => ({
+                id: m.id,
+                direction: m.direction,
+                phone: m.phone,
+                text: m.text,
+                isGroup: m.isGroup,
+                groupId: m.groupId,
+                timestamp: m.timestamp,
+                mediaType: m.mediaType,
+                mediaPath: m.mediaPath,
+                mediaMimeType: m.mediaMimeType,
+                transcribedText: m.transcribedText,
+                transcribedLanguage: m.transcribedLanguage,
+              })
+            ),
+          },
+          null,
+          2
+        )
+      );
+    } catch (error) {
+      return createToolError(
+        `Failed to get media: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  });
+
+  // whatsapp_send_poll
+  registry.registerHandler('whatsapp_send_poll', async (args: Record<string, unknown>) => {
+    const {
+      question,
+      options,
+      selectableCount = 1,
+      context,
+    } = args as {
+      question: string;
+      options: string[];
+      selectableCount?: number;
+      context?: string;
+    };
+
+    try {
+      const response = await fetch('http://127.0.0.1:4097/send-poll', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question, options, selectableCount, context }),
+      });
+
+      const result = (await response.json()) as {
+        success?: boolean;
+        pollId?: string;
+        error?: string;
+      };
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || 'Failed to send poll');
+      }
+
+      return createToolResult(
+        JSON.stringify(
+          {
+            success: true,
+            pollId: result.pollId,
+            question,
+            options,
+            message: 'Poll sent successfully! The user will see it in their WhatsApp chat.',
+          },
+          null,
+          2
+        )
+      );
+    } catch (error) {
+      return createToolError(
+        `Failed to send poll: ${error instanceof Error ? error.message : String(error)}. Make sure the WhatsApp bot is running and connected.`
+      );
+    }
+  });
+
+  // whatsapp_send_message
+  registry.registerHandler('whatsapp_send_message', async (args: Record<string, unknown>) => {
+    const { message } = args as { message: string };
+
+    try {
+      const response = await fetch('http://127.0.0.1:4097/send-message', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message }),
+      });
+
+      const result = (await response.json()) as { success?: boolean; error?: string };
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || 'Failed to send message');
+      }
+
+      return createToolResult(
+        JSON.stringify(
+          {
+            success: true,
+            message: 'Message sent successfully!',
+          },
+          null,
+          2
+        )
+      );
+    } catch (error) {
+      return createToolError(
+        `Failed to send message: ${error instanceof Error ? error.message : String(error)}. Make sure the WhatsApp bot is running and connected.`
+      );
+    }
+  });
+
+  logger.info('WhatsApp tool handlers registered', {
+    tools: [
+      'whatsapp_search_messages',
+      'whatsapp_get_recent',
+      'whatsapp_get_conversation',
+      'whatsapp_get_group_messages',
+      'whatsapp_get_stats',
+      'whatsapp_list_contacts',
+      'whatsapp_list_groups',
+      'whatsapp_get_media',
+      'whatsapp_send_poll',
+      'whatsapp_send_message',
     ],
   });
 }

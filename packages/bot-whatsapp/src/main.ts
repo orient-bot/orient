@@ -13,6 +13,7 @@ import {
   getConfig,
   setSecretOverrides,
   startConfigPoller,
+  WHATSAPP_DEFAULT_MODEL,
 } from '@orientbot/core';
 import {
   createSecretsService,
@@ -225,7 +226,7 @@ async function main(): Promise<void> {
       process.env.OPENCODE_URL || `http://localhost:${process.env.OPENCODE_PORT || 4099}`;
 
     // Initialize OpenCode client for AI processing
-    const openCodeClient = createOpenCodeClient(openCodeUrl, 'openai/gpt-4o-mini');
+    const openCodeClient = createOpenCodeClient(openCodeUrl, WHATSAPP_DEFAULT_MODEL);
     logger.info('OpenCode client initialized', { url: openCodeUrl });
 
     // Initialize transcription service for audio messages
@@ -233,12 +234,33 @@ async function main(): Promise<void> {
     let transcriptionService: TranscriptionService | null = null;
     try {
       transcriptionService = new TranscriptionService({});
-      logger.info('Transcription service initialized successfully (OPENAI_API_KEY found)');
+      logger.info('Transcription service initialized at startup (OPENAI_API_KEY found)');
     } catch (error) {
-      logger.warn('Transcription service not available', {
-        error: error instanceof Error ? error.message : String(error),
-        hint: 'Ensure OPENAI_API_KEY is set in the secrets database or environment',
+      logger.info('Transcription service not available at startup - will retry on demand', {
+        hint: 'Configure OPENAI_API_KEY in Settings > AI Providers',
       });
+    }
+
+    // Lazy getter: re-checks secrets from DB if service is not yet initialized
+    async function getTranscriptionService(): Promise<TranscriptionService | null> {
+      if (transcriptionService) {
+        return transcriptionService;
+      }
+
+      // Reload secrets from DB (user may have added key via dashboard since startup)
+      try {
+        await loadSecretOverrides();
+      } catch (error) {
+        logger.debug('Failed to reload secrets for transcription', { error: String(error) });
+      }
+
+      try {
+        transcriptionService = new TranscriptionService({});
+        logger.info('Transcription service initialized on demand (OPENAI_API_KEY found)');
+        return transcriptionService;
+      } catch {
+        return null;
+      }
     }
 
     // Setup graceful shutdown
@@ -395,13 +417,25 @@ async function main(): Promise<void> {
         let messageText = message.text;
         let isTranscribedAudio = false;
 
+        // Log media messages for debugging
+        if (message.hasMedia) {
+          logger.info('Media message received', {
+            chatId: message.chatId,
+            mediaType: message.mediaType,
+            hasRawMessage: !!message.rawMessage,
+            textLength: message.text?.length || 0,
+          });
+        }
+
         if (
           shouldRespond &&
           message.hasMedia &&
           message.mediaType === 'audio' &&
           message.rawMessage
         ) {
-          if (transcriptionService) {
+          const activeTranscriptionService = await getTranscriptionService();
+
+          if (activeTranscriptionService) {
             try {
               logger.info('Processing audio message', { chatId: message.chatId });
 
@@ -419,7 +453,7 @@ async function main(): Promise<void> {
               const mimeType = audioMsg?.mimetype || 'audio/ogg; codecs=opus';
 
               // Transcribe the audio
-              const transcription = await transcriptionService.transcribeBuffer(
+              const transcription = await activeTranscriptionService.transcribeBuffer(
                 audioBuffer,
                 mimeType
               );
@@ -436,7 +470,19 @@ async function main(): Promise<void> {
             } catch (error) {
               logger.error('Failed to transcribe audio', {
                 error: error instanceof Error ? error.message : String(error),
+                stack: error instanceof Error ? error.stack : undefined,
               });
+
+              // Invalidate service on auth errors so it re-checks next time
+              const errMsg = error instanceof Error ? error.message : String(error);
+              if (
+                errMsg.includes('401') ||
+                errMsg.includes('403') ||
+                errMsg.includes('invalid_api_key')
+              ) {
+                logger.warn('Invalidating transcription service due to auth error');
+                transcriptionService = null;
+              }
 
               // Send error message to user
               const socket = connection.getSocket();
@@ -454,16 +500,19 @@ async function main(): Promise<void> {
                   });
                 }
               }
+              return; // Don't pass to AI agent on transcription failure
             }
           } else {
-            logger.warn('Received audio message but transcription service not available');
+            logger.warn('Received audio message but transcription service not available', {
+              chatId: message.chatId,
+            });
 
-            // Inform user that audio transcription is not configured
+            // Inform user with actionable message
             const socket = connection.getSocket();
             if (socket) {
               try {
                 const infoMsg = await socket.sendMessage(message.chatId, {
-                  text: `🎤 Voice messages are currently not supported. Please send a text message instead.`,
+                  text: `🎤 To transcribe voice messages, please configure your OpenAI API key in the dashboard under Settings > AI Providers.`,
                 });
                 if (infoMsg?.key?.id) {
                   connection.registerSentMessage(infoMsg.key.id);
@@ -474,6 +523,7 @@ async function main(): Promise<void> {
                 });
               }
             }
+            return; // Don't pass to AI agent when transcription not configured
           }
         }
 
