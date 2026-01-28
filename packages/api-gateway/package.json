@@ -10,16 +10,19 @@
   },
   "exports": {
     ".": {
+      "source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "default": "./dist/index.js"
     },
     "./scheduler": {
+      "source": "./src/scheduler/index.ts",
       "types": "./dist/scheduler/index.d.ts",
       "import": "./dist/scheduler/index.js",
       "default": "./dist/scheduler/index.js"
     },
     "./webhooks": {
+      "source": "./src/webhooks/index.ts",
       "types": "./dist/webhooks/index.d.ts",
       "import": "./dist/webhooks/index.js",
       "default": "./dist/webhooks/index.js"
@@ -27,7 +30,7 @@
   },
   "scripts": {
     "build": "tsc",
-    "dev": "tsx src/main.ts",
+    "dev": "tsx --conditions=source src/main.ts",
     "dev:watch": "tsc --watch",
     "start": "node dist/main.js",
     "test": "vitest run",
