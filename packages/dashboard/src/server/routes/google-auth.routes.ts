@@ -75,17 +75,17 @@ function getCallbackUrl(): string {
 
   // Production: Use HTTPS with app domain
   if (isProduction && appDomain) {
-    return `https://${appDomain}/auth/google/callback`;
+    return `https://${appDomain}/api/auth/google/callback`;
   }
 
   // Staging: Use HTTPS with staging domain (if exists)
   if (nodeEnv === 'staging' && appDomain) {
-    return `https://staging.${appDomain}/auth/google/callback`;
+    return `https://staging.${appDomain}/api/auth/google/callback`;
   }
 
   // Local/Development: Use localhost with dashboard port
   const port = process.env.DASHBOARD_PORT || '4098';
-  return `http://localhost:${port}/auth/google/callback`;
+  return `http://localhost:${port}/api/auth/google/callback`;
 }
 
 /**

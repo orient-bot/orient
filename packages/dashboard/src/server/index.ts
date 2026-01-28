@@ -10,6 +10,7 @@ import express, { Application, Router } from 'express';
 import cors from 'cors';
 import path from 'path';
 import fs from 'fs';
+import { ServerResponse } from 'http';
 import { createServiceLogger } from '@orientbot/core';
 import {
   ensureAgentsSeeded,
@@ -239,8 +240,19 @@ function attachFrontend(app: Application, config: DashboardServerConfig): void {
 
     // Serve static files at root and /dashboard/ prefix
     // (production build uses base: '/dashboard/' for assets)
-    app.use(express.static(staticPath));
-    app.use('/dashboard', express.static(staticPath));
+    // Hashed assets (Vite output) get long-term caching; index.html must not be cached
+    // so the browser always fetches the latest version after rebuilds.
+    const staticOptions = {
+      setHeaders: (res: ServerResponse, filePath: string) => {
+        if (filePath.endsWith('.html')) {
+          res.setHeader('Cache-Control', 'no-cache');
+        } else if (filePath.includes('/assets/')) {
+          res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+        }
+      },
+    };
+    app.use(express.static(staticPath, staticOptions));
+    app.use('/dashboard', express.static(staticPath, staticOptions));
 
     // SPA fallback - serve index.html for any non-API routes
     // This allows React Router to handle client-side routing
@@ -257,6 +269,7 @@ function attachFrontend(app: Application, config: DashboardServerConfig): void {
 
       const indexPath = path.join(staticPath, 'index.html');
       if (fs.existsSync(indexPath)) {
+        res.setHeader('Cache-Control', 'no-cache');
         res.sendFile(indexPath);
       } else {
         next();

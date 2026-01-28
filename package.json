@@ -84,7 +84,7 @@
     "test:docker:files": "vitest run -c tests/docker/vitest.config.ts tests/docker/",
     "test:docker:build": "vitest run -c tests/docker/vitest.config.ts tests/docker/build.test.ts",
     "doctor": "./scripts/doctor.sh",
-    "dev:local": "./run.sh dev",
+    "dev:local": "./run.sh dev-local",
     "dev:infra": "docker compose -f docker/docker-compose.infra.yml up -d",
     "dev:infra:stop": "docker compose -f docker/docker-compose.infra.yml down",
     "test:docker": "./run.sh test",

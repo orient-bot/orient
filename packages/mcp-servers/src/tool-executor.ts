@@ -155,7 +155,9 @@ function handleDiscoverTools(args: Record<string, unknown>): {
     const toolDiscoveryService = new ToolDiscoveryService();
     const input = args as unknown as DiscoveryInput;
     const result = toolDiscoveryService.discover(input);
-    const formattedResult = formatDiscoveryResult(result);
+    const formattedResult = formatDiscoveryResult(result, {
+      includeTools: Boolean(input.includeTools),
+    });
 
     op.success('Discovery completed', {
       mode: input.mode,

@@ -86,6 +86,44 @@ import { AppGitService, createAppGitService } from '@orientbot/apps';
 
 // Create loggers for different components
 const serverLogger = createServiceLogger('mcp-server');
+const DEFAULT_MAX_CONTENT_CHARS = 200_000;
+
+function getMaxContentChars(): number {
+  const raw = process.env.ORIENT_MCP_MAX_CONTENT_CHARS;
+  if (!raw) return DEFAULT_MAX_CONTENT_CHARS;
+  const parsed = Number.parseInt(raw, 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_MAX_CONTENT_CHARS;
+}
+
+function truncateToolResult(result: {
+  content: Array<{ type: string; text?: string }>;
+  isError?: boolean;
+  truncated?: boolean;
+}): {
+  content: Array<{ type: string; text?: string }>;
+  isError?: boolean;
+  truncated?: boolean;
+} {
+  if (!result?.content?.length) return result;
+
+  const maxChars = getMaxContentChars();
+  let truncated = false;
+
+  const content = result.content.map((item) => {
+    if (item?.type !== 'text' || typeof item.text !== 'string') return item;
+    if (item.text.length <= maxChars) return item;
+
+    truncated = true;
+    const trimmed = item.text.slice(0, maxChars);
+    return {
+      ...item,
+      text: `${trimmed}\n\n[truncated ${item.text.length - maxChars} chars]`,
+    };
+  });
+
+  if (!truncated) return result;
+  return { ...result, content, truncated: true };
+}
 const configLogger = createServiceLogger('config');
 const skillLogger = createServiceLogger('skill-tools');
 const googleLogger = createServiceLogger('google-tools');
@@ -2210,7 +2248,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
     mcpToolLogger.toolSuccess(name, result, duration);
     clearCorrelationId();
 
-    return result;
+    return truncateToolResult(result);
   } catch (error) {
     const duration = Date.now() - startTime;
 
@@ -2259,7 +2297,9 @@ async function executeToolCall(
       try {
         const input = args as unknown as DiscoveryInput;
         const result = toolDiscoveryService.discover(input);
-        const formattedResult = formatDiscoveryResult(result);
+        const formattedResult = formatDiscoveryResult(result, {
+          includeTools: Boolean(input.includeTools),
+        });
 
         op.success('Discovery completed', {
           mode: input.mode,

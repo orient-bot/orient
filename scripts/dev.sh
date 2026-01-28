@@ -66,6 +66,11 @@ fi
 # Load instance environment configuration (multi-instance support)
 source "$SCRIPT_DIR/instance-env.sh"
 
+# Guard rails: avoid runaway restart storms and duplicate instances
+LOCK_FILE=""
+CHOKIDAR_IGNORE_DEFAULT="**/.git/**,**/node_modules/**,**/.dev-data/**,**/.dev-pids/**,**/logs/**,**/.turbo/**,**/dist/**,**/apps/**/dist/**"
+MAX_NODE_PROCS_DEFAULT=200
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -106,6 +111,77 @@ log_error() {
 
 log_step() {
     echo -e "${BLUE}[DEV]${NC} $1"
+}
+
+release_lock() {
+    if [ -n "$LOCK_FILE" ]; then
+        rm -f "$LOCK_FILE" 2>/dev/null || true
+    fi
+}
+
+acquire_lock() {
+    mkdir -p "$PID_DIR"
+    LOCK_FILE="$PID_DIR/dev.lock"
+    if [ -f "$LOCK_FILE" ]; then
+        local existing_pid
+        existing_pid=$(cat "$LOCK_FILE" 2>/dev/null || true)
+        if [ -n "$existing_pid" ] && kill -0 "$existing_pid" 2>/dev/null; then
+            log_error "Dev environment already running for instance $AI_INSTANCE_ID (PID: $existing_pid)"
+            log_error "Run: ./run.sh dev stop"
+            exit 1
+        fi
+        rm -f "$LOCK_FILE" 2>/dev/null || true
+    fi
+    echo $$ > "$LOCK_FILE"
+    trap 'release_lock' EXIT
+}
+
+check_node_process_limit() {
+    local max_procs="${MAX_NODE_PROCS:-$MAX_NODE_PROCS_DEFAULT}"
+    local count
+    count=$(pgrep -c node 2>/dev/null || echo "")
+    if [ -n "$count" ] && [ "$count" -gt "$max_procs" ]; then
+        log_error "Too many node processes detected ($count > $max_procs)."
+        log_error "Refusing to start to avoid a restart storm."
+        log_error "Run: ./run.sh stop --force"
+        exit 1
+    fi
+}
+
+apply_watch_ignores() {
+    export CHOKIDAR_IGNORE="${CHOKIDAR_IGNORE:-$CHOKIDAR_IGNORE_DEFAULT}"
+}
+
+enforce_node_process_limit() {
+    local max_procs="${MAX_NODE_PROCS:-$MAX_NODE_PROCS_DEFAULT}"
+    local count
+    count=$(pgrep -c node 2>/dev/null || echo "")
+    if [ -n "$count" ] && [ "$count" -gt "$max_procs" ]; then
+        log_error "Too many node processes detected ($count > $max_procs)."
+        log_error "Stopping services to avoid a restart storm."
+        stop_dev
+        exit 1
+    fi
+}
+
+init_db_if_needed() {
+    local stamp_file="${DATA_DIR}/.db-initialized"
+    local force_flag=""
+    if [ "$FRESH_START" = true ] || [ "${FORCE_DB_INIT}" = "true" ]; then
+        force_flag="--force"
+    fi
+
+    if [ -f "$stamp_file" ] && [ -z "$force_flag" ]; then
+        return 0
+    fi
+
+    log_step "Initializing SQLite database (schema + seed)..."
+    if "$SCRIPT_DIR/init-db.sh" $force_flag >/dev/null 2>&1; then
+        touch "$stamp_file"
+        log_info "Database initialization complete"
+    else
+        log_warn "Database initialization encountered issues - check logs if startup fails"
+    fi
 }
 
 # =============================================================================
@@ -357,14 +433,29 @@ kill_process() {
 
 wait_for_opencode() {
     log_step "Waiting for OpenCode to be ready..."
-    for i in {1..60}; do
-        if curl -sf "http://localhost:${OPENCODE_PORT}/global/health" >/dev/null 2>&1; then
-            log_info "OpenCode is ready!"
-            return 0
+    local max_attempts=90
+    local attempt=0
+    local port_ready_count=0
+
+    while [ $attempt -lt $max_attempts ]; do
+        if lsof -ti ":${OPENCODE_PORT}" >/dev/null 2>&1; then
+            port_ready_count=$((port_ready_count + 1))
+            if curl -sf "http://localhost:${OPENCODE_PORT}/global/health" >/dev/null 2>&1 || \
+               curl -sf "http://localhost:${OPENCODE_PORT}/health" >/dev/null 2>&1; then
+                log_info "OpenCode is ready!"
+                return 0
+            fi
+            if [ $port_ready_count -ge 5 ]; then
+                log_warn "OpenCode is listening but health endpoint not responding yet - continuing"
+                return 0
+            fi
+        else
+            port_ready_count=0
         fi
+        attempt=$((attempt + 1))
         sleep 1
     done
-    log_error "OpenCode failed to start within 60 seconds"
+    log_error "OpenCode failed to start within ${max_attempts} seconds"
     return 1
 }
 
@@ -485,6 +576,10 @@ fresh_start() {
 # =============================================================================
 
 start_dev() {
+    acquire_lock
+    apply_watch_ignores
+    check_node_process_limit
+
     # Handle fresh start if requested
     if [ "$FRESH_START" = true ]; then
         fresh_start
@@ -570,6 +665,9 @@ start_dev() {
     # Note: No TypeScript build step needed!
     # We use tsx for JIT TypeScript execution - saves 30-60+ seconds
     log_info "Skipping TypeScript build (using tsx for instant dev mode)"
+
+    # Initialize database for fresh installs (schema + seed)
+    init_db_if_needed
 
     # Step 2c: Build mini-apps if needed
     build_miniapps || {
@@ -767,6 +865,7 @@ start_dev() {
                     exit 1
                 fi
             done
+            enforce_node_process_limit
             sleep 2
         done
     fi
@@ -1019,4 +1118,3 @@ case "$CMD" in
         exit 1
         ;;
 esac
-

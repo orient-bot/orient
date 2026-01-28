@@ -657,66 +657,73 @@ export class MessageDatabase {
   }
 
   async getAllChatsWithPermissions(): Promise<ChatWithPermission[]> {
-    const results = await executeRawSql<ChatWithPermission>(`
-      SELECT
-        cp.chat_id as chatId,
-        cp.chat_type as chatType,
-        cp.permission,
-        COALESCE(cp.display_name, g.group_name, g.group_subject) as displayName,
-        cp.notes,
-        cp.created_at as createdAt,
-        cp.updated_at as updatedAt,
-        (SELECT COUNT(*) FROM messages m WHERE m.jid = cp.chat_id OR m.group_id = cp.chat_id) as messageCount,
-        (SELECT MAX(timestamp) FROM messages m WHERE m.jid = cp.chat_id OR m.group_id = cp.chat_id) as lastMessageAt
-      FROM chat_permissions cp
-      LEFT JOIN groups g ON cp.chat_id = g.group_id
-      ORDER BY cp.updated_at DESC
-    `);
-    return results;
+    const db = this.db;
+    const results = await db
+      .select({
+        chatId: schema.chatPermissions.chatId,
+        chatType: schema.chatPermissions.chatType,
+        permission: schema.chatPermissions.permission,
+        displayName: sql<string>`COALESCE(${schema.chatPermissions.displayName}, ${schema.groups.groupName}, ${schema.groups.groupSubject})`,
+        notes: schema.chatPermissions.notes,
+        createdAt: schema.chatPermissions.createdAt,
+        updatedAt: schema.chatPermissions.updatedAt,
+        messageCount: sql<number>`(SELECT COUNT(*) FROM messages m WHERE m.jid = ${schema.chatPermissions.chatId} OR m.group_id = ${schema.chatPermissions.chatId})`,
+        lastMessageAt: sql<Date | null>`(SELECT MAX(timestamp) FROM messages m WHERE m.jid = ${schema.chatPermissions.chatId} OR m.group_id = ${schema.chatPermissions.chatId})`,
+      })
+      .from(schema.chatPermissions)
+      .leftJoin(schema.groups, eq(schema.chatPermissions.chatId, schema.groups.groupId))
+      .orderBy(desc(schema.chatPermissions.updatedAt));
+
+    return results as ChatWithPermission[];
   }
 
   async getChatsWithoutPermissions(): Promise<ChatWithPermission[]> {
+    const db = this.db;
+
     // Find groups without permissions
-    const groupsResult = await executeRawSql<ChatWithPermission>(`
-      SELECT DISTINCT
-        m.group_id as chatId,
-        'group' as chatType,
-        NULL as permission,
-        COALESCE(g.group_name, g.group_subject) as displayName,
-        NULL as notes,
-        NULL as createdAt,
-        NULL as updatedAt,
-        COUNT(*) as messageCount,
-        MAX(m.timestamp) as lastMessageAt
-      FROM messages m
-      LEFT JOIN groups g ON m.group_id = g.group_id
-      LEFT JOIN chat_permissions cp ON m.group_id = cp.chat_id
-      WHERE m.is_group = 1
-        AND m.group_id IS NOT NULL
-        AND cp.chat_id IS NULL
-      GROUP BY m.group_id, g.group_name, g.group_subject
-    `);
+    const groupsResult = await db
+      .select({
+        chatId: schema.messages.groupId,
+        chatType: sql<string>`'group'`,
+        permission: sql<string | null>`NULL`,
+        displayName: sql<string>`COALESCE(${schema.groups.groupName}, ${schema.groups.groupSubject})`,
+        notes: sql<string | null>`NULL`,
+        createdAt: sql<Date | null>`NULL`,
+        updatedAt: sql<Date | null>`NULL`,
+        messageCount: count(),
+        lastMessageAt: sql<Date | null>`MAX(${schema.messages.timestamp})`,
+      })
+      .from(schema.messages)
+      .leftJoin(schema.groups, eq(schema.messages.groupId, schema.groups.groupId))
+      .leftJoin(schema.chatPermissions, eq(schema.messages.groupId, schema.chatPermissions.chatId))
+      .where(
+        and(
+          eq(schema.messages.isGroup, true),
+          sql`${schema.messages.groupId} IS NOT NULL`,
+          sql`${schema.chatPermissions.chatId} IS NULL`
+        )
+      )
+      .groupBy(schema.messages.groupId, schema.groups.groupName, schema.groups.groupSubject);
 
     // Find individual chats without permissions
-    const individualsResult = await executeRawSql<ChatWithPermission>(`
-      SELECT DISTINCT
-        m.jid as chatId,
-        'individual' as chatType,
-        NULL as permission,
-        m.phone as displayName,
-        NULL as notes,
-        NULL as createdAt,
-        NULL as updatedAt,
-        COUNT(*) as messageCount,
-        MAX(m.timestamp) as lastMessageAt
-      FROM messages m
-      LEFT JOIN chat_permissions cp ON m.jid = cp.chat_id
-      WHERE m.is_group = 0
-        AND cp.chat_id IS NULL
-      GROUP BY m.jid, m.phone
-    `);
+    const individualsResult = await db
+      .select({
+        chatId: schema.messages.jid,
+        chatType: sql<string>`'individual'`,
+        permission: sql<string | null>`NULL`,
+        displayName: schema.messages.phone,
+        notes: sql<string | null>`NULL`,
+        createdAt: sql<Date | null>`NULL`,
+        updatedAt: sql<Date | null>`NULL`,
+        messageCount: count(),
+        lastMessageAt: sql<Date | null>`MAX(${schema.messages.timestamp})`,
+      })
+      .from(schema.messages)
+      .leftJoin(schema.chatPermissions, eq(schema.messages.jid, schema.chatPermissions.chatId))
+      .where(and(eq(schema.messages.isGroup, false), sql`${schema.chatPermissions.chatId} IS NULL`))
+      .groupBy(schema.messages.jid, schema.messages.phone);
 
-    return [...groupsResult, ...individualsResult];
+    return [...groupsResult, ...individualsResult] as ChatWithPermission[];
   }
 
   async setChatPermission(
@@ -1491,7 +1498,6 @@ Always provide concise, actionable summaries when reporting on project status.`;
       this.getAllChatsWithPermissions(),
       this.getChatsWithoutPermissions(),
     ]);
-
     const configuredIds = new Set(configuredChats.map((c) => c.chatId));
 
     const mapChat = (chat: ChatWithPermission, isConfigured: boolean): UnifiedChat => ({

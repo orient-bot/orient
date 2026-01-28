@@ -51,6 +51,7 @@ export interface DiscoveryInput {
   query?: string;
   intent?: string;
   limit?: number;
+  includeTools?: boolean;
 }
 
 /**
@@ -344,6 +345,11 @@ Examples:
             type: 'number',
             description: 'Maximum number of tools to return in search mode (default: 10)',
           },
+          includeTools: {
+            type: 'boolean',
+            description:
+              'If true, include full tool definitions (schemas) in the response. Defaults to false to reduce context size.',
+          },
         },
         required: ['mode'],
       },
@@ -354,7 +360,12 @@ Examples:
 /**
  * Format discovery results for display to agents
  */
-export function formatDiscoveryResult(result: DiscoveryResult): string {
+export function formatDiscoveryResult(
+  result: DiscoveryResult,
+  options?: { includeTools?: boolean }
+): string {
+  const includeTools = options?.includeTools ?? false;
+
   switch (result.mode) {
     case 'list_categories':
       return JSON.stringify(
@@ -374,7 +385,12 @@ export function formatDiscoveryResult(result: DiscoveryResult): string {
       return JSON.stringify(
         {
           message: `Found ${result.totalMatched} tools in category.`,
-          tools: result.tools,
+          tools: includeTools
+            ? result.tools
+            : result.tools?.map((tool) => ({
+                name: tool.name,
+                description: tool.description,
+              })),
         },
         null,
         2
@@ -391,8 +407,8 @@ export function formatDiscoveryResult(result: DiscoveryResult): string {
             relevance: r.score,
             matchedOn: r.matchedOn,
           })),
-          // Include full tool definitions for immediate use
-          tools: result.tools,
+          // Include full tool definitions only when explicitly requested
+          ...(includeTools ? { tools: result.tools } : {}),
         },
         null,
         2

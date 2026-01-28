@@ -32,6 +32,44 @@ import { executeToolCallFromRegistry } from './tool-executor.js';
 
 const serverLogger = createServiceLogger('mcp-server');
 const secretsService = createSecretsService();
+const DEFAULT_MAX_CONTENT_CHARS = 200_000;
+
+function getMaxContentChars(): number {
+  const raw = process.env.ORIENT_MCP_MAX_CONTENT_CHARS;
+  if (!raw) return DEFAULT_MAX_CONTENT_CHARS;
+  const parsed = Number.parseInt(raw, 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_MAX_CONTENT_CHARS;
+}
+
+function truncateToolResult(result: {
+  content: Array<{ type: string; text?: string }>;
+  isError?: boolean;
+  truncated?: boolean;
+}): {
+  content: Array<{ type: string; text?: string }>;
+  isError?: boolean;
+  truncated?: boolean;
+} {
+  if (!result?.content?.length) return result;
+
+  const maxChars = getMaxContentChars();
+  let truncated = false;
+
+  const content = result.content.map((item) => {
+    if (item?.type !== 'text' || typeof item.text !== 'string') return item;
+    if (item.text.length <= maxChars) return item;
+
+    truncated = true;
+    const trimmed = item.text.slice(0, maxChars);
+    return {
+      ...item,
+      text: `${trimmed}\n\n[truncated ${item.text.length - maxChars} chars]`,
+    };
+  });
+
+  if (!truncated) return result;
+  return { ...result, content, truncated: true };
+}
 
 /**
  * Creates an MCP server with the specified configuration
@@ -109,7 +147,7 @@ export function createMcpServer(config: McpServerConfig): Server {
       mcpToolLogger.toolSuccess(name, result, duration);
       clearCorrelationId();
 
-      return result;
+      return truncateToolResult(result);
     } catch (error) {
       const duration = Date.now() - startTime;
 

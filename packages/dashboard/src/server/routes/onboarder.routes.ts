@@ -51,6 +51,13 @@ function parseActions(content: string): { cleanContent: string; actions: Onboard
 
 type FetchResponse = globalThis.Response;
 
+function getAuthHeaders(): Record<string, string> {
+  const password = process.env.OPENCODE_SERVER_PASSWORD;
+  if (!password) return {};
+  const credentials = Buffer.from(`opencode:${password}`).toString('base64');
+  return { Authorization: `Basic ${credentials}` };
+}
+
 async function opencodeFetch(path: string, options?: RequestInit): Promise<FetchResponse> {
   const baseUrl = getOpenCodeUrl();
   if (!baseUrl) {
@@ -61,6 +68,10 @@ async function opencodeFetch(path: string, options?: RequestInit): Promise<Fetch
   try {
     return await fetch(`${baseUrl}${path}`, {
       ...options,
+      headers: {
+        ...options?.headers,
+        ...getAuthHeaders(),
+      },
       signal: controller.signal,
     });
   } catch (error) {

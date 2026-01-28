@@ -50,10 +50,16 @@ show_help() {
 ║    ./run.sh doctor --fix     Auto-fix issues where possible               ║
 ║                                                                           ║
 ║  DEVELOPMENT (hot-reload):                                                ║
-║    ./run.sh dev              Start dev environment                        ║
+║    ./run.sh dev              Start dev environment (with Docker)          ║
 ║    ./run.sh dev stop         Stop dev services only                       ║
 ║    ./run.sh dev logs         View logs                                    ║
 ║    ./run.sh dev status       Show service status                          ║
+║                                                                           ║
+║  DEVELOPMENT (no Docker):                                                 ║
+║    ./run.sh dev-local        Start dev without Docker (local storage)     ║
+║    ./run.sh dev-local stop   Stop dev-local services                      ║
+║    ./run.sh dev-local logs   View logs                                    ║
+║    ./run.sh dev-local status Show service status                          ║
 ║                                                                           ║
 ║  TESTING (full Docker):                                                   ║
 ║    ./run.sh test             Start with local builds                      ║
@@ -178,6 +184,10 @@ case "$1" in
     dev)
         # Hot-reload development mode
         exec "$SCRIPT_DIR/scripts/dev.sh" "${@:2}"
+        ;;
+    dev-local|dev:local)
+        # No-Docker development mode (local storage, no nginx/minio)
+        exec "$SCRIPT_DIR/scripts/dev-local.sh" "${@:2}"
         ;;
     test)
         # Full Docker testing mode

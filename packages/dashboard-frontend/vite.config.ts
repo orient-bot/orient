@@ -20,6 +20,16 @@ export default defineConfig(({ command }) => ({
     // Watch for file changes
     watch: {
       usePolling: false,
+      ignored: [
+        '**/.git/**',
+        '**/node_modules/**',
+        '**/.dev-data/**',
+        '**/.dev-pids/**',
+        '**/logs/**',
+        '**/.turbo/**',
+        '**/dist/**',
+        '**/apps/**/dist/**',
+      ],
     },
     proxy: {
       '/api': {
