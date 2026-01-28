@@ -6,11 +6,13 @@
   "types": "dist/index.d.ts",
   "exports": {
     ".": {
+      "source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "default": "./dist/index.js"
     },
     "./mocks": {
+      "source": "./src/mocks/index.ts",
       "types": "./dist/mocks/index.d.ts",
       "import": "./dist/mocks/index.js",
       "default": "./dist/mocks/index.js"

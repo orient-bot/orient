@@ -25,7 +25,7 @@ export const metadata: Metadata = {
   twitter: {
     card: 'summary_large_image',
     title: 'The Shift | AI Builders Summit 2026',
-    description: 'Press Shift to change everything. An exclusive event for Israel\'s tech leaders.',
+    description: "Press Shift to change everything. An exclusive event for Israel's tech leaders.",
     images: ['/og-image.jpg'],
   },
 };

@@ -10,24 +10,28 @@
   },
   "exports": {
     ".": {
+      "source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "require": "./dist/index.js",
       "default": "./dist/index.js"
     },
     "./registry": {
+      "source": "./src/registry/index.ts",
       "types": "./dist/registry/index.d.ts",
       "import": "./dist/registry/index.js",
       "require": "./dist/registry/index.js",
       "default": "./dist/registry/index.js"
     },
     "./tools": {
+      "source": "./src/tools/index.ts",
       "types": "./dist/tools/index.d.ts",
       "import": "./dist/tools/index.js",
       "require": "./dist/tools/index.js",
       "default": "./dist/tools/index.js"
     },
     "./config": {
+      "source": "./src/tools/config/index.ts",
       "types": "./dist/tools/config/index.d.ts",
       "import": "./dist/tools/config/index.js",
       "require": "./dist/tools/config/index.js",
@@ -36,7 +40,7 @@
   },
   "scripts": {
     "build": "tsc",
-    "dev": "tsx src/main.ts",
+    "dev": "tsx --conditions=source src/main.ts",
     "dev:watch": "tsc --watch",
     "start": "node dist/main.js",
     "test": "vitest run",

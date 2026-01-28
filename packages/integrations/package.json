@@ -7,72 +7,84 @@
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
+      "source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "require": "./dist/index.js",
       "default": "./dist/index.js"
     },
     "./jira": {
+      "source": "./src/jira/index.ts",
       "types": "./dist/jira/index.d.ts",
       "import": "./dist/jira/index.js",
       "require": "./dist/jira/index.js",
       "default": "./dist/jira/index.js"
     },
     "./google": {
+      "source": "./src/google/index.ts",
       "types": "./dist/google/index.d.ts",
       "import": "./dist/google/index.js",
       "require": "./dist/google/index.js",
       "default": "./dist/google/index.js"
     },
     "./gemini": {
+      "source": "./src/gemini/index.ts",
       "types": "./dist/gemini/index.d.ts",
       "import": "./dist/gemini/index.js",
       "require": "./dist/gemini/index.js",
       "default": "./dist/gemini/index.js"
     },
     "./openai": {
+      "source": "./src/openai/index.ts",
       "types": "./dist/openai/index.d.ts",
       "import": "./dist/openai/index.js",
       "require": "./dist/openai/index.js",
       "default": "./dist/openai/index.js"
     },
     "./types": {
+      "source": "./src/types/integration.ts",
       "types": "./dist/types/integration.d.ts",
       "import": "./dist/types/integration.js",
       "require": "./dist/types/integration.js",
       "default": "./dist/types/integration.js"
     },
     "./catalog": {
+      "source": "./src/catalog/index.ts",
       "types": "./dist/catalog/index.d.ts",
       "import": "./dist/catalog/index.js",
       "require": "./dist/catalog/index.js",
       "default": "./dist/catalog/index.js"
     },
     "./catalog/linear": {
+      "source": "./src/catalog/linear/index.ts",
       "types": "./dist/catalog/linear/index.d.ts",
       "import": "./dist/catalog/linear/index.js",
       "require": "./dist/catalog/linear/index.js",
       "default": "./dist/catalog/linear/index.js"
     },
     "./catalog/github": {
+      "source": "./src/catalog/github/index.ts",
       "types": "./dist/catalog/github/index.d.ts",
       "import": "./dist/catalog/github/index.js",
       "require": "./dist/catalog/github/index.js",
       "default": "./dist/catalog/github/index.js"
     },
     "./catalog/google": {
+      "source": "./src/catalog/google/index.ts",
       "types": "./dist/catalog/google/index.d.ts",
       "import": "./dist/catalog/google/index.js",
       "require": "./dist/catalog/google/index.js",
       "default": "./dist/catalog/google/index.js"
     },
     "./catalog/jira": {
+      "source": "./src/catalog/jira/index.ts",
       "types": "./dist/catalog/jira/index.d.ts",
       "import": "./dist/catalog/jira/index.js",
       "require": "./dist/catalog/jira/index.js",
       "default": "./dist/catalog/jira/index.js"
     },
     "./catalog/loader": {
+      "source": "./src/catalog/loader.ts",
       "types": "./dist/catalog/loader.d.ts",
       "import": "./dist/catalog/loader.js",
       "require": "./dist/catalog/loader.js",

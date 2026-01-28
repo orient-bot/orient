@@ -7,30 +7,35 @@
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
+      "source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "require": "./dist/index.js",
       "default": "./dist/index.js"
     },
     "./config": {
+      "source": "./src/config/index.ts",
       "types": "./dist/config/index.d.ts",
       "import": "./dist/config/index.js",
       "require": "./dist/config/index.js",
       "default": "./dist/config/index.js"
     },
     "./logger": {
+      "source": "./src/logger/index.ts",
       "types": "./dist/logger/index.d.ts",
       "import": "./dist/logger/index.js",
       "require": "./dist/logger/index.js",
       "default": "./dist/logger/index.js"
     },
     "./types": {
+      "source": "./src/types/index.ts",
       "types": "./dist/types/index.d.ts",
       "import": "./dist/types/index.js",
       "require": "./dist/types/index.js",
       "default": "./dist/types/index.js"
     },
     "./utils": {
+      "source": "./src/utils/index.ts",
       "types": "./dist/utils/index.d.ts",
       "import": "./dist/utils/index.js",
       "require": "./dist/utils/index.js",

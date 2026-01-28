@@ -7,21 +7,25 @@
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
+      "source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "default": "./dist/index.js"
     },
     "./mocks": {
+      "source": "./src/mocks/index.ts",
       "types": "./dist/mocks/index.d.ts",
       "import": "./dist/mocks/index.js",
       "default": "./dist/mocks/index.js"
     },
     "./factories": {
+      "source": "./src/factories/index.ts",
       "types": "./dist/factories/index.d.ts",
       "import": "./dist/factories/index.js",
       "default": "./dist/factories/index.js"
     },
     "./helpers": {
+      "source": "./src/helpers/index.ts",
       "types": "./dist/helpers/index.d.ts",
       "import": "./dist/helpers/index.js",
       "default": "./dist/helpers/index.js"
