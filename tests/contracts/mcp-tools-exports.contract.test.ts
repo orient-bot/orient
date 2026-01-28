@@ -47,11 +47,6 @@ describe('@orientbot/mcp-tools Public API Contract', () => {
       const { clearContextCache } = mcpToolsModule;
       expect(typeof clearContextCache).toBe('function');
     });
-
-    it('should export requireJiraClient function', async () => {
-      const { requireJiraClient } = mcpToolsModule;
-      expect(typeof requireJiraClient).toBe('function');
-    });
   });
 
   describe('Registry Exports', () => {

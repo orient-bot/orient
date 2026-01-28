@@ -265,11 +265,11 @@ export class OpenCodeClient {
 
     for (const part of message.parts) {
       // OpenCode uses 'tool' type with the tool name in the 'tool' field
-      // Tool names are prefixed with MCP server name, e.g., "orienter_ai_first_get_blockers"
+      // Tool names are prefixed with MCP server name, e.g., "orienter_system_health_check"
       if (part.type === 'tool') {
         const fullToolName = part.tool as string | undefined;
         if (fullToolName) {
-          // Strip MCP server prefix (e.g., "orienter_" -> "ai_first_...")
+          // Strip MCP server prefix (e.g., "orienter_" -> "system_health_check")
           const toolName = fullToolName.includes('_')
             ? fullToolName.replace(/^[^_]+_/, '')
             : fullToolName;

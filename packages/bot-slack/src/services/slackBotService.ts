@@ -1098,15 +1098,39 @@ export class SlackBotService extends EventEmitter {
       let category = 'other';
       let simpleName = tool;
 
-      if (tool.startsWith('ai_first_')) {
+      if (tool.startsWith('system_')) {
         category = 'System';
-        simpleName = tool.replace(/^ai_first_/, '').replace(/_/g, ' ');
+        simpleName = tool.replace('system_', '').replace(/_/g, ' ');
+      } else if (tool.startsWith('skills_')) {
+        category = 'Skills';
+        simpleName = tool.replace('skills_', '').replace(/_/g, ' ');
+      } else if (tool.startsWith('apps_')) {
+        category = 'Apps';
+        simpleName = tool.replace('apps_', '').replace(/_/g, ' ');
+      } else if (tool.startsWith('agents_')) {
+        category = 'Agents';
+        simpleName = tool.replace('agents_', '').replace(/_/g, ' ');
+      } else if (tool.startsWith('context_')) {
+        category = 'Context';
+        simpleName = tool.replace('context_', '').replace(/_/g, ' ');
+      } else if (tool.startsWith('media_')) {
+        category = 'Media';
+        simpleName = tool.replace('media_', '').replace(/_/g, ' ');
+      } else if (tool.startsWith('config_')) {
+        category = 'Config';
+        simpleName = tool.replace('config_', '').replace(/_/g, ' ');
       } else if (tool.startsWith('slack_')) {
         category = 'Slack';
         simpleName = tool.replace('slack_', '').replace(/_/g, ' ');
       } else if (tool.startsWith('slides_')) {
         category = 'Slides';
         simpleName = tool.replace('slides_', '').replace(/_/g, ' ');
+      } else if (tool.startsWith('whatsapp_')) {
+        category = 'WhatsApp';
+        simpleName = tool.replace('whatsapp_', '').replace(/_/g, ' ');
+      } else if (tool.startsWith('google_')) {
+        category = 'Google';
+        simpleName = tool.replace('google_', '').replace(/_/g, ' ');
       }
 
       if (!toolCategories[category]) {

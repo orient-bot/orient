@@ -94,8 +94,8 @@ export const SERVER_CONFIGS: Record<McpServerType, McpServerConfig> = {
       categories: ['docs', 'apps', 'agents', 'media'],
       includeTools: [
         // System
-        'ai_first_health_check',
-        'ai_first_get_config',
+        'system_health_check',
+        'system_get_config',
       ],
       includeDiscovery: true,
     },

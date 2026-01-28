@@ -298,10 +298,10 @@ export function createToolRegistry(): ToolRegistry {
  * Register Messaging (Slack) tools
  */
 function registerMessagingTools(registry: ToolRegistry): void {
-  // ai_first_slack_lookup_user_by_email
+  // slack_lookup_user
   registry.registerTool({
     tool: {
-      name: 'ai_first_slack_lookup_user_by_email',
+      name: 'slack_lookup_user',
       description:
         'Look up a Slack user by their email address. Returns user ID and profile information.',
       inputSchema: {
@@ -320,10 +320,10 @@ function registerMessagingTools(registry: ToolRegistry): void {
     useCases: ['Find a Slack user by email', 'Look up someone on Slack'],
   });
 
-  // ai_first_slack_send_dm
+  // slack_send_dm
   registry.registerTool({
     tool: {
-      name: 'ai_first_slack_send_dm',
+      name: 'slack_send_dm',
       description:
         'Send a direct message to a Slack user. Can use either user ID or email address.',
       inputSchema: {
@@ -352,10 +352,10 @@ function registerMessagingTools(registry: ToolRegistry): void {
     useCases: ['Send a Slack DM to someone', 'Message a user on Slack', 'Send a private message'],
   });
 
-  // ai_first_slack_send_channel_message
+  // slack_send_channel_message
   registry.registerTool({
     tool: {
-      name: 'ai_first_slack_send_channel_message',
+      name: 'slack_send_channel_message',
       description: 'Send a message to a Slack channel.',
       inputSchema: {
         type: 'object',
@@ -377,10 +377,10 @@ function registerMessagingTools(registry: ToolRegistry): void {
     useCases: ['Post a message to a Slack channel', 'Send an announcement', 'Notify the team'],
   });
 
-  // ai_first_slack_get_channel_messages
+  // slack_get_channel_messages
   registry.registerTool({
     tool: {
-      name: 'ai_first_slack_get_channel_messages',
+      name: 'slack_get_channel_messages',
       description:
         'Get messages from a Slack channel. Can filter by date range and limit the number of messages returned.',
       inputSchema: {
@@ -419,10 +419,10 @@ function registerMessagingTools(registry: ToolRegistry): void {
     ],
   });
 
-  // ai_first_slack_send_image
+  // slack_send_image
   registry.registerTool({
     tool: {
-      name: 'orient_slack_send_image',
+      name: 'slack_send_image',
       description:
         'Upload and send an image to a Slack channel or DM. Provide either a URL or local file path.',
       inputSchema: {
@@ -740,7 +740,7 @@ function registerWhatsAppTools(registry: ToolRegistry): void {
   // whatsapp_send_image
   registry.registerTool({
     tool: {
-      name: 'orient_whatsapp_send_image',
+      name: 'whatsapp_send_image',
       description:
         'Send an image to the current WhatsApp chat. Provide either a URL or local file path to the image.',
       inputSchema: {
@@ -780,10 +780,10 @@ function registerWhatsAppTools(registry: ToolRegistry): void {
  * Register Google Docs (Slides/Sheets) tools
  */
 function registerDocsTools(registry: ToolRegistry): void {
-  // ai_first_slides_get_presentation
+  // slides_get_presentation
   registry.registerTool({
     tool: {
-      name: 'ai_first_slides_get_presentation',
+      name: 'slides_get_presentation',
       description: 'Get presentation metadata and list of all slides with their titles.',
       inputSchema: {
         type: 'object',
@@ -801,10 +801,10 @@ function registerDocsTools(registry: ToolRegistry): void {
     useCases: ['Get information about a presentation', 'List slides in a deck'],
   });
 
-  // ai_first_slides_get_slide
+  // slides_get_slide
   registry.registerTool({
     tool: {
-      name: 'ai_first_slides_get_slide',
+      name: 'slides_get_slide',
       description: 'Get the content of a specific slide by its ID.',
       inputSchema: {
         type: 'object',
@@ -826,10 +826,10 @@ function registerDocsTools(registry: ToolRegistry): void {
     useCases: ['Read a specific slide', 'Get slide content'],
   });
 
-  // ai_first_slides_update_text
+  // slides_update_text
   registry.registerTool({
     tool: {
-      name: 'ai_first_slides_update_text',
+      name: 'slides_update_text',
       description:
         'Update text placeholders on ALL slides globally. Placeholders should be in format {{PLACEHOLDER_NAME}}.',
       inputSchema: {
@@ -860,10 +860,10 @@ function registerDocsTools(registry: ToolRegistry): void {
     useCases: ['Update placeholders in a presentation', 'Replace text in slides'],
   });
 
-  // ai_first_slides_update_slide_text
+  // slides_update_slide_text
   registry.registerTool({
     tool: {
-      name: 'ai_first_slides_update_slide_text',
+      name: 'slides_update_slide_text',
       description: 'Update text on a SPECIFIC slide only (not globally).',
       inputSchema: {
         type: 'object',
@@ -897,10 +897,10 @@ function registerDocsTools(registry: ToolRegistry): void {
     useCases: ['Update text on a specific slide', 'Modify slide content'],
   });
 
-  // ai_first_slides_duplicate_template
+  // slides_duplicate_template
   registry.registerTool({
     tool: {
-      name: 'ai_first_slides_duplicate_template',
+      name: 'slides_duplicate_template',
       description: 'Duplicate a template slide and optionally apply text replacements.',
       inputSchema: {
         type: 'object',
@@ -938,10 +938,10 @@ function registerDocsTools(registry: ToolRegistry): void {
     useCases: ['Create a new slide from a template', 'Duplicate a slide'],
   });
 
-  // ai_first_slides_update_weekly
+  // slides_update_weekly
   registry.registerTool({
     tool: {
-      name: 'ai_first_slides_update_weekly',
+      name: 'slides_update_weekly',
       description: 'Update or create the weekly status slide with current Jira data.',
       inputSchema: {
         type: 'object',
@@ -967,10 +967,10 @@ function registerDocsTools(registry: ToolRegistry): void {
     useCases: ['Update the weekly status slide', 'Create weekly presentation'],
   });
 
-  // ai_first_slides_delete_slide
+  // slides_delete_slide
   registry.registerTool({
     tool: {
-      name: 'ai_first_slides_delete_slide',
+      name: 'slides_delete_slide',
       description: 'Delete a slide from the presentation.',
       inputSchema: {
         type: 'object',
@@ -992,10 +992,10 @@ function registerDocsTools(registry: ToolRegistry): void {
     useCases: ['Delete a slide', 'Remove a slide from presentation'],
   });
 
-  // ai_first_slides_create_table
+  // slides_create_table
   registry.registerTool({
     tool: {
-      name: 'ai_first_slides_create_table',
+      name: 'slides_create_table',
       description:
         'Create an actual table on a slide with data. Use this instead of text-based pseudo-tables for proper formatting.',
       inputSchema: {
@@ -1242,10 +1242,10 @@ function registerGoogleTools(registry: ToolRegistry): void {
  * Register System tools
  */
 function registerSystemTools(registry: ToolRegistry): void {
-  // ai_first_health_check
+  // system_health_check
   registry.registerTool({
     tool: {
-      name: 'ai_first_health_check',
+      name: 'system_health_check',
       description:
         'Check the health and connectivity of the Orient, including Jira connection status and issue count.',
       inputSchema: {
@@ -1259,10 +1259,10 @@ function registerSystemTools(registry: ToolRegistry): void {
     useCases: ['Check if the bot is working', 'Verify connections are healthy'],
   });
 
-  // ai_first_get_config
+  // system_get_config
   registry.registerTool({
     tool: {
-      name: 'ai_first_get_config',
+      name: 'system_get_config',
       description:
         'Get the current configuration for the Orient (excluding sensitive credentials).',
       inputSchema: {
@@ -1281,10 +1281,10 @@ function registerSystemTools(registry: ToolRegistry): void {
  * Register Skill Management tools
  */
 function registerSkillTools(registry: ToolRegistry): void {
-  // ai_first_list_skills
+  // skills_list
   registry.registerTool({
     tool: {
-      name: 'ai_first_list_skills',
+      name: 'skills_list',
       description:
         'List all available skills with their names and descriptions. Skills provide specialized knowledge modules for domain-specific guidance.',
       inputSchema: {
@@ -1303,10 +1303,10 @@ function registerSkillTools(registry: ToolRegistry): void {
     ],
   });
 
-  // ai_first_read_skill
+  // skills_read
   registry.registerTool({
     tool: {
-      name: 'ai_first_read_skill',
+      name: 'skills_read',
       description:
         'Read the full content of a specific skill by name. Returns the skill body content for detailed guidance.',
       inputSchema: {
@@ -1330,10 +1330,10 @@ function registerSkillTools(registry: ToolRegistry): void {
     ],
   });
 
-  // ai_first_create_skill_async
+  // skills_create_async
   registry.registerTool({
     tool: {
-      name: 'ai_first_create_skill_async',
+      name: 'skills_create_async',
       description:
         'Create a new skill and submit it as a GitHub PR. This is an ASYNC operation - it starts a background job and returns immediately. The PR link will be sent via the messaging channel when ready. ADMIN ONLY.',
       inputSchema: {
@@ -1371,10 +1371,10 @@ function registerSkillTools(registry: ToolRegistry): void {
     useCases: ['Create a new skill', 'Add a skill for X', 'Submit skill as PR'],
   });
 
-  // ai_first_edit_skill_async
+  // skills_edit_async
   registry.registerTool({
     tool: {
-      name: 'ai_first_edit_skill_async',
+      name: 'skills_edit_async',
       description:
         'Edit an existing skill and submit changes as a GitHub PR. This is an ASYNC operation. ADMIN ONLY.',
       inputSchema: {
@@ -1411,10 +1411,10 @@ function registerSkillTools(registry: ToolRegistry): void {
     useCases: ['Edit an existing skill', 'Update skill content', 'Modify skill'],
   });
 
-  // ai_first_list_skill_prs
+  // skills_list_prs
   registry.registerTool({
     tool: {
-      name: 'ai_first_list_skill_prs',
+      name: 'skills_list_prs',
       description:
         'List all pending GitHub PRs for skill changes that are awaiting review. ADMIN ONLY.',
       inputSchema: {
@@ -1432,10 +1432,10 @@ function registerSkillTools(registry: ToolRegistry): void {
     ],
   });
 
-  // ai_first_reload_skills
+  // skills_reload
   registry.registerTool({
     tool: {
-      name: 'ai_first_reload_skills',
+      name: 'skills_reload',
       description:
         'Reload all skills from disk. Use after a skill PR is merged and deployed to refresh the skill cache. ADMIN ONLY.',
       inputSchema: {
@@ -1454,10 +1454,10 @@ function registerSkillTools(registry: ToolRegistry): void {
  * Register Mini-Apps tools
  */
 function registerAppsTools(registry: ToolRegistry): void {
-  // ai_first_create_app
+  // apps_create
   registry.registerTool({
     tool: {
-      name: 'ai_first_create_app',
+      name: 'apps_create',
       description:
         'Create a new Mini-App from a description. The AI generates a React application that can access calendar, Slack, scheduler, and other tools. The app is created via a PR for review.',
       inputSchema: {
@@ -1510,10 +1510,10 @@ function registerAppsTools(registry: ToolRegistry): void {
     ],
   });
 
-  // ai_first_list_apps
+  // apps_list
   registry.registerTool({
     tool: {
-      name: 'ai_first_list_apps',
+      name: 'apps_list',
       description:
         'List all available Mini-Apps. Shows app name, title, description, status, and whether it has been built.',
       inputSchema: {
@@ -1541,10 +1541,10 @@ function registerAppsTools(registry: ToolRegistry): void {
     ],
   });
 
-  // ai_first_get_app
+  // apps_get
   registry.registerTool({
     tool: {
-      name: 'ai_first_get_app',
+      name: 'apps_get',
       description:
         'Get detailed information about a specific Mini-App including permissions, capabilities, and sharing configuration.',
       inputSchema: {
@@ -1563,10 +1563,10 @@ function registerAppsTools(registry: ToolRegistry): void {
     useCases: ['Get details of a specific app', 'Check app permissions', 'View app configuration'],
   });
 
-  // ai_first_share_app
+  // apps_share
   registry.registerTool({
     tool: {
-      name: 'ai_first_share_app',
+      name: 'apps_share',
       description:
         'Generate a shareable link for a Mini-App. The link can have an expiry time and maximum use count.',
       inputSchema: {
@@ -1597,10 +1597,10 @@ function registerAppsTools(registry: ToolRegistry): void {
     ],
   });
 
-  // ai_first_update_app
+  // apps_update
   registry.registerTool({
     tool: {
-      name: 'ai_first_update_app',
+      name: 'apps_update',
       description:
         'Update an existing Mini-App based on a change request. Creates a new version via PR.',
       inputSchema: {
@@ -1632,10 +1632,10 @@ function registerAppsTools(registry: ToolRegistry): void {
  * Register Agent tools
  */
 function registerAgentsTools(registry: ToolRegistry): void {
-  // ai_first_get_agent_context
+  // agents_get_context
   registry.registerTool({
     tool: {
-      name: 'ai_first_get_agent_context',
+      name: 'agents_get_context',
       description:
         'Discover your current agent role, skills, and tool permissions. Call this at the start of a session to understand your capabilities.',
       inputSchema: {
@@ -1680,10 +1680,10 @@ function registerAgentsTools(registry: ToolRegistry): void {
     ],
   });
 
-  // ai_first_list_agents
+  // agents_list
   registry.registerTool({
     tool: {
-      name: 'ai_first_list_agents',
+      name: 'agents_list',
       description:
         'List all available agents in the registry. See which specialized agents are available for handoffs.',
       inputSchema: {
@@ -1711,10 +1711,10 @@ function registerAgentsTools(registry: ToolRegistry): void {
     ],
   });
 
-  // ai_first_handoff_to_agent
+  // agents_handoff
   registry.registerTool({
     tool: {
-      name: 'ai_first_handoff_to_agent',
+      name: 'agents_handoff',
       description:
         'Delegate a task to a specialized agent. Creates a sub-session with the target agent and returns the result. Use this for complex tasks that require specialized capabilities.',
       inputSchema: {
@@ -1773,10 +1773,10 @@ function registerAgentsTools(registry: ToolRegistry): void {
  * Register Context Persistence tools
  */
 function registerContextTools(registry: ToolRegistry): void {
-  // ai_first_read_context
+  // context_read
   registry.registerTool({
     tool: {
-      name: 'ai_first_read_context',
+      name: 'context_read',
       description:
         'Read persistent context for the current chat/channel. Retrieve user preferences, past interactions, activity history, and current working state.',
       inputSchema: {
@@ -1826,10 +1826,10 @@ function registerContextTools(registry: ToolRegistry): void {
     ],
   });
 
-  // ai_first_update_context
+  // context_update
   registry.registerTool({
     tool: {
-      name: 'ai_first_update_context',
+      name: 'context_update',
       description:
         'Update persistent context for the current chat/channel. Save user preferences, record activity, and update current working state. Updates are deep-merged with existing context.',
       inputSchema: {
@@ -2507,10 +2507,10 @@ function registerConfigTools(registry: ToolRegistry): void {
  * Register Media tools (image generation, mascot variations)
  */
 function registerMediaTools(registry: ToolRegistry): void {
-  // ai_first_generate_mascot
+  // media_generate_mascot
   registry.registerTool({
     tool: {
-      name: 'ai_first_generate_mascot',
+      name: 'media_generate_mascot',
       description:
         'Generate a variation of the Orient mascot (border collie dog with blue bandana). Supports different poses, expressions, backgrounds, seasonal themes, accessories, and art styles. Use transparent=true for web/UI images with transparent backgrounds (uses OpenAI).',
       inputSchema: {
@@ -2755,7 +2755,7 @@ function registerConfigToolHandlers(registry: ToolExecutorRegistry): void {
  * Registers media tool handlers (mascot generation, etc.)
  */
 function registerMediaToolHandlers(registry: ToolExecutorRegistry): void {
-  registry.registerHandler('ai_first_generate_mascot', async (args: Record<string, unknown>) => {
+  registry.registerHandler('media_generate_mascot', async (args: Record<string, unknown>) => {
     const {
       variation_type,
       prompt,
@@ -3811,8 +3811,8 @@ function registerWhatsAppToolHandlers(registry: ToolExecutorRegistry): void {
     }
   });
 
-  // orient_whatsapp_send_image
-  registry.registerHandler('orient_whatsapp_send_image', async (args: Record<string, unknown>) => {
+  // whatsapp_send_image
+  registry.registerHandler('whatsapp_send_image', async (args: Record<string, unknown>) => {
     const { imageUrl, imagePath, caption, jid } = args as {
       imageUrl?: string;
       imagePath?: string;
@@ -3874,7 +3874,7 @@ function registerWhatsAppToolHandlers(registry: ToolExecutorRegistry): void {
       'whatsapp_get_media',
       'whatsapp_send_poll',
       'whatsapp_send_message',
-      'orient_whatsapp_send_image',
+      'whatsapp_send_image',
     ],
   });
 }

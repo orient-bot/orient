@@ -74,24 +74,24 @@ export class WhatsAppMockService extends BaseMockService {
   }
 
   private setupDefaults(): void {
-    // ai_first_whatsapp_search_messages - Search messages
-    this.defaultResponses.set('ai_first_whatsapp_search_messages', () => ({
+    // whatsapp_search_messages - Search messages
+    this.defaultResponses.set('whatsapp_search_messages', () => ({
       response: {
         messages: [],
         totalCount: 0,
       },
     }));
 
-    // ai_first_whatsapp_get_recent_messages - Get recent messages
-    this.defaultResponses.set('ai_first_whatsapp_get_recent_messages', () => ({
+    // whatsapp_get_recent - Get recent messages
+    this.defaultResponses.set('whatsapp_get_recent', () => ({
       response: {
         messages: [],
         hasMore: false,
       },
     }));
 
-    // ai_first_whatsapp_get_chat_history - Get chat history
-    this.defaultResponses.set('ai_first_whatsapp_get_chat_history', () => ({
+    // whatsapp_get_conversation - Get chat history
+    this.defaultResponses.set('whatsapp_get_conversation', () => ({
       response: {
         messages: [],
         chatId: '',
@@ -99,24 +99,24 @@ export class WhatsAppMockService extends BaseMockService {
       },
     }));
 
-    // ai_first_whatsapp_list_chats - List all chats
-    this.defaultResponses.set('ai_first_whatsapp_list_chats', () => ({
+    // whatsapp_list_contacts - List all contacts
+    this.defaultResponses.set('whatsapp_list_contacts', () => ({
       response: {
-        chats: [],
+        contacts: [],
         totalCount: 0,
       },
     }));
 
-    // ai_first_whatsapp_list_groups - List groups
-    this.defaultResponses.set('ai_first_whatsapp_list_groups', () => ({
+    // whatsapp_list_groups - List groups
+    this.defaultResponses.set('whatsapp_list_groups', () => ({
       response: {
         groups: [],
         totalCount: 0,
       },
     }));
 
-    // ai_first_whatsapp_get_message_stats - Get message statistics
-    this.defaultResponses.set('ai_first_whatsapp_get_message_stats', () => ({
+    // whatsapp_get_stats - Get message statistics
+    this.defaultResponses.set('whatsapp_get_stats', () => ({
       response: {
         totalMessages: 0,
         messagesByDay: {},
@@ -131,31 +131,24 @@ export class WhatsAppMockService extends BaseMockService {
       },
     }));
 
-    // ai_first_whatsapp_find_contact - Find contact by name or number
-    this.defaultResponses.set('ai_first_whatsapp_find_contact', () => ({
-      response: {
-        contacts: [],
-      },
-    }));
-
-    // ai_first_whatsapp_get_media_messages - Get media messages
-    this.defaultResponses.set('ai_first_whatsapp_get_media_messages', () => ({
+    // whatsapp_get_media - Get media messages
+    this.defaultResponses.set('whatsapp_get_media', () => ({
       response: {
         messages: [],
         totalCount: 0,
       },
     }));
 
-    // ai_first_whatsapp_send_message - Send message (if available)
-    this.defaultResponses.set('ai_first_whatsapp_send_message', () => ({
+    // whatsapp_send_message - Send message
+    this.defaultResponses.set('whatsapp_send_message', () => ({
       response: {
         success: true,
         messageId: `msg-${Date.now()}`,
       },
     }));
 
-    // whatsapp_send_message - Alternative send message tool
-    this.defaultResponses.set('whatsapp_send_message', () => ({
+    // whatsapp_send_image - Send image
+    this.defaultResponses.set('whatsapp_send_image', () => ({
       response: {
         success: true,
         messageId: `msg-${Date.now()}`,

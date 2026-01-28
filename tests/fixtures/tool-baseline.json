@@ -1,26 +1,31 @@
 {
-  "exportedAt": "2026-01-28T09:03:47.123Z",
-  "totalCount": 68,
+  "exportedAt": "2026-01-28T12:00:00.000Z",
+  "totalCount": 70,
   "tools": [
     {
-      "name": "ai_first_slack_lookup_user_by_email",
+      "name": "slack_lookup_user",
       "category": "messaging",
       "description": "Look up a Slack user by their email address. Returns user ID and profile information."
     },
     {
-      "name": "ai_first_slack_send_dm",
+      "name": "slack_send_dm",
       "category": "messaging",
       "description": "Send a direct message to a Slack user. Can use either user ID or email address."
     },
     {
-      "name": "ai_first_slack_send_channel_message",
+      "name": "slack_send_channel_message",
       "category": "messaging",
       "description": "Send a message to a Slack channel."
     },
     {
-      "name": "ai_first_slack_get_channel_messages",
+      "name": "slack_get_channel_messages",
       "category": "messaging",
-      "description": "Get messages from a Slack channel. Can filter by date range and limit the number of messages returne"
+      "description": "Get messages from a Slack channel. Can filter by date range and limit the number of messages returned."
+    },
+    {
+      "name": "slack_send_image",
+      "category": "messaging",
+      "description": "Upload and send an image to a Slack channel or DM. Provide either a URL or local file path."
     },
     {
       "name": "whatsapp_search_messages",
@@ -45,7 +50,7 @@
     {
       "name": "whatsapp_get_stats",
       "category": "whatsapp",
-      "description": "Get WhatsApp message database statistics including total counts, unique contacts, groups, and date r"
+      "description": "Get WhatsApp message database statistics including total counts, unique contacts, groups, and date range."
     },
     {
       "name": "whatsapp_list_contacts",
@@ -65,52 +70,57 @@
     {
       "name": "whatsapp_send_poll",
       "category": "whatsapp",
-      "description": "Send a WhatsApp poll to ask questions. The poll will be sent to the current active chat (the user yo"
+      "description": "Send a WhatsApp poll to ask questions."
     },
     {
       "name": "whatsapp_send_message",
       "category": "whatsapp",
-      "description": "Send a WhatsApp message to the current active chat. Use this when you need to send an immediate mess"
+      "description": "Send a WhatsApp message to the current active chat."
     },
     {
-      "name": "ai_first_slides_get_presentation",
+      "name": "whatsapp_send_image",
+      "category": "whatsapp",
+      "description": "Send an image via WhatsApp."
+    },
+    {
+      "name": "slides_get_presentation",
       "category": "docs",
       "description": "Get presentation metadata and list of all slides with their titles."
     },
     {
-      "name": "ai_first_slides_get_slide",
+      "name": "slides_get_slide",
       "category": "docs",
       "description": "Get the content of a specific slide by its ID."
     },
     {
-      "name": "ai_first_slides_update_text",
+      "name": "slides_update_text",
       "category": "docs",
-      "description": "Update text placeholders on ALL slides globally. Placeholders should be in format {{PLACEHOLDER_NAME"
+      "description": "Update text placeholders on ALL slides globally."
     },
     {
-      "name": "ai_first_slides_update_slide_text",
+      "name": "slides_update_slide_text",
       "category": "docs",
       "description": "Update text on a SPECIFIC slide only (not globally)."
     },
     {
-      "name": "ai_first_slides_duplicate_template",
+      "name": "slides_duplicate_template",
       "category": "docs",
       "description": "Duplicate a template slide and optionally apply text replacements."
     },
     {
-      "name": "ai_first_slides_update_weekly",
+      "name": "slides_update_weekly",
       "category": "docs",
-      "description": "Update or create the weekly status slide with current Jira data."
+      "description": "Update or create the weekly status slide with current data."
     },
     {
-      "name": "ai_first_slides_delete_slide",
+      "name": "slides_delete_slide",
       "category": "docs",
       "description": "Delete a slide from the presentation."
     },
     {
-      "name": "ai_first_slides_create_table",
+      "name": "slides_create_table",
       "category": "docs",
-      "description": "Create an actual table on a slide with data. Use this instead of text-based pseudo-tables for proper"
+      "description": "Create an actual table on a slide with data."
     },
     {
       "name": "google_oauth_status",
@@ -120,7 +130,7 @@
     {
       "name": "google_calendar_list_events",
       "category": "google",
-      "description": "Get upcoming calendar events for the next N days. Use this to check schedule, find meetings, or see "
+      "description": "Get upcoming calendar events for the next N days."
     },
     {
       "name": "google_calendar_create_event",
@@ -130,7 +140,7 @@
     {
       "name": "google_gmail_list_messages",
       "category": "google",
-      "description": "List recent emails from Gmail inbox. Use this to check emails, find messages, or get inbox summary."
+      "description": "List recent emails from Gmail inbox."
     },
     {
       "name": "google_gmail_send",
@@ -140,7 +150,7 @@
     {
       "name": "google_tasks_list",
       "category": "google",
-      "description": "List tasks from Google Tasks. Use this to see pending tasks, to-dos, or check task status."
+      "description": "List tasks from Google Tasks."
     },
     {
       "name": "google_tasks_create",
@@ -153,202 +163,203 @@
       "description": "Mark a task as completed in Google Tasks."
     },
     {
-      "name": "ai_first_health_check",
+      "name": "system_health_check",
       "category": "system",
-      "description": "Check the health and connectivity of the Orient, including Jira connection status and issue count."
+      "description": "Check the health and connectivity of the Orient."
     },
     {
-      "name": "ai_first_get_config",
+      "name": "system_get_config",
       "category": "system",
       "description": "Get the current configuration for the Orient (excluding sensitive credentials)."
     },
     {
-      "name": "ai_first_list_skills",
+      "name": "skills_list",
       "category": "system",
-      "description": "List all available skills with their names and descriptions. Skills provide specialized knowledge mo"
+      "description": "List all available skills with their names and descriptions."
     },
     {
-      "name": "ai_first_read_skill",
+      "name": "skills_read",
       "category": "system",
-      "description": "Read the full content of a specific skill by name. Returns the skill body content for detailed guida"
+      "description": "Read the full content of a specific skill by name."
     },
     {
-      "name": "ai_first_create_skill_async",
+      "name": "skills_create_async",
       "category": "system",
-      "description": "Create a new skill and submit it as a GitHub PR. This is an ASYNC operation - it starts a background"
+      "description": "Create a new skill and submit it as a GitHub PR."
     },
     {
-      "name": "ai_first_edit_skill_async",
+      "name": "skills_edit_async",
       "category": "system",
-      "description": "Edit an existing skill and submit changes as a GitHub PR. This is an ASYNC operation. ADMIN ONLY."
+      "description": "Edit an existing skill and submit changes as a GitHub PR."
     },
     {
-      "name": "ai_first_list_skill_prs",
+      "name": "skills_list_prs",
       "category": "system",
-      "description": "List all pending GitHub PRs for skill changes that are awaiting review. ADMIN ONLY."
+      "description": "List all pending GitHub PRs for skill changes that are awaiting review."
     },
     {
-      "name": "ai_first_reload_skills",
+      "name": "skills_reload",
       "category": "system",
-      "description": "Reload all skills from disk. Use after a skill PR is merged and deployed to refresh the skill cache."
+      "description": "Reload all skills from disk."
     },
     {
-      "name": "ai_first_create_app",
+      "name": "apps_create",
       "category": "apps",
-      "description": "Create a new Mini-App from a description. The AI generates a React application that can access calen"
+      "description": "Create a new Mini-App from a description."
     },
     {
-      "name": "ai_first_list_apps",
+      "name": "apps_list",
       "category": "apps",
-      "description": "List all available Mini-Apps. Shows app name, title, description, status, and whether it has been bu"
+      "description": "List all available Mini-Apps."
     },
     {
-      "name": "ai_first_get_app",
+      "name": "apps_get",
       "category": "apps",
-      "description": "Get detailed information about a specific Mini-App including permissions, capabilities, and sharing "
+      "description": "Get detailed information about a specific Mini-App."
     },
     {
-      "name": "ai_first_share_app",
+      "name": "apps_share",
       "category": "apps",
-      "description": "Generate a shareable link for a Mini-App. The link can have an expiry time and maximum use count."
+      "description": "Generate a shareable link for a Mini-App."
     },
     {
-      "name": "ai_first_update_app",
+      "name": "apps_update",
       "category": "apps",
-      "description": "Update an existing Mini-App based on a change request. Creates a new version via PR."
+      "description": "Update an existing Mini-App based on a change request."
     },
     {
-      "name": "ai_first_get_agent_context",
+      "name": "agents_get_context",
       "category": "agents",
-      "description": "Discover your current agent role, skills, and tool permissions. Call this at the start of a session "
+      "description": "Discover your current agent role, skills, and tool permissions."
     },
     {
-      "name": "ai_first_list_agents",
+      "name": "agents_list",
       "category": "agents",
-      "description": "List all available agents in the registry. See which specialized agents are available for handoffs."
+      "description": "List all available agents in the registry."
     },
     {
-      "name": "ai_first_handoff_to_agent",
+      "name": "agents_handoff",
       "category": "agents",
-      "description": "Delegate a task to a specialized agent. Creates a sub-session with the target agent and returns the "
+      "description": "Delegate a task to a specialized agent."
     },
     {
-      "name": "ai_first_read_context",
+      "name": "context_read",
       "category": "context",
-      "description": "Read persistent context for the current chat/channel. Retrieve user preferences, past interactions, "
+      "description": "Read persistent context for the current chat/channel."
     },
     {
-      "name": "ai_first_update_context",
+      "name": "context_update",
       "category": "context",
-      "description": "Update persistent context for the current chat/channel. Save user preferences, record activity, and "
+      "description": "Update persistent context for the current chat/channel."
     },
     {
-      "name": "ai_first_generate_mascot",
+      "name": "media_generate_mascot",
       "category": "media",
-      "description": "Generate a variation of the Orient mascot (border collie dog with blue bandana). Supports different "
+      "description": "Generate a variation of the Orient mascot."
     },
     {
       "name": "config_confirm_action",
       "category": "system",
-      "description": "Confirm and execute a pending configuration action. Use this after the user has reviewed and approve"
+      "description": "Confirm and execute a pending configuration action."
     },
     {
       "name": "config_list_pending",
       "category": "system",
-      "description": "List all pending configuration actions awaiting confirmation. Shows what changes are queued and when"
+      "description": "List all pending configuration actions awaiting confirmation."
     },
     {
       "name": "config_cancel_action",
       "category": "system",
-      "description": "Cancel a pending configuration action. Use this if the user decides not to proceed with a proposed c"
+      "description": "Cancel a pending configuration action."
     },
     {
       "name": "config_set_permission",
       "category": "system",
-      "description": "Set permission for a WhatsApp chat or group. Creates a pending action that requires user confirmatio"
+      "description": "Set permission for a WhatsApp chat or group."
     },
     {
       "name": "config_get_permission",
       "category": "system",
-      "description": "Get the current permission setting for a WhatsApp chat. Shows whether the bot can respond, and any c"
+      "description": "Get the current permission setting for a WhatsApp chat."
     },
     {
       "name": "config_list_permissions",
       "category": "system",
-      "description": "List all explicitly configured chat permissions. Shows which chats have custom permission settings."
+      "description": "List all explicitly configured chat permissions."
     },
     {
       "name": "config_set_prompt",
       "category": "system",
-      "description": "Set a custom system prompt for a WhatsApp chat/group or platform default. Creates a pending action t"
+      "description": "Set a custom system prompt for a WhatsApp chat/group or platform default."
     },
     {
       "name": "config_get_prompt",
       "category": "system",
-      "description": "Get the current system prompt for a WhatsApp chat or platform default. Shows what instructions the A"
+      "description": "Get the current system prompt for a WhatsApp chat or platform default."
     },
     {
       "name": "config_list_prompts",
       "category": "system",
-      "description": "List all custom system prompts that have been configured. Shows chat-specific and platform-wide prom"
+      "description": "List all custom system prompts that have been configured."
     },
     {
       "name": "config_set_secret",
       "category": "system",
-      "description": "Set a secret value (API key, token, password). Creates a pending action that requires user confirmat"
+      "description": "Set a secret value (API key, token, password)."
     },
     {
       "name": "config_list_secrets",
       "category": "system",
-      "description": "List all configured secret keys. Shows secret names, categories, and descriptions but NOT the actual"
+      "description": "List all configured secret keys."
     },
     {
       "name": "config_delete_secret",
       "category": "system",
-      "description": "Delete a secret from storage. Creates a pending action that requires user confirmation. Use this to "
+      "description": "Delete a secret from storage."
     },
     {
       "name": "config_update_agent",
       "category": "system",
-      "description": "Update agent configuration settings (enabled status, base prompt, model selection). Creates a pendin"
+      "description": "Update agent configuration settings."
     },
     {
       "name": "config_get_agent",
       "category": "system",
-      "description": "Get detailed configuration for a specific agent. Shows enabled status, prompt, models, skills, and t"
+      "description": "Get detailed configuration for a specific agent."
     },
     {
       "name": "config_list_agents",
       "category": "system",
-      "description": "List all configured agents. Shows agent names, modes, enabled status, and brief descriptions."
+      "description": "List all configured agents."
     },
     {
       "name": "config_create_schedule",
       "category": "system",
-      "description": "Create a new scheduled message or job. Creates a pending action that requires user confirmation. Use"
+      "description": "Create a new scheduled message or job."
     },
     {
       "name": "config_update_schedule",
       "category": "system",
-      "description": "Update an existing scheduled message. Creates a pending action that requires user confirmation."
+      "description": "Update an existing scheduled message."
     },
     {
       "name": "config_delete_schedule",
       "category": "system",
-      "description": "Delete a scheduled message or job. Creates a pending action that requires user confirmation."
+      "description": "Delete a scheduled message or job."
     },
     {
       "name": "config_list_schedules",
       "category": "system",
-      "description": "List all scheduled messages and jobs. Shows schedule names, timing, targets, and enabled status."
+      "description": "List all scheduled messages and jobs."
     }
   ],
   "byCategory": {
     "messaging": [
-      "ai_first_slack_lookup_user_by_email",
-      "ai_first_slack_send_dm",
-      "ai_first_slack_send_channel_message",
-      "ai_first_slack_get_channel_messages"
+      "slack_lookup_user",
+      "slack_send_dm",
+      "slack_send_channel_message",
+      "slack_get_channel_messages",
+      "slack_send_image"
     ],
     "whatsapp": [
       "whatsapp_search_messages",
@@ -360,17 +371,18 @@
       "whatsapp_list_groups",
       "whatsapp_get_media",
       "whatsapp_send_poll",
-      "whatsapp_send_message"
+      "whatsapp_send_message",
+      "whatsapp_send_image"
     ],
     "docs": [
-      "ai_first_slides_get_presentation",
-      "ai_first_slides_get_slide",
-      "ai_first_slides_update_text",
-      "ai_first_slides_update_slide_text",
-      "ai_first_slides_duplicate_template",
-      "ai_first_slides_update_weekly",
-      "ai_first_slides_delete_slide",
-      "ai_first_slides_create_table"
+      "slides_get_presentation",
+      "slides_get_slide",
+      "slides_update_text",
+      "slides_update_slide_text",
+      "slides_duplicate_template",
+      "slides_update_weekly",
+      "slides_delete_slide",
+      "slides_create_table"
     ],
     "google": [
       "google_oauth_status",
@@ -383,14 +395,14 @@
       "google_tasks_complete"
     ],
     "system": [
-      "ai_first_health_check",
-      "ai_first_get_config",
-      "ai_first_list_skills",
-      "ai_first_read_skill",
-      "ai_first_create_skill_async",
-      "ai_first_edit_skill_async",
-      "ai_first_list_skill_prs",
-      "ai_first_reload_skills",
+      "system_health_check",
+      "system_get_config",
+      "skills_list",
+      "skills_read",
+      "skills_create_async",
+      "skills_edit_async",
+      "skills_list_prs",
+      "skills_reload",
       "config_confirm_action",
       "config_list_pending",
       "config_cancel_action",
@@ -411,15 +423,9 @@
       "config_delete_schedule",
       "config_list_schedules"
     ],
-    "apps": [
-      "ai_first_create_app",
-      "ai_first_list_apps",
-      "ai_first_get_app",
-      "ai_first_share_app",
-      "ai_first_update_app"
-    ],
-    "agents": ["ai_first_get_agent_context", "ai_first_list_agents", "ai_first_handoff_to_agent"],
-    "context": ["ai_first_read_context", "ai_first_update_context"],
-    "media": ["ai_first_generate_mascot"]
+    "apps": ["apps_create", "apps_list", "apps_get", "apps_share", "apps_update"],
+    "agents": ["agents_get_context", "agents_list", "agents_handoff"],
+    "context": ["context_read", "context_update"],
+    "media": ["media_generate_mascot"]
   }
 }

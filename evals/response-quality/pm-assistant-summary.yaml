@@ -8,7 +8,7 @@ input:
 
 mocks:
   jira:
-    ai_first_get_weekly_summary:
+    jira_get_weekly_summary:
       response:
         weekEnding: '2024-01-19'
         summary:
@@ -47,7 +47,7 @@ mocks:
 expect:
   tool_calls:
     required:
-      - name: ai_first_get_weekly_summary
+      - name: jira_get_weekly_summary
 
   assertions:
     # Check response discusses weekly summary topics

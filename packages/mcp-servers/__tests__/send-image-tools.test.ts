@@ -3,18 +3,18 @@
  *
  * Tests:
  * 1. Tool definitions exist with correct names and schemas
- * 2. orient_whatsapp_send_image handler - calls WhatsApp API, handles errors
- * 3. orient_slack_send_image handler - uses Slack files.uploadV2, handles errors
- * 4. Tool naming convention: new OSS tools use orient_ prefix
+ * 2. whatsapp_send_image handler - calls WhatsApp API, handles errors
+ * 3. slack_send_image handler - uses Slack files.uploadV2, handles errors
+ * 4. Tool naming convention: standard category_action format
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // ============================================================
-// Tests for orient_whatsapp_send_image handler logic
+// Tests for whatsapp_send_image handler logic
 // ============================================================
 
-describe('orient_whatsapp_send_image handler', () => {
+describe('whatsapp_send_image handler', () => {
   let mockFetch: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
@@ -137,10 +137,10 @@ describe('orient_whatsapp_send_image handler', () => {
 });
 
 // ============================================================
-// Tests for orient_slack_send_image handler logic
+// Tests for slack_send_image handler logic
 // ============================================================
 
-describe('orient_slack_send_image handler', () => {
+describe('slack_send_image handler', () => {
   let mockSlackClient: any;
 
   beforeEach(() => {
@@ -243,25 +243,26 @@ describe('orient_slack_send_image handler', () => {
 // ============================================================
 
 describe('Tool Naming Convention', () => {
-  it('orient_whatsapp_send_image uses orient_ prefix', () => {
-    const toolName = 'orient_whatsapp_send_image';
-    expect(toolName).toMatch(/^orient_/);
+  it('whatsapp_send_image uses standard category_action format', () => {
+    const toolName = 'whatsapp_send_image';
+    expect(toolName).toMatch(/^whatsapp_/);
   });
 
-  it('orient_slack_send_image uses orient_ prefix', () => {
-    const toolName = 'orient_slack_send_image';
-    expect(toolName).toMatch(/^orient_/);
+  it('slack_send_image uses standard category_action format', () => {
+    const toolName = 'slack_send_image';
+    expect(toolName).toMatch(/^slack_/);
   });
 
-  it('orient_ prefixed tools should not use ai_first_ prefix', () => {
-    const orientTools = ['orient_whatsapp_send_image', 'orient_slack_send_image'];
-    for (const name of orientTools) {
+  it('tools should not use old prefixes', () => {
+    const tools = ['whatsapp_send_image', 'slack_send_image'];
+    for (const name of tools) {
       expect(name).not.toMatch(/^ai_first_/);
+      expect(name).not.toMatch(/^orient_/);
     }
   });
 
   it('tool names should be snake_case', () => {
-    const tools = ['orient_whatsapp_send_image', 'orient_slack_send_image'];
+    const tools = ['whatsapp_send_image', 'slack_send_image', 'system_health_check', 'apps_create'];
     for (const name of tools) {
       expect(name).toMatch(/^[a-z][a-z0-9_]*$/);
     }

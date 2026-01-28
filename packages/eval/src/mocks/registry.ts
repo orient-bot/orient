@@ -115,7 +115,7 @@ export class MockServiceRegistry {
    */
   getResponse(toolName: string): MockResponse | null {
     // Parse tool name to find service
-    // e.g., ai_first_get_blockers -> jira service
+    // e.g., system_health_check -> system service, slack_send_dm -> slack service
     const service = this.findServiceForTool(toolName);
     if (service) {
       return service.getResponse(toolName, {});

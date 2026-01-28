@@ -319,11 +319,9 @@ export async function initializeWhatsAppIntegration(): Promise<WhatsAppIntegrati
       if (imageUrl) {
         const response = await fetch(imageUrl);
         if (!response.ok) {
-          res
-            .status(400)
-            .json({
-              error: `Failed to fetch image from URL: ${response.status} ${response.statusText}`,
-            });
+          res.status(400).json({
+            error: `Failed to fetch image from URL: ${response.status} ${response.statusText}`,
+          });
           return;
         }
         const arrayBuffer = await response.arrayBuffer();

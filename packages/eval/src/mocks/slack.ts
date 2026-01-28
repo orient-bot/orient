@@ -79,8 +79,8 @@ export class SlackMockService extends BaseMockService {
   }
 
   private setupDefaults(): void {
-    // ai_first_slack_send_message - Send message to channel
-    this.defaultResponses.set('ai_first_slack_send_message', () => ({
+    // slack_send_channel_message - Send message to channel
+    this.defaultResponses.set('slack_send_channel_message', () => ({
       response: {
         success: true,
         ts: `${Date.now()}.000000`,
@@ -88,8 +88,8 @@ export class SlackMockService extends BaseMockService {
       },
     }));
 
-    // ai_first_slack_send_dm - Send direct message
-    this.defaultResponses.set('ai_first_slack_send_dm', () => ({
+    // slack_send_dm - Send direct message
+    this.defaultResponses.set('slack_send_dm', () => ({
       response: {
         success: true,
         ts: `${Date.now()}.000000`,
@@ -97,40 +97,18 @@ export class SlackMockService extends BaseMockService {
       },
     }));
 
-    // ai_first_slack_lookup_user_by_email - Find user by email
-    this.defaultResponses.set('ai_first_slack_lookup_user_by_email', () => ({
+    // slack_lookup_user - Find user by email
+    this.defaultResponses.set('slack_lookup_user', () => ({
       response: createMockSlackUser(),
     }));
 
-    // ai_first_slack_list_channels - List channels
-    this.defaultResponses.set('ai_first_slack_list_channels', () => ({
+    // slack_get_channel_messages - Get messages from channel
+    this.defaultResponses.set('slack_get_channel_messages', () => ({
       response: {
-        channels: [
-          createMockSlackChannel({ id: 'C11111111', name: 'general' }),
-          createMockSlackChannel({ id: 'C22222222', name: 'engineering' }),
-          createMockSlackChannel({ id: 'C33333333', name: 'random' }),
+        messages: [
+          { ts: '1234567890.000001', text: 'Hello world', user: 'U12345678' },
+          { ts: '1234567890.000002', text: 'Test message', user: 'U12345679' },
         ],
-      },
-    }));
-
-    // ai_first_slack_get_channel_info - Get channel details
-    this.defaultResponses.set('ai_first_slack_get_channel_info', () => ({
-      response: createMockSlackChannel(),
-    }));
-
-    // ai_first_slack_post_thread_reply - Reply in thread
-    this.defaultResponses.set('ai_first_slack_post_thread_reply', () => ({
-      response: {
-        success: true,
-        ts: `${Date.now()}.000000`,
-        thread_ts: '1234567890.000000',
-      },
-    }));
-
-    // ai_first_slack_react - Add reaction
-    this.defaultResponses.set('ai_first_slack_react', () => ({
-      response: {
-        success: true,
       },
     }));
   }

@@ -243,7 +243,7 @@ async function main(): Promise<void> {
     }
 
     // Lazy getter: re-checks secrets from DB if service is not yet initialized
-    async function getTranscriptionService(): Promise<TranscriptionService | null> {
+    const getTranscriptionService = async (): Promise<TranscriptionService | null> => {
       if (transcriptionService) {
         return transcriptionService;
       }
@@ -262,7 +262,7 @@ async function main(): Promise<void> {
       } catch {
         return null;
       }
-    }
+    };
 
     // Setup graceful shutdown
     setupGracefulShutdown(connection);

@@ -32,7 +32,7 @@ interface Output {
  * Health Check Tool Implementation
  */
 export class HealthCheckTool extends MCPTool<Input, Output> {
-  readonly name = 'ai_first_health_check';
+  readonly name = 'system_health_check';
   readonly description = 'Check the health and connectivity of the Orient.';
   readonly category = 'system' as const;
   readonly inputSchema = HealthCheckInput;
@@ -46,7 +46,7 @@ export class HealthCheckTool extends MCPTool<Input, Output> {
 
   async execute(_input: Input, context: ToolContext): Promise<Output> {
     const services: ServiceStatus[] = [];
-    let overallStatus: 'healthy' | 'degraded' | 'unhealthy' = 'healthy';
+    const overallStatus: 'healthy' | 'degraded' | 'unhealthy' = 'healthy';
 
     // Check config
     services.push({

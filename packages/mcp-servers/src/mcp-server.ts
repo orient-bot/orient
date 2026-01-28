@@ -607,7 +607,7 @@ Please fix the issues and try again.`;
 // Define MCP tools
 const tools: Tool[] = [
   {
-    name: 'ai_first_health_check',
+    name: 'system_health_check',
     description: 'Check the health and connectivity of the Orient.',
     inputSchema: {
       type: 'object',
@@ -616,7 +616,7 @@ const tools: Tool[] = [
     },
   },
   {
-    name: 'ai_first_get_config',
+    name: 'system_get_config',
     description: 'Get the current configuration for the Orient (excluding sensitive credentials).',
     inputSchema: {
       type: 'object',
@@ -627,7 +627,7 @@ const tools: Tool[] = [
   ...googleSlidesTools,
   // Slack tools
   {
-    name: 'ai_first_slack_lookup_user_by_email',
+    name: 'slack_lookup_user',
     description:
       'Look up a Slack user by their email address. Returns user ID and profile information.',
     inputSchema: {
@@ -642,7 +642,7 @@ const tools: Tool[] = [
     },
   },
   {
-    name: 'ai_first_slack_send_dm',
+    name: 'slack_send_dm',
     description:
       'Send a direct message to a Slack user. Can use either user ID or email address. Optionally include additional users to create a group DM.',
     inputSchema: {
@@ -667,7 +667,7 @@ const tools: Tool[] = [
     },
   },
   {
-    name: 'ai_first_slack_send_channel_message',
+    name: 'slack_send_channel_message',
     description: 'Send a message to a Slack channel.',
     inputSchema: {
       type: 'object',
@@ -685,7 +685,7 @@ const tools: Tool[] = [
     },
   },
   {
-    name: 'ai_first_slack_get_channel_messages',
+    name: 'slack_get_channel_messages',
     description:
       'Get messages from a Slack channel. Can filter by date range and limit the number of messages returned. Useful for reading channel history, finding quotes, or reviewing discussions.',
     inputSchema: {
@@ -971,7 +971,7 @@ const tools: Tool[] = [
   },
   // Skill Management Tools - for creating/editing skills via GitHub PRs
   {
-    name: 'ai_first_list_skills',
+    name: 'skills_list',
     description:
       'List all available skills with their names and descriptions. Skills provide specialized knowledge modules for domain-specific guidance.',
     inputSchema: {
@@ -981,7 +981,7 @@ const tools: Tool[] = [
     },
   },
   {
-    name: 'ai_first_read_skill',
+    name: 'skills_read',
     description:
       'Read the full content of a specific skill by name. Returns the skill body content for detailed guidance.',
     inputSchema: {
@@ -997,7 +997,7 @@ const tools: Tool[] = [
     },
   },
   {
-    name: 'ai_first_create_skill_async',
+    name: 'skills_create_async',
     description:
       'Create a new skill and submit it as a GitHub PR. This is an ASYNC operation - it starts a background job and returns immediately. The PR link will be sent via the messaging channel when ready. ADMIN ONLY - requires loading the skill-creator skill first for guidance on creating effective skills.',
     inputSchema: {
@@ -1046,7 +1046,7 @@ const tools: Tool[] = [
     },
   },
   {
-    name: 'ai_first_edit_skill_async',
+    name: 'skills_edit_async',
     description:
       'Edit an existing skill and submit changes as a GitHub PR. This is an ASYNC operation - it starts a background job and returns immediately. The PR link will be sent via the messaging channel when ready. ADMIN ONLY. Read the existing skill first to see current content.',
     inputSchema: {
@@ -1093,7 +1093,7 @@ const tools: Tool[] = [
     },
   },
   {
-    name: 'ai_first_list_skill_prs',
+    name: 'skills_list_prs',
     description:
       'List all pending GitHub PRs for skill changes that are awaiting review. ADMIN ONLY.',
     inputSchema: {
@@ -1103,7 +1103,7 @@ const tools: Tool[] = [
     },
   },
   {
-    name: 'ai_first_reload_skills',
+    name: 'skills_reload',
     description:
       'Reload all skills from disk. Use after a skill PR is merged and deployed to refresh the skill cache. ADMIN ONLY.',
     inputSchema: {
@@ -1752,7 +1752,7 @@ async function executeToolCall(
       }
     }
 
-    case 'ai_first_health_check': {
+    case 'system_health_check': {
       return {
         content: [
           {
@@ -1770,7 +1770,7 @@ async function executeToolCall(
       };
     }
 
-    case 'ai_first_get_config': {
+    case 'system_get_config': {
       return {
         content: [
           {
@@ -1799,7 +1799,7 @@ async function executeToolCall(
     }
 
     // Google Slides tool handlers
-    case 'ai_first_slides_get_presentation': {
+    case 'slides_get_presentation': {
       const { presentationUrl } = args as { presentationUrl?: string };
       const slides = getSlidesService();
       const presentationId = resolvePresentationId({ presentationUrl });
@@ -1815,7 +1815,7 @@ async function executeToolCall(
       };
     }
 
-    case 'ai_first_slides_get_slide': {
+    case 'slides_get_slide': {
       const { slideId: providedSlideId, presentationUrl } = args as {
         slideId?: string;
         presentationUrl?: string;
@@ -1861,7 +1861,7 @@ async function executeToolCall(
       };
     }
 
-    case 'ai_first_slides_update_text': {
+    case 'slides_update_text': {
       const { replacements, presentationUrl } = args as {
         replacements: TextReplacement[];
         presentationUrl?: string;
@@ -1889,7 +1889,7 @@ async function executeToolCall(
       };
     }
 
-    case 'ai_first_slides_update_slide_text': {
+    case 'slides_update_slide_text': {
       const {
         slideId: providedSlideId,
         replacements,
@@ -1950,7 +1950,7 @@ async function executeToolCall(
       };
     }
 
-    case 'ai_first_slides_duplicate_template': {
+    case 'slides_duplicate_template': {
       const { templateSlideId, replacements, insertAtIndex, presentationUrl } = args as {
         templateSlideId: string;
         replacements?: TextReplacement[];
@@ -1985,7 +1985,7 @@ async function executeToolCall(
       };
     }
 
-    case 'ai_first_slides_update_weekly': {
+    case 'slides_update_weekly': {
       const { templateSlideId, insertAtIndex, presentationUrl } = args as {
         templateSlideId?: string;
         insertAtIndex?: number;
@@ -2067,7 +2067,7 @@ async function executeToolCall(
       };
     }
 
-    case 'ai_first_slides_delete_slide': {
+    case 'slides_delete_slide': {
       const { slideId, presentationUrl } = args as { slideId: string; presentationUrl?: string };
       const slides = getSlidesService();
       const presentationId = resolvePresentationId({ presentationUrl });
@@ -2091,7 +2091,7 @@ async function executeToolCall(
       };
     }
 
-    case 'ai_first_slides_create_table': {
+    case 'slides_create_table': {
       const {
         slideId,
         presentationUrl,
@@ -2140,7 +2140,7 @@ async function executeToolCall(
     }
 
     // Slack tool handlers
-    case 'ai_first_slack_lookup_user_by_email': {
+    case 'slack_lookup_user': {
       const { email } = args as { email: string };
       const op = slackLogger.startOperation('lookupUserByEmail');
 
@@ -2200,7 +2200,7 @@ async function executeToolCall(
       }
     }
 
-    case 'ai_first_slack_send_dm': {
+    case 'slack_send_dm': {
       const { userIdOrEmail, message, ccUsers } = args as {
         userIdOrEmail: string;
         message: string;
@@ -2313,7 +2313,7 @@ async function executeToolCall(
       }
     }
 
-    case 'ai_first_slack_send_channel_message': {
+    case 'slack_send_channel_message': {
       const { channel, message } = args as { channel: string; message: string };
       const op = slackLogger.startOperation('sendChannelMessage');
 
@@ -2372,7 +2372,7 @@ async function executeToolCall(
       }
     }
 
-    case 'ai_first_slack_get_channel_messages': {
+    case 'slack_get_channel_messages': {
       const { channel, limit, oldest, latest, includeReplies } = args as {
         channel: string;
         limit?: number;
@@ -3362,7 +3362,7 @@ async function executeToolCall(
 
     // ========== Skill Management Tools ==========
 
-    case 'ai_first_list_skills': {
+    case 'skills_list': {
       const op = skillLogger.startOperation('listSkills');
 
       try {
@@ -3405,7 +3405,7 @@ async function executeToolCall(
       }
     }
 
-    case 'ai_first_read_skill': {
+    case 'skills_read': {
       const { name: skillName } = args as { name: string };
       const op = skillLogger.startOperation('readSkill', { skillName });
 
@@ -3421,7 +3421,7 @@ async function executeToolCall(
                 type: 'text',
                 text: JSON.stringify({
                   error: `Skill "${skillName}" not found`,
-                  hint: 'Use ai_first_list_skills to see available skills.',
+                  hint: 'Use skills_list to see available skills.',
                 }),
               },
             ],
@@ -3463,7 +3463,7 @@ async function executeToolCall(
       }
     }
 
-    case 'ai_first_create_skill_async': {
+    case 'skills_create_async': {
       const {
         name: skillName,
         description,
@@ -3538,7 +3538,7 @@ async function executeToolCall(
               {
                 type: 'text',
                 text: JSON.stringify({
-                  error: `Skill "${skillName}" already exists. Use ai_first_edit_skill_async to modify it.`,
+                  error: `Skill "${skillName}" already exists. Use skills_edit_async to modify it.`,
                 }),
               },
             ],
@@ -3599,7 +3599,7 @@ async function executeToolCall(
       }
     }
 
-    case 'ai_first_edit_skill_async': {
+    case 'skills_edit_async': {
       const {
         name: skillName,
         description,
@@ -3674,7 +3674,7 @@ async function executeToolCall(
               {
                 type: 'text',
                 text: JSON.stringify({
-                  error: `Skill "${skillName}" does not exist. Use ai_first_create_skill_async to create it.`,
+                  error: `Skill "${skillName}" does not exist. Use skills_create_async to create it.`,
                 }),
               },
             ],
@@ -3735,7 +3735,7 @@ async function executeToolCall(
       }
     }
 
-    case 'ai_first_list_skill_prs': {
+    case 'skills_list_prs': {
       const op = skillLogger.startOperation('listSkillPRs');
 
       try {
@@ -3798,7 +3798,7 @@ async function executeToolCall(
       }
     }
 
-    case 'ai_first_reload_skills': {
+    case 'skills_reload': {
       const op = skillLogger.startOperation('reloadSkills');
 
       try {
@@ -4951,8 +4951,8 @@ async function executeToolCall(
     // Mini-Apps Tools
     // =========================================================================
 
-    case 'ai_first_create_app': {
-      const op = appsLogger.startOperation('ai_first_create_app', args);
+    case 'apps_create': {
+      const op = appsLogger.startOperation('apps_create', args);
 
       try {
         const {
@@ -5070,8 +5070,8 @@ async function executeToolCall(
       }
     }
 
-    case 'ai_first_list_apps': {
-      const op = appsLogger.startOperation('ai_first_list_apps', args);
+    case 'apps_list': {
+      const op = appsLogger.startOperation('apps_list', args);
 
       try {
         const { status, limit } = args as {
@@ -5138,8 +5138,8 @@ async function executeToolCall(
       }
     }
 
-    case 'ai_first_get_app': {
-      const op = appsLogger.startOperation('ai_first_get_app', args);
+    case 'apps_get': {
+      const op = appsLogger.startOperation('apps_get', args);
 
       try {
         const { name: appName } = args as { name: string };
@@ -5163,7 +5163,7 @@ async function executeToolCall(
                 type: 'text',
                 text: JSON.stringify({
                   found: false,
-                  message: `App "${appName}" not found. Use ai_first_list_apps to see available apps.`,
+                  message: `App "${appName}" not found. Use apps_list to see available apps.`,
                 }),
               },
             ],
@@ -5225,8 +5225,8 @@ async function executeToolCall(
       }
     }
 
-    case 'ai_first_share_app': {
-      const op = appsLogger.startOperation('ai_first_share_app', args);
+    case 'apps_share': {
+      const op = appsLogger.startOperation('apps_share', args);
 
       try {
         const {
@@ -5250,9 +5250,7 @@ async function executeToolCall(
 
         const app = service.getApp(appName);
         if (!app) {
-          throw new Error(
-            `App "${appName}" not found. Use ai_first_list_apps to see available apps.`
-          );
+          throw new Error(`App "${appName}" not found. Use apps_list to see available apps.`);
         }
 
         // Generate a share token
@@ -5293,8 +5291,8 @@ async function executeToolCall(
       }
     }
 
-    case 'ai_first_update_app': {
-      const op = appsLogger.startOperation('ai_first_update_app', args);
+    case 'apps_update': {
+      const op = appsLogger.startOperation('apps_update', args);
 
       try {
         const { name: appName, updateRequest } = args as {
@@ -5324,9 +5322,7 @@ async function executeToolCall(
 
         const existingApp = service.getApp(appName);
         if (!existingApp) {
-          throw new Error(
-            `App "${appName}" not found. Use ai_first_list_apps to see available apps.`
-          );
+          throw new Error(`App "${appName}" not found. Use apps_list to see available apps.`);
         }
 
         // Read existing code
@@ -5434,7 +5430,7 @@ async function executeToolCall(
     // MEDIA GENERATION TOOLS
     // ============================================
 
-    case 'ai_first_generate_mascot': {
+    case 'media_generate_mascot': {
       const mediaLogger = createServiceLogger('media-tools');
       const op = mediaLogger.startOperation('generateMascot', args);
 
@@ -5601,7 +5597,7 @@ CRITICAL: Generate PNG with TRANSPARENT background. Keep same cartoon style with
     // AGENT ORCHESTRATION TOOLS
     // ============================================
 
-    case 'ai_first_get_agent_context': {
+    case 'agents_get_context': {
       const { getAgentContextTool } = await import('@orientbot/mcp-tools');
       const minContext = {
         correlationId: '',
@@ -5621,7 +5617,7 @@ CRITICAL: Generate PNG with TRANSPARENT background. Keep same cartoon style with
       };
     }
 
-    case 'ai_first_list_agents': {
+    case 'agents_list': {
       const { listAgentsTool } = await import('@orientbot/mcp-tools');
       const minContext = {
         correlationId: '',
@@ -5641,7 +5637,7 @@ CRITICAL: Generate PNG with TRANSPARENT background. Keep same cartoon style with
       };
     }
 
-    case 'ai_first_handoff_to_agent': {
+    case 'agents_handoff': {
       const { handoffToAgentTool } = await import('@orientbot/mcp-tools');
       const minContext = {
         correlationId: '',
@@ -5662,7 +5658,7 @@ CRITICAL: Generate PNG with TRANSPARENT background. Keep same cartoon style with
     }
 
     // Context persistence tools
-    case 'ai_first_read_context': {
+    case 'context_read': {
       const { readContextTool } = await import('@orientbot/mcp-tools');
       const minContext = {
         correlationId: '',
@@ -5690,7 +5686,7 @@ CRITICAL: Generate PNG with TRANSPARENT background. Keep same cartoon style with
       };
     }
 
-    case 'ai_first_update_context': {
+    case 'context_update': {
       const { updateContextTool } = await import('@orientbot/mcp-tools');
       const minContext = {
         correlationId: '',

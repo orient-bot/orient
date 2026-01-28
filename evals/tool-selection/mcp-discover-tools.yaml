@@ -17,7 +17,7 @@ mocks:
             description: Set system prompt for a platform or chat
           - name: config_set_permission
             description: Set chat permissions for WhatsApp
-          - name: ai_first_health_check
+          - name: system_health_check
             description: Check Orient health and connectivity
 
 expect:

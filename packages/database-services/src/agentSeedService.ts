@@ -25,8 +25,7 @@ const defaultAgents = [
   {
     id: 'ori',
     name: 'Ori',
-    description:
-      'Your friendly border collie companion for JIRA, meetings, workflows, and onboarding',
+    description: 'Your friendly border collie companion for meetings, workflows, and onboarding',
     mode: 'primary',
     modelDefault: 'anthropic/claude-haiku-4-5-20251001',
     modelFallback: 'opencode/gpt-5-nano',
@@ -42,7 +41,6 @@ PERSONALITY:
 - I'm concise and action-oriented, like a well-trained pup!
 
 CAPABILITIES:
-- Herding JIRA issues (create, update, query, link)
 - Scheduling messages and reminders
 - Updating presentations with project progress
 - Managing meetings and action items
@@ -69,28 +67,18 @@ Ready to help! 🦴`,
       'onboarding-guide',
     ],
     allowTools: [
-      'ai_first_*',
+      'system_*',
+      'skills_*',
+      'apps_*',
+      'agents_*',
+      'context_*',
+      'media_*',
+      'slack_*',
+      'slides_*',
+      'whatsapp_*',
+      'google_*',
       'discover_tools',
       'user-*',
-      'config_confirm_action',
-      'config_list_pending',
-      'config_cancel_action',
-      'config_set_permission',
-      'config_get_permission',
-      'config_list_permissions',
-      'config_set_prompt',
-      'config_get_prompt',
-      'config_list_prompts',
-      'config_set_secret',
-      'config_list_secrets',
-      'config_delete_secret',
-      'config_update_agent',
-      'config_get_agent',
-      'config_list_agents',
-      'config_create_schedule',
-      'config_update_schedule',
-      'config_delete_schedule',
-      'config_list_schedules',
       'config_*',
       'orient-assistant_config_*',
     ],
@@ -111,8 +99,8 @@ For WhatsApp: Use simple text with emojis where appropriate.
 Keep messages clear, concise, and well-formatted.`,
     enabled: true,
     skills: ['slack-formatting', 'personal-message-scheduling'],
-    allowTools: ['ai_first_slack_*', 'whatsapp_send_*'],
-    denyTools: ['jira*', '*docs*'],
+    allowTools: ['slack_*', 'whatsapp_send_*'],
+    denyTools: ['*docs*'],
   },
   {
     id: 'scheduler',
@@ -130,8 +118,8 @@ Focus on:
 - Setting appropriate reminders`,
     enabled: true,
     skills: ['personal-message-scheduling'],
-    allowTools: ['google_calendar_*', 'google_tasks_*', 'ai_first_*schedule*'],
-    denyTools: ['jira*', '*messaging*'],
+    allowTools: ['google_calendar_*', 'google_tasks_*', 'config_*schedule*'],
+    denyTools: ['*messaging*'],
   },
   {
     id: 'explorer',
@@ -165,20 +153,20 @@ Focus on:
 CRITICAL RULES:
 1. NEVER write code directly to project files
 2. NEVER use the 'write', 'edit', or 'bash' tools to create code
-3. ALWAYS use ai_first_create_app to generate new apps
-4. ALWAYS use ai_first_update_app to modify existing apps
+3. ALWAYS use apps_create to generate new apps
+4. ALWAYS use apps_update to modify existing apps
 
 What You Can Do:
-- Create new Mini-Apps: Use ai_first_create_app with a detailed prompt
-- List existing apps: Use ai_first_list_apps
-- Get app details: Use ai_first_get_app
-- Share apps: Use ai_first_share_app
-- Update apps: Use ai_first_update_app
+- Create new Mini-Apps: Use apps_create with a detailed prompt
+- List existing apps: Use apps_list
+- Get app details: Use apps_get
+- Share apps: Use apps_share
+- Update apps: Use apps_update
 
 Workflow:
 1. User describes what they want
 2. You craft a detailed prompt describing the app's functionality
-3. Call ai_first_create_app with the prompt
+3. Call apps_create with the prompt
 4. The tool generates the React code and creates a PR for review
 5. Share the PR URL with the user
 
@@ -186,11 +174,11 @@ Always explain what the app will do before creating it.`,
     enabled: true,
     skills: ['mini-apps'],
     allowTools: [
-      'ai_first_create_app',
-      'ai_first_update_app',
-      'ai_first_list_apps',
-      'ai_first_get_app',
-      'ai_first_share_app',
+      'apps_create',
+      'apps_update',
+      'apps_list',
+      'apps_get',
+      'apps_share',
       'discover_tools',
     ],
     denyTools: ['write', 'edit', 'bash', 'Bash', 'Shell'],

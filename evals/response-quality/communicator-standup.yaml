@@ -11,7 +11,7 @@ input:
 
 mocks:
   slack:
-    ai_first_slack_send_channel_message:
+    slack_send_channel_message:
       response:
         success: true
         ts: '1705670400.000002'

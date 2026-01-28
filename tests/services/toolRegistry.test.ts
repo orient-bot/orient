@@ -77,7 +77,7 @@ describe('createToolRegistry', () => {
     expect(registry.isInitialized()).toBe(true);
     expect(registry.size).toBeGreaterThan(0);
 
-    const systemTool = registry.getTool('ai_first_health_check');
+    const systemTool = registry.getTool('system_health_check');
     expect(systemTool).toBeDefined();
     expect(systemTool?.category).toBe('system');
   });
