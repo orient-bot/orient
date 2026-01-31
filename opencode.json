@@ -2,6 +2,23 @@
   "$schema": "https://opencode.ai/config.json",
   "default_agent": "ori",
   "model": "anthropic/claude-haiku-4-5-20251001",
+  "mcp": {
+    "orient-coding": {
+      "type": "local",
+      "command": ["node", "packages/mcp-servers/dist/coding-server.js"],
+      "enabled": true
+    },
+    "orient-assistant": {
+      "type": "local",
+      "command": ["node", "packages/mcp-servers/dist/assistant-server.js"],
+      "enabled": true
+    },
+    "atlassian": {
+      "type": "remote",
+      "url": "https://mcp.atlassian.com/v1/sse",
+      "enabled": true
+    }
+  },
   "permission": {
     "edit": "allow",
     "bash": "allow",

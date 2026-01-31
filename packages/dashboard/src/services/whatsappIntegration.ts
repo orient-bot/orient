@@ -438,6 +438,14 @@ export async function initializeWhatsAppIntegration(): Promise<WhatsAppIntegrati
   // Set up event handlers
   connection.on('connected', () => {
     logger.info('WhatsApp connected successfully');
+
+    // Capture LID and update permission service for admin matching
+    // WhatsApp uses LID (Linked ID) format for group participants instead of phone numbers
+    const myLid = connection.getMyLid();
+    if (myLid) {
+      chatPermissionService.setAdminLid(myLid);
+      logger.info('Admin LID captured from connection', { lid: myLid });
+    }
   });
 
   connection.on('qr', (_qr: string) => {
