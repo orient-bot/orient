@@ -86,7 +86,11 @@
     "eval:watch": "vitest --config vitest.eval.config.ts",
     "prepare": "husky",
     "commit:temp": "TEMP_COMMIT=1 git commit",
-    "commit:wip": "git commit --no-verify -m '[wip] Work in progress'"
+    "commit:wip": "git commit --no-verify -m '[wip] Work in progress'",
+    "test:installer": "cd installer && ./tests/test-install.sh",
+    "test:installer:docker": "cd installer && ./tests/test-install.sh --docker",
+    "test:installer:verbose": "cd installer && ./tests/test-install.sh --verbose",
+    "test:installer:public": "cd installer && ./tests/test-install-public.sh"
   },
   "lint-staged": {
     "*.{ts,tsx}": [
