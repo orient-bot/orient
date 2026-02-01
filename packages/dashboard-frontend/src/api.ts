@@ -320,22 +320,59 @@ export async function getCurrentUser(): Promise<{ user: { userId: number; userna
 }
 
 /**
+ * Google OAuth start response
+ * In proxy mode, includes sessionId for polling
+ */
+interface GoogleAuthStartResponse {
+  authUrl: string;
+  state: string;
+  proxyMode?: boolean;
+  sessionId?: string;
+}
+
+/**
+ * Google OAuth poll response (proxy mode only)
+ */
+interface GoogleAuthPollResponse {
+  success: boolean;
+  token?: string;
+  username?: string;
+  status?: 'pending';
+  message?: string;
+  error?: string;
+}
+
+/**
  * Initiate Google OAuth flow
  * Returns the authorization URL to redirect the user to
+ * In proxy mode, also returns sessionId for polling
  */
-export async function initiateGoogleAuth(): Promise<{ authUrl: string; state: string }> {
+export async function initiateGoogleAuth(): Promise<GoogleAuthStartResponse> {
   return apiRequest('/auth/google/start', {
     method: 'POST',
   });
 }
 
 /**
+ * Poll for OAuth tokens (proxy mode only)
+ * Call this repeatedly after user completes OAuth consent
+ */
+export async function pollGoogleAuth(sessionId: string): Promise<GoogleAuthPollResponse> {
+  return apiRequest('/auth/google/poll', {
+    method: 'POST',
+    body: JSON.stringify({ sessionId }),
+  });
+}
+
+/**
  * Sign in with Google OAuth
  * Opens Google OAuth popup and returns auth token on success
+ * Supports both direct mode and proxy mode
  */
 export async function signInWithGoogle(): Promise<LoginResponse> {
   // Initiate OAuth flow
-  const { authUrl } = await initiateGoogleAuth();
+  const startResponse = await initiateGoogleAuth();
+  const { authUrl, proxyMode, sessionId } = startResponse;
 
   // Open popup window for Google OAuth
   const width = 600;
@@ -353,7 +390,19 @@ export async function signInWithGoogle(): Promise<LoginResponse> {
     throw new Error('Failed to open Google sign-in popup. Please allow popups for this site.');
   }
 
-  // Wait for OAuth callback and token
+  // Proxy mode: Poll for tokens after user completes OAuth consent
+  if (proxyMode && sessionId) {
+    return signInWithGoogleProxyMode(popup, sessionId);
+  }
+
+  // Direct mode: Wait for OAuth callback and token
+  return signInWithGoogleDirectMode(popup);
+}
+
+/**
+ * Handle Google OAuth in direct mode (local credentials configured)
+ */
+async function signInWithGoogleDirectMode(popup: Window): Promise<LoginResponse> {
   return new Promise((resolve, reject) => {
     const timeout = setTimeout(
       () => {
@@ -418,6 +467,80 @@ export async function signInWithGoogle(): Promise<LoginResponse> {
         // Ignore cross-origin errors while popup is on Google domain
       }
     }, 500);
+  });
+}
+
+/**
+ * Handle Google OAuth in proxy mode (using production's OAuth client)
+ */
+async function signInWithGoogleProxyMode(popup: Window, sessionId: string): Promise<LoginResponse> {
+  const POLL_INTERVAL_MS = 2000;
+  const TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+
+  return new Promise((resolve, reject) => {
+    const startTime = Date.now();
+    let pollInterval: ReturnType<typeof setInterval> | null = null;
+
+    const cleanup = () => {
+      if (pollInterval) {
+        clearInterval(pollInterval);
+        pollInterval = null;
+      }
+      if (!popup.closed) {
+        popup.close();
+      }
+    };
+
+    // Check if popup was closed
+    const checkPopupClosed = setInterval(() => {
+      if (popup.closed) {
+        clearInterval(checkPopupClosed);
+        // Give some extra time for the OAuth flow to complete
+        // User might have closed after clicking "Allow"
+        setTimeout(() => {
+          if (pollInterval) {
+            // Still polling, let it continue for a bit
+          }
+        }, 3000);
+      }
+    }, 500);
+
+    // Start polling for tokens
+    pollInterval = setInterval(async () => {
+      // Check for timeout
+      if (Date.now() - startTime > TIMEOUT_MS) {
+        cleanup();
+        clearInterval(checkPopupClosed);
+        reject(new Error('Google sign-in timed out'));
+        return;
+      }
+
+      try {
+        const response = await pollGoogleAuth(sessionId);
+
+        if (response.success && response.token && response.username) {
+          cleanup();
+          clearInterval(checkPopupClosed);
+          setAuthToken(response.token);
+          resolve({ token: response.token, username: response.username });
+        } else if (response.status === 'pending') {
+          // Still waiting, continue polling
+          // Check if popup was closed and enough time has passed
+          if (popup.closed && Date.now() - startTime > 10000) {
+            cleanup();
+            clearInterval(checkPopupClosed);
+            reject(new Error('Google sign-in popup was closed before completing'));
+          }
+        } else if (response.error) {
+          cleanup();
+          clearInterval(checkPopupClosed);
+          reject(new Error(response.error || 'Google sign-in failed'));
+        }
+      } catch (error) {
+        // Network errors during polling - continue trying unless it's a fatal error
+        console.warn('Proxy poll error:', error);
+      }
+    }, POLL_INTERVAL_MS);
   });
 }
 
