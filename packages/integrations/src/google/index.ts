@@ -62,6 +62,7 @@ export * from './sheets.js';
 export * from './slides.js';
 export * from './sheets-oauth.js';
 export * from './slides-oauth.js';
+export * from './oauth-proxy.js';
 
 export const GOOGLE_SERVICES_MIGRATION_PENDING = false;
 
