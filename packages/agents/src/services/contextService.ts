@@ -7,15 +7,15 @@
  * Key responsibilities:
  * - CRUD operations for chat context
  *
- * Exported via @orient/agents package.
+ * Exported via @orient-bot/agents package.
  * - Deep merge updates for partial context changes
  * - Activity history management with capping
  * - Format context for system prompt injection
  */
 
-import { getDatabase, eq, and } from '@orient/database';
-import { chatContext } from '@orient/database';
-import { createServiceLogger } from '@orient/core';
+import { getDatabase, eq, and } from '@orient-bot/database';
+import { chatContext } from '@orient-bot/database';
+import { createServiceLogger } from '@orient-bot/core';
 
 const logger = createServiceLogger('context-service');
 
@@ -69,6 +69,10 @@ export interface PersistentContext {
     lastTopic?: string;
     workingDirectory?: string;
     openItems?: string[];
+    // Intelligent context control fields
+    recentKeywords?: string[]; // Keywords from last 3-5 messages
+    topicStartedAt?: string; // ISO timestamp when current topic started
+    messagesSinceClear?: number; // Count of messages since last clear/compact
     [key: string]: unknown;
   };
 
@@ -106,7 +110,10 @@ const DEFAULT_CONTEXT: PersistentContext = {
 // ============================================
 
 export class ContextService {
-  private db = getDatabase();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private async getDb(): Promise<any> {
+    return await getDatabase();
+  }
 
   // ============================================
   // CRUD OPERATIONS
@@ -119,7 +126,9 @@ export class ContextService {
     const op = logger.startOperation('getContext', { platform, chatId });
 
     try {
-      const result = await this.db
+      const result = await (
+        await this.getDb()
+      )
         .select()
         .from(chatContext)
         .where(and(eq(chatContext.platform, platform), eq(chatContext.chatId, chatId)));
@@ -133,7 +142,7 @@ export class ContextService {
 
       // Create default context if not exists
       const defaultContext = { ...DEFAULT_CONTEXT };
-      await this.db.insert(chatContext).values({
+      await (await this.getDb()).insert(chatContext).values({
         platform,
         chatId,
         contextJson: JSON.stringify(defaultContext),
@@ -166,7 +175,9 @@ export class ContextService {
       const merged = this.deepMerge(existing, updates);
 
       // Update in database
-      await this.db
+      await (
+        await this.getDb()
+      )
         .update(chatContext)
         .set({
           contextJson: JSON.stringify(merged),
@@ -226,7 +237,9 @@ export class ContextService {
     try {
       const defaultContext = { ...DEFAULT_CONTEXT };
 
-      await this.db
+      await (
+        await this.getDb()
+      )
         .update(chatContext)
         .set({
           contextJson: JSON.stringify(defaultContext),
@@ -250,7 +263,9 @@ export class ContextService {
     const op = logger.startOperation('deleteContext', { platform, chatId });
 
     try {
-      const result = await this.db
+      const result = await (
+        await this.getDb()
+      )
         .delete(chatContext)
         .where(and(eq(chatContext.platform, platform), eq(chatContext.chatId, chatId)))
         .returning();
@@ -427,7 +442,7 @@ export class ContextService {
     totalContexts: number;
     byPlatform: Record<string, number>;
   }> {
-    const results = await this.db.select().from(chatContext);
+    const results = await (await this.getDb()).select().from(chatContext);
 
     const byPlatform: Record<string, number> = {};
     for (const row of results) {

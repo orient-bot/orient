@@ -6,23 +6,24 @@
  */
 
 import { Router, Request, Response } from 'express';
-import { createServiceLogger } from '@orient/core';
-import { createSecretsService } from '@orient/database-services';
+import { getParam } from './paramUtils.js';
+import { createServiceLogger } from '@orient-bot/core';
+import { createSecretsService } from '@orient-bot/database-services';
 import * as fs from 'fs';
 import * as path from 'path';
 
 // Lazy-loaded OAuth modules - using 'any' type because these are dynamically imported
 // and TypeScript can't verify the module structure at compile time
 
-// Google OAuth service from @orient/integrations
+// Google OAuth service from @orient-bot/integrations
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let googleOAuthServiceModule: any = null;
 
-// Atlassian OAuth service from @orient/mcp-servers/oauth
+// Atlassian OAuth service from @orient-bot/mcp-servers/oauth
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let atlassianOAuthModule: any = null;
 
-// GitHub OAuth service from @orient/integrations/catalog/github
+// GitHub OAuth service from @orient-bot/integrations/catalog/github
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let gitHubOAuthModule: any = null;
 
@@ -53,7 +54,7 @@ async function getGitHubOAuthModule() {
   if (!gitHubOAuthModule) {
     try {
       // Use package import - much cleaner than relative paths
-      gitHubOAuthModule = await import('@orient/integrations/catalog/github');
+      gitHubOAuthModule = await import('@orient-bot/integrations/catalog/github');
     } catch (error) {
       throw new Error(
         `Failed to load GitHub OAuth service: ${error instanceof Error ? error.message : String(error)}`
@@ -66,8 +67,8 @@ async function getGitHubOAuthModule() {
 async function getAtlassianOAuthModule() {
   if (!atlassianOAuthModule) {
     try {
-      // Use package import - Atlassian OAuth is re-exported from @orient/mcp-servers
-      atlassianOAuthModule = await import('@orient/mcp-servers/oauth');
+      // Use package import - Atlassian OAuth is re-exported from @orient-bot/mcp-servers
+      atlassianOAuthModule = await import('@orient-bot/mcp-servers/oauth');
       logger.info('Loaded Atlassian OAuth module');
     } catch (error) {
       throw new Error(
@@ -107,7 +108,7 @@ async function getGoogleOAuthModule() {
   if (!googleOAuthServiceModule) {
     try {
       // Dynamic import from packages/integrations
-      googleOAuthServiceModule = await import('@orient/integrations');
+      googleOAuthServiceModule = await import('@orient-bot/integrations');
     } catch (error) {
       throw new Error(
         `Failed to load Google OAuth service: ${error instanceof Error ? error.message : String(error)}`
@@ -365,7 +366,7 @@ export function createMcpRoutes(
   // Note: In Docker production, OAuth flows are handled via the OpenCode container
   // This endpoint provides the necessary info for the frontend to initiate the flow
   router.post('/oauth/authorize/:serverName', requireAuth, async (req: Request, res: Response) => {
-    const { serverName } = req.params;
+    const serverName = getParam(req.params.serverName);
     try {
       const callbackConfig = getCallbackConfig();
 
@@ -508,7 +509,7 @@ export function createMcpRoutes(
   // Complete OAuth flow
   // Note: In Docker production, callbacks are handled by the OpenCode container
   router.post('/oauth/complete/:serverName', requireAuth, async (req: Request, res: Response) => {
-    const { serverName } = req.params;
+    const serverName = getParam(req.params.serverName);
     try {
       const callbackConfig = getCallbackConfig();
 
@@ -553,7 +554,7 @@ export function createMcpRoutes(
   // Clear OAuth tokens for a server
   router.delete('/oauth/tokens/:serverName', requireAuth, async (req: Request, res: Response) => {
     try {
-      const { serverName } = req.params;
+      const serverName = getParam(req.params.serverName);
 
       // Handle Google OAuth tokens
       if (serverName.toLowerCase().includes('google')) {
@@ -659,10 +660,12 @@ export function createMcpRoutes(
         return null;
       };
 
-      const code = getQueryString(req.query.code);
-      const state = getQueryString(req.query.state);
-      const error = getQueryString(req.query.error);
-      const errorDescription = getQueryString(req.query.error_description);
+      const code = getQueryString(getParam(req.query.code as string | string[] | undefined));
+      const state = getQueryString(getParam(req.query.state as string | string[] | undefined));
+      const error = getQueryString(getParam(req.query.error as string | string[] | undefined));
+      const errorDescription = getQueryString(
+        getParam(req.query.error_description as string | string[] | undefined)
+      );
 
       const result = atlassianModule.handleProductionOAuthCallback(
         code,
@@ -672,8 +675,7 @@ export function createMcpRoutes(
       );
 
       if (result.success) {
-        // Sync tokens to OpenCode so it can use them
-        atlassianModule.syncMcpTokensToOpenCode();
+        // Tokens are now stored in the correct location directly (uses XDG env vars)
         res.status(200).send(result.html);
       } else {
         res.status(400).send(result.html);
@@ -699,10 +701,12 @@ export function createMcpRoutes(
         return null;
       };
 
-      const code = getQueryString(req.query.code);
-      const state = getQueryString(req.query.state);
-      const error = getQueryString(req.query.error);
-      const errorDescription = getQueryString(req.query.error_description);
+      const code = getQueryString(getParam(req.query.code as string | string[] | undefined));
+      const state = getQueryString(getParam(req.query.state as string | string[] | undefined));
+      const error = getQueryString(getParam(req.query.error as string | string[] | undefined));
+      const errorDescription = getQueryString(
+        getParam(req.query.error_description as string | string[] | undefined)
+      );
 
       const result = await oauthModule.handleGitHubOAuthCallback(
         code,

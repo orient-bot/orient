@@ -8,7 +8,7 @@ import {
   getGmailService,
   getTasksService,
   getGoogleOAuthService,
-} from '@orient/integrations/google';
+} from '@orient-bot/integrations/google';
 
 async function testFullIntegration() {
   console.log('\n🔗 Google Integration E2E Test');
@@ -16,12 +16,12 @@ async function testFullIntegration() {
 
   const oauthService = getGoogleOAuthService();
   const accounts = oauthService.getConnectedAccounts();
-  
+
   if (accounts.length === 0) {
     console.log('❌ No Google accounts connected!');
     return;
   }
-  
+
   const email = accounts[0].email;
   console.log(`✅ Using account: ${email}\n`);
 
@@ -29,28 +29,35 @@ async function testFullIntegration() {
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   console.log('📅 TEST 1: Calendar - "What major events this week?"');
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
-  
+
   try {
     const calendarService = getCalendarService();
     const now = new Date();
     const endOfWeek = new Date(now);
     endOfWeek.setDate(endOfWeek.getDate() + 7);
-    
-    const events = await calendarService.listEvents({
-      calendarId: 'primary',
-      timeMin: now,
-      timeMax: endOfWeek,
-      maxResults: 10
-    }, email);
-    
+
+    const events = await calendarService.listEvents(
+      {
+        calendarId: 'primary',
+        timeMin: now,
+        timeMax: endOfWeek,
+        maxResults: 10,
+      },
+      email
+    );
+
     console.log(`Agent Response:\n`);
     if (events.length === 0) {
       console.log('You have no events scheduled for this week.');
     } else {
       console.log(`You have ${events.length} event(s) this week:`);
       for (const event of events.slice(0, 5)) {
-        const date = event.start 
-          ? new Date(event.start).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+        const date = event.start
+          ? new Date(event.start).toLocaleDateString('en-US', {
+              weekday: 'short',
+              month: 'short',
+              day: 'numeric',
+            })
           : 'All day';
         console.log(`  • ${event.title} (${date})`);
       }
@@ -64,14 +71,14 @@ async function testFullIntegration() {
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   console.log('📧 TEST 2: Gmail - "Any important unread emails?"');
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
-  
+
   try {
     const gmailService = getGmailService();
     const summary = await gmailService.getInboxSummary(email);
-    
+
     console.log(`Agent Response:\n`);
     console.log(`You have ${summary.totalUnread} unread emails.`);
-    
+
     if (summary.recentMessages.length > 0) {
       console.log(`\nRecent messages:`);
       for (const msg of summary.recentMessages.slice(0, 3)) {
@@ -89,22 +96,25 @@ async function testFullIntegration() {
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   console.log('✅ TEST 3: Tasks - "What are my pending tasks?"');
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
-  
+
   try {
     const tasksService = getTasksService();
     const taskLists = await tasksService.listTaskLists(email);
-    
+
     console.log(`Agent Response:\n`);
     console.log(`You have ${taskLists.length} task list(s):`);
-    
+
     for (const list of taskLists) {
       console.log(`\n📋 ${list.title}:`);
-      
-      const tasks = await tasksService.listTasks({ 
-        taskListId: list.id,
-        showCompleted: false 
-      }, email);
-      
+
+      const tasks = await tasksService.listTasks(
+        {
+          taskListId: list.id,
+          showCompleted: false,
+        },
+        email
+      );
+
       if (tasks.length === 0) {
         console.log('   No pending tasks.');
       } else {

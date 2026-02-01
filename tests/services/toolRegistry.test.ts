@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createToolRegistry, ToolRegistry, type ToolMetadata } from '@orient/agents';
+import { createToolRegistry, ToolRegistry, type ToolMetadata } from '@orient-bot/agents';
 
 describe('ToolRegistry', () => {
   const sampleTool: ToolMetadata = {
@@ -77,8 +77,8 @@ describe('createToolRegistry', () => {
     expect(registry.isInitialized()).toBe(true);
     expect(registry.size).toBeGreaterThan(0);
 
-    const jiraTool = registry.getTool('ai_first_get_issue');
-    expect(jiraTool).toBeDefined();
-    expect(jiraTool?.category).toBe('jira');
+    const systemTool = registry.getTool('system_health_check');
+    expect(systemTool).toBeDefined();
+    expect(systemTool?.category).toBe('system');
   });
 });

@@ -1,0 +1,34 @@
+name: mcp-discover-tools
+description: Agent should use discover_tools MCP tool when asked about capabilities
+type: tool_selection
+agent: pm-assistant
+
+input:
+  prompt: 'What tools do you have available? What can you help me with?'
+
+mocks:
+  orient-assistant:
+    discover_tools:
+      response:
+        tools:
+          - name: config_set_secret
+            description: Store a secret key-value pair
+          - name: config_set_prompt
+            description: Set system prompt for a platform or chat
+          - name: config_set_permission
+            description: Set chat permissions for WhatsApp
+          - name: system_health_check
+            description: Check Orient health and connectivity
+
+expect:
+  tool_calls:
+    required:
+      - name: discover_tools
+
+  assertions:
+    # Response should describe available capabilities
+    - type: response_matches
+      pattern: 'secret|prompt|permission|health|tool'
+    # Should not give manual dashboard instructions
+    - type: response_not_matches
+      pattern: 'navigate to|go to the dashboard|click on'

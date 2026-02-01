@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="ori.png" alt="Ori - the Orient mascot" width="180" />
+  <img src="docs/images/ori.png" alt="Ori - the Orient mascot" width="180" />
 </p>
 
 <h1 align="center">Orient</h1>
@@ -10,9 +10,9 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/orient-bot/orient/releases"><img src="https://img.shields.io/github/v/release/orient-bot/orient" alt="Release"></a>
-  <a href="https://github.com/orient-bot/orient/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License"></a>
-  <a href="https://github.com/orient-bot/orient"><img src="https://img.shields.io/github/stars/orient-bot/orient?style=social" alt="GitHub Stars"></a>
+  <a href="https://github.com/orient/orient/releases"><img src="https://img.shields.io/github/v/release/orient/orient" alt="Release"></a>
+  <a href="https://github.com/orient/orient/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License"></a>
+  <a href="https://github.com/orient/orient"><img src="https://img.shields.io/github/stars/orient/orient?style=social" alt="GitHub Stars"></a>
   <a href="https://orient.bot"><img src="https://img.shields.io/badge/website-orient.bot-blue" alt="Website"></a>
 </p>
 
@@ -24,7 +24,7 @@
   <a href="#-contributing">Contributing</a>
 </p>
 
-> **⚠️ Status: Beta (v0.1.x)** — This project is experimental and under active development. Expect breaking changes.
+> **⚠️ Status: Beta (v0.2.x)** — This project is experimental and under active development. Expect breaking changes.
 
 ---
 
@@ -43,7 +43,7 @@
 
 ## 📋 Project Status
 
-Orient is in **early beta** (v0.1.x). We're actively developing new features and improving stability, but you should expect:
+Orient is in **early beta** (v0.2.x). We're actively developing new features and improving stability, but you should expect:
 
 - **Breaking changes** between minor versions
 - **Rough edges** in documentation and setup
@@ -64,22 +64,29 @@ Found a bug? Built something cool? PRs are welcome! See [CONTRIBUTING.md](CONTRI
 
 ## 🚀 Quick Start
 
-### Demo Mode (Fastest)
+### One-Line Install (macOS)
+
+```bash
+curl -fsSL https://orient.bot/install.sh | bash
+```
+
+Then start Orient:
+
+```bash
+orient start
+```
+
+Open the dashboard at `http://localhost:4098` and scan the QR code to connect WhatsApp.
+
+### Development Mode
+
+For contributors or those who want to customize:
 
 ```bash
 # Clone the repository
 git clone https://github.com/orient-bot/orient.git
 cd orient
 
-# Start the demo
-docker compose -f docker/docker-compose.demo.yml up -d
-```
-
-Open the QR UI at `http://localhost:4097/qr` and the dashboard at `http://localhost:4098`.
-
-### Development Mode
-
-```bash
 # Check prerequisites and auto-fix issues
 ./run.sh doctor --fix
 
@@ -87,30 +94,24 @@ Open the QR UI at `http://localhost:4097/qr` and the dashboard at `http://localh
 pnpm install
 pnpm build:packages
 
-# Start development (auto-creates .env from .env.example)
-./run.sh dev
+# Start development with SQLite (no Docker required)
+./run.sh dev-local
 ```
-
-The development environment auto-configures on first run:
-
-- `.env` is created from `.env.example` if missing
-- Default credentials work with Docker infrastructure
-- Setup wizard (at http://localhost:80) handles remaining configuration
 
 Access points:
 
-- **Dashboard**: http://localhost:80
-- **WhatsApp QR**: http://localhost:80/qr/
+- **Dashboard**: http://localhost:4098
+- **WhatsApp QR**: http://localhost:4098/qr/
 - **OpenCode**: http://localhost:4099
 
-### Production
+### Docker Mode (Full Stack)
 
 ```bash
-cd docker
-docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+./run.sh dev  # Development with hot-reload
+./run.sh test # Full Docker stack for testing
 ```
 
-See [Production Deployment](docs/deployment/production.md) for details.
+See [Production Deployment](docs/deployment/production.md) for production setups.
 
 ## 📖 Documentation
 
@@ -118,7 +119,7 @@ See [Production Deployment](docs/deployment/production.md) for details.
 | ------------------------------------------------------ | ------------------------------------- |
 | [Getting Started (Demo)](docs/getting-started-demo.md) | Quick demo with Docker                |
 | [Getting Started (Dev)](docs/getting-started.md)       | Full development setup                |
-| [LLM Onboarding](README.LLM.md)                        | Guide for AI agents setting up Orient |
+| [LLM Onboarding](.claude/README.LLM.md)                | Guide for AI agents setting up Orient |
 | [Configuration](docs/configuration.md)                 | All configuration options             |
 | [Skills](docs/skills.md)                               | Create custom skills                  |
 | [Permissions](docs/permissions.md)                     | Chat permission system                |
@@ -161,7 +162,8 @@ See [Production Deployment](docs/deployment/production.md) for details.
 | ----------------------- | --------------------------------- |
 | `./run.sh doctor`       | Check environment prerequisites   |
 | `./run.sh doctor --fix` | Auto-fix issues where possible    |
-| `./run.sh dev`          | Start development environment     |
+| `./run.sh dev`          | Start dev with Docker             |
+| `./run.sh dev-local`    | Start dev with SQLite (no Docker) |
 | `./run.sh dev stop`     | Stop development services         |
 | `./run.sh dev status`   | Show service status               |
 | `./run.sh test`         | Run full Docker stack for testing |
@@ -239,5 +241,5 @@ MIT — see [LICENSE](LICENSE) for details.
 <p align="center">
   <strong>Built with ❤️ by the Orient community</strong><br/>
   <a href="https://orient.bot">orient.bot</a> •
-  <a href="https://github.com/orient-bot/orient">GitHub</a>
+  <a href="https://github.com/orient/orient">GitHub</a>
 </p>

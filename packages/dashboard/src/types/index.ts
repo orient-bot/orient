@@ -421,7 +421,7 @@ export * from './webhook.js';
 // ============================================
 
 // TODO: Add tsconfig path mappings for packages, then uncomment:
-// export type { AppConfig } from '@orient/core';
-// export type { ToolCategory, ToolContext, ToolResult, ToolMetadata } from '@orient/mcp-tools';
-// export type { SchedulerJobInfo, SystemHealth } from '@orient/api-gateway';
-// export type { MessageStats, PlatformStats, ChatListItem } from '@orient/dashboard';
+// export type { AppConfig } from '@orient-bot/core';
+// export type { ToolCategory, ToolContext, ToolResult, ToolMetadata } from '@orient-bot/mcp-tools';
+// export type { SchedulerJobInfo, SystemHealth } from '@orient-bot/api-gateway';
+// export type { MessageStats, PlatformStats, ChatListItem } from '@orient-bot/dashboard';

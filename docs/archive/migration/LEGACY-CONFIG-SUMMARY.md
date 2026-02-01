@@ -116,19 +116,19 @@ Successfully analyzed and addressed all legacy config/code references identified
 
 ### Packages Tested
 
-| Package                     | Status  | Notes                          |
-| --------------------------- | ------- | ------------------------------ |
-| `@orient/bot-slack`         | ✅ Pass | Successfully removed dead code |
-| `@orient/bot-whatsapp`      | ✅ Pass | Type alias documented          |
-| `@orient/mcp-tools`         | ✅ Pass | No changes needed              |
-| `@orient/core`              | ✅ Pass | Config system unchanged        |
-| `@orient/database`          | ✅ Pass | No dependencies                |
-| `@orient/database-services` | ✅ Pass | No dependencies                |
-| `@orient/agents`            | ✅ Pass | No dependencies                |
+| Package                        | Status  | Notes                          |
+| ------------------------------ | ------- | ------------------------------ |
+| `@orient-bot/bot-slack`         | ✅ Pass | Successfully removed dead code |
+| `@orient-bot/bot-whatsapp`      | ✅ Pass | Type alias documented          |
+| `@orient-bot/mcp-tools`         | ✅ Pass | No changes needed              |
+| `@orient-bot/core`              | ✅ Pass | Config system unchanged        |
+| `@orient-bot/database`          | ✅ Pass | No dependencies                |
+| `@orient-bot/database-services` | ✅ Pass | No dependencies                |
+| `@orient-bot/agents`            | ✅ Pass | No dependencies                |
 
 ### Unrelated Issues
 
-**Note**: `@orient/integrations` has an unrelated build error:
+**Note**: `@orient-bot/integrations` has an unrelated build error:
 
 ```
 src/google/sheets.ts(437,36): error TS2339: Property 'hackathonSpreadsheetId' does not exist on type 'SheetsConfig'.

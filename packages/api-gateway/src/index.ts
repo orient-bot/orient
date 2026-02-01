@@ -1,5 +1,5 @@
 /**
- * @orient/api-gateway
+ * @orient-bot/api-gateway
  *
  * REST API gateway for the Orient.
  *

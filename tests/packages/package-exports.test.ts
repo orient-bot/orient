@@ -148,33 +148,36 @@ describe('Cross-Package Dependencies', () => {
   // Packages that other packages commonly depend on
   const criticalPackages = ['database', 'core', 'database-services'];
 
-  it.each(criticalPackages)('@orient/%s should have complete exports configuration', (pkgName) => {
-    const pkgDir = join(PACKAGES_DIR, pkgName);
+  it.each(criticalPackages)(
+    '@orient-bot/%s should have complete exports configuration',
+    (pkgName) => {
+      const pkgDir = join(PACKAGES_DIR, pkgName);
 
-    if (!existsSync(pkgDir)) {
-      console.warn(`⚠️  Package ${pkgName} not found, skipping`);
-      return;
+      if (!existsSync(pkgDir)) {
+        console.warn(`⚠️  Package ${pkgName} not found, skipping`);
+        return;
+      }
+
+      const pkg = readPackageJson(pkgName);
+
+      // Must have exports field
+      expect(pkg.exports).toBeDefined();
+
+      // Root export must exist
+      expect(pkg.exports!['.']).toBeDefined();
+
+      // Root export must have all conditions
+      const rootExport = pkg.exports!['.'];
+      if (typeof rootExport !== 'string') {
+        expect(rootExport.types).toBeDefined();
+        expect(rootExport.import).toBeDefined();
+        expect(rootExport.default).toBeDefined();
+
+        // Default should match import
+        expect(rootExport.default).toBe(rootExport.import);
+      }
     }
-
-    const pkg = readPackageJson(pkgName);
-
-    // Must have exports field
-    expect(pkg.exports).toBeDefined();
-
-    // Root export must exist
-    expect(pkg.exports!['.']).toBeDefined();
-
-    // Root export must have all conditions
-    const rootExport = pkg.exports!['.'];
-    if (typeof rootExport !== 'string') {
-      expect(rootExport.types).toBeDefined();
-      expect(rootExport.import).toBeDefined();
-      expect(rootExport.default).toBeDefined();
-
-      // Default should match import
-      expect(rootExport.default).toBe(rootExport.import);
-    }
-  });
+  );
 
   it('database package exports should match its public API', () => {
     const pkg = readPackageJson('database');
@@ -207,7 +210,7 @@ describe('Build Artifacts', () => {
 });
 
 describe('Import Resolution Simulation', () => {
-  it('should be able to resolve @orient/database from @orient/database-services', async () => {
+  it('should be able to resolve @orient-bot/database from @orient-bot/database-services', async () => {
     // Simulate the resolution path that tsx uses
     const dbServicesDir = join(PACKAGES_DIR, 'database-services');
     const dbServicesNodeModules = join(dbServicesDir, 'node_modules', '@orient', 'database');

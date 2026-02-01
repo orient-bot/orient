@@ -1,0 +1,18 @@
+# Skill Invocation: Frontend Design
+# Tests that agent discovers frontend-design for UI guidelines
+
+name: skill_invocation_frontend_design
+description: Agent discovers frontend-design for UI design guidelines
+type: skill_invocation
+agent: explorer
+
+input:
+  prompt: 'What are the UI design guidelines?'
+
+expect:
+  skills:
+    activated:
+      - frontend-design
+  assertions:
+    - type: skill_activated
+      skill: frontend-design

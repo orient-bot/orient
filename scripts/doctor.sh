@@ -22,6 +22,9 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
+# Load cross-platform utilities
+source "$SCRIPT_DIR/lib/platform.sh"
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -115,6 +118,37 @@ get_major_version() {
 # =============================================================================
 # Checks
 # =============================================================================
+
+check_platform() {
+  print_header "Platform"
+
+  local os=$(detect_os)
+  local pm=$(detect_package_manager)
+
+  case "$os" in
+    macos)
+      check_pass "Platform: macOS"
+      ;;
+    linux)
+      check_pass "Platform: Linux"
+      if [ "$pm" = "apt" ]; then
+        check_info "Package manager: apt (Debian/Ubuntu)"
+      elif [ "$pm" != "unknown" ]; then
+        check_info "Package manager: $pm"
+      fi
+      ;;
+    wsl)
+      check_pass "Platform: WSL2 (Windows Subsystem for Linux)"
+      check_info "Ensure Docker Desktop WSL2 backend is enabled"
+      if [ "$pm" = "apt" ]; then
+        check_info "Package manager: apt (Debian/Ubuntu)"
+      fi
+      ;;
+    *)
+      check_warn "Platform: Unknown ($(uname -s))" "Some features may not work correctly"
+      ;;
+  esac
+}
 
 check_node() {
   print_header "Node.js"
@@ -212,9 +246,70 @@ check_git() {
   fi
 }
 
+check_opencode_isolation() {
+  print_header "OpenCode Isolation"
+
+  # Check if opencode-env.sh exists
+  if [ ! -f "$PROJECT_ROOT/scripts/opencode-env.sh" ]; then
+    check_fail "opencode-env.sh not found" "Required for OpenCode isolation"
+    return
+  fi
+
+  check_pass "opencode-env.sh exists"
+
+  # Source and configure isolation
+  source "$PROJECT_ROOT/scripts/opencode-env.sh"
+
+  # Save current env
+  local old_test_home="$OPENCODE_TEST_HOME"
+  local old_xdg_data="$XDG_DATA_HOME"
+
+  # Clear and reconfigure
+  unset OPENCODE_TEST_HOME XDG_DATA_HOME XDG_CONFIG_HOME XDG_CACHE_HOME XDG_STATE_HOME
+  export PROJECT_ROOT="$PROJECT_ROOT"
+  configure_opencode_isolation
+
+  # Check isolation is configured correctly
+  local expected_home="$PROJECT_ROOT/.opencode"
+
+  if [ "$OPENCODE_TEST_HOME" = "$expected_home" ]; then
+    check_pass "OPENCODE_TEST_HOME configured correctly"
+  else
+    check_fail "OPENCODE_TEST_HOME not configured" "Expected: $expected_home"
+  fi
+
+  if [ "$XDG_DATA_HOME" = "$expected_home/data" ]; then
+    check_pass "XDG_DATA_HOME configured correctly"
+  else
+    check_fail "XDG_DATA_HOME not configured" "Expected: $expected_home/data"
+  fi
+
+  # Check that .opencode directory structure exists
+  if [ -d "$PROJECT_ROOT/.opencode" ]; then
+    check_pass ".opencode directory exists"
+  else
+    check_warn ".opencode directory does not exist" "Will be created on first run"
+  fi
+
+  # Verify isolation doesn't point to user home
+  if [[ "$OPENCODE_TEST_HOME" != "$HOME"* ]] || [[ "$OPENCODE_TEST_HOME" == "$expected_home"* ]]; then
+    check_pass "Isolation prevents use of global ~/.opencode/"
+  else
+    check_fail "Isolation may use global config" "OPENCODE_TEST_HOME points to home directory"
+  fi
+
+  # Restore env
+  if [ -n "$old_test_home" ]; then
+    export OPENCODE_TEST_HOME="$old_test_home"
+  fi
+  if [ -n "$old_xdg_data" ]; then
+    export XDG_DATA_HOME="$old_xdg_data"
+  fi
+}
+
 check_optional_tools() {
   print_header "Optional Tools"
-  
+
   # OpenCode (for MCP servers)
   if command -v opencode &> /dev/null; then
     local opencode_version=$(opencode --version 2>/dev/null || echo "unknown")
@@ -222,40 +317,72 @@ check_optional_tools() {
   else
     check_warn "OpenCode is not installed" "Required for MCP servers. Install from https://opencode.ai"
   fi
-  
+
   # curl (for health checks)
   if command -v curl &> /dev/null; then
     check_pass "curl is available"
   else
-    check_warn "curl is not installed" "Required for health checks"
+    local hint=$(get_install_hint "curl")
+    check_warn "curl is not installed" "Required for health checks. ${hint:-Install curl}"
+    try_install_tool "curl"
   fi
-  
-  # psql (for database debugging)
-  if command -v psql &> /dev/null; then
-    check_pass "psql is available (useful for debugging)"
+
+  # sqlite3 (for database debugging)
+  if command -v sqlite3 &> /dev/null; then
+    check_pass "sqlite3 is available (useful for debugging)"
   else
-    check_info "psql not installed (optional, for database debugging)"
+    check_info "sqlite3 not installed (optional, for database debugging)"
   fi
-  
+
   # lsof (for port checking)
   if command -v lsof &> /dev/null; then
     check_pass "lsof is available"
   else
-    check_warn "lsof is not installed" "Required for port conflict detection"
+    local hint=$(get_install_hint "lsof")
+    check_warn "lsof is not installed" "Required for port conflict detection. ${hint:-Install lsof}"
+    try_install_tool "lsof"
   fi
-  
+
   # jq (for JSON parsing)
   if command -v jq &> /dev/null; then
     check_pass "jq is available"
   else
-    check_info "jq not installed (optional, for JSON debugging)"
+    local hint=$(get_install_hint "jq")
+    check_info "jq not installed (optional, for JSON debugging). ${hint:-Install jq}"
+    try_install_tool "jq"
   fi
-  
+
   # envsubst (for config templating)
   if command -v envsubst &> /dev/null; then
     check_pass "envsubst is available"
   else
-    check_warn "envsubst is not installed" "Required for nginx config. Install gettext package."
+    local hint=$(get_install_hint "envsubst")
+    check_warn "envsubst is not installed" "Required for nginx config. ${hint:-Install gettext package}"
+    try_install_tool "envsubst"
+  fi
+}
+
+# Helper to prompt for tool installation in fix mode (apt-based systems only)
+try_install_tool() {
+  local tool="$1"
+  if [ "$FIX_MODE" = true ]; then
+    local pm=$(detect_package_manager)
+    if [ "$pm" = "apt" ]; then
+      local pkg="$tool"
+      # Map tool names to package names
+      case "$tool" in
+        envsubst) pkg="gettext-base" ;;
+      esac
+      echo -e "    ${CYAN}Install $pkg? [y/N]${NC}"
+      read -r response
+      if [[ "$response" =~ ^[Yy]$ ]]; then
+        if sudo apt install -y "$pkg"; then
+          check_pass "$tool installed successfully"
+        else
+          check_fail "Failed to install $tool"
+        fi
+      fi
+    fi
   fi
 }
 
@@ -266,8 +393,8 @@ check_config_files() {
   if [ -f "$PROJECT_ROOT/.env" ]; then
     check_pass ".env file exists"
     
-    # Check for required environment variables
-    local required_vars=("POSTGRES_USER" "POSTGRES_PASSWORD" "MINIO_ROOT_USER" "MINIO_ROOT_PASSWORD" "DASHBOARD_JWT_SECRET" "ORIENT_MASTER_KEY")
+    # Check for required environment variables (SQLite - no database credentials needed)
+    local required_vars=("MINIO_ROOT_USER" "MINIO_ROOT_PASSWORD" "DASHBOARD_JWT_SECRET" "ORIENT_MASTER_KEY")
     local missing_vars=()
     
     for var in "${required_vars[@]}"; do
@@ -295,8 +422,7 @@ check_config_files() {
           echo -e "    ${CYAN}→ Generating secure JWT secret...${NC}"
           local new_secret=$(openssl rand -base64 48 | tr -d '\n')
           if [ -n "$new_secret" ]; then
-            sed -i.bak "s|^DASHBOARD_JWT_SECRET=.*|DASHBOARD_JWT_SECRET=${new_secret}|" "$PROJECT_ROOT/.env"
-            rm -f "$PROJECT_ROOT/.env.bak"
+            sed_inplace "$PROJECT_ROOT/.env" "s|^DASHBOARD_JWT_SECRET=.*|DASHBOARD_JWT_SECRET=${new_secret}|"
             check_pass "DASHBOARD_JWT_SECRET regenerated (${#new_secret} chars)"
           fi
         fi
@@ -316,15 +442,14 @@ check_config_files() {
           echo -e "    ${CYAN}→ Generating secure master key...${NC}"
           local new_key=$(openssl rand -base64 48 | tr -d '\n')
           if [ -n "$new_key" ]; then
-            sed -i.bak "s|^ORIENT_MASTER_KEY=.*|ORIENT_MASTER_KEY=${new_key}|" "$PROJECT_ROOT/.env"
-            rm -f "$PROJECT_ROOT/.env.bak"
+            sed_inplace "$PROJECT_ROOT/.env" "s|^ORIENT_MASTER_KEY=.*|ORIENT_MASTER_KEY=${new_key}|"
             check_pass "ORIENT_MASTER_KEY regenerated (${#new_key} chars)"
           fi
         fi
       fi
     else
       check_fail "ORIENT_MASTER_KEY is not set" "Required for secret encryption. Generate with: openssl rand -base64 48"
-      
+
       if [ "$FIX_MODE" = true ]; then
         echo -e "    ${CYAN}→ Generating secure master key...${NC}"
         local new_key=$(openssl rand -base64 48 | tr -d '\n')
@@ -334,33 +459,25 @@ check_config_files() {
         fi
       fi
     fi
-    
+
     # Check for placeholder values that won't work
     if grep -q "your-secure-password\|your-dashboard-jwt-secret\|your-master-key" "$PROJECT_ROOT/.env" 2>/dev/null; then
       check_warn "Found placeholder values in .env" "Replace 'your-secure-password' and similar placeholders"
-      
+
       if [ "$FIX_MODE" = true ]; then
         echo -e "    ${CYAN}→ Replacing placeholder values with defaults...${NC}"
-        # Replace placeholder passwords with working defaults
-        sed -i.bak \
-          -e "s|POSTGRES_PASSWORD=your-secure-password|POSTGRES_PASSWORD=aibot123|g" \
-          -e "s|MINIO_ROOT_PASSWORD=your-secure-password|MINIO_ROOT_PASSWORD=minioadmin123|g" \
-          -e "s|DASHBOARD_JWT_SECRET=your-dashboard-jwt-secret|DASHBOARD_JWT_SECRET=$(openssl rand -base64 48 | tr -d '\n')|g" \
-          -e "s|ORIENT_MASTER_KEY=your-master-key|ORIENT_MASTER_KEY=$(openssl rand -base64 48 | tr -d '\n')|g" \
-          "$PROJECT_ROOT/.env"
-        rm -f "$PROJECT_ROOT/.env.bak"
+        # Replace placeholder passwords with working defaults (SQLite - no database password)
+        sed_inplace "$PROJECT_ROOT/.env" "s|MINIO_ROOT_PASSWORD=your-secure-password|MINIO_ROOT_PASSWORD=minioadmin123|g"
+        local new_jwt=$(openssl rand -base64 48 | tr -d '\n')
+        sed_inplace "$PROJECT_ROOT/.env" "s|DASHBOARD_JWT_SECRET=your-dashboard-jwt-secret|DASHBOARD_JWT_SECRET=${new_jwt}|g"
+        local new_master=$(openssl rand -base64 48 | tr -d '\n')
+        sed_inplace "$PROJECT_ROOT/.env" "s|ORIENT_MASTER_KEY=your-master-key|ORIENT_MASTER_KEY=${new_master}|g"
         check_pass "Placeholder values replaced with working defaults"
       fi
     fi
     
-    # Check database credentials match Docker defaults
-    local pg_user=$(grep "^POSTGRES_USER=" "$PROJECT_ROOT/.env" 2>/dev/null | cut -d'=' -f2-)
-    local pg_pass=$(grep "^POSTGRES_PASSWORD=" "$PROJECT_ROOT/.env" 2>/dev/null | cut -d'=' -f2-)
-    
-    # Warn if using non-default credentials that might not match Docker
-    if [ "$pg_user" != "aibot" ] && [ "$pg_user" != "orient" ]; then
-      check_info "Using custom POSTGRES_USER: $pg_user (ensure Docker is configured to match)"
-    fi
+    # SQLite database - no credentials needed
+    check_info "Database: SQLite (file-based, no credentials required)"
   else
     check_fail ".env file does not exist" "Copy from template: cp .env.example .env"
     
@@ -374,8 +491,7 @@ check_config_files() {
       if [ -n "$jwt_secret" ] && [ ${#jwt_secret} -lt 32 ]; then
         echo -e "    ${CYAN}→ Generating secure JWT secret...${NC}"
         local new_secret=$(openssl rand -base64 48 | tr -d '\n')
-        sed -i.bak "s|^DASHBOARD_JWT_SECRET=.*|DASHBOARD_JWT_SECRET=${new_secret}|" "$PROJECT_ROOT/.env"
-        rm -f "$PROJECT_ROOT/.env.bak"
+        sed_inplace "$PROJECT_ROOT/.env" "s|^DASHBOARD_JWT_SECRET=.*|DASHBOARD_JWT_SECRET=${new_secret}|"
         check_pass "DASHBOARD_JWT_SECRET generated"
       fi
     fi
@@ -419,9 +535,15 @@ check_dependencies() {
     
     # Check if dependencies are up to date
     if [ -f "$PROJECT_ROOT/pnpm-lock.yaml" ]; then
-      local lock_time=$(stat -f %m "$PROJECT_ROOT/pnpm-lock.yaml" 2>/dev/null || stat -c %Y "$PROJECT_ROOT/pnpm-lock.yaml" 2>/dev/null)
-      local modules_time=$(stat -f %m "$PROJECT_ROOT/node_modules" 2>/dev/null || stat -c %Y "$PROJECT_ROOT/node_modules" 2>/dev/null)
-      
+      local lock_time modules_time
+      if [[ "$(detect_os)" == "macos" ]]; then
+        lock_time=$(stat -f %m "$PROJECT_ROOT/pnpm-lock.yaml" 2>/dev/null)
+        modules_time=$(stat -f %m "$PROJECT_ROOT/node_modules" 2>/dev/null)
+      else
+        lock_time=$(stat -c %Y "$PROJECT_ROOT/pnpm-lock.yaml" 2>/dev/null)
+        modules_time=$(stat -c %Y "$PROJECT_ROOT/node_modules" 2>/dev/null)
+      fi
+
       if [ -n "$lock_time" ] && [ -n "$modules_time" ]; then
         if [ "$lock_time" -gt "$modules_time" ]; then
           check_warn "Dependencies may be out of date" "Run: pnpm install"
@@ -450,8 +572,8 @@ check_dependencies() {
 check_ports() {
   print_header "Port Availability"
   
-  # Default development ports
-  local ports=("80:Nginx" "4097:WhatsApp" "4098:Dashboard" "4099:OpenCode" "5173:Vite" "5432:PostgreSQL" "9000:MinIO API" "9001:MinIO Console")
+  # Default development ports (WhatsApp is now integrated into Dashboard)
+  local ports=("80:Nginx" "4098:Dashboard" "4099:OpenCode" "5173:Vite" "9000:MinIO API" "9001:MinIO Console")
   
   for port_info in "${ports[@]}"; do
     local port="${port_info%%:*}"
@@ -479,7 +601,7 @@ check_docker_images() {
     return
   fi
   
-  local images=("nginx:alpine" "postgres:16-alpine" "minio/minio:latest" "minio/mc:latest")
+  local images=("nginx:alpine" "minio/minio:latest" "minio/mc:latest")
   
   for image in "${images[@]}"; do
     if docker image inspect "$image" &> /dev/null; then
@@ -529,13 +651,15 @@ main() {
   if [ "$FIX_MODE" = true ]; then
     echo -e "${CYAN}Running in fix mode - will attempt to resolve issues${NC}"
   fi
-  
+
   # Run all checks
+  check_platform
   check_node
   check_pnpm
   check_docker
   check_git
   check_optional_tools
+  check_opencode_isolation
   check_config_files
   check_dependencies
   check_ports

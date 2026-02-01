@@ -1,14 +1,21 @@
 #!/bin/bash
 #
-# Seed database for worktree development
+# Seed database for worktree development (SQLite)
 #
 # Usage:
-#   ./scripts/seed-worktree-db.sh              # Seed existing database from .env
-#   ISOLATED=true ./scripts/seed-worktree-db.sh # Create new isolated database
-#   DB_NAME=my_test_db ISOLATED=true ./scripts/seed-worktree-db.sh # Custom DB name
+#   ./scripts/seed-worktree-db.sh              # Seed database using instance path
+#   ISOLATED=true ./scripts/seed-worktree-db.sh # Create new isolated database file
+#   DB_PATH=/custom/path.db ./scripts/seed-worktree-db.sh # Custom DB path
 #
 
 set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+# Source instance environment for correct SQLITE_DB_PATH
+source "$SCRIPT_DIR/instance-env.sh"
+configure_instance
 
 # Colors
 RED='\033[0;31m'
@@ -19,119 +26,62 @@ NC='\033[0m' # No Color
 
 # Options
 ISOLATED="${ISOLATED:-false}"
-DB_NAME="${DB_NAME:-worktree_$(date +%s)}"
+DB_PATH="${DB_PATH:-$SQLITE_DB_PATH}"
 FORCE="${FORCE:-false}"
 
 echo -e "${BLUE}╔════════════════════════════════════════╗${NC}"
 echo -e "${BLUE}║   Worktree Database Seeding Script     ║${NC}"
+echo -e "${BLUE}║         (SQLite)                       ║${NC}"
 echo -e "${BLUE}╚════════════════════════════════════════╝${NC}"
 echo ""
 
-# Load DATABASE_URL from .env if not already set in environment
-if [ -z "${DATABASE_URL:-}" ] && [ -f ".env" ]; then
-  # Extract DATABASE_URL safely (avoid sourcing whole file due to cron expressions)
-  DB_URL_LINE=$(grep "^DATABASE_URL=" .env | head -1)
-  if [ -n "$DB_URL_LINE" ]; then
-    # Extract value and strip surrounding quotes if present
-    DB_URL_VALUE="${DB_URL_LINE#DATABASE_URL=}"
-    # Remove leading/trailing quotes
-    DB_URL_VALUE="${DB_URL_VALUE#\"}"
-    DB_URL_VALUE="${DB_URL_VALUE%\"}"
-    DB_URL_VALUE="${DB_URL_VALUE#\'}"
-    DB_URL_VALUE="${DB_URL_VALUE%\'}"
-    export DATABASE_URL="$DB_URL_VALUE"
-    echo -e "${GREEN}✓${NC} Loaded DATABASE_URL from .env"
-  fi
-elif [ -n "${DATABASE_URL:-}" ]; then
-  echo -e "${GREEN}✓${NC} Using DATABASE_URL from environment"
-fi
-
-# Use default if not set
-if [ -z "${DATABASE_URL:-}" ]; then
-  export DATABASE_URL="postgresql://aibot:aibot123@localhost:5432/whatsapp_bot"
-  echo -e "${YELLOW}!${NC} DATABASE_URL not in .env, using default: ${DATABASE_URL}"
-fi
-
-# If isolated mode, create a new database
+# If isolated mode, create a new database file
 if [ "$ISOLATED" = "true" ]; then
+  DB_NAME="${DB_NAME:-worktree_$(date +%s)}"
+  DB_PATH="${DATA_DIR}/${DB_NAME}.db"
   echo -e "${YELLOW}→${NC} Isolated mode: creating new database '${DB_NAME}'..."
-
-  # Extract connection details from DATABASE_URL or use defaults
-  DB_HOST="${DB_HOST:-localhost}"
-  DB_PORT="${DB_PORT:-5432}"
-  DB_USER="${DB_USER:-aibot}"
-  DB_PASSWORD="${DB_PASSWORD:-aibot123}"
-
-  # Create the new database using psql (works with Docker)
-  # First connect to 'postgres' db to create the new database
-  PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d postgres \
-    -c "CREATE DATABASE ${DB_NAME};" 2>/dev/null && \
-    echo -e "${GREEN}✓${NC} Created database: $DB_NAME" || \
-    echo -e "${YELLOW}!${NC} Database may already exist, continuing..."
-
-  # Update DATABASE_URL for this session and .env
-  export DATABASE_URL="postgresql://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}"
-
-  # Update .env file with new DATABASE_URL
-  if [ -f ".env" ]; then
-    # Check if DATABASE_URL line exists
-    if grep -q "^DATABASE_URL=" .env; then
-      # Use different sed syntax for macOS vs Linux
-      if [[ "$OSTYPE" == "darwin"* ]]; then
-        sed -i '' "s|^DATABASE_URL=.*|DATABASE_URL=${DATABASE_URL}|" .env
-      else
-        sed -i "s|^DATABASE_URL=.*|DATABASE_URL=${DATABASE_URL}|" .env
-      fi
-    else
-      # Add DATABASE_URL if it doesn't exist
-      echo "DATABASE_URL=${DATABASE_URL}" >> .env
-    fi
-    echo -e "${GREEN}✓${NC} Updated .env with new DATABASE_URL"
-  fi
-
-  echo -e "${BLUE}→${NC} DATABASE_URL: $DATABASE_URL"
 fi
 
-# Verify DATABASE_URL is set
-if [ -z "${DATABASE_URL:-}" ]; then
-  echo -e "${RED}✗${NC} DATABASE_URL not set. Please check your .env file."
-  exit 1
-fi
+# Ensure database directory exists
+DB_DIR="$(dirname "$DB_PATH")"
+mkdir -p "$DB_DIR"
 
+echo -e "${BLUE}→${NC} Database path: $DB_PATH"
 echo ""
-echo -e "${BLUE}Step 1/3: Running migrations...${NC}"
 
-# Run migrations
-if [ -d "data/migrations" ]; then
-  for migration in data/migrations/*.sql; do
-    if [ -f "$migration" ]; then
-      echo -e "  ${YELLOW}→${NC} Applying: $(basename "$migration")"
-      psql "$DATABASE_URL" < "$migration" > /dev/null 2>&1 || {
-        # Migration might fail if already applied, that's OK
-        echo -e "    ${YELLOW}!${NC} Already applied or error (continuing)"
-      }
-    fi
-  done
-  echo -e "  ${GREEN}✓${NC} Migrations complete"
+# Set environment variables for database
+export DATABASE_TYPE=sqlite
+export SQLITE_DATABASE="$DB_PATH"
+
+echo -e "${BLUE}Step 1/3: Creating database schema...${NC}"
+
+# Run Drizzle push to create schema
+cd "$PROJECT_ROOT"
+if pnpm --filter @orient-bot/database run db:push:sqlite 2>&1 | head -20; then
+  echo -e "  ${GREEN}✓${NC} Schema created/updated"
 else
-  echo -e "  ${YELLOW}!${NC} No migrations directory found, skipping"
+  echo -e "  ${YELLOW}!${NC} Schema push may have had issues (continuing)"
 fi
 
 echo ""
 echo -e "${BLUE}Step 2/3: Migrating secrets from .env...${NC}"
 
-# Migrate secrets to database (requires ORIENT_MASTER_KEY)
 # Extract ORIENT_MASTER_KEY from .env if not already set
-if [ -z "${ORIENT_MASTER_KEY:-}" ] && [ -f ".env" ]; then
-  MASTER_KEY_LINE=$(grep "^ORIENT_MASTER_KEY=" .env | head -1)
+if [ -z "${ORIENT_MASTER_KEY:-}" ] && [ -f "$PROJECT_ROOT/.env" ]; then
+  MASTER_KEY_LINE=$(grep "^ORIENT_MASTER_KEY=" "$PROJECT_ROOT/.env" | head -1)
   if [ -n "$MASTER_KEY_LINE" ]; then
     ORIENT_MASTER_KEY="${MASTER_KEY_LINE#ORIENT_MASTER_KEY=}"
+    # Remove quotes if present
+    ORIENT_MASTER_KEY="${ORIENT_MASTER_KEY#\"}"
+    ORIENT_MASTER_KEY="${ORIENT_MASTER_KEY%\"}"
+    export ORIENT_MASTER_KEY
   fi
 fi
 
 if [ -n "${ORIENT_MASTER_KEY:-}" ]; then
-  # Run migration with explicit DATABASE_URL to ensure correct database is used
-  DATABASE_URL="$DATABASE_URL" ORIENT_MASTER_KEY="$ORIENT_MASTER_KEY" npx tsx scripts/migrate-secrets-to-db.ts && \
+  # Run migration with SQLite environment
+  DATABASE_TYPE=sqlite SQLITE_DATABASE="$DB_PATH" ORIENT_MASTER_KEY="$ORIENT_MASTER_KEY" \
+    npx tsx scripts/migrate-secrets-to-db.ts 2>/dev/null && \
     echo -e "  ${GREEN}✓${NC} Secrets migrated" || \
     echo -e "  ${YELLOW}!${NC} Secret migration failed (continuing)"
 else
@@ -147,16 +97,24 @@ if [ "$FORCE" = "true" ]; then
   SEED_ARGS="--force"
 fi
 
-# Run unified seeder
-npx tsx data/seeds/index.ts $SEED_ARGS
+# Run unified seeder with SQLite environment
+DATABASE_TYPE=sqlite SQLITE_DATABASE="$DB_PATH" npx tsx data/seeds/index.ts $SEED_ARGS 2>/dev/null || \
+  echo -e "  ${YELLOW}!${NC} Seeding may have had issues (continuing)"
 
 echo ""
 echo -e "${GREEN}╔════════════════════════════════════════╗${NC}"
 echo -e "${GREEN}║      Database seeding complete!        ║${NC}"
 echo -e "${GREEN}╚════════════════════════════════════════╝${NC}"
 echo ""
-echo -e "Database URL: ${BLUE}${DATABASE_URL}${NC}"
+echo -e "Database path: ${BLUE}${DB_PATH}${NC}"
+
+# Show database size
+if [ -f "$DB_PATH" ]; then
+  DB_SIZE=$(du -h "$DB_PATH" | cut -f1)
+  echo -e "Database size: ${BLUE}${DB_SIZE}${NC}"
+fi
+
 echo ""
 echo -e "Next steps:"
-echo -e "  ${YELLOW}npm run dev${NC}          - Start development server"
-echo -e "  ${YELLOW}npm run db:studio${NC}    - Open Drizzle Studio to inspect data"
+echo -e "  ${YELLOW}./run.sh dev${NC}          - Start development server"
+echo -e "  ${YELLOW}pnpm db:studio${NC}        - Open Drizzle Studio to inspect data"

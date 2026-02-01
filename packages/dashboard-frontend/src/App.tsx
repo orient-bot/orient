@@ -1422,7 +1422,7 @@ function AppContent() {
               (whatsappView === 'chats' || whatsappView === 'discover') && (
                 <WhatsAppService onUpdate={handleRefresh} />
               )}
-            {!needsWhatsAppPairingActive && whatsappView === 'audit' && <AuditLog />}
+            {whatsappView === 'audit' && <AuditLog />}
           </>
         )}
 

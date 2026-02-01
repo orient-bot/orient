@@ -96,7 +96,7 @@ describe('VersionCheckService', () => {
         json: () =>
           Promise.resolve({
             version: '1.1.0',
-            changelogUrl: 'https://github.com/orient-bot/orient/releases',
+            changelogUrl: 'https://github.com/orient/orient/releases',
           }),
       });
 
@@ -105,7 +105,7 @@ describe('VersionCheckService', () => {
       expect(result.currentVersion).toBe('1.0.0');
       expect(result.latestVersion).toBe('1.1.0');
       expect(result.updateAvailable).toBe(true);
-      expect(result.changelogUrl).toBe('https://github.com/orient-bot/orient/releases');
+      expect(result.changelogUrl).toBe('https://github.com/orient/orient/releases');
       expect(result.error).toBeUndefined();
     });
 

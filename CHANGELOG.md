@@ -76,5 +76,5 @@ New database migrations included in this release:
 2. Review new environment variables for staging deployment
 3. Clear browser cache after upgrade for dashboard changes
 
-[Unreleased]: https://github.com/orient-bot/orient/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/orient-bot/orient/releases/tag/v0.1.0
+[Unreleased]: https://github.com/orient/orient/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/orient/orient/releases/tag/v0.1.0

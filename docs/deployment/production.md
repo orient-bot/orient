@@ -44,16 +44,18 @@ This ensures all required tools (Docker, Docker Compose) are available.
 
 Ensure these are set in your production `.env`:
 
-| Variable              | Description                                  |
-| --------------------- | -------------------------------------------- |
-| `POSTGRES_USER`       | PostgreSQL username                          |
-| `POSTGRES_PASSWORD`   | PostgreSQL password (use a strong password)  |
-| `MINIO_ROOT_USER`     | MinIO admin username                         |
-| `MINIO_ROOT_PASSWORD` | MinIO admin password (use a strong password) |
-| `ANTHROPIC_API_KEY`   | Anthropic API key for Claude                 |
-| `JIRA_*`              | Jira integration credentials                 |
-| `SLACK_*`             | Slack app credentials                        |
-| `GOOGLE_*`            | Google OAuth credentials                     |
+| Variable               | Description                                  |
+| ---------------------- | -------------------------------------------- |
+| `DATABASE_TYPE`        | Set to `sqlite`                              |
+| `SQLITE_DATABASE`      | Path to SQLite database file                 |
+| `MINIO_ROOT_USER`      | MinIO admin username                         |
+| `MINIO_ROOT_PASSWORD`  | MinIO admin password (use a strong password) |
+| `DASHBOARD_JWT_SECRET` | JWT secret for dashboard authentication      |
+| `ORIENT_MASTER_KEY`    | Master key for secrets encryption            |
+| `ANTHROPIC_API_KEY`    | Anthropic API key for Claude                 |
+| `JIRA_*`               | Jira integration credentials                 |
+| `SLACK_*`              | Slack app credentials                        |
+| `GOOGLE_*`             | Google OAuth credentials                     |
 
 ## SSL Configuration
 
@@ -71,22 +73,14 @@ Production deployments use Docker network isolation. Only Nginx (ports 80/443) i
 
 ### Accessing Internal Services
 
-**Database Access via SSH Tunnel:**
+**Database Access via SSH:**
 
 ```bash
-# Create SSH tunnel to production database
-ssh -L 5432:localhost:5432 user@production-server
-
-# Then connect locally (in another terminal)
-psql -h localhost -U $POSTGRES_USER -d $POSTGRES_DB
-```
-
-**Database Access via Docker:**
-
-```bash
-# Direct container access
+# SSH into the production server
 ssh user@production-server
-docker exec -it orienter-postgres psql -U $POSTGRES_USER -d $POSTGRES_DB
+
+# Use sqlite3 to access the database
+sqlite3 /app/data/orient.db
 ```
 
 **MinIO Console Access via SSH Tunnel:**
@@ -105,9 +99,9 @@ All application services are accessible through the Nginx reverse proxy:
 | Service   | Nginx Path     | Internal Port |
 | --------- | -------------- | ------------- |
 | Dashboard | `/dashboard/*` | 4098          |
+| WhatsApp  | `/qr/*`        | 4098          |
 | OpenCode  | `/opencode/*`  | 4099          |
-| Bot API   | `/bot/*`       | 4097          |
-| Webhooks  | `/webhook/*`   | 4097          |
+| Webhooks  | `/webhook/*`   | 4098          |
 
 ### Disabling Port Hardening
 

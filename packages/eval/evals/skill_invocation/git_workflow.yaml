@@ -1,0 +1,18 @@
+# Skill Invocation: Git Workflow
+# Tests that agent discovers git-workflow for branch conventions
+
+name: skill_invocation_git_workflow
+description: Agent discovers git-workflow for branch naming conventions
+type: skill_invocation
+agent: explorer
+
+input:
+  prompt: "What's the branch naming convention?"
+
+expect:
+  skills:
+    activated:
+      - git-workflow
+  assertions:
+    - type: skill_activated
+      skill: git-workflow

@@ -190,7 +190,7 @@ orient webhook create \
 
 ## Full Documentation
 
-For comprehensive documentation covering all 22 commands, advanced workflows, troubleshooting, and API details, see the [CLI README](https://github.com/orient-bot/orient/tree/main/packages/cli#readme).
+For comprehensive documentation covering all 22 commands, advanced workflows, troubleshooting, and API details, see the [CLI README](https://github.com/orient/orient/tree/main/packages/cli#readme).
 
 ## Next Steps
 

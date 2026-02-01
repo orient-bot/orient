@@ -1,0 +1,27 @@
+storage: ./installer/verdaccio/storage
+max_body_size: 100mb
+
+auth:
+  htpasswd:
+    file: ./installer/verdaccio/htpasswd
+    max_users: 1000
+
+uplinks:
+  npmjs:
+    url: https://registry.npmjs.org/
+
+packages:
+  "@orient-bot/*":
+    access: $all
+    publish: $all
+    proxy: npmjs
+
+  "**":
+    access: $all
+    publish: $authenticated
+    proxy: npmjs
+
+listen: 0.0.0.0:4873
+
+logs:
+  - {type: stdout, format: pretty, level: http}

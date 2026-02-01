@@ -10,9 +10,10 @@
  */
 
 import { Router, Request, Response } from 'express';
-import { createServiceLogger } from '@orient/core';
+import { getParam } from './paramUtils.js';
+import { createServiceLogger } from '@orient-bot/core';
 import { getVersionCheckService } from '../../services/versionCheckService.js';
-import { createVersionPreferencesService } from '@orient/database-services';
+import { createVersionPreferencesService } from '@orient-bot/database-services';
 import { AuthenticatedRequest } from '../../auth.js';
 
 const logger = createServiceLogger('version-routes');
@@ -36,7 +37,7 @@ export function createVersionRoutes(
    */
   router.get('/status', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
     try {
-      const forceRefresh = req.query.refresh === 'true';
+      const forceRefresh = getParam(req.query.refresh as string | string[] | undefined) === 'true';
       const versionService = getVersionCheckService();
       const status = await versionService.checkVersion(forceRefresh);
 

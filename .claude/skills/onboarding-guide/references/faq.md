@@ -23,14 +23,12 @@ Copy `.mcp.config.example.json` to `.mcp.config.local.json` for local dev, or co
 4. Add the Bot Token to the Secrets tab (`SLACK_BOT_TOKEN`)
 5. Configure channels in the Slack tab
 
-### How do I connect JIRA?
+### How do I connect Atlassian (Jira/Confluence)?
 
-1. Go to https://id.atlassian.com/manage-profile/security/api-tokens
-2. Create an API token
-3. Add your credentials in the Secrets tab:
-   - `JIRA_HOST` (e.g., yourcompany.atlassian.net)
-   - `JIRA_EMAIL` (your Atlassian email)
-   - `JIRA_API_TOKEN` (the token you created)
+1. Go to the Integrations tab in the dashboard
+2. Find **Atlassian (JIRA & Confluence)** and click **Connect**
+3. Complete the OAuth flow (OpenCode will handle the MCP OAuth callback)
+4. Once connected, Atlassian tools will appear in MCP-enabled clients
 
 ### Why is nothing responding?
 

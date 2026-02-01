@@ -49,7 +49,7 @@ config.*.json
 .claude/settings.json
 opencode.local.json
 opencode.*.local.json
-!opencode.json
+mcp-config.json
 
 # ============================================================================
 # CREDENTIALS & SECRETS
@@ -462,6 +462,9 @@ docker-compose.*.local.yml
 # Generated nginx config (created from template during ./run.sh dev)
 docker/nginx-local.conf
 
+# Development container data (volumes are named, but just in case)
+docker/dev-data/
+
 # ============================================================================
 # CI/CD & DEPLOYMENT
 # ============================================================================
@@ -482,29 +485,18 @@ deploy.*.local.sh
 # PROJECT-SPECIFIC PATTERNS
 # ============================================================================
 
-# Personal skills are COMMITTED in this repo (orient-core)
-# .claude/skills/personal-*/
+# Personal skills (kept in personal fork only)
+.claude/skills/personal-*/
+.claude/skills/work-item-tracker/
 .claude/skills/local/
 
 # Personal packages (for orient-core work)
 packages/personal-*/
 
-# Meeting notes (user-specific)
-meetings/action-items-report.md
-# Uncomment to exclude all personal meeting notes:
-# meetings/weekly/*.md
-# meetings/planning/*.md
-# meetings/retrospectives/*.md
-# meetings/1-on-1/*.md
-# meetings/ad-hoc/*.md
-# !meetings/**/.gitkeep
-
-# Workflow documents (user-specific)
-# Uncomment to exclude personal workflow docs:
-# workflow/weekly-reviews/*.md
-# workflow/sprint-health/*.md
-# workflow/weekly-summaries/*.md
-# !workflow/**/.gitkeep
+# Personal CLI tools (kept in personal fork)
+packages/cli/src/meeting.ts
+packages/cli/src/workflow.ts
+packages/cli/src/update-presentation.ts
 
 # Example ignore folder
 example-ignore/
@@ -612,3 +604,7 @@ tokens.txt
 # END OF .gitignore
 # ============================================================================
 .vercel
+
+# E2E browser test data (screenshots, scratchpad)
+.e2e-scratchpad/
+.dev-data/

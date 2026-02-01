@@ -1,0 +1,42 @@
+# Frustration Detection Evals
+# Tests the context analyzer's ability to detect user frustration signals
+
+name: frustration-detection-basic
+description: Detect basic frustration phrases and suggest compact
+type: response_quality
+agent: ori
+
+context:
+  platform: whatsapp
+  chatId: 'test-frustration-basic'
+
+input:
+  prompt: 'forget that, I want something completely different'
+  conversationHistory:
+    - role: user
+      content: 'Help me with database migrations'
+    - role: assistant
+      content: 'I can help you with database migrations. What database are you using?'
+
+expect:
+  assertions:
+    - type: response_mentions
+      values:
+        - '/compact'
+    - type: response_matches
+      pattern: 'compress|condense|confusion|context'
+
+scoring:
+  llm_judge:
+    enabled: true
+    criteria:
+      - name: frustration_detected
+        description: The system correctly identified user frustration
+        weight: 0.5
+      - name: appropriate_suggestion
+        description: The suggestion to compact is appropriate and helpful
+        weight: 0.3
+      - name: tone_empathetic
+        description: The response acknowledges the user's frustration empathetically
+        weight: 0.2
+    threshold: 0.7

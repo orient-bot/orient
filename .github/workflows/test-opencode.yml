@@ -1,0 +1,133 @@
+name: OpenCode Binary Verification
+
+on:
+  push:
+    paths:
+      - 'vendor/opencode/**'
+      - '.gitattributes'
+  pull_request:
+    paths:
+      - 'vendor/opencode/**'
+      - '.gitattributes'
+
+jobs:
+  verify-checksums:
+    name: Verify SHA256 Checksums
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout with LFS
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Verify LFS files fetched
+        run: |
+          echo "Checking LFS files..."
+          git lfs ls-files
+          for platform in darwin-arm64 darwin-x64 linux-arm64 linux-x64; do
+            if [ ! -f "vendor/opencode/$platform/opencode" ]; then
+              echo "ERROR: Missing binary for $platform"
+              exit 1
+            fi
+            size=$(stat -c%s "vendor/opencode/$platform/opencode" 2>/dev/null || stat -f%z "vendor/opencode/$platform/opencode")
+            if [ "$size" -lt 1000000 ]; then
+              echo "ERROR: Binary for $platform appears to be LFS pointer (size: $size)"
+              exit 1
+            fi
+            echo "✓ $platform binary present (size: $size)"
+          done
+
+      - name: Verify checksums match manifest
+        run: |
+          echo "Verifying checksums against manifest.json..."
+          for platform in darwin-arm64 darwin-x64 linux-arm64 linux-x64; do
+            expected=$(jq -r ".binaries[\"$platform\"].sha256" vendor/opencode/manifest.json)
+            actual=$(sha256sum "vendor/opencode/$platform/opencode" | cut -d' ' -f1)
+            if [ "$expected" != "$actual" ]; then
+              echo "ERROR: Checksum mismatch for $platform"
+              echo "  Expected: $expected"
+              echo "  Actual:   $actual"
+              exit 1
+            fi
+            echo "✓ $platform checksum verified: $actual"
+          done
+
+  test-linux-binaries:
+    name: Test Linux Binaries
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        arch: [x64, arm64]
+    steps:
+      - name: Checkout with LFS
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Test binary execution
+        if: matrix.arch == 'x64'
+        run: |
+          chmod +x vendor/opencode/linux-x64/opencode
+          vendor/opencode/linux-x64/opencode --version
+          echo "✓ linux-x64 binary executes successfully"
+
+      - name: Verify arm64 binary format
+        if: matrix.arch == 'arm64'
+        run: |
+          # Can't execute arm64 on x64 runner, but verify it's a valid ELF
+          file vendor/opencode/linux-arm64/opencode | grep -q "ELF 64-bit"
+          file vendor/opencode/linux-arm64/opencode | grep -q "ARM aarch64"
+          echo "✓ linux-arm64 binary is valid ELF format"
+
+  test-macos-binaries:
+    name: Test macOS Binaries
+    runs-on: macos-latest
+    steps:
+      - name: Checkout with LFS
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Test darwin-arm64 binary
+        run: |
+          # macOS runners are typically arm64 now
+          chmod +x vendor/opencode/darwin-arm64/opencode
+          if vendor/opencode/darwin-arm64/opencode --version 2>/dev/null; then
+            echo "✓ darwin-arm64 binary executes successfully"
+          else
+            # If on x64 runner, verify it's a valid Mach-O
+            file vendor/opencode/darwin-arm64/opencode | grep -q "Mach-O"
+            echo "✓ darwin-arm64 binary is valid Mach-O format (can't execute on x64 runner)"
+          fi
+
+      - name: Verify darwin-x64 binary format
+        run: |
+          file vendor/opencode/darwin-x64/opencode | grep -q "Mach-O"
+          echo "✓ darwin-x64 binary is valid Mach-O format"
+
+  docker-build-test:
+    name: Test Docker Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout with LFS
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image (linux/amd64)
+        run: |
+          docker build \
+            --platform linux/amd64 \
+            --file docker/Dockerfile.opencode.legacy \
+            --tag opencode-test:amd64 \
+            --progress=plain \
+            .
+          echo "✓ Docker build successful for linux/amd64"
+
+      - name: Verify OpenCode in container
+        run: |
+          docker run --rm opencode-test:amd64 opencode --version
+          echo "✓ OpenCode executes in container"

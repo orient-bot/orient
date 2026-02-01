@@ -706,47 +706,40 @@ curl http://localhost:3080/apps/my-app/assets/index-xxxxx.js | head -c 100
 
 ## Database Schema Design Patterns
 
-When adding persistent storage capabilities to mini-apps, follow these patterns for PostgreSQL database services.
+When adding persistent storage capabilities to mini-apps, follow these patterns for SQLite database services.
 
-### Connection Pooling
+### Database Initialization
 
-Always use connection pooling to manage database connections efficiently:
+Use better-sqlite3 for synchronous SQLite operations:
 
 ```typescript
-import pg from 'pg';
-const { Pool } = pg;
+import Database from 'better-sqlite3';
+import { createServiceLogger } from '@orientbot/core';
+
+const logger = createServiceLogger('storage-db');
 
 export class MyDatabase {
-  private pool: pg.Pool;
+  private db: Database.Database;
 
-  constructor(connectionString?: string) {
-    const dbUrl = connectionString || process.env.DATABASE_URL;
-
-    this.pool = new Pool({
-      connectionString: dbUrl,
-      max: 10, // Maximum connections in pool
-      idleTimeoutMillis: 30000, // Close idle connections after 30s
-      connectionTimeoutMillis: 5000, // Fail if can't connect in 5s
-    });
-
-    // Handle unexpected errors on idle clients
-    this.pool.on('error', (err: Error) => {
-      logger.error('Unexpected database pool error', { error: err.message });
-    });
+  constructor(dbPath?: string) {
+    const path = dbPath || process.env.SQLITE_DB_PATH || './data/orient.db';
+    this.db = new Database(path);
+    this.db.pragma('journal_mode = WAL'); // Better concurrent access
+    this.db.pragma('foreign_keys = ON');
   }
 
-  // Always close the pool when shutting down
-  async close(): Promise<void> {
-    await this.pool.end();
+  // Always close when shutting down
+  close(): void {
+    this.db.close();
   }
 }
 ```
 
 **Key points:**
 
-- Use `pg.Pool` not individual clients for connection reuse
-- Set reasonable `max` connections (10 is a good default)
-- Handle pool errors to prevent crashes
+- Use WAL mode for better concurrent read performance
+- Enable foreign keys if using relationships
+- SQLite operations are synchronous, simplifying code
 - Always implement `close()` for graceful shutdown
 
 ### Table Schema Design
@@ -756,18 +749,18 @@ Follow these conventions for mini-app database tables:
 ```sql
 CREATE TABLE IF NOT EXISTS app_feature (
   -- Primary key
-  id SERIAL PRIMARY KEY,
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
 
   -- App identification (always required for multi-tenant isolation)
-  app_name VARCHAR(255) NOT NULL,
+  app_name TEXT NOT NULL,
 
   -- Your feature-specific columns
-  key VARCHAR(255) NOT NULL,
-  value JSONB NOT NULL,           -- Use JSONB for flexible data storage
+  key TEXT NOT NULL,
+  value TEXT NOT NULL,           -- Store JSON as TEXT
 
   -- Timestamps (always include these)
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  created_at INTEGER DEFAULT (unixepoch()),
+  updated_at INTEGER DEFAULT (unixepoch()),
 
   -- Unique constraints for app-scoped uniqueness
   UNIQUE(app_name, key)
@@ -777,9 +770,9 @@ CREATE TABLE IF NOT EXISTS app_feature (
 **Best practices:**
 
 - Always include `app_name` for multi-tenant isolation
-- Use `SERIAL` for auto-incrementing IDs
-- Use `TIMESTAMPTZ` (with timezone) not `TIMESTAMP`
-- Use `JSONB` for flexible nested data (better than `JSON` for indexing)
+- Use `INTEGER PRIMARY KEY AUTOINCREMENT` for auto-incrementing IDs
+- Store timestamps as Unix epoch integers
+- Store JSON as TEXT (SQLite has no native JSON type but supports json functions)
 - Add `UNIQUE` constraints for natural keys within an app scope
 
 ### Index Design
@@ -797,11 +790,7 @@ CREATE INDEX IF NOT EXISTS idx_app_feature_app_name
 
 -- Partial index for enabled/active records
 CREATE INDEX IF NOT EXISTS idx_app_feature_active
-  ON app_feature(app_name) WHERE enabled = TRUE;
-
--- JSONB index for querying inside JSON data
-CREATE INDEX IF NOT EXISTS idx_app_feature_value_gin
-  ON app_feature USING gin(value);
+  ON app_feature(app_name) WHERE enabled = 1;
 ```
 
 **Index guidelines:**
@@ -809,81 +798,73 @@ CREATE INDEX IF NOT EXISTS idx_app_feature_value_gin
 - Create indexes for columns used in `WHERE` clauses
 - Composite indexes should match query column order
 - Use partial indexes for frequently filtered conditions
-- Use GIN indexes for JSONB containment queries
 
 ### Transaction Handling
 
 Use transactions for multi-statement operations:
 
 ```typescript
-async initialize(): Promise<void> {
-  const client = await this.pool.connect();
+initialize(): void {
+  const createTables = this.db.transaction(() => {
+    this.db.exec(`CREATE TABLE IF NOT EXISTS ...`);
+    this.db.exec(`CREATE INDEX IF NOT EXISTS ...`);
+  });
 
   try {
-    await client.query('BEGIN');
-
-    // Multiple statements that should succeed or fail together
-    await client.query(`CREATE TABLE IF NOT EXISTS ...`);
-    await client.query(`CREATE INDEX IF NOT EXISTS ...`);
-
-    await client.query('COMMIT');
+    createTables();
     logger.info('Database initialized successfully');
   } catch (error) {
-    await client.query('ROLLBACK');
     logger.error('Database initialization failed', { error });
     throw error;
-  } finally {
-    // CRITICAL: Always release the client back to the pool
-    client.release();
   }
 }
 ```
 
 **Transaction rules:**
 
-- Use `BEGIN`/`COMMIT`/`ROLLBACK` for multi-statement operations
-- Always `release()` the client in a `finally` block
+- Use `db.transaction()` for atomic operations
+- Transactions in better-sqlite3 are automatic COMMIT on success, ROLLBACK on error
 - Log both success and failure for debugging
-- Re-throw errors after rollback so callers know it failed
 
 ### Query Patterns
 
-**Simple queries (use pool directly):**
+**Simple queries:**
 
 ```typescript
-async get(appName: string, key: string): Promise<unknown | null> {
-  const result = await this.pool.query(
-    'SELECT value FROM app_storage WHERE app_name = $1 AND key = $2',
-    [appName, key]
+get(appName: string, key: string): unknown | null {
+  const stmt = this.db.prepare(
+    'SELECT value FROM app_storage WHERE app_name = ? AND key = ?'
   );
-  return result.rows.length > 0 ? result.rows[0].value : null;
+  const row = stmt.get(appName, key) as { value: string } | undefined;
+  return row ? JSON.parse(row.value) : null;
 }
 ```
 
-**Upsert pattern (INSERT ... ON CONFLICT):**
+**Upsert pattern (INSERT OR REPLACE):**
 
 ```typescript
-async set(appName: string, key: string, value: unknown): Promise<void> {
-  await this.pool.query(`
-    INSERT INTO app_storage (app_name, key, value)
-    VALUES ($1, $2, $3)
+set(appName: string, key: string, value: unknown): void {
+  const stmt = this.db.prepare(`
+    INSERT INTO app_storage (app_name, key, value, updated_at)
+    VALUES (?, ?, ?, unixepoch())
     ON CONFLICT (app_name, key)
-    DO UPDATE SET value = $3, updated_at = NOW()
-  `, [appName, key, JSON.stringify(value)]);
+    DO UPDATE SET value = excluded.value, updated_at = unixepoch()
+  `);
+  stmt.run(appName, key, JSON.stringify(value));
 }
 ```
 
 **Returning results after modification:**
 
 ```typescript
-async create(data: CreateInput): Promise<Record> {
-  const result = await this.pool.query(`
+create(data: CreateInput): Record {
+  const stmt = this.db.prepare(`
     INSERT INTO my_table (name, value)
-    VALUES ($1, $2)
+    VALUES (?, ?)
     RETURNING *
-  `, [data.name, data.value]);
-
-  return this.rowToRecord(result.rows[0]);
+  `);
+  const row = stmt.get(data.name, data.value);
+  return this.rowToRecord(row);
 }
 ```
 
@@ -904,9 +885,9 @@ private rowToEntry(row: Record<string, unknown>): StorageEntry {
   return {
     appName: row.app_name as string,      // snake_case to camelCase
     key: row.key as string,
-    value: row.value,                      // JSONB auto-parses
-    createdAt: new Date(row.created_at as string),
-    updatedAt: new Date(row.updated_at as string),
+    value: JSON.parse(row.value as string),  // Parse JSON manually
+    createdAt: new Date((row.created_at as number) * 1000),
+    updatedAt: new Date((row.updated_at as number) * 1000),
   };
 }
 ```
@@ -919,7 +900,7 @@ Use an `initialized` flag to prevent duplicate setup:
 export class MyDatabase {
   private initialized: boolean = false;
 
-  async initialize(): Promise<void> {
+  initialize(): void {
     if (this.initialized) return; // Idempotent - safe to call multiple times
 
     // ... create tables and indexes ...
@@ -934,103 +915,80 @@ export class MyDatabase {
 Here's the full pattern used by the storage capability:
 
 ```typescript
-import pg from 'pg';
-import { createServiceLogger } from '@orient/core';
+import Database from 'better-sqlite3';
+import { createServiceLogger } from '@orientbot/core';
 
-const { Pool } = pg;
 const logger = createServiceLogger('storage-db');
 
 export class StorageDatabase {
-  private pool: pg.Pool;
+  private db: Database.Database;
   private initialized: boolean = false;
 
-  constructor(connectionString?: string) {
-    const dbUrl = connectionString || process.env.DATABASE_URL;
-    this.pool = new Pool({
-      connectionString: dbUrl,
-      max: 10,
-      idleTimeoutMillis: 30000,
-      connectionTimeoutMillis: 5000,
-    });
-    this.pool.on('error', (err) => {
-      logger.error('Pool error', { error: err.message });
-    });
+  constructor(dbPath?: string) {
+    const path = dbPath || process.env.SQLITE_DB_PATH || './data/orient.db';
+    this.db = new Database(path);
+    this.db.pragma('journal_mode = WAL');
   }
 
-  async initialize(): Promise<void> {
+  initialize(): void {
     if (this.initialized) return;
 
-    const client = await this.pool.connect();
-    try {
-      await client.query('BEGIN');
-      await client.query(`
-        CREATE TABLE IF NOT EXISTS app_storage (
-          id SERIAL PRIMARY KEY,
-          app_name VARCHAR(255) NOT NULL,
-          key VARCHAR(255) NOT NULL,
-          value JSONB NOT NULL,
-          created_at TIMESTAMPTZ DEFAULT NOW(),
-          updated_at TIMESTAMPTZ DEFAULT NOW(),
-          UNIQUE(app_name, key)
-        )
-      `);
-      await client.query(`
-        CREATE INDEX IF NOT EXISTS idx_app_storage_app_key
-          ON app_storage(app_name, key);
-      `);
-      await client.query('COMMIT');
-      this.initialized = true;
-    } catch (error) {
-      await client.query('ROLLBACK');
-      throw error;
-    } finally {
-      client.release();
-    }
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS app_storage (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        app_name TEXT NOT NULL,
+        key TEXT NOT NULL,
+        value TEXT NOT NULL,
+        created_at INTEGER DEFAULT (unixepoch()),
+        updated_at INTEGER DEFAULT (unixepoch()),
+        UNIQUE(app_name, key)
+      )
+    `);
+
+    this.db.exec(`
+      CREATE INDEX IF NOT EXISTS idx_app_storage_app_key
+        ON app_storage(app_name, key);
+    `);
+
+    this.initialized = true;
   }
 
-  async set(appName: string, key: string, value: unknown): Promise<void> {
-    await this.pool.query(
-      `
-      INSERT INTO app_storage (app_name, key, value)
-      VALUES ($1, $2, $3)
+  set(appName: string, key: string, value: unknown): void {
+    const stmt = this.db.prepare(`
+      INSERT INTO app_storage (app_name, key, value, updated_at)
+      VALUES (?, ?, ?, unixepoch())
       ON CONFLICT (app_name, key)
-      DO UPDATE SET value = $3, updated_at = NOW()
-    `,
-      [appName, key, JSON.stringify(value)]
-    );
+      DO UPDATE SET value = excluded.value, updated_at = unixepoch()
+    `);
+    stmt.run(appName, key, JSON.stringify(value));
   }
 
-  async get(appName: string, key: string): Promise<unknown | null> {
-    const result = await this.pool.query(
-      'SELECT value FROM app_storage WHERE app_name = $1 AND key = $2',
-      [appName, key]
-    );
-    return result.rows.length > 0 ? result.rows[0].value : null;
+  get(appName: string, key: string): unknown | null {
+    const stmt = this.db.prepare('SELECT value FROM app_storage WHERE app_name = ? AND key = ?');
+    const row = stmt.get(appName, key) as { value: string } | undefined;
+    return row ? JSON.parse(row.value) : null;
   }
 
-  async delete(appName: string, key: string): Promise<boolean> {
-    const result = await this.pool.query(
-      'DELETE FROM app_storage WHERE app_name = $1 AND key = $2',
-      [appName, key]
-    );
-    return (result.rowCount || 0) > 0;
+  delete(appName: string, key: string): boolean {
+    const stmt = this.db.prepare('DELETE FROM app_storage WHERE app_name = ? AND key = ?');
+    const result = stmt.run(appName, key);
+    return result.changes > 0;
   }
 
-  async list(appName: string): Promise<string[]> {
-    const result = await this.pool.query(
-      'SELECT key FROM app_storage WHERE app_name = $1 ORDER BY key',
-      [appName]
-    );
-    return result.rows.map((row) => row.key);
+  list(appName: string): string[] {
+    const stmt = this.db.prepare('SELECT key FROM app_storage WHERE app_name = ? ORDER BY key');
+    const rows = stmt.all(appName) as { key: string }[];
+    return rows.map((row) => row.key);
   }
 
-  async clear(appName: string): Promise<number> {
-    const result = await this.pool.query('DELETE FROM app_storage WHERE app_name = $1', [appName]);
-    return result.rowCount || 0;
+  clear(appName: string): number {
+    const stmt = this.db.prepare('DELETE FROM app_storage WHERE app_name = ?');
+    const result = stmt.run(appName);
+    return result.changes;
   }
 
-  async close(): Promise<void> {
-    await this.pool.end();
+  close(): void {
+    this.db.close();
   }
 }
 ```
@@ -1558,7 +1516,7 @@ This guide explains how to add a new capability to the mini-apps bridge (like st
 Bridge capabilities flow through these layers:
 
 ```
-Frontend (useBridge.ts) → Bridge API (/api/apps/bridge) → Database Service → PostgreSQL
+Frontend (useBridge.ts) → Bridge API (/api/apps/bridge) → Database Service → SQLite
      ↓                           ↓                              ↓
  Permission check           Route handler               SQL operations
 ```
@@ -1598,72 +1556,52 @@ Update `generateAppManifestTemplate()` and `serializeManifestToYaml()` to includ
 Create a new file `myFeatureDatabase.ts`:
 
 ```typescript
-import pg from 'pg';
-import { createServiceLogger } from '@orient/core';
+import Database from 'better-sqlite3';
+import { createServiceLogger } from '@orientbot/core';
 
-const { Pool } = pg;
 const logger = createServiceLogger('myfeature-db');
 
 export class MyFeatureDatabase {
-  private pool: pg.Pool;
+  private db: Database.Database;
   private initialized: boolean = false;
 
-  constructor(connectionString?: string) {
-    const dbUrl = connectionString || process.env.DATABASE_URL || 'postgresql://...';
-    this.pool = new Pool({
-      connectionString: dbUrl,
-      max: 10,
-      idleTimeoutMillis: 30000,
-      connectionTimeoutMillis: 5000,
-    });
-
-    this.pool.on('error', (err: Error) => {
-      logger.error('Unexpected database pool error', { error: err.message });
-    });
+  constructor(dbPath?: string) {
+    const path = dbPath || process.env.SQLITE_DB_PATH || './data/orient.db';
+    this.db = new Database(path);
+    this.db.pragma('journal_mode = WAL');
   }
 
-  async initialize(): Promise<void> {
+  initialize(): void {
     if (this.initialized) return;
 
-    const client = await this.pool.connect();
-    try {
-      await client.query('BEGIN');
+    // Create your table
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS my_feature (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        app_name TEXT NOT NULL,
+        -- your columns here
+        created_at INTEGER DEFAULT (unixepoch()),
+        updated_at INTEGER DEFAULT (unixepoch())
+      )
+    `);
 
-      // Create your table
-      await client.query(`
-        CREATE TABLE IF NOT EXISTS my_feature (
-          id SERIAL PRIMARY KEY,
-          app_name VARCHAR(255) NOT NULL,
-          -- your columns here
-          created_at TIMESTAMPTZ DEFAULT NOW(),
-          updated_at TIMESTAMPTZ DEFAULT NOW()
-        )
-      `);
+    // Create indexes
+    this.db.exec(`
+      CREATE INDEX IF NOT EXISTS idx_my_feature_app ON my_feature(app_name);
+    `);
 
-      // Create indexes
-      await client.query(`
-        CREATE INDEX IF NOT EXISTS idx_my_feature_app ON my_feature(app_name);
-      `);
-
-      await client.query('COMMIT');
-      this.initialized = true;
-      logger.info('MyFeature database tables initialized');
-    } catch (error) {
-      await client.query('ROLLBACK');
-      throw error;
-    } finally {
-      client.release();
-    }
+    this.initialized = true;
+    logger.info('MyFeature database tables initialized');
   }
 
   // Implement your CRUD methods
-  async create(appName: string, data: unknown): Promise<void> { ... }
-  async get(appName: string, id: string): Promise<unknown> { ... }
-  async list(appName: string): Promise<unknown[]> { ... }
-  async delete(appName: string, id: string): Promise<boolean> { ... }
+  create(appName: string, data: unknown): void { ... }
+  get(appName: string, id: string): unknown { ... }
+  list(appName: string): unknown[] { ... }
+  delete(appName: string, id: string): boolean { ... }
 
-  async close(): Promise<void> {
-    await this.pool.end();
+  close(): void {
+    this.db.close();
   }
 }
 ```
@@ -1844,4 +1782,4 @@ When adding a new bridge capability, ensure you have:
 - [ ] Added permission checking for the new capability
 - [ ] Written tests for database service and bridge API
 - [ ] Updated skill documentation with usage examples
-- [ ] Rebuilt the `@orient/apps` package (`pnpm --filter @orient/apps exec tsc`)
+- [ ] Rebuilt the `@orientbot/apps` package (`pnpm --filter @orientbot/apps exec tsc`)

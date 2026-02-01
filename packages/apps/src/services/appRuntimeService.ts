@@ -5,11 +5,11 @@
  * Enforces permissions based on APP.yaml manifest and manages
  * the postMessage bridge between app iframes and backend services.
  *
- * Exported via @orient/apps package.
+ * Exported via @orient-bot/apps package.
  */
 
 import crypto from 'crypto';
-import { createServiceLogger } from '@orient/core';
+import { createServiceLogger } from '@orient-bot/core';
 import { AppsService } from './appsService.js';
 import { App, AppManifest } from '../types.js';
 

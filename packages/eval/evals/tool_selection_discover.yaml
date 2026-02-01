@@ -1,0 +1,15 @@
+# Tool Selection: Discover Tools
+# Tests that agent uses discover_tools for unknown capabilities
+
+name: tool_selection_discover_tools
+description: Test that agent uses discover_tools for unknown capabilities
+type: tool_selection
+agent: default
+
+input:
+  prompt: 'What tools do you have available?'
+
+expect:
+  tool_calls:
+    required:
+      - name: discover_tools

@@ -6,12 +6,12 @@
  *
  * This service mirrors the SkillsService pattern for consistency.
  *
- * Exported via @orient/apps package.
+ * Exported via @orient-bot/apps package.
  */
 
 import fs from 'fs';
 import path from 'path';
-import { createServiceLogger } from '@orient/core';
+import { createServiceLogger, getBuiltinAppsPath, getUserAppsPath } from '@orient-bot/core';
 import { App, AppManifest, AppSummary, AppStatus, validateAppManifest } from '../types.js';
 
 const logger = createServiceLogger('apps-service');
@@ -83,16 +83,19 @@ function parseYaml(content: string): Record<string, unknown> {
 // ============================================
 
 export class AppsService {
-  private appsPath: string;
+  private builtinAppsPath: string;
+  private userAppsPath: string;
   private appsCache: Map<string, App> = new Map();
   private initialized: boolean = false;
 
   constructor(projectRoot?: string) {
-    // Default to the project root's apps directory
-    const root = projectRoot || process.cwd();
-    this.appsPath = path.join(root, 'apps');
+    this.builtinAppsPath = getBuiltinAppsPath(projectRoot);
+    this.userAppsPath = getUserAppsPath();
 
-    logger.info('Apps service created', { appsPath: this.appsPath });
+    logger.info('Apps service created', {
+      builtinAppsPath: this.builtinAppsPath,
+      userAppsPath: this.userAppsPath,
+    });
   }
 
   /**
@@ -106,66 +109,12 @@ export class AppsService {
     const op = logger.startOperation('initializeApps');
 
     try {
-      if (!fs.existsSync(this.appsPath)) {
-        logger.warn('Apps directory not found', { path: this.appsPath });
-        this.initialized = true;
-        op.success('No apps directory found');
-        return;
+      if (!fs.existsSync(this.userAppsPath)) {
+        fs.mkdirSync(this.userAppsPath, { recursive: true });
       }
 
-      const entries = fs.readdirSync(this.appsPath, { withFileTypes: true });
-
-      for (const entry of entries) {
-        // Skip non-directories and special directories
-        if (!entry.isDirectory() || entry.name.startsWith('_') || entry.name.startsWith('.')) {
-          continue;
-        }
-
-        const appDir = path.join(this.appsPath, entry.name);
-        const manifestFile = path.join(appDir, 'APP.yaml');
-
-        if (!fs.existsSync(manifestFile)) {
-          logger.debug('No APP.yaml in directory', { dir: entry.name });
-          continue;
-        }
-
-        try {
-          const manifestContent = fs.readFileSync(manifestFile, 'utf-8');
-          const parsedManifest = parseYaml(manifestContent);
-          const validation = validateAppManifest(parsedManifest);
-
-          if (!validation.valid) {
-            logger.warn('Invalid app manifest', {
-              dir: entry.name,
-              errors: validation.errors,
-            });
-            continue;
-          }
-
-          const manifest = validation.data!;
-          const srcPath = path.join(appDir, 'src');
-          const distPath = path.join(appDir, manifest.build.output);
-          const isBuilt =
-            fs.existsSync(distPath) && fs.existsSync(path.join(distPath, 'index.html'));
-
-          const app: App = {
-            manifest,
-            path: appDir,
-            srcPath,
-            distPath,
-            isBuilt,
-            status: isBuilt ? 'published' : 'draft',
-          };
-
-          this.appsCache.set(manifest.name, app);
-          logger.debug('Loaded app', { name: manifest.name, isBuilt });
-        } catch (error) {
-          logger.warn('Failed to load app', {
-            dir: entry.name,
-            error: error instanceof Error ? error.message : String(error),
-          });
-        }
-      }
+      this.scanDirectory(this.builtinAppsPath, 'builtin');
+      this.scanDirectory(this.userAppsPath, 'user');
 
       this.initialized = true;
       op.success('Apps initialized', { count: this.appsCache.size });
@@ -192,6 +141,7 @@ export class AppsService {
       status: app.status,
       isBuilt: app.isBuilt,
       author: app.manifest.author,
+      source: app.source,
     }));
   }
 
@@ -297,7 +247,7 @@ export class AppsService {
    * Get the apps directory path
    */
   getAppsPath(): string {
-    return this.appsPath;
+    return this.userAppsPath;
   }
 
   /**
@@ -314,6 +264,67 @@ export class AppsService {
         valid: false,
         errors: [`Failed to parse YAML: ${error instanceof Error ? error.message : String(error)}`],
       };
+    }
+  }
+
+  private scanDirectory(dir: string, source: 'builtin' | 'user'): void {
+    if (!fs.existsSync(dir)) {
+      logger.debug('Apps directory not found', { path: dir, source });
+      return;
+    }
+
+    const entries = fs.readdirSync(dir, { withFileTypes: true });
+
+    for (const entry of entries) {
+      // Skip non-directories and special directories
+      if (!entry.isDirectory() || entry.name.startsWith('_') || entry.name.startsWith('.')) {
+        continue;
+      }
+
+      const appDir = path.join(dir, entry.name);
+      const manifestFile = path.join(appDir, 'APP.yaml');
+
+      if (!fs.existsSync(manifestFile)) {
+        logger.debug('No APP.yaml in directory', { dir: entry.name });
+        continue;
+      }
+
+      try {
+        const manifestContent = fs.readFileSync(manifestFile, 'utf-8');
+        const parsedManifest = parseYaml(manifestContent);
+        const validation = validateAppManifest(parsedManifest);
+
+        if (!validation.valid) {
+          logger.warn('Invalid app manifest', {
+            dir: entry.name,
+            errors: validation.errors,
+          });
+          continue;
+        }
+
+        const manifest = validation.data!;
+        const srcPath = path.join(appDir, 'src');
+        const distPath = path.join(appDir, manifest.build.output);
+        const isBuilt = fs.existsSync(distPath) && fs.existsSync(path.join(distPath, 'index.html'));
+
+        const app: App = {
+          manifest,
+          path: appDir,
+          srcPath,
+          distPath,
+          isBuilt,
+          status: isBuilt ? 'published' : 'draft',
+          source,
+        };
+
+        this.appsCache.set(manifest.name, app);
+        logger.debug('Loaded app', { name: manifest.name, isBuilt, source });
+      } catch (error) {
+        logger.warn('Failed to load app', {
+          dir: entry.name,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
     }
   }
 }

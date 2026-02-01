@@ -253,14 +253,14 @@ curl -s http://localhost:4097/health | jq .
 
 ## Test Coverage by Package
 
-| Package                     | Tests | Critical Paths                    |
-| --------------------------- | ----- | --------------------------------- |
-| `@orient/core`              | 26    | Crypto, config                    |
-| `@orient/database-services` | 120+  | Feature flags, secrets, scheduler |
-| `@orient/dashboard`         | 50+   | Routes, agents, integrations      |
-| `@orient/bot-whatsapp`      | 30+   | Messaging, QR, connection         |
-| `@orient/bot-slack`         | 25+   | Messaging, pending actions        |
-| `@orient/integrations`      | 20+   | OAuth flows, JIRA, Linear         |
+| Package                        | Tests | Critical Paths                    |
+| ------------------------------ | ----- | --------------------------------- |
+| `@orient-bot/core`              | 26    | Crypto, config                    |
+| `@orient-bot/database-services` | 120+  | Feature flags, secrets, scheduler |
+| `@orient-bot/dashboard`         | 50+   | Routes, agents, integrations      |
+| `@orient-bot/bot-whatsapp`      | 30+   | Messaging, QR, connection         |
+| `@orient-bot/bot-slack`         | 25+   | Messaging, pending actions        |
+| `@orient-bot/integrations`      | 20+   | OAuth flows, JIRA, Linear         |
 
 ### Key Test Files
 

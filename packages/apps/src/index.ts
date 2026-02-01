@@ -1,5 +1,5 @@
 /**
- * @orient/apps
+ * @orient-bot/apps
  *
  * Mini-apps system for the Orient.
  *
@@ -15,7 +15,7 @@
  *   App,
  *   AppSummary,
  *   validateAppManifest,
- * } from '@orient/apps';
+ * } from '@orient-bot/apps';
  */
 
 // Export schemas

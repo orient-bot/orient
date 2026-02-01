@@ -1,0 +1,18 @@
+# Tool Selection: Config Create Schedule
+# Tests that agent uses config_create_schedule to create scheduled messages
+
+name: config_create_schedule
+description: Agent uses config_create_schedule to create a daily standup
+type: tool_selection
+agent: default
+
+input:
+  prompt: 'Create a daily standup at 9am'
+
+expect:
+  tool_calls:
+    required:
+      - name: config_create_schedule
+    forbidden:
+      - config_list_schedules
+      - config_delete_schedule

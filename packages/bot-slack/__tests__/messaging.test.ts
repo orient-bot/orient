@@ -5,7 +5,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // Mock core
-vi.mock('@orient/core', () => ({
+vi.mock('@orient-bot/core', () => ({
   createServiceLogger: () => ({
     info: vi.fn(),
     error: vi.fn(),
@@ -27,7 +27,9 @@ describe('SlackMessaging', () => {
   beforeEach(() => {
     mockClient = {
       chat: {
-        postMessage: vi.fn().mockResolvedValue({ ok: true, ts: '1234567890.123456', channel: 'C123' }),
+        postMessage: vi
+          .fn()
+          .mockResolvedValue({ ok: true, ts: '1234567890.123456', channel: 'C123' }),
         update: vi.fn().mockResolvedValue({ ok: true, ts: '1234567890.123456', channel: 'C123' }),
         delete: vi.fn().mockResolvedValue({ ok: true }),
       },
@@ -87,12 +89,10 @@ describe('SlackMessaging', () => {
 
     it('should post a message with blocks', async () => {
       const blocks = [{ type: 'section', text: { type: 'mrkdwn', text: 'Hello!' } }];
-      
+
       await messaging.postMessage('C123', 'Hello!', { blocks });
 
-      expect(mockClient.chat.postMessage).toHaveBeenCalledWith(
-        expect.objectContaining({ blocks })
-      );
+      expect(mockClient.chat.postMessage).toHaveBeenCalledWith(expect.objectContaining({ blocks }));
     });
   });
 
@@ -193,9 +193,9 @@ describe('SlackMessaging', () => {
     it('should throw error when posting without client', async () => {
       const noClientMessaging = new SlackMessaging();
 
-      await expect(
-        noClientMessaging.postMessage('C123', 'test')
-      ).rejects.toThrow('Slack client not connected');
+      await expect(noClientMessaging.postMessage('C123', 'test')).rejects.toThrow(
+        'Slack client not connected'
+      );
     });
   });
 });

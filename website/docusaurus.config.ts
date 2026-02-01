@@ -2,7 +2,7 @@ import { themes as prismThemes } from 'prism-react-renderer';
 import type { Config } from '@docusaurus/types';
 import type * as Preset from '@docusaurus/preset-classic';
 
-// GitHub repository: https://github.com/orient-bot/orient
+// GitHub repository: https://github.com/orient/orient
 const config: Config = {
   title: 'Orient',
   tagline: 'Ask Ori. It acts.',
@@ -140,7 +140,7 @@ const config: Config = {
           label: 'Docs',
         },
         {
-          href: 'https://github.com/orient-bot/orient',
+          href: 'https://github.com/orient/orient',
           label: 'GitHub',
           position: 'right',
         },
@@ -180,7 +180,7 @@ const config: Config = {
           items: [
             {
               label: 'GitHub',
-              href: 'https://github.com/orient-bot/orient',
+              href: 'https://github.com/orient/orient',
             },
           ],
         },
@@ -197,7 +197,7 @@ const config: Config = {
             },
             {
               label: 'MIT License',
-              href: 'https://github.com/orient-bot/orient/blob/main/LICENSE',
+              href: 'https://github.com/orient/orient/blob/main/LICENSE',
             },
           ],
         },

@@ -1,4 +1,4 @@
-# @orient/bot-whatsapp
+# @orient-bot/bot-whatsapp
 
 WhatsApp bot service for the Orient.
 
@@ -12,14 +12,14 @@ WhatsApp bot service for the Orient.
 ## Installation
 
 ```bash
-pnpm add @orient/bot-whatsapp
+pnpm add @orient-bot/bot-whatsapp
 ```
 
 ## Usage
 
 ```typescript
-import { WhatsAppBotService } from '@orient/bot-whatsapp';
-import { loadConfig } from '@orient/core';
+import { WhatsAppBotService } from '@orient-bot/bot-whatsapp';
+import { loadConfig } from '@orient-bot/core';
 
 const config = loadConfig();
 const bot = new WhatsAppBotService(config);

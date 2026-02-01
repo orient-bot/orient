@@ -2,12 +2,12 @@
  * WhatsApp Bot Types
  *
  * Type definitions for the WhatsApp bot package.
- * Core types are re-exported from @orient/core for consistency.
+ * Core types are re-exported from @orient-bot/core for consistency.
  */
 
 import type { proto } from 'baileys';
 
-// Re-export core types from @orient/core
+// Re-export core types from @orient-bot/core
 //
 // ============================================================================
 // BACKWARD COMPATIBILITY: WhatsAppLegacyConfig as WhatsAppConfig
@@ -47,7 +47,7 @@ export type {
   PollVoteResult,
   PollActionContext,
   PollActionHandler,
-} from '@orient/core';
+} from '@orient-bot/core';
 
 // ============================================================================
 // Connection Types (package-specific)
@@ -177,7 +177,7 @@ export type WritePermissionChecker = (
 // Event Types (package-specific)
 // ============================================================================
 
-import type { WhatsAppMessage, WhatsAppPoll, PollVote } from '@orient/core';
+import type { WhatsAppMessage, WhatsAppPoll, PollVote } from '@orient-bot/core';
 
 /**
  * History sync data

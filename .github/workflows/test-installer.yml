@@ -1,0 +1,225 @@
+name: Test Installer
+
+on:
+  # Manual trigger for release validation
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to test'
+        required: false
+        default: 'main'
+      verbose:
+        description: 'Enable verbose output'
+        required: false
+        type: boolean
+        default: false
+
+  # Trigger on changes to installer files
+  push:
+    branches:
+      - main
+      - dev
+    paths:
+      - 'installer/**'
+      - '.github/workflows/test-installer.yml'
+
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'installer/**'
+      - '.github/workflows/test-installer.yml'
+
+# Cancel previous runs on the same branch
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # =============================================================================
+  # Test installer in Docker (Linux simulation)
+  # =============================================================================
+  test-docker:
+    name: Test Installer (Docker)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker test image
+        run: |
+          docker build \
+            -t orient-installer-test \
+            -f installer/tests/Dockerfile.macos-sim \
+            installer/tests/
+
+      - name: Run installer test in Docker
+        id: docker-test
+        run: |
+          VERBOSE_FLAG=""
+          if [ "${{ inputs.verbose }}" = "true" ]; then
+            VERBOSE_FLAG="--verbose"
+          fi
+          ./installer/tests/test-install.sh --docker $VERBOSE_FLAG
+        env:
+          VERBOSE: ${{ inputs.verbose || 'false' }}
+
+      - name: Upload logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-test-logs
+          path: |
+            /tmp/orient-*
+          retention-days: 7
+
+  # =============================================================================
+  # Test installer on native macOS
+  # =============================================================================
+  test-macos:
+    name: Test Installer (macOS)
+    runs-on: macos-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install pnpm
+        run: npm install -g pnpm@9
+
+      - name: Verify environment
+        run: |
+          echo "Node: $(node --version)"
+          echo "npm: $(npm --version)"
+          echo "pnpm: $(pnpm --version)"
+          echo "Git: $(git --version)"
+
+      - name: Run installer test (local)
+        id: macos-test
+        run: |
+          VERBOSE_FLAG=""
+          if [ "${{ inputs.verbose }}" = "true" ]; then
+            VERBOSE_FLAG="--verbose"
+          fi
+          ./installer/tests/test-install.sh $VERBOSE_FLAG
+        env:
+          VERBOSE: ${{ inputs.verbose || 'false' }}
+          # Use a temp directory for test installation
+          ORIENT_HOME: /tmp/orient-test-${{ github.run_id }}
+
+      - name: Verify installation
+        run: |
+          export ORIENT_HOME=/tmp/orient-test-${{ github.run_id }}
+          ./installer/tests/verify-install.sh
+
+      - name: Upload logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-test-logs
+          path: |
+            /tmp/orient-test-*
+          retention-days: 7
+
+      - name: Cleanup
+        if: always()
+        run: |
+          rm -rf /tmp/orient-test-* || true
+
+  # =============================================================================
+  # Test public installer (requires repo on GitHub)
+  # =============================================================================
+  test-public:
+    name: Test Public Installer
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # Only run on main branch or manual trigger
+    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker test image
+        run: |
+          docker build \
+            -t orient-installer-test \
+            -f installer/tests/Dockerfile.macos-sim \
+            installer/tests/
+
+      - name: Test public installer
+        id: public-test
+        run: |
+          BRANCH="${{ inputs.branch || github.ref_name }}"
+          VERBOSE_FLAG=""
+          if [ "${{ inputs.verbose }}" = "true" ]; then
+            VERBOSE_FLAG="--verbose"
+          fi
+
+          ./installer/tests/test-install-public.sh \
+            --branch="$BRANCH" \
+            $VERBOSE_FLAG
+        env:
+          ORIENT_REPO: https://github.com/${{ github.repository }}.git
+          ORIENT_BRANCH: ${{ inputs.branch || github.ref_name }}
+
+      - name: Upload logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: public-test-logs
+          path: |
+            /tmp/orient-*
+          retention-days: 7
+
+  # =============================================================================
+  # Summary job
+  # =============================================================================
+  summary:
+    name: Test Summary
+    runs-on: ubuntu-latest
+    needs: [test-docker, test-macos]
+    if: always()
+
+    steps:
+      - name: Check test results
+        run: |
+          echo "## Installer Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ needs.test-docker.result }}" = "success" ]; then
+            echo "- :white_check_mark: Docker test passed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- :x: Docker test failed" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          if [ "${{ needs.test-macos.result }}" = "success" ]; then
+            echo "- :white_check_mark: macOS test passed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- :x: macOS test failed" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          # Fail if any test failed
+          if [ "${{ needs.test-docker.result }}" != "success" ] || \
+             [ "${{ needs.test-macos.result }}" != "success" ]; then
+            echo ""
+            echo "One or more tests failed. See job logs for details."
+            exit 1
+          fi
+
+          echo ""
+          echo "All tests passed! The installer is ready for release."

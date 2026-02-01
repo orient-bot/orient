@@ -4,8 +4,8 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-// Mock @orient/core
-vi.mock('@orient/core', () => ({
+// Mock @orient-bot/core
+vi.mock('@orient-bot/core', () => ({
   createServiceLogger: () => ({
     info: vi.fn(),
     error: vi.fn(),
@@ -16,10 +16,14 @@ vi.mock('@orient/core', () => ({
       failure: vi.fn(),
     }),
   }),
+  getBuiltinAppsPath: vi.fn((projectRoot?: string) =>
+    projectRoot ? `${projectRoot}/apps` : '/test/path/apps'
+  ),
+  getUserAppsPath: vi.fn(() => '/user/apps'),
 }));
 
-// Mock @orient/apps
-vi.mock('@orient/apps', () => ({
+// Mock @orient-bot/apps
+vi.mock('@orient-bot/apps', () => ({
   validateAppManifest: vi.fn((data) => ({
     valid: true,
     data: {
@@ -40,16 +44,19 @@ vi.mock('@orient/apps', () => ({
 const mockFsExists = vi.fn();
 const mockFsReaddir = vi.fn();
 const mockFsReadFile = vi.fn();
+const mockFsMkdir = vi.fn();
 
 vi.mock('fs', () => ({
   default: {
     existsSync: (...args: unknown[]) => mockFsExists(...args),
     readdirSync: (...args: unknown[]) => mockFsReaddir(...args),
     readFileSync: (...args: unknown[]) => mockFsReadFile(...args),
+    mkdirSync: (...args: unknown[]) => mockFsMkdir(...args),
   },
   existsSync: (...args: unknown[]) => mockFsExists(...args),
   readdirSync: (...args: unknown[]) => mockFsReaddir(...args),
   readFileSync: (...args: unknown[]) => mockFsReadFile(...args),
+  mkdirSync: (...args: unknown[]) => mockFsMkdir(...args),
 }));
 
 import { AppsService, AppSummary } from '../src/services/appsService.js';
@@ -75,6 +82,7 @@ describe('AppsService', () => {
         status: 'draft',
         isBuilt: false,
         author: 'Test Author',
+        source: 'builtin',
         permissions: {
           calendar: { read: true, write: false },
           slack: { read: true, write: true },
@@ -94,6 +102,7 @@ describe('AppsService', () => {
         version: '1.0.0',
         status: 'draft',
         isBuilt: false,
+        source: 'builtin',
       };
 
       expect(summary.permissions).toBeUndefined();
@@ -107,6 +116,7 @@ describe('AppsService', () => {
         version: '1.0.0',
         status: 'draft',
         isBuilt: false,
+        source: 'builtin',
         capabilities: {
           scheduler: { enabled: true },
           storage: { enabled: true },
@@ -127,6 +137,7 @@ describe('AppsService', () => {
         version: '1.0.0',
         status: 'draft',
         isBuilt: false,
+        source: 'builtin',
       };
 
       expect(summary.capabilities).toBeUndefined();

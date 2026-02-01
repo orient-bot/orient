@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { createServiceLogger } from '@orient/core';
+import { createServiceLogger } from '@orient-bot/core';
 import { applySetup, getSetupStatus } from './setupWizard.js';
 
 const logger = createServiceLogger('setup-routes');

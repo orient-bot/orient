@@ -1,0 +1,18 @@
+# Skill Invocation: Project Architecture
+# Tests that agent discovers project-architecture for codebase structure
+
+name: skill_invocation_project_architecture
+description: Agent discovers project-architecture for explaining monorepo structure
+type: skill_invocation
+agent: explorer
+
+input:
+  prompt: 'Explain the monorepo structure'
+
+expect:
+  skills:
+    activated:
+      - project-architecture
+  assertions:
+    - type: skill_activated
+      skill: project-architecture

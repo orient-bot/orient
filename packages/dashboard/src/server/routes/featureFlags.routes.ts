@@ -6,8 +6,9 @@
  */
 
 import { Router, Request, Response } from 'express';
-import { createServiceLogger } from '@orient/core';
-import { getDatabase, featureFlags, eq } from '@orient/database';
+import { getParam } from './paramUtils.js';
+import { createServiceLogger } from '@orient-bot/core';
+import { getDatabase, featureFlags, eq } from '@orient-bot/database';
 
 const logger = createServiceLogger('feature-flags-routes');
 
@@ -15,7 +16,10 @@ export function createFeatureFlagsRoutes(
   requireAuth: (req: Request, res: Response, next: () => void) => void
 ): Router {
   const router = Router();
-  const db = getDatabase();
+
+  // Helper to get database instance
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const getDb = async (): Promise<any> => await getDatabase();
 
   /**
    * GET /api/feature-flags
@@ -23,10 +27,12 @@ export function createFeatureFlagsRoutes(
    */
   router.get('/', requireAuth, async (_req: Request, res: Response) => {
     try {
+      const db = await getDb();
       const dbFlags = await db.select().from(featureFlags).orderBy(featureFlags.sortOrder);
 
       // Transform to FeatureFlagWithOverride format expected by frontend
-      const flags = dbFlags.map((flag) => ({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const flags = dbFlags.map((flag: any) => ({
         id: flag.id,
         name: flag.name,
         description: flag.description,
@@ -52,6 +58,7 @@ export function createFeatureFlagsRoutes(
    */
   router.get('/list', requireAuth, async (_req: Request, res: Response) => {
     try {
+      const db = await getDb();
       const flags = await db.select().from(featureFlags).orderBy(featureFlags.sortOrder);
 
       res.json({ flags });
@@ -67,6 +74,7 @@ export function createFeatureFlagsRoutes(
    */
   router.get('/effective', requireAuth, async (_req: Request, res: Response) => {
     try {
+      const db = await getDb();
       const dbFlags = await db.select().from(featureFlags).orderBy(featureFlags.sortOrder);
 
       const flags: Record<string, boolean> = {};
@@ -87,7 +95,8 @@ export function createFeatureFlagsRoutes(
    */
   router.put('/:flagId', requireAuth, async (req: Request, res: Response) => {
     try {
-      const { flagId } = req.params;
+      const db = await getDb();
+      const flagId = getParam(req.params.flagId);
       const { enabled } = req.body;
 
       // Validate enabled is a boolean
@@ -122,7 +131,8 @@ export function createFeatureFlagsRoutes(
       // Return updated flags list
       const dbFlags = await db.select().from(featureFlags).orderBy(featureFlags.sortOrder);
 
-      const flags = dbFlags.map((flag) => ({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const flags = dbFlags.map((flag: any) => ({
         id: flag.id,
         name: flag.name,
         description: flag.description,
@@ -151,7 +161,8 @@ export function createFeatureFlagsRoutes(
    */
   router.put('/:flagId/override', requireAuth, async (req: Request, res: Response) => {
     try {
-      const { flagId } = req.params;
+      const db = await getDb();
+      const flagId = getParam(req.params.flagId);
       const { enabled } = req.body;
 
       if (typeof enabled !== 'boolean') {
@@ -180,7 +191,8 @@ export function createFeatureFlagsRoutes(
       // Return updated flags list
       const dbFlags = await db.select().from(featureFlags).orderBy(featureFlags.sortOrder);
 
-      const flags = dbFlags.map((flag) => ({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const flags = dbFlags.map((flag: any) => ({
         id: flag.id,
         name: flag.name,
         description: flag.description,
@@ -206,7 +218,8 @@ export function createFeatureFlagsRoutes(
    */
   router.delete('/:flagId/override', requireAuth, async (req: Request, res: Response) => {
     try {
-      const { flagId } = req.params;
+      const db = await getDb();
+      const flagId = getParam(req.params.flagId);
 
       // Check if flag exists
       const existingFlag = await db
@@ -224,7 +237,8 @@ export function createFeatureFlagsRoutes(
       // Return current flags list
       const dbFlags = await db.select().from(featureFlags).orderBy(featureFlags.sortOrder);
 
-      const flags = dbFlags.map((flag) => ({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const flags = dbFlags.map((flag: any) => ({
         id: flag.id,
         name: flag.name,
         description: flag.description,

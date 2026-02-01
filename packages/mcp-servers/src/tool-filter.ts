@@ -6,10 +6,10 @@
  */
 
 import { Tool } from '@modelcontextprotocol/sdk/types.js';
-import { getToolRegistry, type ToolCategory, type ToolMetadata } from '@orient/agents';
-import { ToolDiscoveryService } from '@orient/agents';
+import { getToolRegistry, IntegrationConnectionService } from '@orient-bot/agents';
+import { ToolDiscoveryService } from '@orient-bot/agents';
 import { ServerToolConfig } from './types.js';
-import { createServiceLogger } from '@orient/core';
+import { createServiceLogger } from '@orient-bot/core';
 
 const logger = createServiceLogger('tool-filter');
 
@@ -79,6 +79,41 @@ export function filterTools(config: ServerToolConfig): Tool[] {
   });
 
   return filteredTools;
+}
+
+/**
+ * Filters tools by configuration AND connected integrations
+ */
+export async function filterToolsByConnection(config: ServerToolConfig): Promise<Tool[]> {
+  const tools = filterTools(config);
+  const registry = getToolRegistry();
+  const connectionService = new IntegrationConnectionService();
+  const filtered: Tool[] = [];
+
+  for (const tool of tools) {
+    if (tool.name === 'discover_tools') {
+      filtered.push(tool);
+      continue;
+    }
+
+    const metadata = registry.getTool(tool.name);
+    if (!metadata) {
+      filtered.push(tool);
+      continue;
+    }
+
+    const available = await connectionService.isCategoryAvailable(metadata.category);
+    if (available) {
+      filtered.push(tool);
+    }
+  }
+
+  logger.info('Tools filtered by connection', {
+    inputCount: tools.length,
+    filteredCount: filtered.length,
+  });
+
+  return filtered;
 }
 
 /**

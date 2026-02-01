@@ -45,19 +45,136 @@ Or use the full absolute path:
 
 To clarify the correct syntax for each invocation method:
 
-| Task                     | Skill Tool                                                                                | Direct Script                                                                                       |
-| ------------------------ | ----------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
-| Create standard worktree | `Skill(skill: 'claude-worktree-manager', args: 'create my-feature')`                      | `.claude/skills/claude-worktree-manager/scripts/worktree.sh create my-feature`                      |
-| With model flag          | `Skill(skill: 'claude-worktree-manager', args: 'create my-feature --model opus')`         | `.claude/skills/claude-worktree-manager/scripts/worktree.sh create my-feature --model opus`         |
-| With isolated database   | `Skill(skill: 'claude-worktree-manager', args: 'create schema-test --isolated')`          | `.claude/skills/claude-worktree-manager/scripts/worktree.sh create schema-test --isolated`          |
-| Both flags combined      | `Skill(skill: 'claude-worktree-manager', args: 'create complex --isolated --model opus')` | `.claude/skills/claude-worktree-manager/scripts/worktree.sh create complex --isolated --model opus` |
-| List worktrees           | `Skill(skill: 'claude-worktree-manager', args: 'list')`                                   | `.claude/skills/claude-worktree-manager/scripts/worktree.sh list`                                   |
-| Cleanup old worktrees    | `Skill(skill: 'claude-worktree-manager', args: 'cleanup --days 7')`                       | `.claude/skills/claude-worktree-manager/scripts/worktree.sh cleanup --days 7`                       |
+| Task                     | Skill Tool                                                                                                  | Direct Script                                                                                                         |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| Create standard worktree | `Skill(skill: 'claude-worktree-manager', args: 'create my-feature')`                                        | `.claude/skills/claude-worktree-manager/scripts/worktree.sh create my-feature`                                        |
+| With model flag          | `Skill(skill: 'claude-worktree-manager', args: 'create my-feature --model opus')`                           | `.claude/skills/claude-worktree-manager/scripts/worktree.sh create my-feature --model opus`                           |
+| With isolated database   | `Skill(skill: 'claude-worktree-manager', args: 'create schema-test --isolated')`                            | `.claude/skills/claude-worktree-manager/scripts/worktree.sh create schema-test --isolated`                            |
+| Both flags combined      | `Skill(skill: 'claude-worktree-manager', args: 'create complex --isolated --model opus')`                   | `.claude/skills/claude-worktree-manager/scripts/worktree.sh create complex --isolated --model opus`                   |
+| **With plan file**       | `Skill(skill: 'claude-worktree-manager', args: 'create webhooks --plan docs/plans/2026-02-01-webhooks.md')` | `.claude/skills/claude-worktree-manager/scripts/worktree.sh create webhooks --plan docs/plans/2026-02-01-webhooks.md` |
+| List worktrees           | `Skill(skill: 'claude-worktree-manager', args: 'list')`                                                     | `.claude/skills/claude-worktree-manager/scripts/worktree.sh list`                                                     |
+| Cleanup old worktrees    | `Skill(skill: 'claude-worktree-manager', args: 'cleanup --days 7')`                                         | `.claude/skills/claude-worktree-manager/scripts/worktree.sh cleanup --days 7`                                         |
 
 **Key Differences:**
 
 - **Skill tool:** All commands and flags are passed as a single string via the `args` parameter
 - **Direct script:** Commands and flags are bash arguments, requires absolute or relative path
+
+## Discovery-First Workflow (Recommended)
+
+For non-trivial features, use the **discovery-first workflow** with the `/discover` skill before creating a worktree:
+
+### Workflow Overview
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  MAIN BRANCH                                                │
+│                                                             │
+│  1. /discover <feature-description>                         │
+│     ├── Agent asks clarifying questions (one at a time)     │
+│     ├── Proposes 2-3 approaches                             │
+│     ├── Validates design in sections                        │
+│     └── Creates docs/plans/YYYY-MM-DD-<feature>.md          │
+│                                                             │
+│  2. Agent offers to create worktree with --plan             │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+                          │
+                          ▼
+┌─────────────────────────────────────────────────────────────┐
+│  WORKTREE (created with --plan)                             │
+│                                                             │
+│  3. Worktree agent reads plan and executes tasks            │
+│     ├── Two-stage review (spec compliance + code quality)   │
+│     ├── Mandatory verification before completion claims     │
+│     └── Batch checkpoints for human feedback                │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Example: Discovery to Worktree
+
+```
+# Step 1: Run discovery in main branch
+User: /discover add webhook support for integrations
+
+Agent: [Explores codebase]
+Agent: [AskUserQuestion - one question at a time]
+       "What events should trigger webhooks?"
+       □ Integration lifecycle (connected, disconnected)
+       □ Agent actions (tool calls, completions)
+       □ All events
+
+User: "Integration lifecycle"
+
+Agent: [More questions, design validation...]
+Agent: [Writes plan to docs/plans/2026-02-01-webhooks.md]
+Agent: "Plan complete. Ready to create worktree?"
+
+User: "Yes"
+
+# Step 2: Create worktree with plan
+Agent: Skill(skill: 'claude-worktree-manager',
+             args: 'create webhooks --plan docs/plans/2026-02-01-webhooks.md')
+```
+
+### The --plan Flag
+
+The `--plan` flag accepts a path to an implementation plan file:
+
+```bash
+--plan docs/plans/2026-02-01-feature-name.md
+```
+
+**What it does:**
+
+1. **Verifies plan exists** - Checks if the plan file exists in the repo
+2. **Auto-constructs goal** - Creates a goal that instructs the worktree agent to:
+   - Read the plan first
+   - Execute tasks in order
+   - Use parallel subagents for 4+ independent tasks
+   - Apply two-stage review (spec compliance, then code quality)
+   - Provide verification evidence for every completion claim
+
+**Auto-generated goal format:**
+
+```
+Implement the plan at docs/plans/2026-02-01-webhooks.md
+
+Read the plan first, then execute tasks in order. For 4+ independent tasks,
+consider using parallel subagents. Use two-stage review (spec compliance then
+code quality). Mandatory: every completion claim must include verification output.
+```
+
+### Combining --plan with Other Flags
+
+```bash
+# Plan + specific model for complex work
+Skill(skill: 'claude-worktree-manager',
+      args: 'create webhooks --plan docs/plans/2026-02-01-webhooks.md --model opus')
+
+# Plan + isolated database for schema changes
+Skill(skill: 'claude-worktree-manager',
+      args: 'create migrations --plan docs/plans/2026-02-01-db-changes.md --isolated')
+
+# Plan + goal (additional context appended)
+Skill(skill: 'claude-worktree-manager',
+      args: 'create webhooks --plan docs/plans/2026-02-01-webhooks.md --goal "Focus on error handling first"')
+```
+
+### When to Use --plan vs --goal
+
+| Scenario                            | Use                                        |
+| ----------------------------------- | ------------------------------------------ |
+| Feature with discovery/planning     | `--plan docs/plans/...`                    |
+| Quick bug fix                       | `--goal "Fix the login redirect bug"`      |
+| Simple task with clear instructions | `--goal "Add logging to the auth service"` |
+| Complex multi-task feature          | `--plan` (created by /discover)            |
+
+### Related Skills
+
+- **`/discover`** - Creates the plan through structured dialogue
+- **`plan-executor`** - Guides worktree agent on executing plans with verification
 
 ## Verifying Model Configuration
 
@@ -489,13 +606,13 @@ tail -f <worktree-path>/.pnpm-install.log
 
 When using `--isolated`, the script automatically:
 
-1. Creates a new PostgreSQL database: `worktree_<timestamp>`
-2. Updates the worktree's `.env` with the new DATABASE_URL
-3. Runs all migrations from `data/migrations/`
+1. Creates a new SQLite database file: `data/worktree_<timestamp>.db`
+2. Updates the worktree's `.env` with the new SQLITE_DB_PATH
+3. Runs all migrations
 4. Seeds the database with:
    - **5 agents:** pm-assistant, communicator, scheduler, explorer, app-builder
    - **6 context rules:** Platform and environment routing
-   - **6 test permissions:** Sample WhatsApp and Slack permissions
+   - **6 test permissions:** Sample permissions
    - **4 sample prompts:** Default prompts for testing
 
 Database seeding starts after pnpm install completes. Check progress:
@@ -572,7 +689,7 @@ Values with special characters MUST be quoted:
 
 ```bash
 # ✅ Correct - quoted values
-DATABASE_URL="postgresql://user:pass@localhost:5432/db"
+SQLITE_DB_PATH="./data/orient.db"
 STANDUP_CRON="30 9 * * 1-5"
 STANDUP_CHANNEL="#orienter-standups"
 
@@ -583,10 +700,10 @@ STANDUP_CHANNEL=#orienter-standups  # Shell treats # as comment
 
 ### Required Variables
 
-For database seeding to work, ensure `DATABASE_URL` is set:
+For database seeding to work, ensure `SQLITE_DB_PATH` is set:
 
 ```bash
-DATABASE_URL="postgresql://aibot:aibot123@localhost:5432/whatsapp_bot"
+SQLITE_DB_PATH="./data/orient.db"
 ```
 
 ### Common Shell Parsing Errors
@@ -931,8 +1048,8 @@ cat <worktree-path>/.db-seed.log
 
 Common issues:
 
-- PostgreSQL not running: `docker compose -f docker/docker-compose.infra.yml up -d postgres`
-- Invalid DATABASE_URL: Check quotes and format
+- SQLite database directory not writable: Check permissions on `data/` directory
+- Invalid SQLITE_DB_PATH: Check quotes and format
 - Missing tables: Run `npm run db:migrate` first
 
 ### Worktree creation failed

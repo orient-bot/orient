@@ -7,7 +7,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // Mock dependencies before imports
-vi.mock('@orient/core', () => ({
+vi.mock('@orient-bot/core', () => ({
   createServiceLogger: () => ({
     info: vi.fn(),
     error: vi.fn(),
@@ -36,7 +36,7 @@ vi.mock('@orient/core', () => ({
   getConfigVersion: vi.fn().mockReturnValue('test-version'),
 }));
 
-vi.mock('@orient/database-services', () => ({
+vi.mock('@orient-bot/database-services', () => ({
   ensureAgentsSeeded: vi.fn().mockResolvedValue({ seeded: false, reason: 'test' }),
   createSecretsService: vi.fn().mockReturnValue({
     listSecrets: vi.fn().mockResolvedValue([]),
@@ -68,15 +68,15 @@ vi.mock('@orient/database-services', () => ({
   }),
 }));
 
-vi.mock('@orient/integrations', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@orient/integrations')>();
+vi.mock('@orient-bot/integrations', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@orient-bot/integrations')>();
   return {
     ...actual,
     getInstalledIntegrations: vi.fn().mockResolvedValue([]),
   };
 });
 
-vi.mock('@orient/integrations/google', () => ({
+vi.mock('@orient-bot/integrations/google', () => ({
   getGoogleOAuthService: vi.fn().mockReturnValue({
     getConnectedAccounts: vi.fn().mockReturnValue([]),
   }),
@@ -84,7 +84,7 @@ vi.mock('@orient/integrations/google', () => ({
   IS_GOOGLE_OAUTH_PRODUCTION: false,
 }));
 
-vi.mock('@orient/mcp-servers/oauth', () => ({
+vi.mock('@orient-bot/mcp-servers/oauth', () => ({
   setSuppressBrowserOpen: vi.fn(),
   IS_PRODUCTION_OAUTH: false,
   OAUTH_CALLBACK_URL: 'http://localhost:8766/oauth/callback',
@@ -92,7 +92,7 @@ vi.mock('@orient/mcp-servers/oauth', () => ({
   createOAuthProvider: vi.fn().mockReturnValue({ tokens: vi.fn().mockResolvedValue(null) }),
 }));
 
-vi.mock('@orient/apps', () => ({
+vi.mock('@orient-bot/apps', () => ({
   createAppsService: vi.fn().mockResolvedValue({ appCount: 0 }),
 }));
 

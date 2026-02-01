@@ -8,14 +8,14 @@ input:
 
 mocks:
   google:
-    ai_first_list_apps:
+    apps_list:
       response:
         apps:
           - id: 'app-501'
             name: 'status-dashboard'
             description: 'Sprint status dashboard'
             status: 'active'
-    ai_first_create_app:
+    apps_create:
       response:
         success: true
         app:
@@ -26,18 +26,18 @@ mocks:
 expect:
   tool_calls:
     required:
-      - name: ai_first_list_apps
-      - name: ai_first_create_app
+      - name: apps_list
+      - name: apps_create
 
   workflow:
     steps:
       - name: list_apps
         tools:
-          - ai_first_list_apps
+          - apps_list
         order: any
       - name: create_app
         tools:
-          - ai_first_create_app
+          - apps_create
         order: any
         depends_on: list_apps
 

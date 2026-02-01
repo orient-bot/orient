@@ -1,13 +1,13 @@
 /**
  * Tests for WhatsApp Bot Entry Point
- * 
+ *
  * Verifies the main.ts module structure and startup logic.
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // Mock dependencies before imports
-vi.mock('@orient/core', () => ({
+vi.mock('@orient-bot/core', () => ({
   createServiceLogger: () => ({
     info: vi.fn(),
     error: vi.fn(),
@@ -63,7 +63,9 @@ vi.mock('baileys', () => ({
     saveCreds: vi.fn(),
   }),
   makeCacheableSignalKeyStore: vi.fn().mockReturnValue({}),
-  fetchLatestBaileysVersion: vi.fn().mockResolvedValue({ version: [2, 3000, 1014], isLatest: true }),
+  fetchLatestBaileysVersion: vi
+    .fn()
+    .mockResolvedValue({ version: [2, 3000, 1014], isLatest: true }),
 }));
 
 vi.mock('fs', () => ({
@@ -84,12 +86,12 @@ vi.mock('qrcode', () => ({
   toString: vi.fn().mockResolvedValue('QR_CODE_STRING'),
 }));
 
-vi.mock('@orient/database-services', () => ({
+vi.mock('@orient-bot/database-services', () => ({
   MessageDatabase: class MockMessageDatabase {},
   createMessageDatabase: vi.fn(() => ({})),
 }));
 
-vi.mock('@orient/agents', async (importOriginal) => {
+vi.mock('@orient-bot/agents', async (importOriginal) => {
   const actual = await importOriginal();
   return {
     ...actual,
@@ -129,12 +131,12 @@ describe('WhatsApp Bot Entry Point', () => {
   describe('WhatsAppBotConfig', () => {
     it('should support required sessionPath config', async () => {
       const { WhatsAppConnection } = await import('../src/services/connection.js');
-      
+
       const config = {
         sessionPath: './test-session',
         autoReconnect: true,
       };
-      
+
       const connection = new WhatsAppConnection(config);
       expect(connection).toBeDefined();
       expect(connection.getState()).toBe('connecting');
@@ -142,12 +144,12 @@ describe('WhatsApp Bot Entry Point', () => {
 
     it('should support optional autoReconnect config', async () => {
       const { WhatsAppConnection } = await import('../src/services/connection.js');
-      
+
       const config = {
         sessionPath: './test-session',
         autoReconnect: false,
       };
-      
+
       const connection = new WhatsAppConnection(config);
       expect(connection).toBeDefined();
     });
@@ -156,24 +158,24 @@ describe('WhatsApp Bot Entry Point', () => {
   describe('Connection Lifecycle', () => {
     it('should emit events on connection', async () => {
       const { WhatsAppConnection } = await import('../src/services/connection.js');
-      
+
       const connection = new WhatsAppConnection({
         sessionPath: './test-session',
       });
-      
+
       const connectedHandler = vi.fn();
       connection.on('connected', connectedHandler);
-      
+
       expect(connection.isConnected()).toBe(false);
     });
 
     it('should handle disconnect gracefully', async () => {
       const { WhatsAppConnection } = await import('../src/services/connection.js');
-      
+
       const connection = new WhatsAppConnection({
         sessionPath: './test-session',
       });
-      
+
       // Should not throw
       await connection.disconnect();
       expect(connection.getState()).toBe('close');

@@ -1,0 +1,27 @@
+# Response Quality: CLI Logs Command
+# Tests that agent explains orient logs command
+
+name: cli_orient_logs
+description: Agent explains orient logs command correctly
+type: response_quality
+agent: default
+
+input:
+  prompt: 'How do I view Orient logs for debugging?'
+
+expect:
+  assertions:
+    - type: response_matches
+      pattern: 'orient logs|logs|debug|view'
+
+scoring:
+  llm_judge:
+    enabled: true
+    threshold: 0.7
+    criteria:
+      - name: accuracy
+        description: Correctly recommends orient logs command
+        weight: 0.6
+      - name: clarity
+        description: Response is clear and helpful
+        weight: 0.4

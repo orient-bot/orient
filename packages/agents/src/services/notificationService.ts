@@ -7,15 +7,15 @@
  * - Daily digests
  * - Status updates
  *
- * Exported via @orient/agents package.
+ * Exported via @orient-bot/agents package.
  *
  * Uses the WhatsApp Message Router to deliver via the appropriate channel
  * (Cloud API for proactive notifications, Baileys as fallback).
  */
 
 import { EventEmitter } from 'events';
-import { WhatsAppMessageRouter, SendMessageResult } from '@orient/bot-whatsapp';
-import { createDedicatedServiceLogger, type NotificationConfig } from '@orient/core';
+import { WhatsAppMessageRouter, SendMessageResult } from '@orient-bot/bot-whatsapp';
+import { createDedicatedServiceLogger, type NotificationConfig } from '@orient-bot/core';
 
 const logger = createDedicatedServiceLogger('notification', {
   maxSize: '20m',

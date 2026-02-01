@@ -12,7 +12,7 @@ The entire `src/` directory has been eliminated. All code now lives in the `pack
 
 - Removed 170+ TypeScript files from src/
 - Migrated 55+ service files to appropriate packages
-- Created new packages: @orient/eval, @orient/cli
+- Created new packages: @orient-bot/eval, @orient-bot/cli
 - Fixed tsconfig rootDir settings across all packages
 - Eliminated all re-exports pointing to src/
 
@@ -31,40 +31,40 @@ The entire `src/` directory has been eliminated. All code now lives in the `pack
 
 ### Files Migrated This Session
 
-1. **@orient/core** (4 files)
+1. **@orient-bot/core** (4 files)
    - `src/utils/portChecker.ts` → `packages/core/src/utils/`
    - `src/config/models.ts` → `packages/core/src/config/models.ts`
    - `src/config/opencode-exclusions.ts` → `packages/core/src/config/opencode-exclusions.ts`
 
-2. **@orient/integrations** (5 files)
+2. **@orient-bot/integrations** (5 files)
    - `src/services/sheetsService.ts` → `packages/integrations/src/google/sheets.ts`
    - `src/services/slidesService.ts` → `packages/integrations/src/google/slides.ts`
    - `src/services/googleOAuthService.ts` → `packages/integrations/src/google/oauth.ts`
    - `src/services/githubService.ts` → `packages/integrations/src/github.ts`
    - `src/services/gitWorktreeService.ts` → `packages/integrations/src/gitWorktree.ts`
 
-3. **@orient/agents** (11 files)
+3. **@orient-bot/agents** (11 files)
    - `toolCallingService.ts`, `openCodeClient.ts`, `toolRegistry.ts`, `toolDiscovery.ts`
    - `agentContextLoader.ts`, `agentRegistry.ts`, `agentService.ts`, `contextService.ts`
    - `mcpClientManager.ts`, `oauthClientProvider.ts`, `whatsappAgentService.ts`
 
-4. **@orient/bot-whatsapp** (9 files)
+4. **@orient-bot/bot-whatsapp** (9 files)
    - `mediaStorageService.ts`, `openCodeWhatsAppHandler.ts`, `progressiveResponder.ts`
    - `transcriptionService.ts`, `whatsappApiServer.ts`, `whatsappCloudApiService.ts`
    - `whatsappEventHandlers.ts`, `whatsappHealthMonitor.ts`, `whatsappMessageRouter.ts`
 
-5. **@orient/apps** (6 files)
+5. **@orient-bot/apps** (6 files)
    - `appGeneratorService.ts`, `appGitService.ts`, `appRuntimeService.ts`
    - `appsService.ts`, `miniappEditDatabase.ts`, `miniappEditService.ts`
 
 ### Remaining Work
 
-| Package              | Re-exports Remaining | Status   |
-| -------------------- | -------------------- | -------- |
-| @orient/agents       | 0 files              | MIGRATED |
-| @orient/bot-whatsapp | 0 files              | MIGRATED |
-| @orient/apps         | 0 files              | MIGRATED |
-| @orient/integrations | 0 files              | MIGRATED |
+| Package                 | Re-exports Remaining | Status   |
+| ----------------------- | -------------------- | -------- |
+| @orient-bot/agents       | 0 files              | MIGRATED |
+| @orient-bot/bot-whatsapp | 0 files              | MIGRATED |
+| @orient-bot/apps         | 0 files              | MIGRATED |
+| @orient-bot/integrations | 0 files              | MIGRATED |
 
 **ALL RE-EXPORTS HAVE BEEN ELIMINATED!**
 
@@ -72,17 +72,17 @@ The entire `src/` directory has been eliminated. All code now lives in the `pack
 
 The following issues prevent clean builds:
 
-1. **Missing `@orient/database-services` package** - Many files import from this non-existent package
+1. **Missing `@orient-bot/database-services` package** - Many files import from this non-existent package
 2. **rootDir: "../.."** in tsconfigs causes cross-package compilation (can be removed now)
-3. **Missing subpath exports** - Packages need `exports` field in package.json for subpath imports like `@orient/integrations/jira`
+3. **Missing subpath exports** - Packages need `exports` field in package.json for subpath imports like `@orient-bot/integrations/jira`
 4. **Import path fixes** - Some migrated files still reference old paths that need updating
 
 ### Build Notes
 
 Packages with `rootDir: "../.."` in tsconfig.json (to support re-exports):
 
-- @orient/agents, @orient/apps, @orient/bot-whatsapp, @orient/bot-slack
-- @orient/mcp-tools, @orient/mcp-servers, @orient/dashboard, @orient/integrations
+- @orient-bot/agents, @orient-bot/apps, @orient-bot/bot-whatsapp, @orient-bot/bot-slack
+- @orient-bot/mcp-tools, @orient-bot/mcp-servers, @orient-bot/dashboard, @orient-bot/integrations
 
 These will need tsconfig updates after all re-exports are eliminated.
 
@@ -90,23 +90,23 @@ These will need tsconfig updates after all re-exports are eliminated.
 
 ## Overview
 
-| Category     | Files | Target Package            | Priority | Status             |
-| ------------ | ----- | ------------------------- | -------- | ------------------ |
-| Services     | 53    | Multiple                  | High     | 27 re-exported     |
-| Tools        | 18    | @orient/mcp-tools         | Medium   | Partially migrated |
-| MCP Servers  | 9     | @orient/mcp-servers       | Medium   | Not started        |
-| Config       | 6     | @orient/core              | Low      | Partial            |
-| Types        | 5     | @orient/database-services | Done     | ✓                  |
-| DB           | 6     | @orient/database          | Low      | Partial            |
-| Utils        | 2     | @orient/core              | Low      | 1 migrated         |
-| CLI          | 4     | New: @orient/cli          | Low      | Not started        |
-| Dashboard    | 3     | @orient/dashboard         | Low      | Partial            |
-| Eval         | 21    | New: @orient/eval         | Low      | Not started        |
-| Apps Portal  | 10    | @orient/dashboard         | Low      | Not started        |
-| Managers     | 1     | @orient/agents            | Low      | Not started        |
-| Entry Points | 2     | Remove                    | Low      | Not started        |
-| Tests        | 35+   | Co-locate                 | Low      | Partial            |
-| Mocks        | 4     | @orient/test-utils        | Low      | Partial            |
+| Category     | Files | Target Package               | Priority | Status             |
+| ------------ | ----- | ---------------------------- | -------- | ------------------ |
+| Services     | 53    | Multiple                     | High     | 27 re-exported     |
+| Tools        | 18    | @orient-bot/mcp-tools         | Medium   | Partially migrated |
+| MCP Servers  | 9     | @orient-bot/mcp-servers       | Medium   | Not started        |
+| Config       | 6     | @orient-bot/core              | Low      | Partial            |
+| Types        | 5     | @orient-bot/database-services | Done     | ✓                  |
+| DB           | 6     | @orient-bot/database          | Low      | Partial            |
+| Utils        | 2     | @orient-bot/core              | Low      | 1 migrated         |
+| CLI          | 4     | New: @orient-bot/cli          | Low      | Not started        |
+| Dashboard    | 3     | @orient-bot/dashboard         | Low      | Partial            |
+| Eval         | 21    | New: @orient-bot/eval         | Low      | Not started        |
+| Apps Portal  | 10    | @orient-bot/dashboard         | Low      | Not started        |
+| Managers     | 1     | @orient-bot/agents            | Low      | Not started        |
+| Entry Points | 2     | Remove                       | Low      | Not started        |
+| Tests        | 35+   | Co-locate                    | Low      | Partial            |
+| Mocks        | 4     | @orient-bot/test-utils        | Low      | Partial            |
 
 ---
 
@@ -114,7 +114,7 @@ These will need tsconfig updates after all re-exports are eliminated.
 
 These files in `packages/` are **re-exporting from src/** and need full migration:
 
-### @orient/agents (9 files remaining - 1 migrated)
+### @orient-bot/agents (9 files remaining - 1 migrated)
 
 - `packages/agents/src/services/agentContextLoader.ts` ⏳
 - `packages/agents/src/services/agentRegistry.ts` ⏳
@@ -127,7 +127,7 @@ These files in `packages/` are **re-exporting from src/** and need full migratio
 - `packages/agents/src/services/toolRegistry.ts` ⏳ (3200+ lines)
 - `packages/agents/src/services/whatsappAgentService.ts` ⏳ (1768 lines)
 
-### @orient/apps (6 files remaining)
+### @orient-bot/apps (6 files remaining)
 
 - `packages/apps/src/services/appGeneratorService.ts` ⏳
 - `packages/apps/src/services/appGitService.ts` ⏳
@@ -136,7 +136,7 @@ These files in `packages/` are **re-exporting from src/** and need full migratio
 - `packages/apps/src/services/miniappEditDatabase.ts` ⏳
 - `packages/apps/src/services/miniappEditService.ts` ⏳
 
-### @orient/bot-whatsapp (8 files remaining)
+### @orient-bot/bot-whatsapp (8 files remaining)
 
 - `packages/bot-whatsapp/src/services/mediaStorageService.ts` ⏳
 - `packages/bot-whatsapp/src/services/openCodeWhatsAppHandler.ts` ⏳
@@ -148,7 +148,7 @@ These files in `packages/` are **re-exporting from src/** and need full migratio
 - `packages/bot-whatsapp/src/services/whatsappHealthMonitor.ts` ⏳
 - `packages/bot-whatsapp/src/services/whatsappMessageRouter.ts` ⏳
 
-### @orient/integrations (0 files remaining in google/ - all migrated)
+### @orient-bot/integrations (0 files remaining in google/ - all migrated)
 
 - ~~`packages/integrations/src/google/sheets.ts`~~ ✅ MIGRATED
 - ~~`packages/integrations/src/google/slides.ts`~~ ✅ MIGRATED
@@ -156,7 +156,7 @@ These files in `packages/` are **re-exporting from src/** and need full migratio
 - ~~`packages/integrations/src/github.ts`~~ ✅ MIGRATED
 - ~~`packages/integrations/src/gitWorktree.ts`~~ ✅ MIGRATED
 
-### Pending migrations for @orient/integrations
+### Pending migrations for @orient-bot/integrations
 
 - `src/services/sheetsOAuthService.ts` → `packages/integrations/src/google/sheets-oauth.ts`
 - `src/services/slidesOAuthService.ts` → `packages/integrations/src/google/slides-oauth.ts`
@@ -169,7 +169,7 @@ Understanding the dependency order is critical for successful migration:
 
 ```
                      ┌─────────────┐
-                     │  @orient/   │
+                     │  @orient-bot/   │
                      │   core      │  ← Foundation (no deps)
                      └──────┬──────┘
                             │
@@ -207,9 +207,9 @@ Understanding the dependency order is critical for successful migration:
 
 These are utility services with few dependencies that other services rely on.
 
-### 1.1 Core Utilities → @orient/core
+### 1.1 Core Utilities → @orient-bot/core
 
-- [ ] `src/utils/logger.ts` → Already in @orient/core ✓
+- [ ] `src/utils/logger.ts` → Already in @orient-bot/core ✓
 - [ ] `src/utils/portChecker.ts` → `packages/core/src/utils/portChecker.ts`
 - [ ] `src/config/schema.ts` → `packages/core/src/config/schema.ts`
 - [ ] `src/config/defaults.ts` → `packages/core/src/config/defaults.ts`
@@ -217,7 +217,7 @@ These are utility services with few dependencies that other services rely on.
 - [ ] `src/config/opencode-exclusions.ts` → `packages/core/src/config/opencode-exclusions.ts`
 - [ ] `src/config/index.ts` → `packages/core/src/config/index.ts`
 
-### 1.2 Database Layer → @orient/database
+### 1.2 Database Layer → @orient-bot/database
 
 - [ ] `src/db/schema.ts` → Verify against `packages/database/src/schema/`
 - [ ] `src/db/types.ts` → Merge into `packages/database/src/types.ts`
@@ -228,9 +228,9 @@ These are utility services with few dependencies that other services rely on.
 
 ## Phase 2: Google Services (Week 1-2)
 
-Complete the @orient/integrations/google migration.
+Complete the @orient-bot/integrations/google migration.
 
-### 2.1 Google OAuth & Services → @orient/integrations/google
+### 2.1 Google OAuth & Services → @orient-bot/integrations/google
 
 Currently re-exported, need full migration:
 
@@ -253,16 +253,16 @@ Currently re-exported, need full migration:
 
 ## Phase 3: External Integrations (Week 2)
 
-### 3.1 GitHub & Git → @orient/integrations
+### 3.1 GitHub & Git → @orient-bot/integrations
 
 - [ ] `src/services/githubService.ts` → `packages/integrations/src/catalog/github/service.ts`
 - [ ] `src/services/gitWorktreeService.ts` → `packages/integrations/src/git/worktree.ts`
 
-### 3.2 JIRA → @orient/integrations/jira
+### 3.2 JIRA → @orient-bot/integrations/jira
 
 - [ ] `src/services/jiraService.ts` → Verify against existing `packages/integrations/src/jira/`
 
-### 3.3 Atlassian OAuth → @orient/mcp-servers or @orient/integrations
+### 3.3 Atlassian OAuth → @orient-bot/mcp-servers or @orient-bot/integrations
 
 - [ ] `src/services/oauthClientProvider.ts` → `packages/mcp-servers/src/oauth/atlassian.ts`
 
@@ -272,7 +272,7 @@ Currently re-exported, need full migration:
 
 These are the core agent services. Migrate in dependency order.
 
-### 4.1 Tool Infrastructure → @orient/agents
+### 4.1 Tool Infrastructure → @orient-bot/agents
 
 Migrate first (no agent dependencies):
 
@@ -280,25 +280,25 @@ Migrate first (no agent dependencies):
 - [ ] `src/services/toolDiscovery.ts` → `packages/agents/src/tools/discovery.ts`
 - [ ] `src/services/toolCallingService.ts` → `packages/agents/src/tools/calling.ts`
 
-### 4.2 Context & Registry → @orient/agents
+### 4.2 Context & Registry → @orient-bot/agents
 
 - [ ] `src/services/contextService.ts` → `packages/agents/src/context/service.ts`
 - [ ] `src/services/agentRegistry.ts` → `packages/agents/src/registry/agent-registry.ts`
 - [ ] `src/services/agentContextLoader.ts` → `packages/agents/src/registry/context-loader.ts`
 
-### 4.3 Agent Services → @orient/agents
+### 4.3 Agent Services → @orient-bot/agents
 
 - [ ] `src/services/agentService.ts` → `packages/agents/src/services/agent.ts`
 - [ ] `src/services/progressiveResponder.ts` → `packages/agents/src/services/progressive-responder.ts`
-- [ ] `src/services/whatsappAgentService.ts` → Move to @orient/bot-whatsapp
+- [ ] `src/services/whatsappAgentService.ts` → Move to @orient-bot/bot-whatsapp
 
-### 4.4 OpenCode Integration → @orient/agents
+### 4.4 OpenCode Integration → @orient-bot/agents
 
 - [ ] `src/services/openCodeClient.ts` → `packages/agents/src/opencode/client.ts`
 - [ ] `src/services/openCodeMessageProcessor.ts` → `packages/agents/src/opencode/message-processor.ts`
 - [ ] `src/services/openCodeBotIntegration.ts` → `packages/agents/src/opencode/bot-integration.ts`
 
-### 4.5 MCP Client → @orient/agents or @orient/mcp-servers
+### 4.5 MCP Client → @orient-bot/agents or @orient-bot/mcp-servers
 
 - [ ] `src/services/mcpClientManager.ts` → `packages/agents/src/mcp/client-manager.ts`
 
@@ -306,7 +306,7 @@ Migrate first (no agent dependencies):
 
 ## Phase 5: WhatsApp Bot (Week 3)
 
-### 5.1 Core WhatsApp → @orient/bot-whatsapp
+### 5.1 Core WhatsApp → @orient-bot/bot-whatsapp
 
 - [ ] `src/services/whatsappService.ts` → `packages/bot-whatsapp/src/services/whatsapp.ts`
 - [ ] `src/services/whatsappEventHandlers.ts` → `packages/bot-whatsapp/src/handlers/events.ts`
@@ -315,12 +315,12 @@ Migrate first (no agent dependencies):
 - [ ] `src/services/whatsappApiServer.ts` → `packages/bot-whatsapp/src/api/server.ts`
 - [ ] `src/services/whatsappCloudApiService.ts` → `packages/bot-whatsapp/src/api/cloud-api.ts`
 
-### 5.2 WhatsApp Handlers → @orient/bot-whatsapp
+### 5.2 WhatsApp Handlers → @orient-bot/bot-whatsapp
 
 - [ ] `src/services/openCodeWhatsAppHandler.ts` → `packages/bot-whatsapp/src/handlers/opencode.ts`
 - [ ] `src/services/whatsappAgentService.ts` → `packages/bot-whatsapp/src/services/agent.ts`
 
-### 5.3 Media Services → @orient/bot-whatsapp
+### 5.3 Media Services → @orient-bot/bot-whatsapp
 
 - [ ] `src/services/mediaStorageService.ts` → `packages/bot-whatsapp/src/media/storage.ts`
 - [ ] `src/services/transcriptionService.ts` → `packages/bot-whatsapp/src/media/transcription.ts`
@@ -329,18 +329,18 @@ Migrate first (no agent dependencies):
 
 ## Phase 6: Slack Bot (Week 3)
 
-### 6.1 Core Slack → @orient/bot-slack
+### 6.1 Core Slack → @orient-bot/bot-slack
 
 - [ ] `src/services/slackService.ts` → `packages/bot-slack/src/services/slack.ts`
 - [ ] `src/services/slackBotService.ts` → `packages/bot-slack/src/services/bot.ts`
 - [ ] `src/services/slackDualModeClient.ts` → `packages/bot-slack/src/services/dual-mode.ts`
 - [ ] `src/services/slackUserTokenService.ts` → `packages/bot-slack/src/services/user-token.ts`
 
-### 6.2 Slack Handlers → @orient/bot-slack
+### 6.2 Slack Handlers → @orient-bot/bot-slack
 
 - [ ] `src/services/openCodeSlackHandler.ts` → `packages/bot-slack/src/handlers/opencode.ts`
 
-### 6.3 Slack Database → @orient/bot-slack
+### 6.3 Slack Database → @orient-bot/bot-slack
 
 - [ ] `src/services/slackDatabaseDrizzle.ts` → `packages/bot-slack/src/database/drizzle.ts`
 
@@ -348,14 +348,14 @@ Migrate first (no agent dependencies):
 
 ## Phase 7: Apps System (Week 4)
 
-### 7.1 Apps Core → @orient/apps
+### 7.1 Apps Core → @orient-bot/apps
 
 - [ ] `src/services/appsService.ts` → `packages/apps/src/services/apps.ts`
 - [ ] `src/services/appGeneratorService.ts` → `packages/apps/src/services/generator.ts`
 - [ ] `src/services/appGitService.ts` → `packages/apps/src/services/git.ts`
 - [ ] `src/services/appRuntimeService.ts` → `packages/apps/src/services/runtime.ts`
 
-### 7.2 Mini-App Editor → @orient/apps
+### 7.2 Mini-App Editor → @orient-bot/apps
 
 - [ ] `src/services/miniappEditService.ts` → `packages/apps/src/editor/service.ts`
 - [ ] `src/services/miniappEditDatabase.ts` → `packages/apps/src/editor/database.ts`
@@ -365,24 +365,24 @@ Migrate first (no agent dependencies):
 
 ## Phase 8: MCP Tools (Week 4)
 
-### 8.1 Agent Tools → @orient/mcp-tools
+### 8.1 Agent Tools → @orient-bot/mcp-tools
 
 - [ ] `src/tools/agents/get-agent-context.ts` → `packages/mcp-tools/src/tools/agents/get-context.ts`
 - [ ] `src/tools/agents/list-agents.ts` → `packages/mcp-tools/src/tools/agents/list.ts`
 - [ ] `src/tools/agents/handoff-to-agent.ts` → `packages/mcp-tools/src/tools/agents/handoff.ts`
 
-### 8.2 Context Tools → @orient/mcp-tools
+### 8.2 Context Tools → @orient-bot/mcp-tools
 
 - [ ] `src/tools/context/read-context.ts` → `packages/mcp-tools/src/tools/context/read.ts`
 - [ ] `src/tools/context/update-context.ts` → `packages/mcp-tools/src/tools/context/update.ts`
 
-### 8.3 JIRA Tools → @orient/mcp-tools
+### 8.3 JIRA Tools → @orient-bot/mcp-tools
 
 - [ ] `src/tools/jira/get-issue.ts` → `packages/mcp-tools/src/tools/jira/get-issue.ts`
 - [ ] `src/tools/jira/get-all-issues.ts` → `packages/mcp-tools/src/tools/jira/get-all.ts`
 - [ ] `src/tools/jira/get-in-progress.ts` → `packages/mcp-tools/src/tools/jira/get-in-progress.ts`
 
-### 8.4 Apps Tools → @orient/mcp-tools
+### 8.4 Apps Tools → @orient-bot/mcp-tools
 
 - [ ] `src/tools/apps/create-app.ts` → `packages/mcp-tools/src/tools/apps/create.ts`
 - [ ] `src/tools/apps/get-app.ts` → `packages/mcp-tools/src/tools/apps/get.ts`
@@ -390,7 +390,7 @@ Migrate first (no agent dependencies):
 - [ ] `src/tools/apps/update-app.ts` → `packages/mcp-tools/src/tools/apps/update.ts`
 - [ ] `src/tools/apps/share-app.ts` → `packages/mcp-tools/src/tools/apps/share.ts`
 
-### 8.5 Tool Base → @orient/mcp-tools
+### 8.5 Tool Base → @orient-bot/mcp-tools
 
 - [ ] `src/tools/base.ts` → `packages/mcp-tools/src/tools/base.ts`
 - [ ] `src/tools/types.ts` → `packages/mcp-tools/src/types.ts`
@@ -399,14 +399,14 @@ Migrate first (no agent dependencies):
 
 ## Phase 9: MCP Servers (Week 4-5)
 
-### 9.1 Server Infrastructure → @orient/mcp-servers
+### 9.1 Server Infrastructure → @orient-bot/mcp-servers
 
 - [ ] `src/mcp-servers/types.ts` → `packages/mcp-servers/src/types.ts` (already done)
 - [ ] `src/mcp-servers/base-server.ts` → `packages/mcp-servers/src/servers/base.ts`
 - [ ] `src/mcp-servers/tool-executor.ts` → `packages/mcp-servers/src/execution/executor.ts`
 - [ ] `src/mcp-servers/tool-filter.ts` → `packages/mcp-servers/src/execution/filter.ts`
 
-### 9.2 Server Implementations → @orient/mcp-servers
+### 9.2 Server Implementations → @orient-bot/mcp-servers
 
 - [ ] `src/mcp-servers/core-server.ts` → `packages/mcp-servers/src/servers/core.ts`
 - [ ] `src/mcp-servers/coding-server.ts` → `packages/mcp-servers/src/servers/coding.ts`
@@ -416,32 +416,32 @@ Migrate first (no agent dependencies):
 
 ## Phase 10: Dashboard & Supporting (Week 5)
 
-### 10.1 Dashboard → @orient/dashboard
+### 10.1 Dashboard → @orient-bot/dashboard
 
 - [ ] `src/dashboard/server.ts` → Already migrated to packages/dashboard
 - [ ] `src/dashboard/auth.ts` → `packages/dashboard/src/server/auth.ts`
 
-### 10.2 Scheduler & Notifications → @orient/dashboard or @orient/core
+### 10.2 Scheduler & Notifications → @orient-bot/dashboard or @orient-bot/core
 
 - [ ] `src/services/schedulerService.ts` → `packages/dashboard/src/services/scheduler.ts`
 - [ ] `src/services/notificationService.ts` → `packages/dashboard/src/services/notification.ts`
 - [ ] `src/services/webhookService.ts` → `packages/dashboard/src/services/webhook.ts`
 - [ ] `src/services/webhookForwardingService.ts` → `packages/dashboard/src/services/webhook-forwarding.ts`
 
-### 10.3 Billing → @orient/dashboard
+### 10.3 Billing → @orient-bot/dashboard
 
 - [ ] `src/services/billingService.ts` → `packages/dashboard/src/services/billing.ts`
 
-### 10.4 Message Database → @orient/database-services
+### 10.4 Message Database → @orient-bot/database-services
 
 - [ ] `src/services/messageDatabaseDrizzle.ts` → `packages/database-services/src/messages.ts`
 
-### 10.5 Meeting & Standup → @orient/integrations or new package
+### 10.5 Meeting & Standup → @orient-bot/integrations or new package
 
 - [ ] `src/services/meetingService.ts` → `packages/integrations/src/google/meeting.ts`
 - [ ] `src/managers/StandupManager.ts` → `packages/agents/src/managers/standup.ts`
 
-### 10.6 Poll Actions → @orient/mcp-tools
+### 10.6 Poll Actions → @orient-bot/mcp-tools
 
 - [ ] `src/services/pollActionRegistry.ts` → `packages/mcp-tools/src/tools/config/poll-registry.ts`
 
@@ -449,7 +449,7 @@ Migrate first (no agent dependencies):
 
 ## Phase 11: CLI & Eval (Week 5-6)
 
-### 11.1 CLI → New @orient/cli package
+### 11.1 CLI → New @orient-bot/cli package
 
 Create new package:
 
@@ -469,7 +469,7 @@ Migrate:
 
 ```json
 {
-  "name": "@orient/cli",
+  "name": "@orient-bot/cli",
   "version": "0.1.0",
   "type": "module",
   "main": "./dist/index.js",
@@ -482,15 +482,15 @@ Migrate:
     "dev": "tsc --watch"
   },
   "dependencies": {
-    "@orient/core": "workspace:*",
-    "@orient/integrations": "workspace:*",
-    "@orient/agents": "workspace:*",
+    "@orient-bot/core": "workspace:*",
+    "@orient-bot/integrations": "workspace:*",
+    "@orient-bot/agents": "workspace:*",
     "commander": "^12.0.0"
   }
 }
 ```
 
-### 11.2 Eval Framework → New @orient/eval package
+### 11.2 Eval Framework → New @orient-bot/eval package
 
 Create new package:
 
@@ -517,7 +517,7 @@ Migrate:
 
 ## Phase 12: Apps Portal (Week 6)
 
-### 12.1 Apps Portal → Merge into @orient/dashboard
+### 12.1 Apps Portal → Merge into @orient-bot/dashboard
 
 The apps portal is a small React app for browsing/running mini-apps. Merge into dashboard:
 
@@ -525,7 +525,7 @@ The apps portal is a small React app for browsing/running mini-apps. Merge into 
 - [ ] Update vite config in dashboard to include apps-portal route
 - [ ] Move `src/apps-portal/index.html` → Integrate as dashboard route
 
-**Alternative**: Create standalone @orient/apps-portal package if it needs independent deployment.
+**Alternative**: Create standalone @orient-bot/apps-portal package if it needs independent deployment.
 
 ### 12.2 Apps Portal Files
 
@@ -546,7 +546,7 @@ These files will be obsolete after migration:
 - [ ] `src/mcp-server.ts` → Functionality in `packages/mcp-servers/src/index.ts`
 - [ ] `src/packages.ts` → Remove (placeholder file)
 
-### 13.2 Mocks → @orient/test-utils
+### 13.2 Mocks → @orient-bot/test-utils
 
 Migrate test mocks to centralized test utilities:
 
@@ -571,28 +571,28 @@ Migrate integration tests to appropriate packages:
 
 Migrate service tests to co-locate with implementations:
 
-| Source                                                    | Target Package            |
-| --------------------------------------------------------- | ------------------------- |
-| `src/services/__tests__/agentContextLoader.test.ts`       | @orient/agents            |
-| `src/services/__tests__/agentRegistry.*.test.ts`          | @orient/agents            |
-| `src/services/__tests__/appRuntimeService.test.ts`        | @orient/apps              |
-| `src/services/__tests__/appsService.test.ts`              | @orient/apps              |
-| `src/services/__tests__/chatPermissionService.test.ts`    | @orient/database-services |
-| `src/services/__tests__/contextService.*.test.ts`         | @orient/agents            |
-| `src/services/__tests__/googleOAuthService.*.test.ts`     | @orient/integrations      |
-| `src/services/__tests__/googleServices.e2e.test.ts`       | @orient/integrations      |
-| `src/services/__tests__/jiraService.test.ts`              | @orient/integrations      |
-| `src/services/__tests__/messageDatabaseDrizzle.test.ts`   | @orient/database-services |
-| `src/services/__tests__/openCodeClient.test.ts`           | @orient/agents            |
-| `src/services/__tests__/openCodeMessageProcessor.test.ts` | @orient/agents            |
-| `src/services/__tests__/openCodeSlackHandler.test.ts`     | @orient/bot-slack         |
-| `src/services/__tests__/openCodeWhatsAppHandler.test.ts`  | @orient/bot-whatsapp      |
-| `src/services/__tests__/progressiveResponder.test.ts`     | @orient/agents            |
-| `src/services/__tests__/promptService.test.ts`            | @orient/agents            |
-| `src/services/__tests__/skillEditing.integration.test.ts` | @orient/agents            |
-| `src/services/__tests__/slidesService.test.ts`            | @orient/integrations      |
-| `src/services/__tests__/toolCallingService.test.ts`       | @orient/agents            |
-| `src/services/__tests__/toolDiscovery.test.ts`            | @orient/agents            |
+| Source                                                    | Target Package               |
+| --------------------------------------------------------- | ---------------------------- |
+| `src/services/__tests__/agentContextLoader.test.ts`       | @orient-bot/agents            |
+| `src/services/__tests__/agentRegistry.*.test.ts`          | @orient-bot/agents            |
+| `src/services/__tests__/appRuntimeService.test.ts`        | @orient-bot/apps              |
+| `src/services/__tests__/appsService.test.ts`              | @orient-bot/apps              |
+| `src/services/__tests__/chatPermissionService.test.ts`    | @orient-bot/database-services |
+| `src/services/__tests__/contextService.*.test.ts`         | @orient-bot/agents            |
+| `src/services/__tests__/googleOAuthService.*.test.ts`     | @orient-bot/integrations      |
+| `src/services/__tests__/googleServices.e2e.test.ts`       | @orient-bot/integrations      |
+| `src/services/__tests__/jiraService.test.ts`              | @orient-bot/integrations      |
+| `src/services/__tests__/messageDatabaseDrizzle.test.ts`   | @orient-bot/database-services |
+| `src/services/__tests__/openCodeClient.test.ts`           | @orient-bot/agents            |
+| `src/services/__tests__/openCodeMessageProcessor.test.ts` | @orient-bot/agents            |
+| `src/services/__tests__/openCodeSlackHandler.test.ts`     | @orient-bot/bot-slack         |
+| `src/services/__tests__/openCodeWhatsAppHandler.test.ts`  | @orient-bot/bot-whatsapp      |
+| `src/services/__tests__/progressiveResponder.test.ts`     | @orient-bot/agents            |
+| `src/services/__tests__/promptService.test.ts`            | @orient-bot/agents            |
+| `src/services/__tests__/skillEditing.integration.test.ts` | @orient-bot/agents            |
+| `src/services/__tests__/slidesService.test.ts`            | @orient-bot/integrations      |
+| `src/services/__tests__/toolCallingService.test.ts`       | @orient-bot/agents            |
+| `src/services/__tests__/toolDiscovery.test.ts`            | @orient-bot/agents            |
 
 ---
 
@@ -654,9 +654,9 @@ Delete files:
 
 **Runtime Verification:**
 
-- [ ] WhatsApp bot starts: `pnpm --filter @orient/bot-whatsapp dev`
-- [ ] Slack bot starts: `pnpm --filter @orient/bot-slack dev`
-- [ ] Dashboard starts: `pnpm --filter @orient/dashboard dev`
+- [ ] WhatsApp bot starts: `pnpm --filter @orient-bot/bot-whatsapp dev`
+- [ ] Slack bot starts: `pnpm --filter @orient-bot/bot-slack dev`
+- [ ] Dashboard starts: `pnpm --filter @orient-bot/dashboard dev`
 - [ ] MCP servers respond to tool calls
 
 **E2E Verification:**
@@ -684,7 +684,7 @@ Delete files:
 
 1. **Create target file** in the appropriate package
 2. **Copy content** from src/ file
-3. **Update imports** to use package paths (@orient/...)
+3. **Update imports** to use package paths (@orient-bot/...)
 4. **Export from package** index.ts
 5. **Update consumers** to import from package
 6. **Remove re-export** file if it exists
@@ -693,15 +693,15 @@ Delete files:
 
 ### Common Import Transformations
 
-| Old Import                | New Import                    |
-| ------------------------- | ----------------------------- |
-| `../utils/logger.js`      | `@orient/core`                |
-| `../db/client.js`         | `@orient/database`            |
-| `./jiraService.js`        | `@orient/integrations/jira`   |
-| `./googleOAuthService.js` | `@orient/integrations/google` |
-| `./toolRegistry.js`       | `@orient/agents`              |
-| `./whatsappService.js`    | `@orient/bot-whatsapp`        |
-| `./slackService.js`       | `@orient/bot-slack`           |
+| Old Import                | New Import                       |
+| ------------------------- | -------------------------------- |
+| `../utils/logger.js`      | `@orient-bot/core`                |
+| `../db/client.js`         | `@orient-bot/database`            |
+| `./jiraService.js`        | `@orient-bot/integrations/jira`   |
+| `./googleOAuthService.js` | `@orient-bot/integrations/google` |
+| `./toolRegistry.js`       | `@orient-bot/agents`              |
+| `./whatsappService.js`    | `@orient-bot/bot-whatsapp`        |
+| `./slackService.js`       | `@orient-bot/bot-slack`           |
 
 ---
 
@@ -729,7 +729,7 @@ After each phase:
 
 1. Run `pnpm build` (verify compilation)
 2. Run `pnpm test` (verify unit tests)
-3. Run `pnpm --filter @orient/<package> test` (package-specific)
+3. Run `pnpm --filter @orient-bot/<package> test` (package-specific)
 4. Run config tests: `npx vitest run tests/config/`
 5. Manual smoke test of affected functionality
 
@@ -879,8 +879,8 @@ DEST=$2
 cp "$SRC" "$DEST"
 
 # Update imports (basic transformation)
-sed -i '' "s|from '../utils/logger.js'|from '@orient/core'|g" "$DEST"
-sed -i '' "s|from '../db/client.js'|from '@orient/database'|g" "$DEST"
+sed -i '' "s|from '../utils/logger.js'|from '@orient-bot/core'|g" "$DEST"
+sed -i '' "s|from '../db/client.js'|from '@orient-bot/database'|g" "$DEST"
 
 echo "Migrated $SRC -> $DEST"
 echo "TODO: Update package index.ts exports"
@@ -963,29 +963,34 @@ src/ directory contents (to be migrated):
 
 ```json
 {
-  "@orient/core": [],
-  "@orient/database": ["@orient/core"],
-  "@orient/database-services": ["@orient/core", "@orient/database"],
-  "@orient/test-utils": ["@orient/core"],
-  "@orient/integrations": ["@orient/core", "@orient/database-services"],
-  "@orient/agents": [
-    "@orient/core",
-    "@orient/database",
-    "@orient/database-services",
-    "@orient/integrations"
+  "@orient-bot/core": [],
+  "@orient-bot/database": ["@orient-bot/core"],
+  "@orient-bot/database-services": ["@orient-bot/core", "@orient-bot/database"],
+  "@orient-bot/test-utils": ["@orient-bot/core"],
+  "@orient-bot/integrations": ["@orient-bot/core", "@orient-bot/database-services"],
+  "@orient-bot/agents": [
+    "@orient-bot/core",
+    "@orient-bot/database",
+    "@orient-bot/database-services",
+    "@orient-bot/integrations"
   ],
-  "@orient/apps": ["@orient/core", "@orient/agents"],
-  "@orient/bot-whatsapp": ["@orient/core", "@orient/agents", "@orient/integrations"],
-  "@orient/bot-slack": ["@orient/core", "@orient/agents", "@orient/integrations"],
-  "@orient/mcp-tools": ["@orient/core", "@orient/agents", "@orient/integrations", "@orient/apps"],
-  "@orient/mcp-servers": ["@orient/core", "@orient/mcp-tools"],
-  "@orient/dashboard": [
-    "@orient/core",
-    "@orient/agents",
-    "@orient/apps",
-    "@orient/database-services"
+  "@orient-bot/apps": ["@orient-bot/core", "@orient-bot/agents"],
+  "@orient-bot/bot-whatsapp": ["@orient-bot/core", "@orient-bot/agents", "@orient-bot/integrations"],
+  "@orient-bot/bot-slack": ["@orient-bot/core", "@orient-bot/agents", "@orient-bot/integrations"],
+  "@orient-bot/mcp-tools": [
+    "@orient-bot/core",
+    "@orient-bot/agents",
+    "@orient-bot/integrations",
+    "@orient-bot/apps"
   ],
-  "@orient/cli": ["@orient/core", "@orient/integrations", "@orient/agents"],
-  "@orient/eval": ["@orient/core", "@orient/agents", "@orient/test-utils"]
+  "@orient-bot/mcp-servers": ["@orient-bot/core", "@orient-bot/mcp-tools"],
+  "@orient-bot/dashboard": [
+    "@orient-bot/core",
+    "@orient-bot/agents",
+    "@orient-bot/apps",
+    "@orient-bot/database-services"
+  ],
+  "@orient-bot/cli": ["@orient-bot/core", "@orient-bot/integrations", "@orient-bot/agents"],
+  "@orient-bot/eval": ["@orient-bot/core", "@orient-bot/agents", "@orient-bot/test-utils"]
 }
 ```

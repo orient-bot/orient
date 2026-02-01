@@ -51,6 +51,7 @@ show_help() {
 ║                                                                           ║
 ║  DEVELOPMENT (hot-reload):                                                ║
 ║    ./run.sh dev              Start dev environment                        ║
+║    ./run.sh dev-local        Start with bundled OpenCode binary           ║
 ║    ./run.sh dev stop         Stop dev services only                       ║
 ║    ./run.sh dev logs         View logs                                    ║
 ║    ./run.sh dev status       Show service status                          ║
@@ -177,6 +178,25 @@ case "$1" in
         ;;
     dev)
         # Hot-reload development mode
+        exec "$SCRIPT_DIR/scripts/dev.sh" "${@:2}"
+        ;;
+    dev-local)
+        # Development mode with bundled OpenCode binary (no external dependencies)
+        # This explicitly uses the vendored OpenCode binary from vendor/opencode/
+        _os=$(uname -s | tr '[:upper:]' '[:lower:]')
+        _arch=$(uname -m)
+        [[ "$_arch" == "arm64" || "$_arch" == "aarch64" ]] && _arch="arm64"
+        [[ "$_arch" == "x86_64" ]] && _arch="x64"
+        _platform="${_os}-${_arch}"
+        _bundled_binary="$SCRIPT_DIR/vendor/opencode/$_platform/opencode"
+        if [[ ! -x "$_bundled_binary" ]]; then
+            echo -e "${RED}Error: Bundled OpenCode binary not found${NC}"
+            echo "Expected: $_bundled_binary"
+            echo "Run 'git lfs pull' to fetch bundled binaries"
+            exit 1
+        fi
+        export OPENCODE_BIN="$_bundled_binary"
+        echo -e "${GREEN}Using bundled OpenCode: $_bundled_binary${NC}"
         exec "$SCRIPT_DIR/scripts/dev.sh" "${@:2}"
         ;;
     test)

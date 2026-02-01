@@ -93,17 +93,21 @@ export function useFeatureFlags(): UseFeatureFlagsReturn {
       // UI expects: { miniApps: { enabled: true, uiStrategy: 'hide', ... } }
       const flagsFromApi: Record<string, FeatureFlagDefinition> = {};
 
+      const toUiId = (dbId: string): string => {
+        const camelId = dbId.replace(/_([a-z])/g, (_: string, c: string) => c.toUpperCase());
+        return camelId.replace(/\./g, '_');
+      };
+
       if (Array.isArray(data.flags)) {
         for (const flag of data.flags) {
           // Convert snake_case ID to camelCase for UI compatibility
-          const camelId = flag.id.replace(/_([a-z])/g, (_: string, c: string) => c.toUpperCase());
-          // Also handle dot notation (mini_apps.create -> miniApps_create)
-          const uiId = camelId.replace(/\./g, '_');
+          const uiId = toUiId(flag.id);
 
           // Determine parent flag from ID hierarchy
-          const parentFlag = flag.id.includes('.')
-            ? flag.id.split('.')[0].replace(/_([a-z])/g, (_: string, c: string) => c.toUpperCase())
+          const parentDbId = flag.id.includes('.')
+            ? flag.id.split('.').slice(0, -1).join('.')
             : undefined;
+          const parentFlag = parentDbId ? toUiId(parentDbId) : undefined;
 
           flagsFromApi[uiId] = {
             enabled: flag.effectiveValue ?? flag.enabled ?? false,
@@ -113,8 +117,20 @@ export function useFeatureFlags(): UseFeatureFlagsReturn {
         }
       }
 
-      // Merge with defaults to ensure all flags exist
-      setFlags({ ...PRE_LAUNCH_DEFAULTS, ...flagsFromApi });
+      // Merge with defaults to ensure all flags exist and preserve route/nav metadata
+      const mergedFlags: Record<string, FeatureFlagDefinition> = { ...PRE_LAUNCH_DEFAULTS };
+      for (const [flagId, apiFlag] of Object.entries(flagsFromApi)) {
+        const defaults = PRE_LAUNCH_DEFAULTS[flagId];
+        mergedFlags[flagId] = defaults
+          ? {
+              ...defaults,
+              ...apiFlag,
+              route: defaults.route,
+              navSection: defaults.navSection,
+            }
+          : apiFlag;
+      }
+      setFlags(mergedFlags);
     } catch (err) {
       // Fallback to pre-launch defaults (all disabled) for safe UI state
       console.warn('Failed to load feature flags, using pre-launch defaults:', err);

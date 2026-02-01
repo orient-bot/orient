@@ -32,7 +32,7 @@ interface Output {
  * Get Config Tool Implementation
  */
 export class GetConfigTool extends MCPTool<Input, Output> {
-  readonly name = 'ai_first_get_config';
+  readonly name = 'system_get_config';
   readonly description =
     'Get the current configuration for the Orient (excluding sensitive credentials).';
   readonly category = 'system' as const;

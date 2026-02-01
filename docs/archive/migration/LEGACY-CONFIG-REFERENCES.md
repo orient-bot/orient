@@ -14,7 +14,7 @@ This document analyzes remaining references to the legacy config system (`getLeg
 ### New Config System (Recommended)
 
 ```typescript
-import { getConfig, loadConfig } from '@orient/core';
+import { getConfig, loadConfig } from '@orient-bot/core';
 
 // In main initialization
 await loadConfig();
@@ -35,7 +35,7 @@ const jiraConfig = config.integrations.jira;
 ### Legacy Config System (Deprecated)
 
 ```typescript
-import { getLegacyConfig } from '@orient/core';
+import { getLegacyConfig } from '@orient-bot/core';
 
 const config = getLegacyConfig();
 // Returns flat BotConfig structure
@@ -58,7 +58,7 @@ const config = getLegacyConfig();
 
 ```typescript
 // Lines 7-19
-import { getLegacyConfig } from '@orient/core';
+import { getLegacyConfig } from '@orient-bot/core';
 
 let cachedConfig: ReturnType<typeof getLegacyConfig> | null = null;
 const getConfig = (): ReturnType<typeof getLegacyConfig> => {
@@ -121,14 +121,14 @@ export function initializeSlackApp(): App {
 
 ```typescript
 // Lines 10-26
-// Re-export core types from @orient/core
+// Re-export core types from @orient-bot/core
 // Note: We use WhatsAppLegacyConfig as WhatsAppConfig for backward compatibility
 // The new nested WhatsAppConfig (with personal/bot modes) is in the schema
 export type {
   WhatsAppLegacyConfig as WhatsAppConfig,
   WhatsAppMessage,
   // ...
-} from '@orient/core';
+} from '@orient-bot/core';
 ```
 
 **Reasoning:**
@@ -247,7 +247,7 @@ Create tracking document for:
 
 After Phase 1 changes:
 
-1. **Build**: `pnpm build --filter=@orient/bot-slack`
+1. **Build**: `pnpm build --filter=@orient-bot/bot-slack`
 2. **Unit Tests**: Verify utility functions work with passed app parameter
 3. **Integration**: Start Slack bot and verify all messaging works
 4. **Regression**: Test standup, digest, SLA blocks render correctly

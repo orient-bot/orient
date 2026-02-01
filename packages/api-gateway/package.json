@@ -1,5 +1,5 @@
 {
-  "name": "@orient/api-gateway",
+  "name": "@orient-bot/api-gateway",
   "version": "1.0.0",
   "description": "REST API gateway for Orient - webhooks, scheduler, and health monitoring",
   "type": "module",
@@ -10,16 +10,19 @@
   },
   "exports": {
     ".": {
+      "source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "default": "./dist/index.js"
     },
     "./scheduler": {
+      "source": "./src/scheduler/index.ts",
       "types": "./dist/scheduler/index.d.ts",
       "import": "./dist/scheduler/index.js",
       "default": "./dist/scheduler/index.js"
     },
     "./webhooks": {
+      "source": "./src/webhooks/index.ts",
       "types": "./dist/webhooks/index.d.ts",
       "import": "./dist/webhooks/index.js",
       "default": "./dist/webhooks/index.js"
@@ -27,7 +30,7 @@
   },
   "scripts": {
     "build": "tsc",
-    "dev": "tsx src/main.ts",
+    "dev": "tsx --conditions=source src/main.ts",
     "dev:watch": "tsc --watch",
     "start": "node dist/main.js",
     "test": "vitest run",
@@ -38,9 +41,9 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@orient/core": "workspace:*",
-    "@orient/database": "workspace:*",
-    "@orient/database-services": "workspace:*",
+    "@orient-bot/core": "workspace:*",
+    "@orient-bot/database": "workspace:*",
+    "@orient-bot/database-services": "workspace:*",
     "express": "^5.0.0",
     "node-cron": "^3.0.0"
   },
@@ -61,5 +64,9 @@
   "files": [
     "dist",
     "README.md"
-  ]
+  ],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://npm.pkg.github.com/"
+  }
 }

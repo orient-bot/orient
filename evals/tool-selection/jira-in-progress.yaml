@@ -8,7 +8,7 @@ input:
 
 mocks:
   jira:
-    ai_first_get_in_progress:
+    jira_get_in_progress:
       response:
         count: 3
         issues:
@@ -31,7 +31,7 @@ mocks:
 expect:
   tool_calls:
     required:
-      - name: ai_first_get_in_progress
+      - name: jira_get_in_progress
 
   assertions:
     # Check response discusses in-progress work

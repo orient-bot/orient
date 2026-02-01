@@ -1,0 +1,5 @@
+{
+  "required": "1.1.48",
+  "minimum": "1.1.0",
+  "note": "OpenCode is installed directly to ~/.orient/bin/opencode, isolated from global installations"
+}

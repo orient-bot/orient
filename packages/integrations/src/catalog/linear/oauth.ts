@@ -5,7 +5,7 @@
  * Based on the GitHub OAuth service pattern.
  */
 
-import { createServiceLogger } from '@orient/core';
+import { createServiceLogger } from '@orient-bot/core';
 import crypto from 'crypto';
 import fs from 'fs';
 import http from 'http';

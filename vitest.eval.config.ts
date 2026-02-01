@@ -10,7 +10,7 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
-    include: ['src/eval/**/*.eval.test.ts'],
+    include: ['packages/eval/src/**/*.eval.test.ts'],
     // Longer timeout for LLM calls
     testTimeout: 120000,
     hookTimeout: 30000,
@@ -18,20 +18,20 @@ export default defineConfig({
     sequence: {
       concurrent: false,
     },
-    setupFiles: ['./src/eval/setup.ts'],
+    setupFiles: ['./packages/eval/src/setup.ts'],
     mockReset: true,
     restoreMocks: true,
   },
   resolve: {
     alias: {
       '@': '/src',
-      '@orient/core': path.resolve(__dirname, 'packages/core/src/index.ts'),
-      '@orient/database': path.resolve(__dirname, 'packages/database/src/index.ts'),
-      '@orient/agents': path.resolve(__dirname, 'packages/agents/src/index.ts'),
-      '@orient/mcp-tools': path.resolve(__dirname, 'packages/mcp-tools/src/index.ts'),
-      '@orient/apps': path.resolve(__dirname, 'packages/apps/src/index.ts'),
-      '@orient/integrations': path.resolve(__dirname, 'packages/integrations/src/index.ts'),
-      '@orient/test-utils': path.resolve(__dirname, 'packages/test-utils/src/index.ts'),
+      '@orient-bot/core': path.resolve(__dirname, 'packages/core/src/index.ts'),
+      '@orient-bot/database': path.resolve(__dirname, 'packages/database/src/index.ts'),
+      '@orient-bot/agents': path.resolve(__dirname, 'packages/agents/src/index.ts'),
+      '@orient-bot/mcp-tools': path.resolve(__dirname, 'packages/mcp-tools/src/index.ts'),
+      '@orient-bot/apps': path.resolve(__dirname, 'packages/apps/src/index.ts'),
+      '@orient-bot/integrations': path.resolve(__dirname, 'packages/integrations/src/index.ts'),
+      '@orient-bot/test-utils': path.resolve(__dirname, 'packages/test-utils/src/index.ts'),
     },
   },
 });

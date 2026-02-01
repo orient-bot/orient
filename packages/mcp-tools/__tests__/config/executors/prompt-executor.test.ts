@@ -1,11 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { getPendingActionsStore, resetPendingActionsStore } from '../../../src/tools/config/pending-store.js';
+import {
+  getPendingActionsStore,
+  resetPendingActionsStore,
+} from '../../../src/tools/config/pending-store.js';
 import { registerPromptExecutor } from '../../../src/tools/config/executors/prompt-executor.js';
 
 // Create a mutable reference for the spy that can be updated in beforeEach
 const mockSetSystemPrompt = vi.fn();
 
-vi.mock('@orient/core', () => ({
+vi.mock('@orient-bot/core', () => ({
   createServiceLogger: () => ({
     info: vi.fn(),
     debug: vi.fn(),
@@ -14,7 +17,7 @@ vi.mock('@orient/core', () => ({
   }),
 }));
 
-vi.mock('@orient/database-services', () => ({
+vi.mock('@orient-bot/database-services', () => ({
   createMessageDatabase: () => ({
     setSystemPrompt: mockSetSystemPrompt,
   }),
@@ -54,6 +57,10 @@ describe('prompt-executor', () => {
     const result = await store.confirmAction(action.actionId);
 
     expect(result.success).toBe(true);
-    expect(mockSetSystemPrompt).toHaveBeenCalledWith('whatsapp', '12345@s.whatsapp.net', 'Custom prompt');
+    expect(mockSetSystemPrompt).toHaveBeenCalledWith(
+      'whatsapp',
+      '12345@s.whatsapp.net',
+      'Custom prompt'
+    );
   });
 });

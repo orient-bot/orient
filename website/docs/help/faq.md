@@ -170,7 +170,7 @@ The AI is primarily designed for chat-based interaction. For programmatic access
 
 ### Can I self-host Orient?
 
-Yes! Orient is open-source. Check out the [GitHub repository](https://github.com/orient-bot/orient) for setup instructions.
+Yes! Orient is open-source. Check out the [GitHub repository](https://github.com/orient/orient) for setup instructions.
 
 Quick verification of your environment:
 
@@ -186,7 +186,7 @@ Contact the Orient Task Force team via Slack or email with:
 - Steps to reproduce
 - Screenshots if applicable
 
-You can also open an issue on [GitHub](https://github.com/orient-bot/orient/issues).
+You can also open an issue on [GitHub](https://github.com/orient/orient/issues).
 
 ---
 

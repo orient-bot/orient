@@ -5,11 +5,11 @@ with legacy modules migrated incrementally.
 
 ## Current State
 
-| File                | Lines | Target Package                 |
-| ------------------- | ----- | ------------------------------ |
-| `src/mcp-server.ts` | 6817  | `@orient/mcp-tools` (refactor) |
-| `src/services/`     | ~5000 | Multiple packages              |
-| `src/tools/`        | ~1500 | `@orient/mcp-tools`            |
+| File                | Lines | Target Package                    |
+| ------------------- | ----- | --------------------------------- |
+| `src/mcp-server.ts` | 6817  | `@orient-bot/mcp-tools` (refactor) |
+| `src/services/`     | ~5000 | Multiple packages                 |
+| `src/tools/`        | ~1500 | `@orient-bot/mcp-tools`            |
 
 ## Recommendation
 

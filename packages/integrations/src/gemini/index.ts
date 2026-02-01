@@ -11,7 +11,7 @@
  *   generateImage,
  *   generateMascotVariation,
  *   generateVideo,
- * } from '@orient/integrations/gemini';
+ * } from '@orient-bot/integrations/gemini';
  *
  * // Initialize the client
  * initializeGeminiClient({ apiKey: process.env.GEMINI_API_KEY });

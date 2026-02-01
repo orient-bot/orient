@@ -101,11 +101,39 @@ WORKDIR /app
 RUN groupadd -g 1001 opencode && \
     useradd -u 1001 -g opencode -m -s /bin/bash opencode
 
-# Install OpenCode via the official install script
-# This will install the correct binary for the current architecture (AMD64 or ARM64)
-RUN curl -fsSL https://opencode.ai/install | bash && \
-    mv /root/.opencode/bin/opencode /usr/local/bin/opencode && \
-    chmod +x /usr/local/bin/opencode
+# Install OpenCode from bundled binary
+# Binaries are pre-downloaded and tracked via Git LFS in vendor/opencode/
+# This eliminates version drift and network dependencies during build
+ARG TARGETARCH
+COPY vendor/opencode/manifest.json /tmp/opencode-manifest.json
+
+# Copy the platform-specific binary based on build architecture
+# TARGETARCH is 'arm64' or 'amd64' - map to our directory names
+RUN OPENCODE_ARCH=$(if [ "$TARGETARCH" = "arm64" ]; then echo "arm64"; else echo "x64"; fi) && \
+    OPENCODE_DIR="linux-${OPENCODE_ARCH}" && \
+    echo "Installing OpenCode from vendor/${OPENCODE_DIR}..."
+
+COPY vendor/opencode/linux-arm64/opencode /tmp/opencode-linux-arm64
+COPY vendor/opencode/linux-x64/opencode /tmp/opencode-linux-x64
+
+# Select the correct binary and verify checksum
+RUN OPENCODE_ARCH=$(if [ "$TARGETARCH" = "arm64" ]; then echo "arm64"; else echo "x64"; fi) && \
+    cp /tmp/opencode-linux-${OPENCODE_ARCH} /usr/local/bin/opencode && \
+    chmod +x /usr/local/bin/opencode && \
+    # Verify checksum from manifest
+    EXPECTED_SHA=$(jq -r ".binaries[\"linux-${OPENCODE_ARCH}\"].sha256" /tmp/opencode-manifest.json) && \
+    ACTUAL_SHA=$(sha256sum /usr/local/bin/opencode | cut -d' ' -f1) && \
+    if [ "$EXPECTED_SHA" != "$ACTUAL_SHA" ]; then \
+        echo "ERROR: OpenCode checksum mismatch!" && \
+        echo "Expected: $EXPECTED_SHA" && \
+        echo "Actual: $ACTUAL_SHA" && \
+        exit 1; \
+    fi && \
+    echo "OpenCode checksum verified: $ACTUAL_SHA" && \
+    # Verify binary works
+    /usr/local/bin/opencode --version && \
+    # Clean up temp files
+    rm -f /tmp/opencode-linux-* /tmp/opencode-manifest.json
 
 # Install pnpm and OpenSkills CLI globally
 RUN npm install -g pnpm openskills
