@@ -604,3 +604,7 @@ tokens.txt
 # END OF .gitignore
 # ============================================================================
 .vercel
+
+# E2E browser test data (screenshots, scratchpad)
+.e2e-scratchpad/
+.dev-data/
