@@ -300,8 +300,8 @@ case "$1" in
         fi
 
         echo ""
-        echo "  Dashboard:  http://localhost:${DASHBOARD_PORT:-4098}"
-        echo "  WhatsApp:   http://localhost:${DASHBOARD_PORT:-4098}/qr"
+        echo "  Dashboard:  http://localhost:${DASHBOARD_PORT:-4098}/whatsapp/chats"
+        echo "  WhatsApp:   http://localhost:${DASHBOARD_PORT:-4098}/whatsapp/chats"
         echo "  OpenCode:   http://localhost:${OPENCODE_PORT:-4099}"
         echo ""
 
@@ -359,7 +359,7 @@ case "$1" in
         echo "Configuration:"
         echo "  ORIENT_HOME: $ORIENT_HOME"
         echo "  Database: ${DATABASE_TYPE:-sqlite}"
-        echo "  Dashboard: http://localhost:${DASHBOARD_PORT:-4098}"
+        echo "  Dashboard: http://localhost:${DASHBOARD_PORT:-4098}/whatsapp/chats"
         echo "  OpenCode: http://localhost:${OPENCODE_PORT:-4099}"
         echo ""
         echo "Services:"
@@ -479,7 +479,7 @@ case "$1" in
         echo "              --force      Skip confirmation"
         echo ""
         echo "Services:"
-        echo "  Dashboard:  http://localhost:4098"
+        echo "  Dashboard:  http://localhost:4098/whatsapp/chats"
         echo "  OpenCode:   http://localhost:4099"
         echo ""
         ;;
@@ -571,7 +571,7 @@ main() {
     echo ""
     echo "    $INSTALL_DIR/bin/orient start"
     echo ""
-    echo "  Dashboard: http://localhost:4098"
+    echo "  Dashboard: http://localhost:4098/whatsapp/chats"
     echo ""
 
     # Make orient available in current session
@@ -591,7 +591,7 @@ main() {
 
     # Open browser
     log "Opening dashboard..."
-    open "http://localhost:4098"
+    open "http://localhost:4098/whatsapp/chats"
 }
 
 main "$@"
