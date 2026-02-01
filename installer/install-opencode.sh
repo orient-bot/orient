@@ -7,9 +7,9 @@
 # that's bundled with the repo (tracked via Git LFS).
 #
 # Usage:
-#   ./installer/install-local.sh           # Install bundled binary
-#   ./installer/install-local.sh --check   # Check versions only
-#   ./installer/install-local.sh --force   # Force reinstall
+#   ./installer/install-opencode.sh           # Install bundled binary
+#   ./installer/install-opencode.sh --check   # Check versions only
+#   ./installer/install-opencode.sh --force   # Force reinstall
 #
 
 set -euo pipefail
@@ -155,11 +155,11 @@ check_versions() {
         return 0
     elif [[ "$installed_version" == "not installed" ]]; then
         echo -e "${YELLOW}⚠ OpenCode not installed${NC}"
-        echo "  Run: ./installer/install-local.sh"
+        echo "  Run: ./installer/install-opencode.sh"
         return 1
     else
         echo -e "${YELLOW}⚠ Version mismatch${NC}"
-        echo "  Run: ./installer/install-local.sh --force"
+        echo "  Run: ./installer/install-opencode.sh --force"
         return 1
     fi
 }
