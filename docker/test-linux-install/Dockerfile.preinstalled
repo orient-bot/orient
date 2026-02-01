@@ -1,0 +1,35 @@
+FROM ubuntu:22.04
+
+# Install Node.js, pnpm, Docker CLI, and optional tools
+RUN apt-get update && apt-get install -y \
+    git \
+    curl \
+    lsof \
+    jq \
+    gettext-base \
+    ca-certificates \
+    gnupg \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Node.js 20 via nodesource
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y nodejs
+
+# Install pnpm
+RUN npm install -g pnpm@9
+
+# Install Docker CLI (not daemon - just the client for docker compose)
+RUN curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg \
+    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu jammy stable" > /etc/apt/sources.list.d/docker.list \
+    && apt-get update \
+    && apt-get install -y docker-ce-cli docker-compose-plugin \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+COPY . .
+
+# Install dependencies
+RUN pnpm install
+
+# Test: Run doctor.sh and verify all checks pass
+CMD ["./scripts/doctor.sh"]
