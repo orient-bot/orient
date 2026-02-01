@@ -1,5 +1,5 @@
 # =============================================================================
-# Orient - Production Security Hardening
+# Orient v0.2.0 - Production Security Hardening
 # =============================================================================
 # This file removes unnecessary port exposures in production.
 # Only Nginx (80/443) should be externally accessible - all other services
@@ -9,28 +9,23 @@
 #   docker compose -f docker-compose.v2.yml -f docker-compose.prod.yml \
 #     -f docker-compose.r2.yml -f docker-compose.prod-secure.yml up -d
 #
+# v0.2.0 changes:
+#   - Uses SQLite (no PostgreSQL service)
+#   - WhatsApp integrated into dashboard service
+#
 # Security benefits:
-#   - PostgreSQL (5432) not exposed to host - prevents direct DB access
 #   - MinIO (9000, 9001) not exposed - prevents direct storage access
 #   - Internal services route through Nginx reverse proxy only
 #
 # Accessing services for debugging:
-#   - Database: ssh -L 5432:localhost:5432 user@server
-#               then: psql -h localhost -U $POSTGRES_USER -d $POSTGRES_DB
-#   - Or use: docker exec -it orienter-postgres psql -U $POSTGRES_USER -d $POSTGRES_DB
+#   - Database: Located at /app/data/orient.db inside dashboard container
+#     docker exec -it orienter-dashboard sqlite3 /app/data/orient.db
 #
 # Rollback:
 #   Remove this file from the compose stack to restore direct port access
 # =============================================================================
 
 services:
-  # ===========================================================================
-  # PostgreSQL - Remove host port exposure
-  # Access via SSH tunnel or docker exec only
-  # ===========================================================================
-  postgres:
-    ports: !reset []
-
   # ===========================================================================
   # MinIO - Remove host port exposure
   # Access via Nginx proxy or docker exec only
@@ -47,7 +42,7 @@ services:
 
   # ===========================================================================
   # Dashboard - Remove host port exposure
-  # Note: In v0.2.0, WhatsApp is integrated into the dashboard service
+  # v0.2.0: WhatsApp is integrated into the dashboard service
   # Routes through Nginx at /dashboard/*
   # ===========================================================================
   dashboard:
