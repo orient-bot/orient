@@ -68,6 +68,8 @@
     "test:e2e:slack-agent": "RUN_AGENT_SLACK_TESTS=true E2E_TESTS=true vitest run tests/e2e/features/agent-slack-operations.e2e.test.ts",
     "test:e2e:slack-opencode": "RUN_SLACK_OPENCODE_TESTS=true E2E_TESTS=true vitest run tests/e2e/features/slack-opencode-tools.e2e.test.ts",
     "test:e2e:slack-all": "RUN_SLACK_TESTS=true RUN_AGENT_SLACK_TESTS=true RUN_SLACK_OPENCODE_TESTS=true E2E_TESTS=true vitest run tests/e2e/features/slack*.e2e.test.ts tests/e2e/features/agent-slack*.e2e.test.ts",
+    "test:browser": "E2E_TESTS=true vitest run tests/e2e/browser/",
+    "test:browser:watch": "E2E_TESTS=true vitest tests/e2e/browser/",
     "test:services": "vitest run src/services/",
     "test:tools": "vitest run src/tools/",
     "test:ci": "vitest run --exclude '**/*.e2e.test.ts' --exclude '**/*.eval.test.ts'",
