@@ -210,6 +210,7 @@ create_worktree() {
     local isolated="${2:-false}"
     local model="${3:-}"
     local goal="${4:-}"
+    local plan="${5:-}"
     local repo_root
     local project_name
 
@@ -333,6 +334,27 @@ create_worktree() {
         fi
     fi
 
+    # If plan is provided, construct the goal to reference it
+    if [[ -n "$plan" ]]; then
+        log_info "Plan file specified: $plan"
+        # Verify plan file exists in the repo
+        if [[ -f "$repo_root/$plan" ]]; then
+            log_success "Plan file found: $plan"
+            # Construct goal that tells agent to follow the plan
+            local plan_goal="Implement the plan at $plan. Read the plan first, then execute tasks in order. For 4+ independent tasks, consider using parallel subagents. Use two-stage review (spec compliance then code quality). Mandatory: every completion claim must include verification output."
+            # If user also provided a goal, append it
+            if [[ -n "$goal" ]]; then
+                goal="$plan_goal Additional context: $goal"
+            else
+                goal="$plan_goal"
+            fi
+        else
+            log_warn "Plan file not found: $repo_root/$plan"
+            log_warn "The worktree agent will still be instructed to look for this plan"
+            goal="Implement the plan at $plan. If the plan file is not found, ask the user for clarification."
+        fi
+    fi
+
     # Start pnpm install in background
     log_info "Starting pnpm install in background..."
     log_info "Installation log: $worktree_path/.pnpm-install.log"
@@ -449,6 +471,9 @@ Options:
                   Default: $DEFAULT_MODEL (configured in script)
     --goal        Set a goal/task description for the Claude session.
                   Opens in Ghostty tab with this goal pre-filled.
+    --plan        Path to implementation plan file (e.g., docs/plans/2026-02-01-feature.md).
+                  Creates worktree with goal instructing agent to follow the plan.
+                  Use with /discover skill for discovery-first workflow.
 
 Configuration (edit script to change defaults):
     CLAUDE_CMD="$CLAUDE_CMD"              - Command to run Claude (alias defined in ~/.zshrc)
@@ -464,9 +489,15 @@ Examples:
     $0 create schema-changes --isolated                # Isolated database
     $0 create complex-task --model opus --isolated     # Opus + isolated DB
     $0 create bugfix --goal "Fix login redirect bug"   # Goal for Ghostty tab
+    $0 create webhook-support --plan docs/plans/2026-02-01-webhooks.md  # With plan
     $0 list
     $0 cleanup
     $0 cleanup --days 14
+
+Discovery-First Workflow:
+    1. Run /discover in main branch to create plan
+    2. Create worktree with: $0 create feature --plan docs/plans/YYYY-MM-DD-feature.md
+    3. Worktree agent reads plan and executes tasks with verification
 
 EOF
 }
@@ -487,6 +518,7 @@ main() {
             local isolated="false"
             local model=""
             local goal=""
+            local plan=""
 
             # Parse optional flags
             shift 2
@@ -521,6 +553,14 @@ main() {
                         goal="$2"
                         shift 2
                         ;;
+                    --plan)
+                        if [[ $# -lt 2 ]]; then
+                            log_error "Missing plan path for --plan flag"
+                            exit 1
+                        fi
+                        plan="$2"
+                        shift 2
+                        ;;
                     *)
                         log_error "Unknown option: $1"
                         echo ""
@@ -536,7 +576,7 @@ main() {
                 model="$DEFAULT_MODEL"
             fi
 
-            create_worktree "$name" "$isolated" "$model" "$goal"
+            create_worktree "$name" "$isolated" "$model" "$goal" "$plan"
             ;;
         list)
             list_worktrees
