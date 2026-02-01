@@ -398,6 +398,41 @@ and execute tasks with verification."
 
 ---
 
+## Custom Agents for Specialized Tasks
+
+For certain task types, recommend specialized agents in `.claude/agents/` instead of general worktrees:
+
+| Task Type          | Recommended Agent      | When to Use                                               |
+| ------------------ | ---------------------- | --------------------------------------------------------- |
+| Code review        | `/agent code-reviewer` | PR reviews, pattern enforcement, code audits              |
+| Writing tests      | `/agent test-writer`   | Adding tests, improving coverage, debugging test failures |
+| Database changes   | `/agent migration`     | Schema changes, new tables, column modifications          |
+| OAuth integrations | `/agent integration`   | Adding new services (Linear, Notion, GitHub, etc.)        |
+| Documentation      | `/agent docs`          | README updates, skill creation, API docs                  |
+
+**When to recommend agents vs worktrees:**
+
+- **Use agents** for focused, single-purpose tasks that match an agent's specialty
+- **Use worktrees** for larger features that span multiple concerns
+
+**Example recommendations in discovery:**
+
+```javascript
+// If user wants to add tests
+"For adding tests, I recommend using `/agent test-writer` which is
+specialized for writing and running tests with Vitest patterns."
+
+// If user wants schema changes
+"Database migrations require extra care. I recommend `/agent migration`
+which uses Opus model and has safety checks for destructive operations."
+
+// If user wants a larger feature with multiple concerns
+"This feature involves schema changes, new API endpoints, and tests.
+Let's create a full implementation plan and use a worktree."
+```
+
+---
+
 ## Anti-Patterns
 
 **Don't:**

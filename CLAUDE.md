@@ -157,6 +157,26 @@ Skills provide task-specific guidance. Location: `.claude/skills/<name>/SKILL.md
 
 Invoke via Skill tool or `/skill-name` command.
 
+## Custom Agents
+
+Specialized agents for focused tasks. Location: `.claude/agents/<name>.md`
+
+| Agent           | Model     | Purpose                                           |
+| --------------- | --------- | ------------------------------------------------- |
+| `code-reviewer` | inherit   | PR reviews, pattern enforcement (read-only tools) |
+| `test-writer`   | inherit   | Write and run tests with Vitest                   |
+| `migration`     | **opus**  | Database schema changes (extra safety)            |
+| `integration`   | inherit   | Add OAuth integrations                            |
+| `docs`          | **haiku** | Documentation and skills (lightweight)            |
+
+Invoke via `/agent <name>` command.
+
+**When to use agents vs skills vs worktrees:**
+
+- **Agents**: Focused, single-purpose tasks matching an agent's specialty
+- **Skills**: Guidance and context for specific workflows
+- **Worktrees**: Larger features spanning multiple concerns
+
 ## Key Conventions
 
 - **Package imports**: Use `@orient-bot/package-name` for workspace packages
