@@ -1,0 +1,238 @@
+# OpenCode + MCP Server Dockerfile
+# This builds an OpenCode server with the Orient MCP server as a sidecar
+# Supports both AMD64 and ARM64 (Oracle Cloud Free Tier Ampere A1)
+#
+# Build with environment-specific exclusions:
+#   docker build --build-arg DEPLOY_ENV=local ...  (for local Docker)
+#   docker build --build-arg DEPLOY_ENV=prod ...   (for production)
+#
+# Exclusions are configured in: src/config/opencode-exclusions.ts
+# Run: npm run build:opencode-config to generate environment-specific configs
+
+# =============================================================================
+# Stage 1: Build the MCP Server
+# =============================================================================
+FROM node:20-slim AS mcp-builder
+
+WORKDIR /app
+
+# Install pnpm and build dependencies for native modules (better-sqlite3, etc.)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 \
+    make \
+    g++ \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN npm install -g pnpm
+
+# Copy workspace configuration
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY tsconfig.json turbo.json ./
+
+# Copy package.json files for all workspace packages
+COPY packages/core/package.json ./packages/core/
+COPY packages/database/package.json ./packages/database/
+COPY packages/database-services/package.json ./packages/database-services/
+COPY packages/integrations/package.json ./packages/integrations/
+COPY packages/agents/package.json ./packages/agents/
+COPY packages/mcp-tools/package.json ./packages/mcp-tools/
+COPY packages/mcp-servers/package.json ./packages/mcp-servers/
+COPY packages/apps/package.json ./packages/apps/
+
+# Install all dependencies (including dev for build)
+RUN pnpm install --frozen-lockfile
+
+# Copy source code for all workspace packages
+COPY packages/core ./packages/core
+COPY packages/database ./packages/database
+COPY packages/database-services ./packages/database-services
+COPY packages/integrations ./packages/integrations
+COPY packages/agents ./packages/agents
+COPY packages/mcp-tools ./packages/mcp-tools
+COPY packages/mcp-servers ./packages/mcp-servers
+COPY packages/apps ./packages/apps
+
+# Build workspace packages using turbo for correct dependency ordering
+RUN pnpm turbo run build --filter='@orient/core' --filter='@orient/database' \
+    --filter='@orient/database-services' --filter='@orient/integrations' \
+    --filter='@orient/mcp-tools' --filter='@orient/agents' \
+    --filter='@orient/mcp-servers' --filter='@orient/apps'
+
+# Note: Root-level build removed - using package-level builds only
+
+# =============================================================================
+# Stage 2: Production image with OpenCode + MCP
+# =============================================================================
+FROM node:20-slim AS production
+
+# Build argument for deployment environment (local or prod)
+# This determines which opencode.json and skills exclusions to use
+ARG DEPLOY_ENV=local
+
+# Install required system dependencies (including gosu for privilege dropping)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    bash \
+    git \
+    python3 \
+    ca-certificates \
+    unzip \
+    jq \
+    gosu \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install AWS CLI v2 (architecture-aware for AMD64 and ARM64)
+RUN ARCH=$(uname -m) && \
+    if [ "$ARCH" = "x86_64" ]; then \
+        AWS_CLI_ARCH="x86_64"; \
+    elif [ "$ARCH" = "aarch64" ]; then \
+        AWS_CLI_ARCH="aarch64"; \
+    else \
+        echo "Unsupported architecture: $ARCH" && exit 1; \
+    fi && \
+    curl "https://awscli.amazonaws.com/awscli-exe-linux-${AWS_CLI_ARCH}.zip" -o "awscliv2.zip" && \
+    unzip awscliv2.zip && \
+    ./aws/install && \
+    rm -rf awscliv2.zip aws
+
+WORKDIR /app
+
+# Create non-root user
+RUN groupadd -g 1001 opencode && \
+    useradd -u 1001 -g opencode -m -s /bin/bash opencode
+
+# Install OpenCode from bundled binary
+# Binaries are pre-downloaded and tracked via Git LFS in vendor/opencode/
+# This eliminates version drift and network dependencies during build
+ARG TARGETARCH
+COPY vendor/opencode/manifest.json /tmp/opencode-manifest.json
+
+# Copy the platform-specific binary based on build architecture
+# TARGETARCH is 'arm64' or 'amd64' - map to our directory names
+RUN OPENCODE_ARCH=$(if [ "$TARGETARCH" = "arm64" ]; then echo "arm64"; else echo "x64"; fi) && \
+    OPENCODE_DIR="linux-${OPENCODE_ARCH}" && \
+    echo "Installing OpenCode from vendor/${OPENCODE_DIR}..."
+
+COPY vendor/opencode/linux-arm64/opencode /tmp/opencode-linux-arm64
+COPY vendor/opencode/linux-x64/opencode /tmp/opencode-linux-x64
+
+# Select the correct binary and verify checksum
+RUN OPENCODE_ARCH=$(if [ "$TARGETARCH" = "arm64" ]; then echo "arm64"; else echo "x64"; fi) && \
+    cp /tmp/opencode-linux-${OPENCODE_ARCH} /usr/local/bin/opencode && \
+    chmod +x /usr/local/bin/opencode && \
+    # Verify checksum from manifest
+    EXPECTED_SHA=$(jq -r ".binaries[\"linux-${OPENCODE_ARCH}\"].sha256" /tmp/opencode-manifest.json) && \
+    ACTUAL_SHA=$(sha256sum /usr/local/bin/opencode | cut -d' ' -f1) && \
+    if [ "$EXPECTED_SHA" != "$ACTUAL_SHA" ]; then \
+        echo "ERROR: OpenCode checksum mismatch!" && \
+        echo "Expected: $EXPECTED_SHA" && \
+        echo "Actual: $ACTUAL_SHA" && \
+        exit 1; \
+    fi && \
+    echo "OpenCode checksum verified: $ACTUAL_SHA" && \
+    # Verify binary works
+    /usr/local/bin/opencode --version && \
+    # Clean up temp files
+    rm -f /tmp/opencode-linux-* /tmp/opencode-manifest.json
+
+# Install pnpm and OpenSkills CLI globally
+RUN npm install -g pnpm openskills
+
+# Copy package files and install production dependencies only (with ownership)
+COPY --chown=opencode:opencode package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY --chown=opencode:opencode packages ./packages
+RUN pnpm install --prod --frozen-lockfile --ignore-scripts && pnpm store prune
+
+# Copy built packages from builder stage (with ownership)
+# These contain the MCP server and related tools
+COPY --chown=opencode:opencode --from=mcp-builder /app/packages/mcp-servers/dist ./packages/mcp-servers/dist
+COPY --chown=opencode:opencode --from=mcp-builder /app/packages/mcp-tools/dist ./packages/mcp-tools/dist
+COPY --chown=opencode:opencode --from=mcp-builder /app/packages/core/dist ./packages/core/dist
+COPY --chown=opencode:opencode --from=mcp-builder /app/packages/database/dist ./packages/database/dist
+COPY --chown=opencode:opencode --from=mcp-builder /app/packages/database-services/dist ./packages/database-services/dist
+COPY --chown=opencode:opencode --from=mcp-builder /app/packages/integrations/dist ./packages/integrations/dist
+COPY --chown=opencode:opencode --from=mcp-builder /app/packages/agents/dist ./packages/agents/dist
+COPY --chown=opencode:opencode --from=mcp-builder /app/packages/apps/dist ./packages/apps/dist
+
+# Create data directories, OpenCode storage and config directories
+# OpenCode stores sessions at /home/opencode/.local/share/opencode/storage
+# OpenCode config at /home/opencode/.config/opencode/config.json
+# Project directory at /home/opencode/pm-assistant (meaningful project name)
+RUN mkdir -p /app/data /app/logs \
+             /home/opencode/.local/share/opencode/storage \
+             /home/opencode/.config/opencode \
+             /home/opencode/pm-assistant/.claude && \
+    chown -R opencode:opencode /app/data /app/logs /home/opencode
+
+# Note: Credentials for Google services should be mounted at runtime via volumes
+# The credentials directory is gitignored and not included in builds
+# Mount point: /app/credentials (if needed)
+
+# Copy the skills exclusions manifest (generated by build:opencode-config)
+COPY --chown=opencode:opencode docker/.skills-exclusions.json /tmp/.skills-exclusions.json
+
+# Copy the environment-specific OpenCode config to the expected location
+# Uses opencode.local.json for DEPLOY_ENV=local, opencode.prod.json for DEPLOY_ENV=prod
+# Falls back to opencode.json if environment-specific file doesn't exist
+COPY --chown=opencode:opencode docker/opencode.${DEPLOY_ENV}.json /home/opencode/.config/opencode/config.json
+
+# =============================================================================
+# Project Directory Setup (/home/opencode/pm-assistant)
+# This is where OpenCode will run from, giving a meaningful project name
+# =============================================================================
+
+# Copy skills directory to project (for OpenSkills and agent access)
+# Note: Skills filtering happens via a build script that reads .skills-exclusions.json
+# For now, we copy all skills - filtering can be done in the entrypoint if needed
+COPY --chown=opencode:opencode .claude/skills /home/opencode/pm-assistant/.claude/skills
+
+# Copy the filter script for runtime skill filtering
+COPY docker/filter-skills.sh /usr/local/bin/filter-skills.sh
+RUN chmod +x /usr/local/bin/filter-skills.sh
+
+# Copy AGENTS.md so OpenCode agents know which skills are available
+COPY --chown=opencode:opencode AGENTS.md /home/opencode/pm-assistant/AGENTS.md
+
+# NOTE: We intentionally do NOT copy the root opencode.json here.
+# The root opencode.json contains hardcoded local paths that don't exist in the container.
+# OpenCode will use the Docker-specific config from /home/opencode/.config/opencode/config.json
+# (copied above) which has the correct container paths.
+
+# Copy MCP config to project root
+COPY --chown=opencode:opencode mcp-config.json /home/opencode/pm-assistant/mcp-config.json
+
+# Copy MCP wrapper script
+COPY docker/mcp-wrapper.sh /usr/local/bin/mcp-wrapper.sh
+RUN chmod +x /usr/local/bin/mcp-wrapper.sh
+
+# Copy entrypoint script
+COPY docker/opencode-entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
+# Note: No need for chown -R here anymore - all files copied with --chown flag above
+
+# Create symlinks at root for OpenCode global project access
+# OpenCode may use "/" as the project root, so we need skills accessible there too
+RUN ln -sf /home/opencode/pm-assistant/.claude /.claude && \
+    ln -sf /home/opencode/pm-assistant/AGENTS.md /AGENTS.md
+
+# Set environment variables
+ENV NODE_ENV=production
+ENV OPENCODE_PORT=4099
+ENV MCP_SERVER_PATH=/app/packages/mcp-servers/dist/coding-server.js
+ENV DEPLOY_ENV=${DEPLOY_ENV}
+
+# NOTE: We don't switch to USER opencode here because the entrypoint needs
+# to run as root initially to fix permissions on mounted volumes.
+# The entrypoint will drop privileges to opencode after fixing permissions.
+
+# Expose OpenCode server port
+EXPOSE 4099
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+    CMD curl -f http://localhost:${OPENCODE_PORT}/global/health || exit 1
+
+# Start via entrypoint script
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+

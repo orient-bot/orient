@@ -1,0 +1,27 @@
+{
+  "version": "1.1.48",
+  "minimum_supported": "0.0.50",
+  "updated_at": "2026-02-01T16:15:48Z",
+  "binaries": {
+    "darwin-arm64": {
+      "filename": "opencode",
+      "sha256": "a129a2047f449a6faace965cdcd982a137b6921b6277ff49d94ecd3f747b2cdb"
+    },
+    "darwin-x64": {
+      "filename": "opencode",
+      "sha256": "71b9436203a57b491423e74fc474eac59741e9de302cdb87c589138c599237bd"
+    },
+    "linux-arm64": {
+      "filename": "opencode",
+      "sha256": "e7b258b1b1ed411ffd68690abedd792281765476e6a08ace607a7e4e513e9500"
+    },
+    "linux-x64": {
+      "filename": "opencode",
+      "sha256": "ad83bc26c70a8beae4b4cde2bfc9e90a0ecb9813b8bea3d89d49cef60faca5ec"
+    }
+  },
+  "source": {
+    "repo": "anomalyco/opencode",
+    "release_url_template": "https://github.com/anomalyco/opencode/releases/download/v{version}/opencode-{platform}.{ext}"
+  }
+}
