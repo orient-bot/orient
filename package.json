@@ -67,6 +67,8 @@
     "test:unit": "vitest run --exclude '**/*.e2e.test.ts' --exclude '**/*.integration.test.ts'",
     "test:integration": "INTEGRATION_TESTS=true vitest run integration",
     "test:e2e": "E2E_TESTS=true vitest run e2e",
+    "test:browser": "E2E_TESTS=true vitest run tests/e2e/browser/",
+    "test:browser:watch": "E2E_TESTS=true vitest tests/e2e/browser/",
     "test:services": "vitest run src/services/",
     "test:tools": "vitest run src/tools/",
     "test:ci": "vitest run --exclude '**/*.e2e.test.ts' --exclude '**/*.eval.test.ts'",
