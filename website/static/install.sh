@@ -296,6 +296,11 @@ BASE_URL=http://localhost:4098
 # SLACK_BOT_TOKEN=xoxb-your-bot-token
 # SLACK_SIGNING_SECRET=your-signing-secret
 # SLACK_APP_TOKEN=xapp-your-app-token
+
+# =============================================================================
+# Google OAuth (via proxy - no client secret needed)
+# =============================================================================
+GOOGLE_OAUTH_PROXY_URL=https://app.orient.bot
 EOF
 
     chmod 600 "$env_file"
