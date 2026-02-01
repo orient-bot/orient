@@ -29,6 +29,7 @@ import {
   createFeatureFlagsRoutes,
 } from './routes/index.js';
 import { createGoogleAuthRoutes } from './routes/google-auth.routes.js';
+import { createOAuthProxyRoutes } from './routes/oauth-proxy.routes.js';
 import { initStorageService } from '../services/storageService.js';
 
 const logger = createServiceLogger('dashboard-routes');
@@ -258,6 +259,9 @@ export function createDashboardRouter(services: DashboardServices): Router {
 
   // Google OAuth routes
   router.use('/auth/google', createGoogleAuthRoutes(auth, db));
+
+  // OAuth proxy routes (for external instances using production's OAuth client)
+  router.use('/oauth/proxy', createOAuthProxyRoutes());
 
   // Login
   router.post('/auth/login', async (req: Request, res: Response) => {

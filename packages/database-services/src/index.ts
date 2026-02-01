@@ -87,5 +87,13 @@ export type {
   SetOverrideInput,
 } from './featureFlagsService.js';
 
+// OAuth proxy service for external instances
+export { OAuthProxyService, createOAuthProxyService } from './oauthProxyService.js';
+export type {
+  OAuthProxySession,
+  OAuthProxySessionStatus,
+  CreateSessionInput,
+} from './oauthProxyService.js';
+
 // Re-export all types
 export * from './types/index.js';
