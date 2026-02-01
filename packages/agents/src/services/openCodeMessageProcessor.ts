@@ -7,7 +7,7 @@
  * Features:
  * - Default agent configuration (pm-assistant)
  *
- * Exported via @orientbot/agents package.
+ * Exported via @orient-bot/agents package.
  * - Image preprocessing (base64 encoding)
  * - Audio transcription context
  * - Vision model auto-switching
@@ -38,7 +38,7 @@ import {
   getVisionModelName as configGetVisionModelName,
   getProviderFromModelId as configGetProviderFromModelId,
   formatModelName as configFormatModelName,
-} from '@orientbot/core';
+} from '@orient-bot/core';
 
 // Re-export all model-related items for backward compatibility
 export {

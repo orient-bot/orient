@@ -58,7 +58,7 @@ Orient is designed to be extended by the community. Community skills can be shar
 - MCP server packages
 - Documentation and prompt templates
 
-Visit the [GitHub repository](https://github.com/orient-bot/orient) to browse and contribute skills.
+Visit the [GitHub repository](https://github.com/orient/orient) to browse and contribute skills.
 
 ## Skill Configuration
 

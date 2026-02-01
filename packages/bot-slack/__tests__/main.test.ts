@@ -7,7 +7,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // Mock dependencies before imports
-vi.mock('@orientbot/core', () => ({
+vi.mock('@orient-bot/core', () => ({
   createServiceLogger: () => ({
     info: vi.fn(),
     error: vi.fn(),
@@ -80,7 +80,7 @@ vi.mock('@slack/bolt', () => {
   };
 });
 
-vi.mock('@orientbot/database-services', () => ({
+vi.mock('@orient-bot/database-services', () => ({
   SlackDatabase: class MockSlackDatabase {},
   SlackChannelType: {
     GROUP: 'group',
@@ -89,7 +89,7 @@ vi.mock('@orientbot/database-services', () => ({
   },
 }));
 
-vi.mock('@orientbot/agents', async (importOriginal) => {
+vi.mock('@orient-bot/agents', async (importOriginal) => {
   const actual = await importOriginal();
   return {
     ...actual,

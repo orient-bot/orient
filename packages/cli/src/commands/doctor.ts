@@ -8,7 +8,7 @@ import { Command } from 'commander';
 import { execSync } from 'child_process';
 import { existsSync, readFileSync, statSync } from 'fs';
 import { join } from 'path';
-import { getOrientHome } from '@orientbot/core';
+import { getOrientHome } from '@orient-bot/core';
 import * as net from 'net';
 
 const ORIENT_HOME = getOrientHome();

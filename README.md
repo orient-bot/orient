@@ -10,9 +10,9 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/orient-bot/orient/releases"><img src="https://img.shields.io/github/v/release/orient-bot/orient" alt="Release"></a>
-  <a href="https://github.com/orient-bot/orient/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License"></a>
-  <a href="https://github.com/orient-bot/orient"><img src="https://img.shields.io/github/stars/orient-bot/orient?style=social" alt="GitHub Stars"></a>
+  <a href="https://github.com/orient/orient/releases"><img src="https://img.shields.io/github/v/release/orient/orient" alt="Release"></a>
+  <a href="https://github.com/orient/orient/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License"></a>
+  <a href="https://github.com/orient/orient"><img src="https://img.shields.io/github/stars/orient/orient?style=social" alt="GitHub Stars"></a>
   <a href="https://orient.bot"><img src="https://img.shields.io/badge/website-orient.bot-blue" alt="Website"></a>
 </p>
 
@@ -68,7 +68,7 @@ Found a bug? Built something cool? PRs are welcome! See [CONTRIBUTING.md](CONTRI
 
 ```bash
 # Clone the repository
-git clone https://github.com/orient-bot/orient.git
+git clone https://github.com/orient/orient.git
 cd orient
 
 # Start the demo
@@ -239,5 +239,5 @@ MIT — see [LICENSE](LICENSE) for details.
 <p align="center">
   <strong>Built with ❤️ by the Orient community</strong><br/>
   <a href="https://orient.bot">orient.bot</a> •
-  <a href="https://github.com/orient-bot/orient">GitHub</a>
+  <a href="https://github.com/orient/orient">GitHub</a>
 </p>

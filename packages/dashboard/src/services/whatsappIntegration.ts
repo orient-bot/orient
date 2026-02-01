@@ -13,8 +13,8 @@ import {
   WhatsAppConnection,
   createWhatsAppRouter,
   TranscriptionService,
-} from '@orientbot/bot-whatsapp';
-import type { WhatsAppBotConfig, ParsedMessage } from '@orientbot/bot-whatsapp';
+} from '@orient-bot/bot-whatsapp';
+import type { WhatsAppBotConfig, ParsedMessage } from '@orient-bot/bot-whatsapp';
 import {
   createServiceLogger,
   loadConfig,
@@ -22,9 +22,9 @@ import {
   startConfigPoller,
   WHATSAPP_DEFAULT_MODEL,
   DEFAULT_AGENT,
-} from '@orientbot/core';
-import { MessageDatabase, createChatPermissionService } from '@orientbot/database-services';
-import { createOpenCodeClient } from '@orientbot/agents';
+} from '@orient-bot/core';
+import { MessageDatabase, createChatPermissionService } from '@orient-bot/database-services';
+import { createOpenCodeClient } from '@orient-bot/agents';
 import { downloadMediaMessage } from 'baileys';
 
 const logger = createServiceLogger('whatsapp-integration');
@@ -438,6 +438,14 @@ export async function initializeWhatsAppIntegration(): Promise<WhatsAppIntegrati
   // Set up event handlers
   connection.on('connected', () => {
     logger.info('WhatsApp connected successfully');
+
+    // Capture LID and update permission service for admin matching
+    // WhatsApp uses LID (Linked ID) format for group participants instead of phone numbers
+    const myLid = connection.getMyLid();
+    if (myLid) {
+      chatPermissionService.setAdminLid(myLid);
+      logger.info('Admin LID captured from connection', { lid: myLid });
+    }
   });
 
   connection.on('qr', (_qr: string) => {

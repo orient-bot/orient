@@ -49,7 +49,6 @@ config.*.json
 .claude/settings.json
 opencode.local.json
 opencode.*.local.json
-opencode.json
 mcp-config.json
 
 # ============================================================================

@@ -1,4 +1,4 @@
-# @orientbot/mcp-tools
+# @orient-bot/mcp-tools
 
 Portable MCP tools and registry for the Orient.
 
@@ -12,7 +12,7 @@ Portable MCP tools and registry for the Orient.
 ## Installation
 
 ```bash
-pnpm add @orientbot/mcp-tools
+pnpm add @orient-bot/mcp-tools
 ```
 
 ## Usage
@@ -20,7 +20,7 @@ pnpm add @orientbot/mcp-tools
 ### Creating a Tool
 
 ```typescript
-import { MCPTool, ToolContext } from '@orientbot/mcp-tools';
+import { MCPTool, ToolContext } from '@orient-bot/mcp-tools';
 import { z } from 'zod';
 
 // Using the base class
@@ -45,7 +45,7 @@ class SendSlackDmTool extends MCPTool<{ userId: string; message: string }, { suc
 }
 
 // Using the factory function
-import { createTool } from '@orientbot/mcp-tools';
+import { createTool } from '@orient-bot/mcp-tools';
 
 const myTool = createTool({
   name: 'my_tool',
@@ -63,7 +63,7 @@ const myTool = createTool({
 ### Using the Registry
 
 ```typescript
-import { getToolRegistry, ToolRegistry } from '@orientbot/mcp-tools';
+import { getToolRegistry, ToolRegistry } from '@orient-bot/mcp-tools';
 
 const registry = getToolRegistry();
 
@@ -83,8 +83,8 @@ const categories = registry.getAllCategories();
 ### Creating Tool Context
 
 ```typescript
-import { createToolContext, loadConfig } from '@orientbot/mcp-tools';
-import { loadConfig } from '@orientbot/core';
+import { createToolContext, loadConfig } from '@orient-bot/mcp-tools';
+import { loadConfig } from '@orient-bot/core';
 
 const config = loadConfig();
 const context = createToolContext(config, {

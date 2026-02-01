@@ -8,7 +8,7 @@ import {
   getGmailService,
   getTasksService,
   getGoogleOAuthService,
-} from '@orientbot/integrations/google';
+} from '@orient-bot/integrations/google';
 
 async function testFullIntegration() {
   console.log('\n🔗 Google Integration E2E Test');

@@ -5,8 +5,9 @@
  */
 
 import { Router, Request, Response } from 'express';
-import { createServiceLogger } from '@orientbot/core';
-import type { SlackDatabase } from '@orientbot/database-services';
+import { getParam } from './paramUtils.js';
+import { createServiceLogger } from '@orient-bot/core';
+import type { SlackDatabase } from '@orient-bot/database-services';
 import { AuthenticatedRequest } from '../../auth.js';
 import { SlackChannelPermission } from '../../types/slack.js';
 
@@ -51,7 +52,7 @@ export function createSlackRoutes(
   // Get a specific channel's permission
   router.get('/channels/:channelId', requireAuth, async (req: Request, res: Response) => {
     try {
-      const { channelId } = req.params;
+      const channelId = getParam(req.params.channelId);
       const permission = await slackDb.getChannelPermission(channelId);
 
       if (!permission) {
@@ -74,7 +75,7 @@ export function createSlackRoutes(
     requireAuth,
     async (req: AuthenticatedRequest, res: Response) => {
       try {
-        const { channelId } = req.params;
+        const channelId = getParam(req.params.channelId);
         const { permission, respondToMentions, respondToDMs, notes } = req.body;
 
         // Validate permission
@@ -111,7 +112,7 @@ export function createSlackRoutes(
     requireAuth,
     async (req: AuthenticatedRequest, res: Response) => {
       try {
-        const { channelId } = req.params;
+        const channelId = getParam(req.params.channelId);
 
         const success = await slackDb.deleteChannelPermission(channelId, req.user?.username);
 
@@ -154,7 +155,8 @@ export function createSlackRoutes(
   // Get recent Slack messages
   router.get('/messages/recent', requireAuth, async (req: Request, res: Response) => {
     try {
-      const limit = parseInt(req.query.limit as string) || 50;
+      const limit =
+        parseInt(getParam(req.query.limit as string | string[] | undefined) as string) || 50;
       const messages = await slackDb.getRecentMessages(limit);
       res.json({ messages });
     } catch (error) {

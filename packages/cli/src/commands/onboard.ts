@@ -8,7 +8,7 @@ import { Command } from 'commander';
 import { execSync, spawnSync } from 'child_process';
 import { existsSync, mkdirSync, writeFileSync, readFileSync, chmodSync } from 'fs';
 import { join, dirname } from 'path';
-import { getOrientHome } from '@orientbot/core';
+import { getOrientHome } from '@orient-bot/core';
 import * as readline from 'readline';
 import { randomBytes } from 'crypto';
 

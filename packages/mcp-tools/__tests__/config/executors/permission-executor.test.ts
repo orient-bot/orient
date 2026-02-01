@@ -7,7 +7,7 @@ import { registerPermissionExecutor } from '../../../src/tools/config/executors/
 
 let setChatPermissionSpy: ReturnType<typeof vi.fn>;
 
-vi.mock('@orientbot/database-services', () => ({
+vi.mock('@orient-bot/database-services', () => ({
   createMessageDatabase: () => ({
     setChatPermission: setChatPermissionSpy,
   }),

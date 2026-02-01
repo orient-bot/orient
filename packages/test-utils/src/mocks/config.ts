@@ -4,7 +4,7 @@
  * Provides a minimal test configuration.
  */
 
-import type { AppConfig } from '@orientbot/core';
+import type { AppConfig } from '@orient-bot/core';
 
 /**
  * Create a minimal mock config for testing

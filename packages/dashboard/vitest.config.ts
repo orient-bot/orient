@@ -6,24 +6,24 @@ const packagesDir = path.resolve(__dirname, '..');
 export default defineConfig({
   resolve: {
     alias: {
-      '@orientbot/core': path.resolve(packagesDir, 'core/src/index.ts'),
-      '@orientbot/database': path.resolve(packagesDir, 'database/src/index.ts'),
-      '@orientbot/database-services': path.resolve(packagesDir, 'database-services/src/index.ts'),
-      '@orientbot/agents': path.resolve(packagesDir, 'agents/src/index.ts'),
-      '@orientbot/mcp-tools': path.resolve(packagesDir, 'mcp-tools/src/index.ts'),
-      '@orientbot/bot-whatsapp': path.resolve(packagesDir, 'bot-whatsapp/src/index.ts'),
-      '@orientbot/apps': path.resolve(packagesDir, 'apps/src/index.ts'),
-      '@orientbot/integrations/types': path.resolve(
+      '@orient-bot/core': path.resolve(packagesDir, 'core/src/index.ts'),
+      '@orient-bot/database': path.resolve(packagesDir, 'database/src/index.ts'),
+      '@orient-bot/database-services': path.resolve(packagesDir, 'database-services/src/index.ts'),
+      '@orient-bot/agents': path.resolve(packagesDir, 'agents/src/index.ts'),
+      '@orient-bot/mcp-tools': path.resolve(packagesDir, 'mcp-tools/src/index.ts'),
+      '@orient-bot/bot-whatsapp': path.resolve(packagesDir, 'bot-whatsapp/src/index.ts'),
+      '@orient-bot/apps': path.resolve(packagesDir, 'apps/src/index.ts'),
+      '@orient-bot/integrations/types': path.resolve(
         packagesDir,
         'integrations/src/types/integration.ts'
       ),
-      '@orientbot/integrations/google': path.resolve(
+      '@orient-bot/integrations/google': path.resolve(
         packagesDir,
         'integrations/src/google/index.ts'
       ),
-      '@orientbot/integrations': path.resolve(packagesDir, 'integrations/src/index.ts'),
-      '@orientbot/mcp-servers/oauth': path.resolve(packagesDir, 'mcp-servers/src/oauth.ts'),
-      '@orientbot/mcp-servers': path.resolve(packagesDir, 'mcp-servers/src/index.ts'),
+      '@orient-bot/integrations': path.resolve(packagesDir, 'integrations/src/index.ts'),
+      '@orient-bot/mcp-servers/oauth': path.resolve(packagesDir, 'mcp-servers/src/oauth.ts'),
+      '@orient-bot/mcp-servers': path.resolve(packagesDir, 'mcp-servers/src/index.ts'),
     },
   },
   test: {

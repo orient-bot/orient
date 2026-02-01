@@ -15,7 +15,7 @@ const context = { config: {}, correlationId: 'test' } as ToolContext;
 // Mock database functions for testing
 const mockListSystemPrompts = vi.fn();
 
-vi.mock('@orientbot/database-services', () => ({
+vi.mock('@orient-bot/database-services', () => ({
   createMessageDatabase: () => ({
     getDefaultPrompt: vi.fn().mockResolvedValue(null),
     getSystemPrompt: vi.fn().mockResolvedValue(null),

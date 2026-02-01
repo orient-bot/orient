@@ -15,13 +15,13 @@ import {
   startConfigPoller,
   WHATSAPP_DEFAULT_MODEL,
   DEFAULT_AGENT,
-} from '@orientbot/core';
+} from '@orient-bot/core';
 import {
   createSecretsService,
   MessageDatabase,
   createChatPermissionService,
-} from '@orientbot/database-services';
-import { createOpenCodeClient } from '@orientbot/agents';
+} from '@orient-bot/database-services';
+import { createOpenCodeClient } from '@orient-bot/agents';
 import { downloadMediaMessage } from 'baileys';
 import { TranscriptionService } from './services/index.js';
 import type { WhatsAppBotConfig } from './types.js';

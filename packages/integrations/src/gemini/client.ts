@@ -6,7 +6,7 @@
  */
 
 import { GoogleGenAI } from '@google/genai';
-import { createServiceLogger, getEnvWithSecrets } from '@orientbot/core';
+import { createServiceLogger, getEnvWithSecrets } from '@orient-bot/core';
 import type { GeminiConfig } from './types.js';
 
 const logger = createServiceLogger('gemini-client');

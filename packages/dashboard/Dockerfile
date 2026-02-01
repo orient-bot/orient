@@ -37,7 +37,7 @@ COPY packages/dashboard/package.json ./packages/dashboard/
 # Install dependencies for this package and its dependencies
 # Use BuildKit cache mount for faster rebuilds
 RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
-    pnpm install --frozen-lockfile --filter @orientbot/dashboard...
+    pnpm install --frozen-lockfile --filter @orient-bot/dashboard...
 
 # ============================================
 # Build Stage (Backend)
@@ -57,7 +57,7 @@ COPY packages/dashboard ./packages/dashboard
 COPY tsconfig.json turbo.json ./
 
 # Build the package and its dependencies using turbo for correct ordering
-RUN pnpm turbo run build --filter='@orientbot/dashboard...'
+RUN pnpm turbo run build --filter='@orient-bot/dashboard...'
 
 # ============================================
 # Frontend Build Stage
@@ -120,7 +120,7 @@ COPY --chown=nodejs:nodejs --from=frontend-builder /app/packages/dashboard-front
 # Install production dependencies only
 # Use BuildKit cache mount for faster rebuilds
 RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
-    pnpm install --frozen-lockfile --prod --ignore-scripts --filter @orientbot/dashboard... && \
+    pnpm install --frozen-lockfile --prod --ignore-scripts --filter @orient-bot/dashboard... && \
     chown -R nodejs:nodejs node_modules
 
 # Create logs directory and set ownership only for runtime directory

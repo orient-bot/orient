@@ -25,7 +25,7 @@ export default function HeroSection() {
             </Link>
             <Link
               className={clsx('button', styles.secondaryButton)}
-              to="https://github.com/orient-bot/orient"
+              to="https://github.com/orient/orient"
             >
               <GitHubIcon className={styles.githubIcon} /> View on GitHub
             </Link>

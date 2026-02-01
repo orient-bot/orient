@@ -5,9 +5,9 @@
  * Provides persistent storage for apps that declare the storage capability.
  */
 
-import { createServiceLogger } from '@orientbot/core';
-import { getDatabase, eq, and, schema } from '@orientbot/database';
-import type { Database } from '@orientbot/database';
+import { createServiceLogger } from '@orient-bot/core';
+import { getDatabase, eq, and, schema } from '@orient-bot/database';
+import type { Database } from '@orient-bot/database';
 
 const logger = createServiceLogger('storage-db');
 

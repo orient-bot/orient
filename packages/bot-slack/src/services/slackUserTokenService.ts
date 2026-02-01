@@ -8,15 +8,15 @@
  * - OAuth 2.0 flow for user authorization
  * - Secure token storage (encrypted)
  *
- * Exported via @orientbot/bot-slack package.
+ * Exported via @orient-bot/bot-slack package.
  * - Token refresh handling
  * - Multi-user support (optional)
  */
 
 import crypto from 'crypto';
 import { WebClient } from '@slack/web-api';
-import { createDedicatedServiceLogger } from '@orientbot/core';
-import type { SlackUserModeConfig } from '@orientbot/core';
+import { createDedicatedServiceLogger } from '@orient-bot/core';
+import type { SlackUserModeConfig } from '@orient-bot/core';
 
 const logger = createDedicatedServiceLogger('slack-user-token', {
   maxSize: '20m',

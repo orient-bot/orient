@@ -5,13 +5,13 @@
  * using Claude to understand requests and execute operations.
  * Formatting is adapted for WhatsApp's text rendering.
  *
- * Exported via @orientbot/bot-whatsapp package.
+ * Exported via @orient-bot/bot-whatsapp package.
  */
 
 import Anthropic from '@anthropic-ai/sdk';
-import { createDedicatedServiceLogger } from '@orientbot/core';
-import { AgentMessage, WhatsAppMediaType, ClarificationQuestion } from '@orientbot/core';
-import { MessageDatabase, type StoredMessage } from '@orientbot/database-services';
+import { createDedicatedServiceLogger } from '@orient-bot/core';
+import { AgentMessage, WhatsAppMediaType, ClarificationQuestion } from '@orient-bot/core';
+import { MessageDatabase, type StoredMessage } from '@orient-bot/database-services';
 import {
   SkillsService,
   PolicyEngine,

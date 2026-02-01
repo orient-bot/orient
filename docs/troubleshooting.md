@@ -78,7 +78,7 @@ If tables are missing, run the initialization:
 Or push the schema manually:
 
 ```bash
-pnpm --filter @orientbot/database run db:push:sqlite
+pnpm --filter @orient-bot/database run db:push:sqlite
 ```
 
 ## WhatsApp QR Code Not Showing

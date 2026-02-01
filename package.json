@@ -1,11 +1,11 @@
 {
   "name": "orient",
   "version": "1.0.0",
-  "packageManager": "pnpm@9.0.0",
+  "packageManager": "pnpm@9.15.0",
   "description": "Orient - Open-source AI project management automation",
   "repository": {
     "type": "git",
-    "url": "https://github.com/orient-bot/orient.git"
+    "url": "https://github.com/orient/orient.git"
   },
   "main": "dist/index.js",
   "bin": {
@@ -34,8 +34,8 @@
     "slack": "node dist/slack-bot.js",
     "slack:dev": "tsx packages/bot-slack/src/main.ts",
     "dashboard:admin": "tsx src/cli/dashboard-admin.ts",
-    "dashboard:build": "pnpm --filter @orientbot/dashboard-frontend run build && mkdir -p dist/dashboard/frontend && cp -r packages/dashboard-frontend/dist dist/dashboard/frontend/",
-    "dashboard:dev": "pnpm --filter @orientbot/dashboard-frontend run dev",
+    "dashboard:build": "pnpm --filter @orient-bot/dashboard-frontend run build && mkdir -p dist/dashboard/frontend && cp -r packages/dashboard-frontend/dist dist/dashboard/frontend/",
+    "dashboard:dev": "pnpm --filter @orient-bot/dashboard-frontend run dev",
     "agents:sync": "npx tsx scripts/sync-agent-config.ts",
     "agents:seed": "npx tsx data/seeds/agents.ts",
     "agents:seed:force": "npx tsx data/seeds/agents.ts --force",
@@ -88,7 +88,10 @@
     "prepare": "husky",
     "changeset": "changeset",
     "changeset:version": "changeset version",
-    "changeset:publish": "pnpm run build:all && changeset publish"
+    "changeset:publish": "pnpm run build:all && changeset publish",
+    "verdaccio:start": "verdaccio --config installer/verdaccio-config.yaml",
+    "publish:local": "./scripts/publish-local.sh",
+    "test:install": "./scripts/test-install-local.sh"
   },
   "lint-staged": {
     "*.{ts,tsx}": [
@@ -114,12 +117,12 @@
     "@anthropic-ai/sdk": "0.39.0",
     "@hapi/boom": "^10.0.1",
     "@modelcontextprotocol/sdk": "^1.24.3",
-    "@orientbot/agents": "workspace:*",
-    "@orientbot/core": "workspace:*",
-    "@orientbot/database": "workspace:*",
-    "@orientbot/database-services": "workspace:*",
-    "@orientbot/integrations": "workspace:*",
-    "@orientbot/mcp-tools": "workspace:*",
+    "@orient-bot/agents": "workspace:*",
+    "@orient-bot/core": "workspace:*",
+    "@orient-bot/database": "workspace:*",
+    "@orient-bot/database-services": "workspace:*",
+    "@orient-bot/integrations": "workspace:*",
+    "@orient-bot/mcp-tools": "workspace:*",
     "@slack/bolt": "^3.18.0",
     "@slack/web-api": "^7.0.0",
     "@types/hapi__boom": "^9.0.1",

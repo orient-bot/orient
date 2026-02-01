@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createToolRegistry, ToolRegistry, type ToolMetadata } from '@orientbot/agents';
+import { createToolRegistry, ToolRegistry, type ToolMetadata } from '@orient-bot/agents';
 
 describe('ToolRegistry', () => {
   const sampleTool: ToolMetadata = {

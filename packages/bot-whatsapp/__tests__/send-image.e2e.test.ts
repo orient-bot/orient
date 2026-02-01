@@ -16,7 +16,7 @@
 import { describe, it, expect, vi, beforeAll } from 'vitest';
 
 // Mock core for logger (always needed)
-vi.mock('@orient/core', () => ({
+vi.mock('@orient-bot/core', () => ({
   createServiceLogger: () => ({
     info: vi.fn(),
     error: vi.fn(),

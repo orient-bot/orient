@@ -5,7 +5,7 @@
  * SQLite is used for both development and production - simple, fast, reliable.
  */
 
-import { createServiceLogger } from '@orientbot/core';
+import { createServiceLogger } from '@orient-bot/core';
 import type BetterSqlite3 from 'better-sqlite3';
 import type { DatabaseConfig, Database, DatabaseClient } from './clients/types.js';
 import { getDefaultSqlitePath } from './clients/types.js';

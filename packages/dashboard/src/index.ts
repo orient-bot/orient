@@ -1,5 +1,5 @@
 /**
- * @orientbot/dashboard
+ * @orient-bot/dashboard
  *
  * Dashboard for the Orient.
  *

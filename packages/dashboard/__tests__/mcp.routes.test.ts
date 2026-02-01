@@ -25,7 +25,7 @@ const { mockGoogleOAuthService, mockAtlassianOAuthProvider } = vi.hoisted(() => 
 }));
 
 // Mock core
-vi.mock('@orientbot/core', () => ({
+vi.mock('@orient-bot/core', () => ({
   createServiceLogger: () => ({
     info: vi.fn(),
     error: vi.fn(),
@@ -35,7 +35,7 @@ vi.mock('@orientbot/core', () => ({
 }));
 
 // Mock database-services
-vi.mock('@orientbot/database-services', () => ({
+vi.mock('@orient-bot/database-services', () => ({
   createSecretsService: () => ({
     getSecret: vi.fn().mockResolvedValue(null),
     listSecrets: vi.fn().mockResolvedValue([]),
@@ -44,14 +44,14 @@ vi.mock('@orientbot/database-services', () => ({
 }));
 
 // Mock Google OAuth module
-vi.mock('@orientbot/integrations/google', () => ({
+vi.mock('@orient-bot/integrations/google', () => ({
   getGoogleOAuthService: () => mockGoogleOAuthService,
   DEFAULT_SCOPES: ['email', 'profile'],
   IS_GOOGLE_OAUTH_PRODUCTION: false,
 }));
 
 // Mock Atlassian OAuth module
-vi.mock('@orientbot/mcp-servers/oauth', () => ({
+vi.mock('@orient-bot/mcp-servers/oauth', () => ({
   setSuppressBrowserOpen: vi.fn(),
   IS_PRODUCTION_OAUTH: false,
   OAUTH_CALLBACK_URL: 'http://localhost:8766/oauth/atlassian/callback',

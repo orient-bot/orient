@@ -255,12 +255,12 @@ curl -s http://localhost:4097/health | jq .
 
 | Package                        | Tests | Critical Paths                    |
 | ------------------------------ | ----- | --------------------------------- |
-| `@orientbot/core`              | 26    | Crypto, config                    |
-| `@orientbot/database-services` | 120+  | Feature flags, secrets, scheduler |
-| `@orientbot/dashboard`         | 50+   | Routes, agents, integrations      |
-| `@orientbot/bot-whatsapp`      | 30+   | Messaging, QR, connection         |
-| `@orientbot/bot-slack`         | 25+   | Messaging, pending actions        |
-| `@orientbot/integrations`      | 20+   | OAuth flows, JIRA, Linear         |
+| `@orient-bot/core`              | 26    | Crypto, config                    |
+| `@orient-bot/database-services` | 120+  | Feature flags, secrets, scheduler |
+| `@orient-bot/dashboard`         | 50+   | Routes, agents, integrations      |
+| `@orient-bot/bot-whatsapp`      | 30+   | Messaging, QR, connection         |
+| `@orient-bot/bot-slack`         | 25+   | Messaging, pending actions        |
+| `@orient-bot/integrations`      | 20+   | OAuth flows, JIRA, Linear         |
 
 ### Key Test Files
 

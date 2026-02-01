@@ -14,7 +14,7 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
-import { getDatabase, messages, slackMessages, eq, and, desc } from '@orientbot/database';
+import { getDatabase, messages, slackMessages, eq, and, desc } from '@orient-bot/database';
 
 // Skip these tests unless explicitly enabled and a database URL is available.
 const runDbTests = process.env.RUN_DB_TESTS === 'true' || process.env.E2E_TESTS === 'true';

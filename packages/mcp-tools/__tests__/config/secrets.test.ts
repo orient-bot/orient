@@ -14,7 +14,7 @@ const context = { config: {}, correlationId: 'test' } as ToolContext;
 
 let listSecretsSpy: ReturnType<typeof vi.fn>;
 
-vi.mock('@orientbot/database-services', () => ({
+vi.mock('@orient-bot/database-services', () => ({
   createSecretsService: () => ({
     listSecrets: listSecretsSpy,
   }),

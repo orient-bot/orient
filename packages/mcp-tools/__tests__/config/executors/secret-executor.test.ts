@@ -8,7 +8,7 @@ import { registerSecretExecutor } from '../../../src/tools/config/executors/secr
 let setSecretSpy: ReturnType<typeof vi.fn>;
 let deleteSecretSpy: ReturnType<typeof vi.fn>;
 
-vi.mock('@orientbot/database-services', () => ({
+vi.mock('@orient-bot/database-services', () => ({
   createSecretsService: () => ({
     setSecret: setSecretSpy,
     deleteSecret: deleteSecretSpy,

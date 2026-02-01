@@ -6,8 +6,9 @@
  */
 
 import { Router, Request, Response } from 'express';
-import { createServiceLogger } from '@orientbot/core';
-import { getDatabase, featureFlags, eq } from '@orientbot/database';
+import { getParam } from './paramUtils.js';
+import { createServiceLogger } from '@orient-bot/core';
+import { getDatabase, featureFlags, eq } from '@orient-bot/database';
 
 const logger = createServiceLogger('feature-flags-routes');
 
@@ -95,7 +96,7 @@ export function createFeatureFlagsRoutes(
   router.put('/:flagId', requireAuth, async (req: Request, res: Response) => {
     try {
       const db = await getDb();
-      const { flagId } = req.params;
+      const flagId = getParam(req.params.flagId);
       const { enabled } = req.body;
 
       // Validate enabled is a boolean
@@ -161,7 +162,7 @@ export function createFeatureFlagsRoutes(
   router.put('/:flagId/override', requireAuth, async (req: Request, res: Response) => {
     try {
       const db = await getDb();
-      const { flagId } = req.params;
+      const flagId = getParam(req.params.flagId);
       const { enabled } = req.body;
 
       if (typeof enabled !== 'boolean') {
@@ -218,7 +219,7 @@ export function createFeatureFlagsRoutes(
   router.delete('/:flagId/override', requireAuth, async (req: Request, res: Response) => {
     try {
       const db = await getDb();
-      const { flagId } = req.params;
+      const flagId = getParam(req.params.flagId);
 
       // Check if flag exists
       const existingFlag = await db

@@ -11,7 +11,7 @@ import { z } from 'zod';
 import { createTool, MCPTool } from '../base.js';
 import type { ToolContext } from '../../types.js';
 import { getPendingActionsStore } from './pending-store.js';
-import type { ChatPermission, ChatPermissionRecord, ChatType } from '@orientbot/database-services';
+import type { ChatPermission, ChatPermissionRecord, ChatType } from '@orient-bot/database-services';
 
 // Register the executor when the module loads
 import { registerPermissionExecutor } from './executors/permission-executor.js';
@@ -198,7 +198,7 @@ export const configListPermissions: MCPTool = createTool({
  * Helper: Get permission for a specific chat
  */
 async function getPermissionForChat(chatId: string) {
-  const { createMessageDatabase } = await import('@orientbot/database-services');
+  const { createMessageDatabase } = await import('@orient-bot/database-services');
   const db = createMessageDatabase();
 
   const record = await db.getChatPermission(chatId);
@@ -227,7 +227,7 @@ async function getPermissionForChat(chatId: string) {
  * Helper: List all configured permissions
  */
 async function listAllPermissions(filter?: ChatPermission, limit?: number) {
-  const { createMessageDatabase } = await import('@orientbot/database-services');
+  const { createMessageDatabase } = await import('@orient-bot/database-services');
   const db = createMessageDatabase();
 
   let permissions: ChatPermissionRecord[] = await db.getAllChatPermissions();

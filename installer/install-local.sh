@@ -516,7 +516,7 @@ initialize_database() {
     mkdir -p "$(dirname "$SQLITE_DATABASE")"
 
     # Push schema (suppress verbose output)
-    pnpm --filter @orientbot/database run db:push:sqlite >/dev/null 2>&1 || true
+    pnpm --filter @orient-bot/database run db:push:sqlite >/dev/null 2>&1 || true
 
     log "Database initialized ✓"
 

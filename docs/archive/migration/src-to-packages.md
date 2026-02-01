@@ -7,9 +7,9 @@ with legacy modules migrated incrementally.
 
 | File                | Lines | Target Package                    |
 | ------------------- | ----- | --------------------------------- |
-| `src/mcp-server.ts` | 6817  | `@orientbot/mcp-tools` (refactor) |
+| `src/mcp-server.ts` | 6817  | `@orient-bot/mcp-tools` (refactor) |
 | `src/services/`     | ~5000 | Multiple packages                 |
-| `src/tools/`        | ~1500 | `@orientbot/mcp-tools`            |
+| `src/tools/`        | ~1500 | `@orient-bot/mcp-tools`            |
 
 ## Recommendation
 

@@ -83,8 +83,8 @@ DASHBOARD_PORT=4098
 
 #### npm Publishing Infrastructure
 
-- All packages renamed from `@orient/*` to `@orientbot/*` scope
-- Future npm-based installation: `npm install -g @orientbot/cli`
+- All packages renamed from `@orient-bot/*` to `@orient-bot/*` scope
+- Future npm-based installation: `npm install -g @orient-bot/cli`
 - Changesets for version management and changelog generation
 - Automated npm publishing via CI/CD workflow
 - 15 publishable packages with proper publishConfig
@@ -112,7 +112,7 @@ DASHBOARD_PORT=4098
 
 ### Changed
 
-- **Package scope renamed**: `@orient/*` → `@orientbot/*` (all 15 packages)
+- **Package scope renamed**: `@orient-bot/*` → `@orient-bot/*` (all 15 packages)
 - Database client: pg.Pool → better-sqlite3 + Drizzle ORM
 - All 32 database tables migrated to SQLite schema
 - Docker Compose simplified (no PostgreSQL container, no separate WhatsApp)

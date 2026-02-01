@@ -5,8 +5,9 @@
  */
 
 import { Router, Request, Response } from 'express';
-import { createServiceLogger, invalidateConfigCache, setSecretOverrides } from '@orientbot/core';
-import { createSecretsService } from '@orientbot/database-services';
+import { getParam } from './paramUtils.js';
+import { createServiceLogger, invalidateConfigCache, setSecretOverrides } from '@orient-bot/core';
+import { createSecretsService } from '@orient-bot/database-services';
 
 const logger = createServiceLogger('providers-routes');
 
@@ -93,7 +94,7 @@ export function createProvidersRoutes(
 
   router.put('/:provider/key', requireAuth, async (req: Request, res: Response) => {
     try {
-      const { provider } = req.params;
+      const provider = getParam(req.params.provider);
       const { value, changedBy } = req.body || {};
 
       if (!isProviderId(provider)) {

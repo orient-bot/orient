@@ -5,7 +5,8 @@
  */
 
 import { Router, Request, Response } from 'express';
-import { createServiceLogger } from '@orientbot/core';
+import { getParam } from './paramUtils.js';
+import { createServiceLogger } from '@orient-bot/core';
 import { getBillingService } from '../../services/billingService.js';
 import { AuthenticatedRequest } from '../../auth.js';
 
@@ -22,9 +23,13 @@ export function createBillingRoutes(
   // Get billing summary (all providers)
   router.get('/summary', requireAuth, async (req: Request, res: Response) => {
     try {
-      const startDate = req.query.start ? new Date(req.query.start as string) : undefined;
-      const endDate = req.query.end ? new Date(req.query.end as string) : undefined;
-      const noCache = req.query.noCache === 'true';
+      const startDate = getParam(req.query.start as string | string[] | undefined)
+        ? new Date(getParam(req.query.start as string | string[] | undefined) as string)
+        : undefined;
+      const endDate = getParam(req.query.end as string | string[] | undefined)
+        ? new Date(getParam(req.query.end as string | string[] | undefined) as string)
+        : undefined;
+      const noCache = getParam(req.query.noCache as string | string[] | undefined) === 'true';
 
       const billingService = getBillingService();
       const summary = await billingService.getSummary(startDate, endDate, !noCache);
@@ -58,8 +63,12 @@ export function createBillingRoutes(
   // Get Anthropic billing
   router.get('/anthropic', requireAuth, async (req: Request, res: Response) => {
     try {
-      const startDate = req.query.start ? new Date(req.query.start as string) : undefined;
-      const endDate = req.query.end ? new Date(req.query.end as string) : undefined;
+      const startDate = getParam(req.query.start as string | string[] | undefined)
+        ? new Date(getParam(req.query.start as string | string[] | undefined) as string)
+        : undefined;
+      const endDate = getParam(req.query.end as string | string[] | undefined)
+        ? new Date(getParam(req.query.end as string | string[] | undefined) as string)
+        : undefined;
 
       const billingService = getBillingService();
       const billing = await billingService.getAnthropicBilling(startDate, endDate);
@@ -75,8 +84,12 @@ export function createBillingRoutes(
   // Get OpenAI billing
   router.get('/openai', requireAuth, async (req: Request, res: Response) => {
     try {
-      const startDate = req.query.start ? new Date(req.query.start as string) : undefined;
-      const endDate = req.query.end ? new Date(req.query.end as string) : undefined;
+      const startDate = getParam(req.query.start as string | string[] | undefined)
+        ? new Date(getParam(req.query.start as string | string[] | undefined) as string)
+        : undefined;
+      const endDate = getParam(req.query.end as string | string[] | undefined)
+        ? new Date(getParam(req.query.end as string | string[] | undefined) as string)
+        : undefined;
 
       const billingService = getBillingService();
       const billing = await billingService.getOpenAIBilling(startDate, endDate);
@@ -92,8 +105,12 @@ export function createBillingRoutes(
   // Get Google billing
   router.get('/google', requireAuth, async (req: Request, res: Response) => {
     try {
-      const startDate = req.query.start ? new Date(req.query.start as string) : undefined;
-      const endDate = req.query.end ? new Date(req.query.end as string) : undefined;
+      const startDate = getParam(req.query.start as string | string[] | undefined)
+        ? new Date(getParam(req.query.start as string | string[] | undefined) as string)
+        : undefined;
+      const endDate = getParam(req.query.end as string | string[] | undefined)
+        ? new Date(getParam(req.query.end as string | string[] | undefined) as string)
+        : undefined;
 
       const billingService = getBillingService();
       const billing = await billingService.getGoogleBilling(startDate, endDate);
@@ -109,8 +126,12 @@ export function createBillingRoutes(
   // Get Cloudflare billing
   router.get('/cloudflare', requireAuth, async (req: Request, res: Response) => {
     try {
-      const startDate = req.query.start ? new Date(req.query.start as string) : undefined;
-      const endDate = req.query.end ? new Date(req.query.end as string) : undefined;
+      const startDate = getParam(req.query.start as string | string[] | undefined)
+        ? new Date(getParam(req.query.start as string | string[] | undefined) as string)
+        : undefined;
+      const endDate = getParam(req.query.end as string | string[] | undefined)
+        ? new Date(getParam(req.query.end as string | string[] | undefined) as string)
+        : undefined;
 
       const billingService = getBillingService();
       const billing = await billingService.getCloudflareBilling(startDate, endDate);
@@ -126,8 +147,12 @@ export function createBillingRoutes(
   // Get Oracle billing
   router.get('/oracle', requireAuth, async (req: Request, res: Response) => {
     try {
-      const startDate = req.query.start ? new Date(req.query.start as string) : undefined;
-      const endDate = req.query.end ? new Date(req.query.end as string) : undefined;
+      const startDate = getParam(req.query.start as string | string[] | undefined)
+        ? new Date(getParam(req.query.start as string | string[] | undefined) as string)
+        : undefined;
+      const endDate = getParam(req.query.end as string | string[] | undefined)
+        ? new Date(getParam(req.query.end as string | string[] | undefined) as string)
+        : undefined;
 
       const billingService = getBillingService();
       const billing = await billingService.getOracleBilling(startDate, endDate);

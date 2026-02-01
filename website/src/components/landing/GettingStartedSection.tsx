@@ -6,7 +6,7 @@ import TypingEffect from '../shared/TypingEffect';
 import styles from './GettingStartedSection.module.css';
 
 const terminalLines = [
-  'git clone https://github.com/orient-bot/orient.git',
+  'git clone https://github.com/orient/orient.git',
   'docker compose -f docker/docker-compose.demo.yml up -d',
 ];
 

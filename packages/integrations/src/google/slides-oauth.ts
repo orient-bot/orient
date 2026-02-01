@@ -4,11 +4,11 @@
  * Provides functionality to interact with Google Slides using OAuth 2.0
  * for personal accounts (as opposed to service accounts).
  *
- * Exported via @orientbot/integrations package.
+ * Exported via @orient-bot/integrations package.
  */
 
 import { google, slides_v1 } from 'googleapis';
-import { createServiceLogger } from '@orientbot/core';
+import { createServiceLogger } from '@orient-bot/core';
 import { getGoogleOAuthService } from './oauth.js';
 
 const logger = createServiceLogger('slides-oauth');

@@ -4,11 +4,11 @@
  * This service enables natural language conversations in Slack,
  * using Claude to understand requests and execute Slack-focused operations.
  *
- * Exported via @orientbot/agents package.
+ * Exported via @orient-bot/agents package.
  */
 
 import Anthropic from '@anthropic-ai/sdk';
-import { createServiceLogger } from '@orientbot/core';
+import { createServiceLogger } from '@orient-bot/core';
 import { executeToolLoop, ToolResult, ToolCallingConfig } from './toolCallingService.js';
 
 const agentLogger = createServiceLogger('agent');

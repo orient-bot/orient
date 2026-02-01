@@ -8,7 +8,7 @@
 
 import fs from 'fs';
 import path from 'path';
-import { createServiceLogger, getBuiltinSkillsPath, getUserSkillsPath } from '@orientbot/core';
+import { createServiceLogger, getBuiltinSkillsPath, getUserSkillsPath } from '@orient-bot/core';
 
 const logger = createServiceLogger('skills-service');
 

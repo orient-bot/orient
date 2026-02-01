@@ -1,5 +1,5 @@
 {
-  "name": "@orientbot/cli",
+  "name": "@orient-bot/cli",
   "version": "0.1.1",
   "type": "module",
   "bin": {
@@ -20,9 +20,9 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@orientbot/core": "workspace:*",
-    "@orientbot/database-services": "workspace:*",
-    "@orientbot/integrations": "workspace:*",
+    "@orient-bot/core": "workspace:*",
+    "@orient-bot/database-services": "workspace:*",
+    "@orient-bot/integrations": "workspace:*",
     "commander": "^12.0.0",
     "jira.js": "^4.0.2",
     "open": "^10.0.0"
@@ -38,6 +38,6 @@
   ],
   "publishConfig": {
     "access": "public",
-    "registry": "https://registry.npmjs.org/"
+    "registry": "https://npm.pkg.github.com/"
   }
 }

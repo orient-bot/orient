@@ -9,7 +9,7 @@
  *
  * Uses Socket Mode for real-time communication without needing a public URL.
  *
- * Exported via @orientbot/bot-slack package.
+ * Exported via @orient-bot/bot-slack package.
  */
 
 import pkg from '@slack/bolt';
@@ -28,12 +28,12 @@ import type {
 } from '@slack/bolt';
 const { App, LogLevel } = pkg;
 import { EventEmitter } from 'events';
-import { createDedicatedServiceLogger } from '@orientbot/core';
+import { createDedicatedServiceLogger } from '@orient-bot/core';
 import {
   SlackDatabase,
   SlackChannelType as DbSlackChannelType,
-} from '@orientbot/database-services';
-import { PromptService } from '@orientbot/agents';
+} from '@orient-bot/database-services';
+import { PromptService } from '@orient-bot/agents';
 import { OpenCodeSlackHandler, createOpenCodeSlackHandler } from './openCodeSlackHandler.js';
 import type {
   SlackBotConfig,
@@ -43,7 +43,7 @@ import type {
   SlackChannelPermission,
   OpenCodeSlackConfig,
 } from '../types.js';
-import { createProgressiveResponder } from '@orientbot/agents';
+import { createProgressiveResponder } from '@orient-bot/agents';
 
 // Create a dedicated logger for the Slack bot
 const logger = createDedicatedServiceLogger('slack-bot', {

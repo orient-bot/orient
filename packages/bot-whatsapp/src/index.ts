@@ -1,5 +1,5 @@
 /**
- * @orientbot/bot-whatsapp
+ * @orient-bot/bot-whatsapp
  *
  * WhatsApp bot service for the Orient.
  *

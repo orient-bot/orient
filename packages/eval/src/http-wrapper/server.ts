@@ -8,7 +8,7 @@
 import express, { Express, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import { createServer, Server } from 'http';
-import { createServiceLogger } from '@orientbot/core';
+import { createServiceLogger } from '@orient-bot/core';
 import { createEvalRoutes } from './routes.js';
 import { EvalServerConfig } from '../types.js';
 

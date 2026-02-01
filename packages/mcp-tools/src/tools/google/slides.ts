@@ -1,5 +1,5 @@
 import type { Tool } from '@modelcontextprotocol/sdk/types.js';
-import type { SlidesService, TextReplacement } from '@orientbot/integrations/google';
+import type { SlidesService, TextReplacement } from '@orient-bot/integrations/google';
 
 export interface SlidesToolDeps {
   getSlidesService: () => SlidesService;

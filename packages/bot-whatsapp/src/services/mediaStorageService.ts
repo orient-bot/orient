@@ -4,13 +4,13 @@
  * Handles saving and retrieving media files (images, audio, video, documents)
  * from WhatsApp messages. Files are stored on disk with metadata tracked in the database.
  *
- * Exported via @orientbot/bot-whatsapp package.
+ * Exported via @orient-bot/bot-whatsapp package.
  */
 
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
-import { createServiceLogger } from '@orientbot/core';
+import { createServiceLogger } from '@orient-bot/core';
 
 const logger = createServiceLogger('media-storage');
 

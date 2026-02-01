@@ -10,7 +10,7 @@
 import { describe, it, expect, vi } from 'vitest';
 
 // Mock core
-vi.mock('@orientbot/core', () => ({
+vi.mock('@orient-bot/core', () => ({
   createServiceLogger: () => ({
     info: vi.fn(),
     error: vi.fn(),

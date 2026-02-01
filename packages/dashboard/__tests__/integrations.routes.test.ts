@@ -4,7 +4,7 @@
  * Tests for the integration catalog and OAuth connection routes.
  *
  * NOTE: These tests are currently skipped due to complex mock requirements
- * with the route handler extraction pattern and @orientbot/database-services
+ * with the route handler extraction pattern and @orient-bot/database-services
  * module resolution issues. The functionality is covered by manual testing.
  */
 
@@ -50,7 +50,7 @@ const {
 }));
 
 // Mock core
-vi.mock('@orientbot/core', () => ({
+vi.mock('@orient-bot/core', () => ({
   createServiceLogger: () => ({
     info: vi.fn(),
     error: vi.fn(),
@@ -60,12 +60,12 @@ vi.mock('@orientbot/core', () => ({
 }));
 
 // Mock database-services
-vi.mock('@orientbot/database-services', () => ({
+vi.mock('@orient-bot/database-services', () => ({
   createSecretsService: () => mockSecretsService,
 }));
 
 // Mock manifest loader
-vi.mock('@orientbot/integrations/catalog/loader', () => ({
+vi.mock('@orient-bot/integrations/catalog/loader', () => ({
   loadIntegrationManifests: vi.fn().mockResolvedValue([
     {
       name: 'google',
@@ -99,24 +99,24 @@ vi.mock('@orientbot/integrations/catalog/loader', () => ({
 }));
 
 // Mock Google OAuth module
-vi.mock('@orientbot/integrations/google', () => ({
+vi.mock('@orient-bot/integrations/google', () => ({
   getGoogleOAuthService: () => mockGoogleOAuthService,
   DEFAULT_SCOPES: ['email', 'profile'],
   IS_GOOGLE_OAUTH_PRODUCTION: false,
 }));
 
 // Mock GitHub OAuth module
-vi.mock('@orientbot/integrations/catalog/github', () => ({
+vi.mock('@orient-bot/integrations/catalog/github', () => ({
   getGitHubOAuthService: () => mockGitHubOAuthService,
 }));
 
 // Mock Linear OAuth module
-vi.mock('@orientbot/integrations/catalog/linear', () => ({
+vi.mock('@orient-bot/integrations/catalog/linear', () => ({
   getLinearOAuthService: () => mockLinearOAuthService,
 }));
 
 // Mock Atlassian OAuth module
-vi.mock('@orientbot/mcp-servers/oauth', () => ({
+vi.mock('@orient-bot/mcp-servers/oauth', () => ({
   setSuppressBrowserOpen: vi.fn(),
   IS_PRODUCTION_OAUTH: false,
   OAUTH_CALLBACK_URL: 'http://localhost:8766/oauth/atlassian/callback',

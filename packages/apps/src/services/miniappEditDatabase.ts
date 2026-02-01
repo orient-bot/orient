@@ -4,10 +4,10 @@
  * SQLite database for storing AI-powered miniapp editing sessions and their commit history.
  * Tracks worktree-based edit sessions, OpenCode integration, and build status.
  *
- * Exported via @orientbot/apps package.
+ * Exported via @orient-bot/apps package.
  */
 
-import { createServiceLogger } from '@orientbot/core';
+import { createServiceLogger } from '@orient-bot/core';
 import {
   getDatabase,
   getRawSqliteDb,
@@ -17,8 +17,8 @@ import {
   count,
   and,
   sql,
-} from '@orientbot/database';
-import type { Database } from '@orientbot/database';
+} from '@orient-bot/database';
+import type { Database } from '@orient-bot/database';
 
 const logger = createServiceLogger('miniapp-edit-db');
 

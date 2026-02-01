@@ -1,5 +1,5 @@
-import { createServiceLogger, getRawConfig } from '@orientbot/core';
-import { getGoogleOAuthService } from '@orientbot/integrations/google';
+import { createServiceLogger, getRawConfig } from '@orient-bot/core';
+import { getGoogleOAuthService } from '@orient-bot/integrations/google';
 import { createOAuthProvider } from './oauthClientProvider.js';
 
 export type IntegrationName = 'atlassian' | 'google' | 'slack' | 'github' | 'linear';

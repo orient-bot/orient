@@ -8,7 +8,7 @@ import pkg from '@slack/bolt';
 import type { App as AppType, SlackEventMiddlewareArgs, AllMiddlewareArgs } from '@slack/bolt';
 const { App, LogLevel } = pkg;
 import { EventEmitter } from 'events';
-import { createServiceLogger } from '@orientbot/core';
+import { createServiceLogger } from '@orient-bot/core';
 import type { SlackBotConfig } from '../types.js';
 
 const logger = createServiceLogger('slack-connection');

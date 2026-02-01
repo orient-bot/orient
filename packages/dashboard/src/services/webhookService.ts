@@ -6,8 +6,8 @@
  */
 
 import crypto from 'crypto';
-import { createServiceLogger } from '@orientbot/core';
-import { WebhookDatabase } from '@orientbot/database-services';
+import { createServiceLogger } from '@orient-bot/core';
+import { WebhookDatabase } from '@orient-bot/database-services';
 import {
   Webhook,
   WebhookEvent,

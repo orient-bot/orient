@@ -5,7 +5,7 @@
  * Linear uses standard OAuth 2.0 flow with refresh tokens.
  */
 
-import { createServiceLogger } from '@orientbot/core';
+import { createServiceLogger } from '@orient-bot/core';
 
 const logger = createServiceLogger('linear-oauth');
 

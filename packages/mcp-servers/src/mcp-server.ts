@@ -34,7 +34,7 @@ import path from 'path';
 // Load environment variables from .env file
 dotenv.config();
 import { WebClient } from '@slack/web-api';
-import { getRawConfig } from '@orientbot/core';
+import { getRawConfig } from '@orient-bot/core';
 import {
   SlidesService,
   createSlidesService,
@@ -50,7 +50,7 @@ import {
   getTasksService,
   getSheetsOAuthService,
   getSlidesOAuthService,
-} from '@orientbot/integrations/google';
+} from '@orient-bot/integrations/google';
 // Import from @orienter packages
 import {
   MessageDatabase,
@@ -59,13 +59,13 @@ import {
   type MessageSearchOptions,
   type MessageStats,
   type StoredGroup,
-} from '@orientbot/database-services';
-import { SkillsService, clearConfigCache, createSkillsService } from '@orientbot/agents';
+} from '@orient-bot/database-services';
+import { SkillsService, clearConfigCache, createSkillsService } from '@orient-bot/agents';
 import {
   googleSlidesTools,
   isGoogleSlidesTool,
   handleGoogleSlidesToolCall,
-} from '@orientbot/mcp-tools';
+} from '@orient-bot/mcp-tools';
 // Services still in src/services/
 import {
   createServiceLogger,
@@ -74,15 +74,15 @@ import {
   clearCorrelationId,
   getUserAppsPath,
   getUserSkillsPath,
-} from '@orientbot/core';
-import { ToolDiscoveryService, formatDiscoveryResult, DiscoveryInput } from '@orientbot/agents';
-import { getToolRegistry, getToolExecutorRegistry } from '@orientbot/agents';
-import { GitHubService, createGitHubServiceFromEnv } from '@orientbot/integrations';
-import { GitWorktreeService, createGitWorktreeService } from '@orientbot/integrations';
-// Google integrations now provided via @orientbot/integrations
-import { AppsService, createAppsService } from '@orientbot/apps';
-import { AppGeneratorService } from '@orientbot/apps';
-import { AppGitService, createAppGitService } from '@orientbot/apps';
+} from '@orient-bot/core';
+import { ToolDiscoveryService, formatDiscoveryResult, DiscoveryInput } from '@orient-bot/agents';
+import { getToolRegistry, getToolExecutorRegistry } from '@orient-bot/agents';
+import { GitHubService, createGitHubServiceFromEnv } from '@orient-bot/integrations';
+import { GitWorktreeService, createGitWorktreeService } from '@orient-bot/integrations';
+// Google integrations now provided via @orient-bot/integrations
+import { AppsService, createAppsService } from '@orient-bot/apps';
+import { AppGeneratorService } from '@orient-bot/apps';
+import { AppGitService, createAppGitService } from '@orient-bot/apps';
 import { filterToolsByConnection } from './tool-filter.js';
 
 // Create loggers for different components
@@ -5643,7 +5643,7 @@ async function executeToolCall(
 
         if (transparent) {
           // Use OpenAI for transparent backgrounds
-          const { getEnvWithSecrets } = await import('@orientbot/core');
+          const { getEnvWithSecrets } = await import('@orient-bot/core');
           const apiKey = getEnvWithSecrets('OPENAI_API_KEY');
           if (!apiKey) {
             throw new Error(
@@ -5686,7 +5686,7 @@ CRITICAL: Generate PNG with TRANSPARENT background. Keep same cartoon style with
           imageBuffer = Buffer.from(imageData.b64_json, 'base64');
         } else {
           // Use Gemini for regular images
-          const { createGeminiService } = await import('@orientbot/integrations/gemini');
+          const { createGeminiService } = await import('@orient-bot/integrations/gemini');
           const geminiService = createGeminiService();
 
           const result = await geminiService.generateMascotVariation(baseImageBuffer, {
@@ -5761,10 +5761,10 @@ CRITICAL: Generate PNG with TRANSPARENT background. Keep same cartoon style with
     // ============================================
 
     case 'agents_get_context': {
-      const { getAgentContextTool } = await import('@orientbot/mcp-tools');
+      const { getAgentContextTool } = await import('@orient-bot/mcp-tools');
       const minContext = {
         correlationId: '',
-        config: getRawConfig() as unknown as import('@orientbot/core').AppConfig,
+        config: getRawConfig() as unknown as import('@orient-bot/core').AppConfig,
       };
       const result = await getAgentContextTool.run(args, minContext);
       return {
@@ -5781,10 +5781,10 @@ CRITICAL: Generate PNG with TRANSPARENT background. Keep same cartoon style with
     }
 
     case 'agents_list': {
-      const { listAgentsTool } = await import('@orientbot/mcp-tools');
+      const { listAgentsTool } = await import('@orient-bot/mcp-tools');
       const minContext = {
         correlationId: '',
-        config: getRawConfig() as unknown as import('@orientbot/core').AppConfig,
+        config: getRawConfig() as unknown as import('@orient-bot/core').AppConfig,
       };
       const result = await listAgentsTool.run(args, minContext);
       return {
@@ -5801,10 +5801,10 @@ CRITICAL: Generate PNG with TRANSPARENT background. Keep same cartoon style with
     }
 
     case 'agents_handoff': {
-      const { handoffToAgentTool } = await import('@orientbot/mcp-tools');
+      const { handoffToAgentTool } = await import('@orient-bot/mcp-tools');
       const minContext = {
         correlationId: '',
-        config: getRawConfig() as unknown as import('@orientbot/core').AppConfig,
+        config: getRawConfig() as unknown as import('@orient-bot/core').AppConfig,
       };
       const result = await handoffToAgentTool.run(args, minContext);
       return {
@@ -5822,10 +5822,10 @@ CRITICAL: Generate PNG with TRANSPARENT background. Keep same cartoon style with
 
     // Context persistence tools
     case 'context_read': {
-      const { readContextTool } = await import('@orientbot/mcp-tools');
+      const { readContextTool } = await import('@orient-bot/mcp-tools');
       const minContext = {
         correlationId: '',
-        config: getRawConfig() as unknown as import('@orientbot/core').AppConfig,
+        config: getRawConfig() as unknown as import('@orient-bot/core').AppConfig,
         // Note: platform and chatId should be passed via request metadata in production
         platform: (args as Record<string, unknown>).platform as
           | 'whatsapp'
@@ -5850,10 +5850,10 @@ CRITICAL: Generate PNG with TRANSPARENT background. Keep same cartoon style with
     }
 
     case 'context_update': {
-      const { updateContextTool } = await import('@orientbot/mcp-tools');
+      const { updateContextTool } = await import('@orient-bot/mcp-tools');
       const minContext = {
         correlationId: '',
-        config: getRawConfig() as unknown as import('@orientbot/core').AppConfig,
+        config: getRawConfig() as unknown as import('@orient-bot/core').AppConfig,
         // Note: platform and chatId should be passed via request metadata in production
         platform: (args as Record<string, unknown>).platform as
           | 'whatsapp'

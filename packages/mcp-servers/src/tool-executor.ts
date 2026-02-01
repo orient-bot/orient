@@ -10,8 +10,8 @@ import {
   ToolDiscoveryService,
   formatDiscoveryResult,
   type DiscoveryInput,
-} from '@orientbot/agents';
-import { createServiceLogger } from '@orientbot/core';
+} from '@orient-bot/agents';
+import { createServiceLogger } from '@orient-bot/core';
 
 const logger = createServiceLogger('tool-executor');
 const discoveryLogger = createServiceLogger('tool-discovery');

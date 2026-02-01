@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
-import { SchedulerService } from '@orientbot/dashboard';
+import { SchedulerService } from '@orient-bot/dashboard';
 
 vi.mock('node-cron', () => ({
   default: {

@@ -6,9 +6,10 @@
  */
 
 import { Router, Request, Response } from 'express';
-import { createServiceLogger } from '@orientbot/core';
-import { createSecretsService } from '@orientbot/database-services';
-import type { IntegrationManifest } from '@orientbot/integrations/types';
+import { getParam } from './paramUtils.js';
+import { createServiceLogger } from '@orient-bot/core';
+import { createSecretsService } from '@orient-bot/database-services';
+import type { IntegrationManifest } from '@orient-bot/integrations/types';
 
 const logger = createServiceLogger('integrations-routes');
 
@@ -21,7 +22,7 @@ async function getLoaderModule(): Promise<{
   loadIntegrationManifest: (name: string) => Promise<IntegrationManifest | null>;
 }> {
   if (!loaderModule) {
-    loaderModule = await import('@orientbot/integrations/catalog/loader');
+    loaderModule = await import('@orient-bot/integrations/catalog/loader');
   }
   return loaderModule;
 }
@@ -29,15 +30,15 @@ async function getLoaderModule(): Promise<{
 // Lazy-loaded OAuth modules - using 'any' type because these are dynamically imported
 // and TypeScript can't verify the module structure at compile time
 
-// Google OAuth service from @orientbot/integrations
+// Google OAuth service from @orient-bot/integrations
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let googleOAuthServiceModule: any = null;
 
-// Atlassian OAuth service from @orientbot/mcp-servers/oauth
+// Atlassian OAuth service from @orient-bot/mcp-servers/oauth
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let atlassianOAuthModule: any = null;
 
-// GitHub OAuth service from @orientbot/integrations/catalog/github
+// GitHub OAuth service from @orient-bot/integrations/catalog/github
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let gitHubOAuthModule: any = null;
 
@@ -67,7 +68,7 @@ async function getGoogleOAuthModule() {
 
   if (!googleOAuthServiceModule) {
     try {
-      googleOAuthServiceModule = await import('@orientbot/integrations');
+      googleOAuthServiceModule = await import('@orient-bot/integrations');
     } catch (error) {
       throw new Error(
         `Failed to load Google OAuth service: ${error instanceof Error ? error.message : String(error)}`
@@ -80,8 +81,8 @@ async function getGoogleOAuthModule() {
 async function getAtlassianOAuthModule() {
   if (!atlassianOAuthModule) {
     try {
-      // Use package import - Atlassian OAuth is re-exported from @orientbot/mcp-servers
-      atlassianOAuthModule = await import('@orientbot/mcp-servers/oauth');
+      // Use package import - Atlassian OAuth is re-exported from @orient-bot/mcp-servers
+      atlassianOAuthModule = await import('@orient-bot/mcp-servers/oauth');
       logger.info('Loaded Atlassian OAuth module');
     } catch (error) {
       throw new Error(
@@ -119,7 +120,7 @@ async function getGitHubOAuthModule() {
   if (!gitHubOAuthModule) {
     try {
       // Use package import - much cleaner than relative paths
-      gitHubOAuthModule = await import('@orientbot/integrations/catalog/github');
+      gitHubOAuthModule = await import('@orient-bot/integrations/catalog/github');
     } catch (error) {
       throw new Error(
         `Failed to load GitHub OAuth service: ${error instanceof Error ? error.message : String(error)}`
@@ -159,7 +160,7 @@ async function getLinearOAuthModule() {
 
   if (!linearOAuthModule) {
     try {
-      linearOAuthModule = await import('@orientbot/integrations/catalog/linear');
+      linearOAuthModule = await import('@orient-bot/integrations/catalog/linear');
     } catch (error) {
       throw new Error(
         `Failed to load Linear OAuth service: ${error instanceof Error ? error.message : String(error)}`
@@ -450,7 +451,7 @@ export function createIntegrationsRoutes(
   // Get a specific integration
   router.get('/catalog/:name', requireAuth, async (req: Request, res: Response) => {
     try {
-      const { name } = req.params;
+      const name = getParam(req.params.name);
       const catalogEntries = await buildCatalogEntries();
       const integration = catalogEntries.find((i) => i.manifest.name === name);
 
@@ -470,7 +471,7 @@ export function createIntegrationsRoutes(
   // Save credentials for an integration (inline credential entry)
   router.post('/connect/:name/credentials', requireAuth, async (req: Request, res: Response) => {
     try {
-      const { name } = req.params;
+      const name = getParam(req.params.name);
       const { credentials, authMethod } = req.body as {
         credentials: Record<string, string>;
         authMethod?: string;
@@ -516,7 +517,7 @@ export function createIntegrationsRoutes(
   // Initiate OAuth connection for an integration
   router.post('/connect/:name', requireAuth, async (req: Request, res: Response) => {
     try {
-      const { name } = req.params;
+      const name = getParam(req.params.name);
       const { authMethod } = req.body as { authMethod?: string };
       const catalogEntries = await buildCatalogEntries();
       const integration = catalogEntries.find((i) => i.manifest.name === name);
