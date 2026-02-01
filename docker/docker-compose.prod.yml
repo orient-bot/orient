@@ -47,12 +47,6 @@ services:
       - GOOGLE_OAUTH_CALLBACK_URL=${GOOGLE_OAUTH_CALLBACK_URL}
 
   # ===========================================================================
-  # Postgres - Production container name
-  # ===========================================================================
-  postgres:
-    container_name: orienter-postgres
-
-  # ===========================================================================
   # Nginx - Add staging SSL certificates for proxying staging traffic
   # ===========================================================================
   nginx:
