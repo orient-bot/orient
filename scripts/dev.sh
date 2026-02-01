@@ -10,7 +10,8 @@
 # - Direct TypeScript execution from source
 #
 # What runs where:
-#   Docker:  nginx:80 (proxies to Vite for hot-reload), postgres:5432, minio:9000
+#   Docker:  nginx:80 (proxies to Vite for hot-reload), minio:9000
+#   Database: SQLite (local file, no Docker container needed)
 #   Native:  vite:5173, opencode:4099, whatsapp:4097
 #
 # Access via nginx (localhost:80):
@@ -355,20 +356,6 @@ kill_process() {
     fi
 }
 
-wait_for_postgres() {
-    log_step "Waiting for PostgreSQL to be ready..."
-    local container_name="orienter-postgres-${AI_INSTANCE_ID:-0}"
-    for i in {1..30}; do
-        if docker exec "$container_name" pg_isready -U "${POSTGRES_USER:-aibot}" -d "$POSTGRES_DB" >/dev/null 2>&1; then
-            log_info "PostgreSQL is ready!"
-            return 0
-        fi
-        sleep 1
-    done
-    log_error "PostgreSQL failed to start within 30 seconds"
-    return 1
-}
-
 wait_for_opencode() {
     log_step "Waiting for OpenCode to be ready..."
     for i in {1..60}; do
@@ -525,7 +512,7 @@ fresh_start() {
 
     # Rebuild only core packages needed for dev (using turbo for proper dependency handling)
     log_info "Rebuilding core packages..."
-    pnpm turbo build --filter=@orient/core --filter=@orient/database --filter=@orient/database-services --filter=@orient/apps --filter=@orient/mcp-tools --filter=@orient/agents 2>&1 | tail -20 || {
+    pnpm turbo build --filter=@orient/core --filter=@orient-bot/database --filter=@orient-bot/database-services --filter=@orient/apps --filter=@orient/mcp-tools --filter=@orient/agents 2>&1 | tail -20 || {
         log_warn "Some packages failed to build. Dev mode may still work with tsx."
     }
 
@@ -613,29 +600,8 @@ start_dev() {
     fi
     rm -f /tmp/docker-compose-output.txt
     cd "$PROJECT_ROOT"
-    
-    # Step 2: Wait for PostgreSQL
-    wait_for_postgres
 
-    # Validate postgres credentials against existing database
-    local container_name="orienter-postgres-${AI_INSTANCE_ID:-0}"
-    if ! docker exec "$container_name" psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -tAc "SELECT 1" >/dev/null 2>&1; then
-        log_warn "Configured Postgres user '$POSTGRES_USER' failed for $POSTGRES_DB"
-
-        local fallback_user="aibot"
-        local fallback_password="${POSTGRES_PASSWORD_FALLBACK:-aibot123}"
-
-        if docker exec "$container_name" psql -U "$fallback_user" -d "$POSTGRES_DB" -tAc "SELECT 1" >/dev/null 2>&1; then
-            log_warn "Using fallback Postgres credentials for local services"
-            export POSTGRES_USER="$fallback_user"
-            export POSTGRES_PASSWORD="$fallback_password"
-            export DATABASE_URL="postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@localhost:${POSTGRES_PORT}/${POSTGRES_DB}"
-        else
-            log_warn "Fallback Postgres credentials failed; services may not connect"
-        fi
-    fi
-
-    # Step 2b: Initialize database schema (migrations + agent seed)
+    # Step 2: Initialize database schema (SQLite, migrations + agent seed)
     log_step "Initializing database schema..."
     if [ -f "$PROJECT_ROOT/scripts/init-db.sh" ]; then
         "$PROJECT_ROOT/scripts/init-db.sh" || {
@@ -657,7 +623,7 @@ start_dev() {
     # Step 3: Start frontend dev server with hot-reload
     log_step "Starting frontend dev server (Vite)..."
     cd "$PROJECT_ROOT"
-    pnpm --filter @orient/dashboard-frontend run dev > "$LOG_DIR/frontend-dev.log" 2>&1 &
+    pnpm --filter @orient-bot/dashboard-frontend run dev > "$LOG_DIR/frontend-dev.log" 2>&1 &
     echo $! > "$FRONTEND_PID_FILE"
     log_info "Frontend dev server started (PID: $(cat $FRONTEND_PID_FILE))"
 
@@ -668,7 +634,7 @@ start_dev() {
     # Ensure database package is built (required for module resolution with tsx)
     if [ ! -f "packages/database/dist/index.js" ]; then
         log_warn "Database package not built, building now..."
-        pnpm --filter @orient/database build || {
+        pnpm --filter @orient-bot/database build || {
             log_error "Failed to build database package"
             return 1
         }
@@ -677,7 +643,7 @@ start_dev() {
     # Ensure database-services package is built (it imports from database)
     if [ ! -f "packages/database-services/dist/index.js" ]; then
         log_warn "Database-services package not built, building now..."
-        pnpm --filter @orient/database-services build || {
+        pnpm --filter @orient-bot/database-services build || {
             log_error "Failed to build database-services package"
             return 1
         }
@@ -694,7 +660,7 @@ start_dev() {
 
     # Start dashboard using pnpm (handles workspace resolution better than direct tsx)
     # Run from project root to ensure proper workspace resolution
-    pnpm --filter @orient/dashboard dev > "$LOG_DIR/dashboard-dev.log" 2>&1 &
+    pnpm --filter @orient-bot/dashboard dev > "$LOG_DIR/dashboard-dev.log" 2>&1 &
     echo $! > "$DASHBOARD_PID_FILE"
     log_info "Dashboard API server started (PID: $(cat $DASHBOARD_PID_FILE))"
     
@@ -702,7 +668,7 @@ start_dev() {
     if ! wait_for_dashboard; then
         log_error "Dashboard failed to start. Check logs: $LOG_DIR/dashboard-dev.log"
         log_error "Common issues:"
-        log_error "  1. Database package not built - run: pnpm --filter @orient/database build"
+        log_error "  1. Database package not built - run: pnpm --filter @orient-bot/database build"
         log_error "  2. Module resolution issues - try: pnpm install"
         log_error "  3. Port already in use - check: lsof -i :${DASHBOARD_PORT}"
         return 1
@@ -745,7 +711,7 @@ start_dev() {
     export AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID:-minioadmin}"
     export AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY:-minioadmin123}"
     # Avoid starting the legacy dashboard inside the WhatsApp bot.
-    # The dashboard API is already started via @orient/dashboard.
+    # The dashboard API is already started via @orient-bot/dashboard.
     export DASHBOARD_ENABLED="false"
 
     # Step 5b: Load secrets from database into environment
@@ -877,7 +843,7 @@ stop_dev() {
     kill_by_pattern "tsx.*watch.*slack-bot" "Slack tsx"
     kill_by_pattern "tsx.*packages/dashboard/src/main.ts" "Dashboard API"
     kill_by_pattern "tsx.*src/main.ts" "Dashboard API (tsx)"
-    kill_by_pattern "pnpm.*@orient/dashboard.*dev" "Dashboard API (pnpm)"
+    kill_by_pattern "pnpm.*@orient-bot/dashboard.*dev" "Dashboard API (pnpm)"
     kill_by_pattern "node.*whatsapp-bot" "WhatsApp node"
     kill_by_pattern "node.*slack-bot" "Slack node"
     kill_by_pattern "vite.*dashboard-frontend" "Vite"

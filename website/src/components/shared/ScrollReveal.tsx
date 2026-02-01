@@ -6,7 +6,7 @@ interface ScrollRevealProps {
   className?: string;
   style?: React.CSSProperties;
   delay?: number;
-  as?: keyof JSX.IntrinsicElements;
+  as?: 'div' | 'section' | 'article' | 'span' | 'p' | 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6';
 }
 
 export default function ScrollReveal({
@@ -14,13 +14,14 @@ export default function ScrollReveal({
   className,
   style,
   delay = 0,
-  as: Tag = 'div',
+  as = 'div',
 }: ScrollRevealProps) {
-  const [ref, isVisible] = useScrollReveal<HTMLElement>();
+  const [ref, isVisible] = useScrollReveal<HTMLDivElement>();
+  const Tag = as;
 
   return (
     <Tag
-      ref={ref as React.RefObject<never>}
+      ref={ref as React.RefObject<HTMLDivElement>}
       className={className}
       style={{
         ...style,

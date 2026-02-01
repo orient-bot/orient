@@ -1,9 +1,50 @@
 ---
-name: fresh-install-cleanup
-description: Clean up and perform a fresh install of the Orient monorepo. Use when asked to "fresh install", "clean install", "rebuild from scratch", "fix build issues", "clean node_modules", or when encountering stale build artifacts, tsbuildinfo issues, or turbo cache problems.
+name: dev-environment-cleanup
+description: Clean up development environment issues in the Orient monorepo. Use when asked to "clean build", "rebuild from scratch", "fix build issues", "clean node_modules", or when encountering stale build artifacts, tsbuildinfo issues, or turbo cache problems. NOT for testing the installer - use fresh-install-testing for that.
 ---
 
-# Fresh Install Cleanup
+# Development Environment Cleanup
+
+## Package Names
+
+All workspace packages use the `@orient-bot/` namespace:
+
+- `@orient-bot/core` - Configuration, logging, utilities
+- `@orient-bot/database` - Database schemas and clients
+- `@orient-bot/database-services` - Database service layer
+- `@orient-bot/agents` - Agent framework and registry
+- `@orient-bot/mcp-tools` - MCP tool implementations
+- `@orient-bot/dashboard` - Dashboard server and API
+- `@orient-bot/dashboard-frontend` - React frontend
+- `@orient-bot/bot-whatsapp` - WhatsApp bot service
+- `@orient-bot/bot-slack` - Slack bot service
+- `@orient-bot/integrations` - Third-party integrations
+
+**Note**: Do not confuse with `@orient/` (old namespace) or `@orientbot/` (typo).
+
+## Database Modes
+
+Orient supports two database modes:
+
+### SQLite Mode (dev-local, installer)
+
+```bash
+./run.sh dev-local
+```
+
+- No Docker required
+- Database: `.dev-data/instance-N/orient.db`
+- Recommended for local development and the one-line installer
+
+### PostgreSQL Mode (dev, Docker)
+
+```bash
+./run.sh dev
+```
+
+- Requires Docker for PostgreSQL, MinIO, Nginx
+- Full production-like environment
+- Used for testing Docker deployments
 
 ## Quick Reference
 
@@ -25,7 +66,7 @@ pnpm run build:packages
 
 - `tsc` runs without error but produces no output
 - Turbo shows "cache hit" but dist/ folders are empty
-- Turbo warns: "no output files found for task @orientbot/mcp-tools#build"
+- Turbo warns: "no output files found for task @orient-bot/mcp-tools#build"
 - Build completes "successfully" but dependent packages fail with TS2307
 
 **Cause**: TypeScript's `.tsbuildinfo` files store incremental compilation state. When stale, tsc believes everything is up-to-date and skips compilation entirely - even when dist/ is empty.
@@ -107,7 +148,7 @@ rm -rf ../orient-fresh-*
 
 ### 6. Module Resolution Errors (TS2307)
 
-**Symptom**: Build fails with `error TS2307: Cannot find module '@orientbot/mcp-tools'` or similar.
+**Symptom**: Build fails with `error TS2307: Cannot find module '@orient-bot/mcp-tools'` or similar.
 
 **Cause**: Turbo's dependency graph wasn't respected because:
 

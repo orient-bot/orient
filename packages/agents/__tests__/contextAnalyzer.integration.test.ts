@@ -19,8 +19,8 @@ import {
 } from '../src/services/contextAnalyzer.js';
 import type { PersistentContext } from '../src/services/contextService.js';
 
-// Mock @orient/core logger
-vi.mock('@orient/core', () => ({
+// Mock @orient-bot/core logger
+vi.mock('@orient-bot/core', () => ({
   createServiceLogger: () => ({
     debug: vi.fn(),
     info: vi.fn(),

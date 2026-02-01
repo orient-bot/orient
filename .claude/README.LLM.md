@@ -2,7 +2,29 @@
 
 This guide is for AI/LLM agents setting up Orient for the first time.
 
-## Quick Start (Fresh Installation)
+## Quick Start (One-Line Install - macOS)
+
+```bash
+curl -fsSL https://orient.bot/install.sh | bash
+orient start
+```
+
+This installs Orient with SQLite (no PostgreSQL required) and starts the services.
+
+**Access points:**
+
+- Dashboard: http://localhost:4098
+- WhatsApp QR: http://localhost:4098/qr/
+
+**Commands:**
+
+- `orient start` - Start services
+- `orient stop` - Stop services
+- `orient status` - Check status
+- `orient logs` - View logs
+- `orient doctor` - Run diagnostics
+
+## Development Mode (For Contributors)
 
 ```bash
 # Step 1: Run diagnostics
@@ -12,10 +34,10 @@ This guide is for AI/LLM agents setting up Orient for the first time.
 # Only after you approve, run:
 ./run.sh doctor --fix
 
-# Step 3: Install/build/start
+# Step 3: Install/build/start with SQLite (no Docker required)
 pnpm install
 pnpm build:packages
-./run.sh dev
+./run.sh dev-local
 ```
 
 Or step by step:
@@ -69,20 +91,28 @@ This builds all packages in the `packages/` directory in dependency order:
 
 ### 4. Start Development Environment
 
+**SQLite Mode (Recommended for development):**
+
+```bash
+./run.sh dev-local
+```
+
+This starts with SQLite database (no Docker required):
+
+- Vite frontend dev server with hot-reload
+- Dashboard API server
+- OpenCode MCP server
+- WhatsApp bot (integrated)
+
+**Docker Mode (Full stack with PostgreSQL):**
+
 ```bash
 ./run.sh dev
 ```
 
+This starts Docker infrastructure (PostgreSQL, MinIO, Nginx) plus all services.
+
 **Note**: On first run, `.env` is automatically created from `.env.example` with working defaults.
-
-This starts:
-
-- Docker infrastructure (PostgreSQL, MinIO, Nginx)
-- Vite frontend dev server with hot-reload
-- Dashboard API server
-- OpenCode MCP server
-- WhatsApp bot (optional)
-- Slack bot (if configured)
 
 ## Environment Setup (Automatic)
 
@@ -106,6 +136,17 @@ Fresh clones auto-configure on first run:
 **For production**: Generate secure values for all passwords and secrets!
 
 ### 5. Access Points
+
+**dev-local mode (SQLite):**
+
+| Service     | URL                       | Description         |
+| ----------- | ------------------------- | ------------------- |
+| Dashboard   | http://localhost:4098     | Main UI + API       |
+| WhatsApp QR | http://localhost:4098/qr/ | Scan to connect     |
+| OpenCode    | http://localhost:4099     | MCP server for IDEs |
+| Vite Dev    | http://localhost:5173     | Frontend hot-reload |
+
+**dev mode (Docker):**
 
 | Service       | URL                     | Description               |
 | ------------- | ----------------------- | ------------------------- |
@@ -201,7 +242,13 @@ lsof -i :4097
 
 ### Database Connection Failed
 
-Check if PostgreSQL is running:
+For SQLite mode (dev-local), check if database file exists:
+
+```bash
+ls -la .dev-data/instance-0/orient.db
+```
+
+For Docker mode (dev), check if PostgreSQL is running:
 
 ```bash
 docker ps | grep orienter-postgres
