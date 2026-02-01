@@ -180,6 +180,7 @@ ssh_config
 # Database dumps and backups (but NOT migration files)
 *.sql
 !data/migrations/*.sql
+!packages/database/drizzle/**/*.sql
 *.dump
 *.backup
 *.bak
