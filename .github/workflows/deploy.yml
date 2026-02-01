@@ -449,6 +449,9 @@ jobs:
           echo "Configuration synced"
 
       - name: Sync and run database migrations
+        # v0.2.0+ uses SQLite with auto-migrations on startup, so this step is optional
+        # TODO: Remove PostgreSQL migration code when fully migrated to SQLite
+        continue-on-error: true
         env:
           OCI_HOST: ${{ secrets.OCI_HOST }}
           OCI_USER: ${{ secrets.OCI_USER }}
