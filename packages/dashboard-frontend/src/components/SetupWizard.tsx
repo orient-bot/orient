@@ -14,15 +14,12 @@ function generateSecret(length = 48): string {
     .join('');
 }
 
-const DEFAULT_REQUIRED_VALUES: Record<string, string> = {
-  POSTGRES_USER: 'orient',
-  POSTGRES_PASSWORD: 'your-secure-password',
-  MINIO_ROOT_USER: 'orientadmin',
-  MINIO_ROOT_PASSWORD: 'your-secure-password',
-};
+// SQLite mode: No external services required
+// JWT secret is auto-generated if not provided
+const DEFAULT_REQUIRED_VALUES: Record<string, string> = {};
 
+// Optional values for production deployments
 const DEFAULT_OPTIONAL_VALUES: Record<string, string> = {
-  S3_BUCKET: 'orient-data',
   ORIENT_APP_DOMAIN: 'app.example.com',
   ORIENT_CODE_DOMAIN: 'code.example.com',
 };
