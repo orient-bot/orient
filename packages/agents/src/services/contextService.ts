@@ -69,6 +69,10 @@ export interface PersistentContext {
     lastTopic?: string;
     workingDirectory?: string;
     openItems?: string[];
+    // Intelligent context control fields
+    recentKeywords?: string[]; // Keywords from last 3-5 messages
+    topicStartedAt?: string; // ISO timestamp when current topic started
+    messagesSinceClear?: number; // Count of messages since last clear/compact
     [key: string]: unknown;
   };
 

@@ -175,6 +175,18 @@ export {
   createProgressiveResponder,
 } from './services/progressiveResponder.js';
 
+// Export context analyzer
+export {
+  ContextAnalyzer,
+  getContextAnalyzer,
+  resetContextAnalyzer,
+  extractKeywords,
+  detectFrustration,
+  detectTopicShiftByKeywords,
+  type ContextSuggestion,
+  type AnalysisResult,
+} from './services/contextAnalyzer.js';
+
 /**
  * Migration Status
  *
