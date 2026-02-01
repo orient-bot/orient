@@ -11,7 +11,7 @@
  * - Frustration → suggest /compact (preserve summary)
  */
 
-import { createServiceLogger } from '@orient/core';
+import { createServiceLogger } from '@orient-bot/core';
 import type { PersistentContext } from './contextService.js';
 
 const logger = createServiceLogger('context-analyzer');
