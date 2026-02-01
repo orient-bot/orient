@@ -8,7 +8,7 @@ import { Command } from 'commander';
 import { execSync, spawnSync } from 'child_process';
 import { existsSync } from 'fs';
 import { join } from 'path';
-import { getOrientHome } from '@orientbot/core';
+import { getOrientHome } from '@orient-bot/core';
 
 const ORIENT_HOME = getOrientHome();
 const ECOSYSTEM_PATH = join(ORIENT_HOME, 'ecosystem.config.cjs');

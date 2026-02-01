@@ -9,7 +9,7 @@ import { spawnSync } from 'child_process';
 import { existsSync, rmSync, readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { homedir } from 'os';
-import { getOrientHome } from '@orientbot/core';
+import { getOrientHome } from '@orient-bot/core';
 import * as readline from 'readline';
 
 const ORIENT_HOME = getOrientHome();
