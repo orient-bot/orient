@@ -97,37 +97,82 @@ check_prerequisites() {
 }
 
 # ============================================
-# OPENCODE CHECK
+# OPENCODE INSTALLATION (Isolated to Orient)
 # ============================================
 
-check_opencode() {
+install_opencode() {
     local required_version=$(cat "$INSTALL_DIR/orient/installer/opencode-version.json" 2>/dev/null | grep '"required"' | cut -d'"' -f4)
-    required_version="${required_version:-1.1.27}"  # fallback
+    required_version="${required_version:-1.1.48}"  # fallback
 
-    if command -v opencode &>/dev/null; then
-        local current_version=$(opencode --version 2>/dev/null | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')
+    local opencode_bin="$INSTALL_DIR/bin/opencode"
 
+    # Check if Orient's OpenCode is already installed and correct version
+    if [[ -x "$opencode_bin" ]]; then
+        local current_version=$("$opencode_bin" --version 2>/dev/null | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')
         if [[ "$current_version" == "$required_version" ]]; then
-            log "OpenCode $current_version ✓"
+            log "OpenCode $current_version ✓ (installed at $INSTALL_DIR/bin)"
+            return 0
         else
-            warn "OpenCode version mismatch: have $current_version, need $required_version"
-            echo ""
-            read -p "$(echo -e "${YELLOW}[orient]${NC}") Update OpenCode to $required_version? [Y/n] " response
-            if [[ "$response" != "n" && "$response" != "N" ]]; then
-                curl -fsSL https://opencode.ai/install.sh | bash
-            else
-                error "Orient requires OpenCode $required_version. Cannot proceed."
-            fi
+            log "Updating OpenCode from $current_version to $required_version..."
         fi
     else
-        warn "OpenCode is not installed (required for AI features)"
-        echo ""
-        read -p "$(echo -e "${YELLOW}[orient]${NC}") Install OpenCode $required_version? (Required) [Y/n] " response
-        if [[ "$response" != "n" && "$response" != "N" ]]; then
-            curl -fsSL https://opencode.ai/install.sh | bash
-        else
-            error "Orient requires OpenCode. Cannot proceed."
-        fi
+        log "Installing OpenCode $required_version to $INSTALL_DIR/bin..."
+    fi
+
+    # Detect platform
+    local os=$(uname -s | tr '[:upper:]' '[:lower:]')
+    local arch=$(uname -m)
+
+    # Map architecture names to match GitHub release naming
+    case "$arch" in
+        x86_64) arch="x64" ;;
+        aarch64|arm64) arch="arm64" ;;
+        *) error "Unsupported architecture: $arch" ;;
+    esac
+
+    # Determine filename based on OS
+    # macOS uses .zip, Linux uses .tar.gz
+    local filename="opencode-${os}-${arch}"
+    local extension
+    if [[ "$os" == "darwin" ]]; then
+        extension=".zip"
+    else
+        extension=".tar.gz"
+    fi
+    filename="${filename}${extension}"
+
+    # Download from GitHub releases
+    local download_url="https://github.com/anomalyco/opencode/releases/download/v${required_version}/${filename}"
+    local tmp_dir=$(mktemp -d)
+
+    log "Downloading OpenCode $required_version..."
+    if ! curl -fsSL "$download_url" -o "$tmp_dir/$filename"; then
+        rm -rf "$tmp_dir"
+        error "Failed to download OpenCode from $download_url"
+    fi
+
+    # Extract based on file type
+    log "Extracting..."
+    if [[ "$extension" == ".zip" ]]; then
+        unzip -q "$tmp_dir/$filename" -d "$tmp_dir"
+    else
+        tar -xzf "$tmp_dir/$filename" -C "$tmp_dir"
+    fi
+
+    # Install to Orient's bin directory
+    mkdir -p "$INSTALL_DIR/bin"
+    mv "$tmp_dir/opencode" "$opencode_bin"
+    chmod 755 "$opencode_bin"
+
+    # Cleanup
+    rm -rf "$tmp_dir"
+
+    # Verify installation
+    local installed_version=$("$opencode_bin" --version 2>/dev/null | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')
+    if [[ "$installed_version" == "$required_version" ]]; then
+        log "OpenCode $installed_version installed successfully ✓"
+    else
+        warn "OpenCode installed but version mismatch: expected $required_version, got $installed_version"
     fi
 }
 
@@ -266,17 +311,13 @@ setup_pm2() {
     fi
     log "PM2 $(pm2 -v) ✓"
 
-    # Check for OpenCode CLI
-    local opencode_bin=""
-    if command -v opencode &>/dev/null; then
-        opencode_bin=$(which opencode)
-        log "OpenCode CLI found ✓"
-    elif [[ -x "$HOME/.opencode/bin/opencode" ]]; then
-        opencode_bin="$HOME/.opencode/bin/opencode"
-        log "OpenCode CLI found at ~/.opencode/bin ✓"
+    # Use Orient's isolated OpenCode installation
+    local opencode_bin="$INSTALL_DIR/bin/opencode"
+    if [[ -x "$opencode_bin" ]]; then
+        local oc_version=$("$opencode_bin" --version 2>/dev/null | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' || echo "unknown")
+        log "Using Orient's OpenCode v$oc_version ✓"
     else
-        warn "OpenCode CLI not found. AI agent features will be disabled."
-        warn "Install with: curl -fsSL https://opencode.ai/install.sh | bash"
+        error "OpenCode not found at $opencode_bin. Installation may have failed."
     fi
 
     # Create PM2 ecosystem configuration
@@ -601,7 +642,7 @@ main() {
 
     check_prerequisites
     install_orient
-    check_opencode
+    install_opencode
     configure_orient
     setup_pm2
     setup_cli

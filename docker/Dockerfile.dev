@@ -104,7 +104,9 @@ RUN curl -fsSL https://claude.ai/install.sh | bash \
 # OpenCode
 # ============================================
 # Install OpenCode to /usr/local/bin so it's available for all users
-RUN curl -fsSL https://opencode.ai/install | bash -s -- --no-modify-path \
+# Pin to specific version for reproducible builds
+ARG OPENCODE_VERSION=1.1.48
+RUN curl -fsSL https://opencode.ai/install | bash -s -- --version ${OPENCODE_VERSION} --no-modify-path \
     && mv /root/.opencode/bin/opencode /usr/local/bin/opencode \
     && rm -rf /root/.opencode
 

@@ -757,7 +757,14 @@ start_dev() {
     source "$SCRIPT_DIR/opencode-env.sh"
     configure_opencode_isolation
 
-    opencode serve --port "$OPENCODE_PORT" --hostname 127.0.0.1 > "$LOG_DIR/opencode-dev.log" 2>&1 &
+    # Use Orient's isolated OpenCode if available, otherwise fall back to global
+    local OPENCODE_BIN="${ORIENT_HOME:-$HOME/.orient}/bin/opencode"
+    if [[ ! -x "$OPENCODE_BIN" ]]; then
+        OPENCODE_BIN=$(which opencode 2>/dev/null || echo "opencode")
+    fi
+    log_info "Using OpenCode: $OPENCODE_BIN ($($OPENCODE_BIN --version 2>/dev/null || echo 'unknown'))"
+
+    "$OPENCODE_BIN" serve --port "$OPENCODE_PORT" --hostname 127.0.0.1 > "$LOG_DIR/opencode-dev.log" 2>&1 &
     echo $! > "$OPENCODE_PID_FILE"
     log_info "OpenCode started (PID: $(cat $OPENCODE_PID_FILE))"
 

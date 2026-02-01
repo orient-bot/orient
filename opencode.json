@@ -12,7 +12,7 @@
       "command": ["node", "packages/mcp-servers/dist/assistant-server.js"],
       "enabled": true
     },
-    "atlassian": {
+    "Atlassian-MCP-Server": {
       "type": "remote",
       "url": "https://mcp.atlassian.com/v1/sse",
       "enabled": true

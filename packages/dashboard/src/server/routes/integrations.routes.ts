@@ -860,7 +860,13 @@ export function createIntegrationsRoutes(
         throw new Error(`Token exchange failed: ${tokenResponse.status} - ${errorText}`);
       }
 
-      const tokens = await tokenResponse.json();
+      const tokens = (await tokenResponse.json()) as {
+        access_token: string;
+        refresh_token?: string;
+        expires_in?: number;
+        token_type?: string;
+        scope?: string;
+      };
       logger.info('Token exchange successful', { hasAccessToken: !!tokens.access_token });
 
       // Save the tokens using the provider
