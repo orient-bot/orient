@@ -31,6 +31,9 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
+# Load cross-platform utilities
+source "$SCRIPT_DIR/lib/platform.sh"
+
 # Load environment variables from .env file
 # Use a safer method that handles values with spaces and special characters
 if [ -f "$PROJECT_ROOT/.env" ]; then
@@ -237,7 +240,7 @@ build_miniapps() {
                 if ! grep -q '"baseUrl"' "$app_dir/tsconfig.json"; then
                     log_info "  $app_name: adding baseUrl to tsconfig.json"
                     # Add baseUrl after the first { in compilerOptions
-                    sed -i '' 's/"compilerOptions": {/"compilerOptions": {\n    "baseUrl": ".",/' "$app_dir/tsconfig.json" 2>/dev/null || true
+                    sed_inplace "$app_dir/tsconfig.json" 's/"compilerOptions": {/"compilerOptions": {\n    "baseUrl": ".",/' 2>/dev/null || true
                 fi
             fi
 
@@ -549,12 +552,12 @@ start_dev() {
 
             # Generate secure ORIENT_MASTER_KEY (64 hex characters = 256 bits)
             local master_key=$(openssl rand -hex 32)
-            sed -i '' "s/ORIENT_MASTER_KEY=GENERATE_ON_INSTALL/ORIENT_MASTER_KEY=${master_key}/" "$PROJECT_ROOT/.env"
+            sed_inplace "$PROJECT_ROOT/.env" "s/ORIENT_MASTER_KEY=GENERATE_ON_INSTALL/ORIENT_MASTER_KEY=${master_key}/"
             log_info "Generated secure ORIENT_MASTER_KEY for secrets encryption"
 
             # Generate secure DASHBOARD_JWT_SECRET (64 hex characters)
             local jwt_secret=$(openssl rand -hex 32)
-            sed -i '' "s/DASHBOARD_JWT_SECRET=dev-jwt-secret-for-local-development-only-change-in-production/DASHBOARD_JWT_SECRET=${jwt_secret}/" "$PROJECT_ROOT/.env"
+            sed_inplace "$PROJECT_ROOT/.env" "s/DASHBOARD_JWT_SECRET=dev-jwt-secret-for-local-development-only-change-in-production/DASHBOARD_JWT_SECRET=${jwt_secret}/"
             log_info "Generated secure DASHBOARD_JWT_SECRET"
 
             log_warn "Created .env with development defaults. Review and customize as needed."

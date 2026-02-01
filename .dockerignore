@@ -1,0 +1,43 @@
+# Docker build context ignore file
+# Speeds up Docker builds by excluding unnecessary files
+
+# Dependencies (will be installed fresh in container)
+node_modules
+.pnpm-store
+
+# Build artifacts
+dist
+*.tsbuildinfo
+.turbo
+
+# Git
+.git
+.gitignore
+
+# Development files
+.env
+.env.*
+!.env.example
+logs
+coverage
+.vscode
+.idea
+*.log
+
+# Data directories
+.dev-data
+.dev-pids
+
+# Documentation (keep AGENTS.md for production builds)
+docs
+README.md
+CHANGELOG.md
+CONTRIBUTING.md
+
+# Keep docker directory for builds
+!docker
+
+# Large files
+*.tar
+*.tar.gz
+*.zip
