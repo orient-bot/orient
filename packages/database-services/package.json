@@ -1,12 +1,13 @@
 {
-  "name": "@orient/database-services",
-  "version": "1.0.0",
+  "name": "@orient-bot/database-services",
+  "version": "1.0.1",
   "description": "Database service implementations for Orient (messages, Slack, scheduler, webhooks)",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
+      "source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "require": "./dist/index.js",
@@ -20,8 +21,8 @@
     "lint": "eslint src --ext .ts"
   },
   "dependencies": {
-    "@orient/core": "workspace:*",
-    "@orient/database": "workspace:*",
+    "@orient-bot/core": "workspace:*",
+    "@orient-bot/database": "workspace:*",
     "better-sqlite3": "^12.5.0",
     "pg": "^8.13.1"
   },
@@ -31,5 +32,13 @@
     "@types/pg": "^8.11.11",
     "typescript": "^5.9.3",
     "vitest": "^4.0.16"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://npm.pkg.github.com/"
   }
 }

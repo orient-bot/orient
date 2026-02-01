@@ -8,7 +8,7 @@ input:
 
 mocks:
   google:
-    ai_first_create_app:
+    apps_create:
       response:
         success: true
         app:
@@ -19,7 +19,7 @@ mocks:
 expect:
   tool_calls:
     required:
-      - name: ai_first_create_app
+      - name: apps_create
 
   assertions:
     - type: response_matches

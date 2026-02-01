@@ -1,16 +1,18 @@
 {
-  "name": "@orient/eval",
+  "name": "@orient-bot/eval",
   "version": "1.0.0",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "exports": {
     ".": {
+      "source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "default": "./dist/index.js"
     },
     "./mocks": {
+      "source": "./src/mocks/index.ts",
       "types": "./dist/mocks/index.d.ts",
       "import": "./dist/mocks/index.js",
       "default": "./dist/mocks/index.js"
@@ -18,13 +20,16 @@
   },
   "scripts": {
     "build": "tsc",
-    "test": "vitest run"
+    "test": "vitest run",
+    "report": "tsx src/report.ts",
+    "report:run": "tsx src/report.ts --run",
+    "report:matrix": "tsx src/report.ts --run --matrix accuracy_matrix"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",
-    "@orient/agents": "workspace:*",
-    "@orient/core": "workspace:*",
-    "@orient/mcp-tools": "workspace:*",
+    "@orient-bot/agents": "workspace:*",
+    "@orient-bot/core": "workspace:*",
+    "@orient-bot/mcp-tools": "workspace:*",
     "commander": "^11.1.0",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
@@ -39,6 +44,15 @@
     "@types/js-yaml": "^4.0.9",
     "@types/uuid": "^9.0.8",
     "typescript": "^5.4.0",
+    "vite-tsconfig-paths": "^6.0.5",
     "vitest": "^1.6.0"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://npm.pkg.github.com/"
   }
 }

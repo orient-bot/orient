@@ -1,5 +1,5 @@
 {
-  "name": "@orient/test-utils",
+  "name": "@orient-bot/test-utils",
   "version": "1.0.0",
   "description": "Shared test utilities, mocks, and factories for Orient",
   "type": "module",
@@ -7,21 +7,25 @@
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
+      "source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "default": "./dist/index.js"
     },
     "./mocks": {
+      "source": "./src/mocks/index.ts",
       "types": "./dist/mocks/index.d.ts",
       "import": "./dist/mocks/index.js",
       "default": "./dist/mocks/index.js"
     },
     "./factories": {
+      "source": "./src/factories/index.ts",
       "types": "./dist/factories/index.d.ts",
       "import": "./dist/factories/index.js",
       "default": "./dist/factories/index.js"
     },
     "./helpers": {
+      "source": "./src/helpers/index.ts",
       "types": "./dist/helpers/index.d.ts",
       "import": "./dist/helpers/index.js",
       "default": "./dist/helpers/index.js"
@@ -37,8 +41,8 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@orient/core": "workspace:*",
-    "@orient/database": "workspace:*",
+    "@orient-bot/core": "workspace:*",
+    "@orient-bot/database": "workspace:*",
     "vitest": "^4.0.15"
   },
   "devDependencies": {
@@ -54,5 +58,9 @@
   "files": [
     "dist",
     "README.md"
-  ]
+  ],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://npm.pkg.github.com/"
+  }
 }

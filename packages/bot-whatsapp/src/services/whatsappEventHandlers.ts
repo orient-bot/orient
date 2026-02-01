@@ -4,7 +4,7 @@
  * This module contains the event handling logic for the WhatsApp bot.
  * Extracted from whatsapp-bot.ts for better maintainability.
  *
- * Exported via @orient/bot-whatsapp package.
+ * Exported via @orient-bot/bot-whatsapp package.
  */
 
 import { proto } from 'baileys';
@@ -14,14 +14,14 @@ import {
   MessageDatabase,
   ChatPermissionService,
   type StoreMessageOptions,
-} from '@orient/database-services';
+} from '@orient-bot/database-services';
 import { TranscriptionService } from './transcriptionService.js';
 import { MediaStorageService } from './mediaStorageService.js';
 import { WhatsAppApiServer } from './whatsappApiServer.js';
 import type { WhatsAppMessage, PollVote, WhatsAppPoll } from '../types.js';
-import { createDedicatedServiceLogger } from '@orient/core';
+import { createDedicatedServiceLogger } from '@orient-bot/core';
 import { getPollActionRegistry } from './pollActionRegistry.js';
-import { createProgressiveResponder, formatModelName, formatToolsUsed } from '@orient/agents';
+import { createProgressiveResponder, formatModelName, formatToolsUsed } from '@orient-bot/agents';
 
 // Use dedicated WhatsApp logger
 const logger = createDedicatedServiceLogger('whatsapp', {
@@ -467,14 +467,14 @@ async function handleMessage(
       });
       // Try to get from database if fetching failed
       const storedGroup = await messageDb.getGroup(message.groupId);
-      if (storedGroup?.group_name || storedGroup?.group_subject) {
-        groupName = storedGroup.group_name ?? storedGroup.group_subject ?? undefined;
+      if (storedGroup?.groupName || storedGroup?.groupSubject) {
+        groupName = storedGroup.groupName ?? storedGroup.groupSubject ?? undefined;
       }
     }
   }
 
   // Prepare storage options for media
-  const storeOptions: StoreMessageOptions = {};
+  const storeOptions: Partial<StoreMessageOptions> = {};
 
   // Save image to disk if present
   if (message.mediaBuffer && message.mediaType) {
@@ -746,7 +746,7 @@ async function handleMessageStored(
   }
 
   // Prepare storage options for media (if any)
-  const storeOptions: StoreMessageOptions = {};
+  const storeOptions: Partial<StoreMessageOptions> = {};
 
   if (message.mediaBuffer && message.mediaType) {
     const savedMedia = mediaStorage.saveMedia(

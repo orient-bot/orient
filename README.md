@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="ori.png" alt="Ori - the Orient mascot" width="180" />
+  <img src="docs/images/ori.png" alt="Ori - the Orient mascot" width="180" />
 </p>
 
 <h1 align="center">Orient</h1>
@@ -10,9 +10,9 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/orient-bot/orient/releases"><img src="https://img.shields.io/github/v/release/orient-bot/orient" alt="Release"></a>
-  <a href="https://github.com/orient-bot/orient/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License"></a>
-  <a href="https://github.com/orient-bot/orient"><img src="https://img.shields.io/github/stars/orient-bot/orient?style=social" alt="GitHub Stars"></a>
+  <a href="https://github.com/orient/orient/releases"><img src="https://img.shields.io/github/v/release/orient/orient" alt="Release"></a>
+  <a href="https://github.com/orient/orient/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License"></a>
+  <a href="https://github.com/orient/orient"><img src="https://img.shields.io/github/stars/orient/orient?style=social" alt="GitHub Stars"></a>
   <a href="https://orient.bot"><img src="https://img.shields.io/badge/website-orient.bot-blue" alt="Website"></a>
 </p>
 
@@ -68,7 +68,7 @@ Found a bug? Built something cool? PRs are welcome! See [CONTRIBUTING.md](CONTRI
 
 ```bash
 # Clone the repository
-git clone https://github.com/orient-bot/orient.git
+git clone https://github.com/orient/orient.git
 cd orient
 
 # Start the demo
@@ -118,7 +118,7 @@ See [Production Deployment](docs/deployment/production.md) for details.
 | ------------------------------------------------------ | ------------------------------------- |
 | [Getting Started (Demo)](docs/getting-started-demo.md) | Quick demo with Docker                |
 | [Getting Started (Dev)](docs/getting-started.md)       | Full development setup                |
-| [LLM Onboarding](README.LLM.md)                        | Guide for AI agents setting up Orient |
+| [LLM Onboarding](.claude/README.LLM.md)                | Guide for AI agents setting up Orient |
 | [Configuration](docs/configuration.md)                 | All configuration options             |
 | [Skills](docs/skills.md)                               | Create custom skills                  |
 | [Permissions](docs/permissions.md)                     | Chat permission system                |
@@ -239,5 +239,5 @@ MIT — see [LICENSE](LICENSE) for details.
 <p align="center">
   <strong>Built with ❤️ by the Orient community</strong><br/>
   <a href="https://orient.bot">orient.bot</a> •
-  <a href="https://github.com/orient-bot/orient">GitHub</a>
+  <a href="https://github.com/orient/orient">GitHub</a>
 </p>

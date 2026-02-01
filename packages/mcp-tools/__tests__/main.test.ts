@@ -1,13 +1,13 @@
 /**
  * Tests for MCP Tools Entry Point
- * 
+ *
  * Verifies the main.ts module structure and tool registry.
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // Mock dependencies before imports
-vi.mock('@orient/core', () => ({
+vi.mock('@orient-bot/core', () => ({
   createServiceLogger: () => ({
     info: vi.fn(),
     error: vi.fn(),
@@ -20,25 +20,12 @@ vi.mock('@orient/core', () => ({
   }),
   loadConfig: vi.fn().mockResolvedValue(undefined),
   getConfig: vi.fn().mockReturnValue({
-    integrations: {
-      jira: { host: 'test.atlassian.net', email: 'test@test.com', apiToken: 'token' },
-    },
     organization: {
       name: 'Test Org',
       jiraProjectKey: 'TEST',
     },
   }),
 }));
-
-vi.mock('jira.js', () => {
-  return {
-    Version3Client: class MockVersion3Client {
-      issues = {
-        searchForIssuesUsingJql: vi.fn().mockResolvedValue({ issues: [] }),
-      };
-    },
-  };
-});
 
 import { resetToolRegistry } from '../src/registry/index.js';
 
@@ -82,9 +69,9 @@ describe('MCP Tools Entry Point', () => {
   describe('ToolRegistry', () => {
     it('should register and retrieve tools', async () => {
       const { getToolRegistry } = await import('../src/registry/index.js');
-      
+
       const registry = getToolRegistry();
-      
+
       registry.registerTool({
         tool: {
           name: 'test_tool',
@@ -95,7 +82,7 @@ describe('MCP Tools Entry Point', () => {
         keywords: ['test'],
         useCases: ['testing'],
       });
-      
+
       const tool = registry.getTool('test_tool');
       expect(tool).toBeDefined();
       expect(tool?.tool.name).toBe('test_tool');
@@ -103,30 +90,29 @@ describe('MCP Tools Entry Point', () => {
 
     it('should search tools by keyword', async () => {
       const { getToolRegistry } = await import('../src/registry/index.js');
-      
+
       const registry = getToolRegistry();
-      
+
       registry.registerTool({
         tool: {
-          name: 'jira_get_issues',
-          description: 'Get JIRA issues',
+          name: 'system_get_issues',
+          description: 'Get system issues',
           inputSchema: { type: 'object', properties: {} },
         },
-        category: 'jira',
-        keywords: ['jira', 'issues', 'tickets'],
+        category: 'system',
+        keywords: ['issues', 'tickets'],
         useCases: ['list issues', 'get tickets'],
       });
-      
-      const results = registry.searchTools('jira issues');
+      const results = registry.searchTools('issues');
       expect(results.length).toBeGreaterThan(0);
-      expect(results[0].tool.tool.name).toBe('jira_get_issues');
+      expect(results[0].tool.tool.name).toBe('system_get_issues');
     });
 
     it('should get tools by category', async () => {
       const { getToolRegistry } = await import('../src/registry/index.js');
-      
+
       const registry = getToolRegistry();
-      
+
       registry.registerTool({
         tool: {
           name: 'slack_send_dm',
@@ -137,7 +123,7 @@ describe('MCP Tools Entry Point', () => {
         keywords: ['slack', 'dm', 'message'],
         useCases: ['send direct message'],
       });
-      
+
       const messagingTools = registry.getToolsByCategory('messaging');
       expect(messagingTools.length).toBe(1);
       expect(messagingTools[0].tool.name).toBe('slack_send_dm');
@@ -145,40 +131,38 @@ describe('MCP Tools Entry Point', () => {
 
     it('should return all categories', async () => {
       const { getToolRegistry } = await import('../src/registry/index.js');
-      
+
       const registry = getToolRegistry();
       const categories = registry.getAllCategories();
-      
+
       expect(categories.length).toBeGreaterThan(0);
-      expect(categories.map(c => c.name)).toContain('jira');
-      expect(categories.map(c => c.name)).toContain('messaging');
-      expect(categories.map(c => c.name)).toContain('system');
+      expect(categories.map((c) => c.name)).toContain('messaging');
+      expect(categories.map((c) => c.name)).toContain('system');
     });
   });
 
   describe('ToolContext', () => {
     it('should create context with config', async () => {
       const { createToolContext } = await import('../src/tools/context.js');
-      const { getConfig } = await import('@orient/core');
-      
+      const { getConfig } = await import('@orient-bot/core');
+
       const config = getConfig();
       const context = createToolContext(config);
-      
+
       expect(context).toBeDefined();
       expect(context.config).toBe(config);
       expect(context.correlationId).toBeDefined();
-      expect(context.jiraClient).toBeDefined();
     });
 
     it('should accept custom correlation ID', async () => {
       const { createToolContext } = await import('../src/tools/context.js');
-      const { getConfig } = await import('@orient/core');
-      
+      const { getConfig } = await import('@orient-bot/core');
+
       const config = getConfig();
       const context = createToolContext(config, {
         correlationId: 'custom-123',
       });
-      
+
       expect(context.correlationId).toBe('custom-123');
     });
   });
@@ -187,12 +171,12 @@ describe('MCP Tools Entry Point', () => {
     it('should register handler and execute', async () => {
       const { getToolRegistry } = await import('../src/registry/index.js');
       const { createToolContext } = await import('../src/tools/context.js');
-      const { getConfig } = await import('@orient/core');
-      
+      const { getConfig } = await import('@orient-bot/core');
+
       const registry = getToolRegistry();
-      
+
       const mockHandler = vi.fn().mockResolvedValue({ success: true, data: 'result' });
-      
+
       registry.registerTool(
         {
           tool: {
@@ -206,14 +190,14 @@ describe('MCP Tools Entry Point', () => {
         },
         mockHandler
       );
-      
+
       const handler = registry.getHandler('executable_tool');
       expect(handler).toBeDefined();
-      
+
       const config = getConfig();
       const context = createToolContext(config);
       const result = await handler!({}, context);
-      
+
       expect(mockHandler).toHaveBeenCalledWith({}, context);
       expect(result).toEqual({ success: true, data: 'result' });
     });

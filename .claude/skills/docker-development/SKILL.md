@@ -26,8 +26,8 @@ description: Local Docker development workflow for the Orient. Use when asked to
 
 | Mode             | Container Names | Ports            |
 | ---------------- | --------------- | ---------------- |
-| Dev (instance 0) | `orienter-*-0`  | 80, 5432, 9000   |
-| Test             | `orienter-*`    | 80, 5432, 9000   |
+| Dev (instance 0) | `orienter-*-0`  | 80, 9000, 9001   |
+| Test             | `orienter-*`    | 80, 9000, 9001   |
 | Instance N       | `orienter-*-N`  | 80+N\*1000, etc. |
 
 ## Compose File Layering
@@ -43,6 +43,22 @@ docker-compose.staging.yml      # Staging config
 
 # Usage
 docker compose -f docker-compose.v2.yml -f docker-compose.local.yml up
+```
+
+## Database: SQLite (File-Based)
+
+The Orient uses SQLite for all database operations. No separate database container is needed.
+
+**Database location:**
+
+- Dev mode: `.dev-data/instance-N/orient.db`
+- Docker: `/app/data/orient.db` (volume-mounted)
+
+**Environment variables:**
+
+```bash
+DATABASE_TYPE=sqlite
+SQLITE_DATABASE=/app/data/orient.db
 ```
 
 ## Container Lifecycle
@@ -64,8 +80,8 @@ docker compose --env-file ../.env -f docker-compose.v2.yml -f docker-compose.loc
 ./run.sh test stop
 
 # Stop specific containers (dev instance 0)
-docker stop orienter-nginx-0 orienter-postgres-0 orienter-minio-0
-docker rm orienter-nginx-0 orienter-postgres-0 orienter-minio-0
+docker stop orienter-nginx-0 orienter-minio-0
+docker rm orienter-nginx-0 orienter-minio-0
 ```
 
 ### Viewing Logs
@@ -96,8 +112,8 @@ docker inspect --format='{{.State.Health.Status}}' orienter-opencode
 lsof -i :9000
 
 # Stop dev containers before starting test
-docker stop orienter-nginx-0 orienter-postgres-0 orienter-minio-0
-docker rm orienter-nginx-0 orienter-postgres-0 orienter-minio-0
+docker stop orienter-nginx-0 orienter-minio-0
+docker rm orienter-nginx-0 orienter-minio-0
 ```
 
 ### 2. Build Hangs on Metadata Loading (macOS)
@@ -168,6 +184,24 @@ docker compose ... build opencode
 echo $GITHUB_TOKEN | docker login ghcr.io -u USERNAME --password-stdin
 ```
 
+### 6. SQLite Database Issues
+
+**Symptom**: Database not persisting or permission errors
+
+**Fix**:
+
+```bash
+# Check volume mount
+docker inspect orienter-dashboard | grep -A 5 Mounts
+
+# Ensure data directory exists with correct permissions
+mkdir -p .dev-data/instance-0
+chmod 755 .dev-data/instance-0
+
+# Verify database schema
+sqlite3 .dev-data/instance-0/orient.db ".tables"
+```
+
 ## Switching Between Stacks
 
 **Always stop one stack before starting another:**
@@ -202,7 +236,22 @@ docker compose ... build dashboard --progress=plain
 
 Compose files use `--env-file ../.env` to load environment. Required vars:
 
-- `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`
 - `MINIO_ROOT_USER`, `MINIO_ROOT_PASSWORD`
 - `ANTHROPIC_API_KEY`
+- `DASHBOARD_JWT_SECRET`
+- `ORIENT_MASTER_KEY`
 - `SLACK_BOT_TOKEN`, `SLACK_SIGNING_SECRET` (for Slack profile)
+
+## Services Architecture
+
+The Docker stack includes:
+
+| Service   | Purpose                         | Port(s)    |
+| --------- | ------------------------------- | ---------- |
+| dashboard | Dashboard API + WhatsApp routes | 4098       |
+| opencode  | OpenCode API                    | 4099       |
+| bot-slack | Slack bot (profile-activated)   | -          |
+| minio     | Object storage                  | 9000, 9001 |
+| nginx     | Reverse proxy                   | 80         |
+
+**Note:** WhatsApp functionality is integrated into the Dashboard service (single port 4098).

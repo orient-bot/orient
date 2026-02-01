@@ -218,7 +218,7 @@ export function UpdatesPage() {
         <p className="text-xs text-muted-foreground mt-4">
           For detailed instructions and release notes, visit the{' '}
           <a
-            href="https://github.com/orient-bot/orient/releases"
+            href="https://github.com/orient/orient/releases"
             target="_blank"
             rel="noopener noreferrer"
             className="text-primary hover:underline"

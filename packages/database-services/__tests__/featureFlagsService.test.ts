@@ -2,327 +2,303 @@
  * Feature Flags Service Tests
  *
  * Tests cascade logic, user overrides, and hierarchy handling.
+ * Uses an in-memory SQLite database for testing.
  */
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { existsSync, unlinkSync, mkdirSync } from 'fs';
+import { join } from 'path';
+import { tmpdir } from 'os';
 
-// Create mock pool instance that will be shared
-const mockPoolInstance = {
-  query: vi.fn(),
-  end: vi.fn(),
-};
-
-// Mock pg module with a proper class that supports `new`
-vi.mock('pg', () => {
-  class MockPool {
-    query = mockPoolInstance.query;
-    end = mockPoolInstance.end;
-  }
-  return {
-    default: {
-      Pool: MockPool,
-    },
-    Pool: MockPool,
-  };
-});
-
-import {
-  FeatureFlagsService,
-  createFeatureFlagsService,
-  type FeatureFlag,
-  type FeatureFlagWithOverride,
-} from '../src/featureFlagsService.js';
+// Test database path
+const TEST_DB_DIR = join(tmpdir(), 'orient-test-feature-flags');
+const TEST_DB_PATH = join(
+  TEST_DB_DIR,
+  `test-${Date.now()}-${Math.random().toString(36).slice(2)}.db`
+);
 
 describe('FeatureFlagsService', () => {
-  let service: FeatureFlagsService;
+  beforeEach(async () => {
+    vi.resetModules();
 
-  beforeEach(() => {
-    vi.clearAllMocks();
-    mockPoolInstance.query.mockReset();
-    mockPoolInstance.end.mockReset();
-    service = createFeatureFlagsService('postgresql://test:test@localhost/test');
+    // Ensure clean test directory
+    if (!existsSync(TEST_DB_DIR)) {
+      mkdirSync(TEST_DB_DIR, { recursive: true });
+    }
+
+    // Set environment for SQLite
+    process.env.SQLITE_DATABASE = TEST_DB_PATH;
+
+    // Set up test database - auto-migration creates all tables with proper FK constraints
+    const { executeRawSql, getDatabase } = await import('@orient-bot/database');
+    getDatabase();
+
+    // Insert a test user required by FK constraints on user_feature_flag_overrides
+    await executeRawSql(`
+      INSERT OR IGNORE INTO dashboard_users (id, username, password_hash, auth_method, created_at)
+      VALUES (1, 'test-user', 'hash', 'password', strftime('%s', 'now'))
+    `);
+  });
+
+  afterEach(async () => {
+    // Clean up
+    try {
+      const { resetDatabaseInstance } = await import('@orient-bot/database');
+      resetDatabaseInstance();
+    } catch {
+      // Ignore if not loaded
+    }
+
+    // Remove test database files
+    for (const ext of ['', '-wal', '-shm']) {
+      const filePath = `${TEST_DB_PATH}${ext}`;
+      if (existsSync(filePath)) {
+        try {
+          unlinkSync(filePath);
+        } catch {
+          // Ignore
+        }
+      }
+    }
   });
 
   describe('getAllFlags', () => {
     it('should return all feature flags', async () => {
-      const mockFlags = [
-        {
-          id: 'mini_apps',
-          name: 'Mini-Apps',
-          description: 'AI-generated web applications',
-          enabled: true,
-          category: 'ui',
-          sort_order: 10,
-          created_at: new Date('2024-01-01'),
-          updated_at: new Date('2024-01-01'),
-        },
-        {
-          id: 'mini_apps.create',
-          name: 'Create App',
-          description: 'Create new mini-apps',
-          enabled: true,
-          category: 'ui',
-          sort_order: 11,
-          created_at: new Date('2024-01-01'),
-          updated_at: new Date('2024-01-01'),
-        },
-      ];
+      const { executeRawSql } = await import('@orient-bot/database');
+      const { createFeatureFlagsService } = await import('../src/featureFlagsService.js');
 
-      mockPoolInstance.query.mockResolvedValueOnce({ rows: mockFlags });
+      // Insert test data
+      await executeRawSql(`
+        INSERT INTO feature_flags (id, name, description, enabled, category, sort_order)
+        VALUES
+          ('mini_apps', 'Mini-Apps', 'AI-generated web applications', 1, 'ui', 10),
+          ('mini_apps.create', 'Create App', 'Create new mini-apps', 1, 'ui', 11)
+      `);
 
+      const service = createFeatureFlagsService();
       const result = await service.getAllFlags();
 
       expect(result).toHaveLength(2);
-      expect(result[0]).toEqual({
-        id: 'mini_apps',
-        name: 'Mini-Apps',
-        description: 'AI-generated web applications',
-        enabled: true,
-        category: 'ui',
-        sortOrder: 10,
-        createdAt: mockFlags[0].created_at,
-        updatedAt: mockFlags[0].updated_at,
-      });
+      expect(result[0].id).toBe('mini_apps');
+      expect(result[0].name).toBe('Mini-Apps');
+      expect(result[0].enabled).toBe(true);
+    });
+
+    it('should return empty array when no flags exist', async () => {
+      const { createFeatureFlagsService } = await import('../src/featureFlagsService.js');
+      const service = createFeatureFlagsService();
+
+      const result = await service.getAllFlags();
+
+      expect(result).toHaveLength(0);
     });
   });
 
   describe('getAllFlagsWithOverrides', () => {
     it('should return flags with user overrides applied', async () => {
-      const mockFlags = [
-        {
-          id: 'mini_apps',
-          name: 'Mini-Apps',
-          description: 'AI-generated web applications',
-          enabled: true,
-          category: 'ui',
-          sort_order: 10,
-          created_at: new Date(),
-          updated_at: new Date(),
-          user_override: null,
-        },
-        {
-          id: 'mini_apps.create',
-          name: 'Create App',
-          description: 'Create new mini-apps',
-          enabled: true,
-          category: 'ui',
-          sort_order: 11,
-          created_at: new Date(),
-          updated_at: new Date(),
-          user_override: false, // User disabled this
-        },
-      ];
+      const { executeRawSql } = await import('@orient-bot/database');
+      const { createFeatureFlagsService } = await import('../src/featureFlagsService.js');
 
-      mockPoolInstance.query.mockResolvedValueOnce({ rows: mockFlags });
+      // Insert test data
+      await executeRawSql(`
+        INSERT INTO feature_flags (id, name, enabled, category, sort_order)
+        VALUES ('mini_apps', 'Mini-Apps', 1, 'ui', 10)
+      `);
 
+      // Insert user override to disable the flag
+      await executeRawSql(`
+        INSERT INTO user_feature_flag_overrides (user_id, flag_id, enabled)
+        VALUES (1, 'mini_apps', 0)
+      `);
+
+      const service = createFeatureFlagsService();
       const result = await service.getAllFlagsWithOverrides(1);
 
-      expect(result).toHaveLength(2);
+      expect(result).toHaveLength(1);
+      expect(result[0].enabled).toBe(true); // Global setting
+      expect(result[0].userOverride).toBe(false); // User override
+      expect(result[0].effectiveValue).toBe(false); // Effective value
+    });
+
+    it('should return flags without overrides when user has none', async () => {
+      const { executeRawSql } = await import('@orient-bot/database');
+      const { createFeatureFlagsService } = await import('../src/featureFlagsService.js');
+
+      // Insert test data
+      await executeRawSql(`
+        INSERT INTO feature_flags (id, name, enabled, category, sort_order)
+        VALUES ('mini_apps', 'Mini-Apps', 1, 'ui', 10)
+      `);
+
+      const service = createFeatureFlagsService();
+      const result = await service.getAllFlagsWithOverrides(1);
+
+      expect(result).toHaveLength(1);
       expect(result[0].userOverride).toBeNull();
       expect(result[0].effectiveValue).toBe(true);
-      expect(result[1].userOverride).toBe(false);
-      expect(result[1].effectiveValue).toBe(false);
-    });
-
-    it('should apply cascade logic when parent is disabled', async () => {
-      const mockFlags = [
-        {
-          id: 'mini_apps',
-          name: 'Mini-Apps',
-          description: 'AI-generated web applications',
-          enabled: true,
-          category: 'ui',
-          sort_order: 10,
-          created_at: new Date(),
-          updated_at: new Date(),
-          user_override: false, // Parent disabled by user
-        },
-        {
-          id: 'mini_apps.create',
-          name: 'Create App',
-          description: 'Create new mini-apps',
-          enabled: true,
-          category: 'ui',
-          sort_order: 11,
-          created_at: new Date(),
-          updated_at: new Date(),
-          user_override: null, // No override
-        },
-        {
-          id: 'mini_apps.edit_with_ai',
-          name: 'Edit with AI',
-          description: 'AI-powered editing',
-          enabled: true,
-          category: 'ui',
-          sort_order: 12,
-          created_at: new Date(),
-          updated_at: new Date(),
-          user_override: true, // Explicitly enabled, but parent is off
-        },
-      ];
-
-      mockPoolInstance.query.mockResolvedValueOnce({ rows: mockFlags });
-
-      const result = await service.getAllFlagsWithOverrides(1);
-
-      // Parent is disabled
-      expect(result[0].effectiveValue).toBe(false);
-      // Children should be effectively disabled due to cascade
-      expect(result[1].effectiveValue).toBe(false);
-      expect(result[2].effectiveValue).toBe(false);
-    });
-
-    it('should handle deeply nested hierarchies', async () => {
-      const mockFlags = [
-        {
-          id: 'a',
-          name: 'A',
-          description: null,
-          enabled: true,
-          category: 'ui',
-          sort_order: 1,
-          created_at: new Date(),
-          updated_at: new Date(),
-          user_override: null,
-        },
-        {
-          id: 'a.b',
-          name: 'A.B',
-          description: null,
-          enabled: true,
-          category: 'ui',
-          sort_order: 2,
-          created_at: new Date(),
-          updated_at: new Date(),
-          user_override: false, // Disabled at middle level
-        },
-        {
-          id: 'a.b.c',
-          name: 'A.B.C',
-          description: null,
-          enabled: true,
-          category: 'ui',
-          sort_order: 3,
-          created_at: new Date(),
-          updated_at: new Date(),
-          user_override: null,
-        },
-      ];
-
-      mockPoolInstance.query.mockResolvedValueOnce({ rows: mockFlags });
-
-      const result = await service.getAllFlagsWithOverrides(1);
-
-      expect(result[0].effectiveValue).toBe(true); // 'a' is enabled
-      expect(result[1].effectiveValue).toBe(false); // 'a.b' is disabled
-      expect(result[2].effectiveValue).toBe(false); // 'a.b.c' disabled due to cascade
-    });
-  });
-
-  describe('getEffectiveFlags', () => {
-    it('should return a flat object of effective flag values', async () => {
-      const mockFlags = [
-        {
-          id: 'mini_apps',
-          name: 'Mini-Apps',
-          description: null,
-          enabled: true,
-          category: 'ui',
-          sort_order: 10,
-          created_at: new Date(),
-          updated_at: new Date(),
-          user_override: null,
-        },
-        {
-          id: 'mini_apps.create',
-          name: 'Create App',
-          description: null,
-          enabled: true,
-          category: 'ui',
-          sort_order: 11,
-          created_at: new Date(),
-          updated_at: new Date(),
-          user_override: false,
-        },
-      ];
-
-      mockPoolInstance.query.mockResolvedValueOnce({ rows: mockFlags });
-
-      const result = await service.getEffectiveFlags(1);
-
-      expect(result).toEqual({
-        mini_apps: true,
-        'mini_apps.create': false,
-      });
     });
   });
 
   describe('setUserOverride', () => {
-    it('should set a user override for a flag', async () => {
-      // Flag exists check
-      mockPoolInstance.query.mockResolvedValueOnce({ rows: [{ id: 'mini_apps' }] });
-      // Upsert override
-      mockPoolInstance.query.mockResolvedValueOnce({ rows: [] });
+    it('should set a user override', async () => {
+      const { executeRawSql } = await import('@orient-bot/database');
+      const { createFeatureFlagsService } = await import('../src/featureFlagsService.js');
 
+      // Insert test data
+      await executeRawSql(`
+        INSERT INTO feature_flags (id, name, enabled, category, sort_order)
+        VALUES ('mini_apps', 'Mini-Apps', 1, 'ui', 10)
+      `);
+
+      const service = createFeatureFlagsService();
       await service.setUserOverride(1, 'mini_apps', false);
 
-      expect(mockPoolInstance.query).toHaveBeenCalledTimes(2);
-      const upsertCall = mockPoolInstance.query.mock.calls[1];
-      expect(upsertCall[0]).toContain('INSERT INTO user_feature_flag_overrides');
-      expect(upsertCall[1]).toEqual([1, 'mini_apps', false]);
+      const result = await service.getAllFlagsWithOverrides(1);
+      expect(result[0].userOverride).toBe(false);
     });
 
     it('should throw error if flag does not exist', async () => {
-      mockPoolInstance.query.mockResolvedValueOnce({ rows: [] });
+      const { createFeatureFlagsService } = await import('../src/featureFlagsService.js');
+      const service = createFeatureFlagsService();
 
-      await expect(service.setUserOverride(1, 'nonexistent', false)).rejects.toThrow(
-        "Feature flag 'nonexistent' does not exist"
+      await expect(service.setUserOverride(1, 'nonexistent', true)).rejects.toThrow(
+        /does not exist/
       );
     });
   });
 
   describe('removeUserOverride', () => {
     it('should remove a user override', async () => {
-      mockPoolInstance.query.mockResolvedValueOnce({ rows: [] });
+      const { executeRawSql } = await import('@orient-bot/database');
+      const { createFeatureFlagsService } = await import('../src/featureFlagsService.js');
 
+      // Insert test data
+      await executeRawSql(`
+        INSERT INTO feature_flags (id, name, enabled, category, sort_order)
+        VALUES ('mini_apps', 'Mini-Apps', 1, 'ui', 10)
+      `);
+      await executeRawSql(`
+        INSERT INTO user_feature_flag_overrides (user_id, flag_id, enabled)
+        VALUES (1, 'mini_apps', 0)
+      `);
+
+      const service = createFeatureFlagsService();
+
+      // Verify override exists
+      let result = await service.getAllFlagsWithOverrides(1);
+      expect(result[0].userOverride).toBe(false);
+
+      // Remove override
       await service.removeUserOverride(1, 'mini_apps');
 
-      expect(mockPoolInstance.query).toHaveBeenCalledTimes(1);
-      const deleteCall = mockPoolInstance.query.mock.calls[0];
-      expect(deleteCall[0]).toContain('DELETE FROM user_feature_flag_overrides');
-      expect(deleteCall[1]).toEqual([1, 'mini_apps']);
+      // Verify override is removed
+      result = await service.getAllFlagsWithOverrides(1);
+      expect(result[0].userOverride).toBeNull();
+    });
+  });
+
+  describe('getEffectiveFlags', () => {
+    it('should return a flat record of effective flag values', async () => {
+      const { executeRawSql } = await import('@orient-bot/database');
+      const { createFeatureFlagsService } = await import('../src/featureFlagsService.js');
+
+      // Insert test data
+      await executeRawSql(`
+        INSERT INTO feature_flags (id, name, enabled, category, sort_order)
+        VALUES
+          ('mini_apps', 'Mini-Apps', 1, 'ui', 10),
+          ('mini_apps.create', 'Create', 1, 'ui', 11)
+      `);
+
+      const service = createFeatureFlagsService();
+      const result = await service.getEffectiveFlags(1);
+
+      expect(result).toEqual({
+        mini_apps: true,
+        'mini_apps.create': true,
+      });
+    });
+  });
+
+  describe('hierarchy logic', () => {
+    it('should disable children when parent is disabled', async () => {
+      const { executeRawSql } = await import('@orient-bot/database');
+      const { createFeatureFlagsService } = await import('../src/featureFlagsService.js');
+
+      // Insert test data with parent disabled
+      await executeRawSql(`
+        INSERT INTO feature_flags (id, name, enabled, category, sort_order)
+        VALUES
+          ('mini_apps', 'Mini-Apps', 0, 'ui', 10),
+          ('mini_apps.create', 'Create', 1, 'ui', 11)
+      `);
+
+      const service = createFeatureFlagsService();
+      const result = await service.getEffectiveFlags(1);
+
+      expect(result['mini_apps']).toBe(false);
+      expect(result['mini_apps.create']).toBe(false); // Disabled because parent is disabled
+    });
+
+    it('should respect user override on parent flag', async () => {
+      const { executeRawSql } = await import('@orient-bot/database');
+      const { createFeatureFlagsService } = await import('../src/featureFlagsService.js');
+
+      // Insert test data
+      await executeRawSql(`
+        INSERT INTO feature_flags (id, name, enabled, category, sort_order)
+        VALUES
+          ('mini_apps', 'Mini-Apps', 1, 'ui', 10),
+          ('mini_apps.create', 'Create', 1, 'ui', 11)
+      `);
+
+      // User disables parent
+      await executeRawSql(`
+        INSERT INTO user_feature_flag_overrides (user_id, flag_id, enabled)
+        VALUES (1, 'mini_apps', 0)
+      `);
+
+      const service = createFeatureFlagsService();
+      const result = await service.getEffectiveFlags(1);
+
+      expect(result['mini_apps']).toBe(false);
+      expect(result['mini_apps.create']).toBe(false); // Disabled because parent override is disabled
     });
   });
 
   describe('getParentId', () => {
-    it('should return parent for child flag', () => {
-      expect(service.getParentId('mini_apps.create')).toBe('mini_apps');
-    });
+    it('should return parent ID for nested flag', async () => {
+      const { createFeatureFlagsService } = await import('../src/featureFlagsService.js');
+      const service = createFeatureFlagsService();
 
-    it('should return parent for deeply nested flag', () => {
+      expect(service.getParentId('mini_apps.create')).toBe('mini_apps');
       expect(service.getParentId('a.b.c')).toBe('a.b');
     });
 
-    it('should return null for root flag', () => {
+    it('should return null for root level flag', async () => {
+      const { createFeatureFlagsService } = await import('../src/featureFlagsService.js');
+      const service = createFeatureFlagsService();
+
       expect(service.getParentId('mini_apps')).toBeNull();
     });
   });
 
   describe('getAncestorIds', () => {
-    it('should return all ancestors for nested flag', () => {
-      const ancestors = service.getAncestorIds('a.b.c');
-      expect(ancestors).toEqual(['a', 'a.b', 'a.b.c']);
-    });
+    it('should return all ancestor IDs including self', async () => {
+      const { createFeatureFlagsService } = await import('../src/featureFlagsService.js');
+      const service = createFeatureFlagsService();
 
-    it('should return single element for root flag', () => {
-      const ancestors = service.getAncestorIds('mini_apps');
-      expect(ancestors).toEqual(['mini_apps']);
+      expect(service.getAncestorIds('a.b.c')).toEqual(['a', 'a.b', 'a.b.c']);
+      expect(service.getAncestorIds('mini_apps')).toEqual(['mini_apps']);
     });
   });
 
   describe('close', () => {
-    it('should close the database pool', async () => {
-      await service.close();
-      expect(mockPoolInstance.end).toHaveBeenCalled();
+    it('should close the database connection', async () => {
+      const { createFeatureFlagsService } = await import('../src/featureFlagsService.js');
+      const service = createFeatureFlagsService();
+
+      // Should not throw
+      await expect(service.close()).resolves.not.toThrow();
     });
   });
 });

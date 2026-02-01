@@ -20,7 +20,7 @@
  * - checkWritePermission(): For outgoing messages - strict database check only
  */
 
-import { createServiceLogger } from '@orient/core';
+import { createServiceLogger } from '@orient-bot/core';
 import type { ChatPermission, ChatType, ChatPermissionRecord } from './types/index.js';
 
 const logger = createServiceLogger('chat-permission');
@@ -53,6 +53,7 @@ export interface WritePermissionCheckResult {
 export interface ChatPermissionServiceConfig {
   defaultPermission: ChatPermission; // Fallback for chats without explicit or smart-default permissions
   adminPhone: string; // Admin phone number (always allowed to trigger responses)
+  adminLid?: string; // Admin LID (Linked ID) - WhatsApp's new ID format for group participants
 }
 
 /**
@@ -75,7 +76,7 @@ export interface ChatPermissionDatabaseInterface {
   ): Promise<number>;
   getGroup(
     chatId: string
-  ): Promise<{ group_name: string | null; participant_count: number | null } | undefined>;
+  ): Promise<{ groupName: string | null; participantCount: number | null } | undefined>;
 }
 
 /**
@@ -240,11 +241,11 @@ export class ChatPermissionService {
     // Check if this is a solo group (only 1 participant - the admin)
     if (isGroup) {
       const group = await this.db.getGroup(chatId);
-      if (group && group.participant_count === 1) {
+      if (group && group.participantCount === 1) {
         logger.debug('Smart default: Solo group detected - allowing write', {
           chatId,
-          groupName: group.group_name,
-          participantCount: group.participant_count,
+          groupName: group.groupName,
+          participantCount: group.participantCount,
         });
         return { permission: 'read_write', isSmartDefault: true };
       }
@@ -252,8 +253,8 @@ export class ChatPermissionService {
       if (group) {
         logger.debug('Smart default: Multi-participant group - read only', {
           chatId,
-          groupName: group.group_name,
-          participantCount: group.participant_count,
+          groupName: group.groupName,
+          participantCount: group.participantCount,
         });
         return { permission: 'read_only', isSmartDefault: true };
       }
@@ -296,11 +297,29 @@ export class ChatPermissionService {
   }
 
   /**
-   * Check if a phone number is the admin
+   * Check if a phone number or LID is the admin
+   * WhatsApp uses LID (Linked ID) format for group participants instead of phone numbers
    */
   private isAdminPhone(phone: string): boolean {
     const adminPhone = this.config.adminPhone.replace(/\D/g, '');
-    return phone === adminPhone;
+    const adminLid = this.config.adminLid?.replace(/\D/g, '');
+
+    // Check both phone number and LID formats
+    const isMatch = phone === adminPhone || (adminLid !== undefined && phone === adminLid);
+
+    if (isMatch) {
+      logger.debug('Admin phone/LID match', { phone, adminPhone, adminLid });
+    }
+
+    return isMatch;
+  }
+
+  /**
+   * Update the admin LID (called when connection captures it)
+   */
+  setAdminLid(lid: string): void {
+    this.config.adminLid = lid;
+    logger.info('Admin LID updated', { lid });
   }
 
   /**

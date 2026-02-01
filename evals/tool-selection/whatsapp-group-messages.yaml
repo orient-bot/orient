@@ -12,7 +12,7 @@ input:
 
 mocks:
   whatsapp:
-    ai_first_whatsapp_list_groups:
+    whatsapp_list_groups:
       response:
         groups:
           - id: '120363111111111111@g.us'
@@ -25,7 +25,7 @@ mocks:
             participantCount: 12
         totalCount: 2
 
-    ai_first_whatsapp_search_messages:
+    whatsapp_search_messages:
       response:
         messages:
           - id: 'msg-001'
@@ -44,7 +44,7 @@ mocks:
             messageType: text
         totalCount: 2
 
-    ai_first_whatsapp_get_recent_messages:
+    whatsapp_get_recent:
       response:
         messages:
           - id: 'msg-003'
@@ -59,8 +59,8 @@ mocks:
 expect:
   tool_calls:
     required:
-      - name: ai_first_whatsapp_list_groups
-      - name: ai_first_whatsapp_search_messages
+      - name: whatsapp_list_groups
+      - name: whatsapp_search_messages
 
   assertions:
     - type: response_matches

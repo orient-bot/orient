@@ -6,14 +6,17 @@ import {
   configListSchedules,
   configUpdateSchedule,
 } from '../../src/tools/config/schedules.js';
-import { getPendingActionsStore, resetPendingActionsStore } from '../../src/tools/config/pending-store.js';
+import {
+  getPendingActionsStore,
+  resetPendingActionsStore,
+} from '../../src/tools/config/pending-store.js';
 
 const context = { config: {}, correlationId: 'test' } as ToolContext;
 
 let getJobSpy: ReturnType<typeof vi.fn>;
 let getAllJobsSpy: ReturnType<typeof vi.fn>;
 
-vi.mock('@orient/database-services', () => ({
+vi.mock('@orient-bot/database-services', () => ({
   createSchedulerDatabase: () => ({
     getJob: getJobSpy,
     getAllJobs: getAllJobsSpy,

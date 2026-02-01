@@ -5,8 +5,8 @@
  * It can be used by WhatsApp/Slack bots to leverage OpenCode as their AI processing backend.
  */
 
-import { createServiceLogger, AVAILABLE_MODELS, parseModelName } from '@orient/core';
-import type { ModelKey } from '@orient/core';
+import { createServiceLogger, AVAILABLE_MODELS, parseModelName } from '@orient-bot/core';
+import type { ModelKey } from '@orient-bot/core';
 
 // Re-export model types and functions for backward compatibility
 export { AVAILABLE_MODELS, parseModelName };
@@ -19,6 +19,7 @@ export interface OpenCodeConfig {
   defaultAgent?: string; // e.g., 'build', 'plan', 'pm-assistant'
   defaultModel?: string; // Default model ID (e.g., 'anthropic/claude-sonnet-4-20250514')
   timeout?: number; // Request timeout in ms
+  password?: string; // Server password for authentication (Basic auth)
 }
 
 export interface OpenCodeSession {
@@ -77,12 +78,14 @@ export class OpenCodeClient {
   constructor(config: OpenCodeConfig) {
     this.config = {
       timeout: 120000, // 2 minutes - OpenCode can be slow with complex MCP tool calls
-      defaultModel: 'opencode/grok-code', // Default to Grok Code Fast 1 via OpenCode Zen (FREE!)
+      defaultModel: 'anthropic/claude-haiku-4-5-20251001',
       ...config,
     };
     logger.info('OpenCode client initialized', {
       baseUrl: config.baseUrl,
       defaultModel: this.config.defaultModel,
+      passwordSet: !!this.config.password,
+      passwordLength: this.config.password?.length || 0,
     });
   }
 
@@ -90,7 +93,7 @@ export class OpenCodeClient {
    * Get the default model ID
    */
   getDefaultModel(): string {
-    return this.config.defaultModel || 'opencode/grok-code';
+    return this.config.defaultModel || 'anthropic/claude-haiku-4-5-20251001';
   }
 
   /**
@@ -262,11 +265,11 @@ export class OpenCodeClient {
 
     for (const part of message.parts) {
       // OpenCode uses 'tool' type with the tool name in the 'tool' field
-      // Tool names are prefixed with MCP server name, e.g., "orienter_ai_first_get_blockers"
+      // Tool names are prefixed with MCP server name, e.g., "orienter_system_health_check"
       if (part.type === 'tool') {
         const fullToolName = part.tool as string | undefined;
         if (fullToolName) {
-          // Strip MCP server prefix (e.g., "orienter_" -> "ai_first_...")
+          // Strip MCP server prefix (e.g., "orienter_" -> "system_health_check")
           const toolName = fullToolName.includes('_')
             ? fullToolName.replace(/^[^_]+_/, '')
             : fullToolName;
@@ -361,17 +364,8 @@ export class OpenCodeClient {
         await this.autoCompact(contextKey, session.id);
       }
 
-      // Fetch session history to get all tool calls (they're not in the immediate response)
-      let toolsUsed: string[] = [];
-      try {
-        const messages = await this.getSessionMessages(session.id);
-        toolsUsed = this.extractAllToolsUsed(messages);
-      } catch (historyError) {
-        logger.warn('Failed to fetch session history for tool calls', {
-          sessionId: session.id,
-          error: historyError instanceof Error ? historyError.message : String(historyError),
-        });
-      }
+      // Extract tools used from the current reply only (not full session history)
+      const toolsUsed = this.extractToolsUsed(result);
 
       return {
         response: this.extractTextResponse(result),
@@ -529,7 +523,7 @@ export class OpenCodeClient {
     logger.info('Summarizing session', { sessionId });
 
     // Build model info for the summarization request
-    const modelId = this.config.defaultModel || 'opencode/grok-code';
+    const modelId = this.config.defaultModel || 'anthropic/claude-haiku-4-5-20251001';
     const modelParts = modelId.split('/');
     const model =
       modelParts.length === 2
@@ -595,9 +589,17 @@ export class OpenCodeClient {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), this.config.timeout);
 
+    // Build headers with optional Basic auth
+    const headers = new Headers(options?.headers);
+    if (this.config.password) {
+      const credentials = Buffer.from(`opencode:${this.config.password}`).toString('base64');
+      headers.set('Authorization', `Basic ${credentials}`);
+    }
+
     try {
       const response = await fetch(url, {
         ...options,
+        headers,
         signal: controller.signal,
       });
 
@@ -620,12 +622,16 @@ export class OpenCodeClient {
 
 /**
  * Create an OpenCode client with default configuration
+ * Automatically uses OPENCODE_SERVER_PASSWORD from environment if available
  */
 export function createOpenCodeClient(
   baseUrl: string = 'http://localhost:4099',
-  defaultModel: string = 'opencode/grok-code'
+  defaultModel: string = 'anthropic/claude-haiku-4-5-20251001',
+  password?: string
 ): OpenCodeClient {
-  return new OpenCodeClient({ baseUrl, defaultModel });
+  // Use provided password or fall back to environment variable
+  const serverPassword = password || process.env.OPENCODE_SERVER_PASSWORD;
+  return new OpenCodeClient({ baseUrl, defaultModel, password: serverPassword });
 }
 
 // Export a singleton instance for convenience

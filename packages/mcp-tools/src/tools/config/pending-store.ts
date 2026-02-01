@@ -5,7 +5,7 @@
  * Actions expire after a configurable TTL (default: 5 minutes).
  */
 
-import { createServiceLogger } from '@orient/core';
+import { createServiceLogger } from '@orient-bot/core';
 
 const logger = createServiceLogger('pending-store');
 

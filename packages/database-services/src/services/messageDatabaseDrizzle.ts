@@ -1,17 +1,17 @@
 /**
  * Message Database Service (Drizzle ORM Implementation)
  *
- * PostgreSQL database for storing and querying WhatsApp messages.
+ * SQLite database for storing and querying WhatsApp messages.
  * This is a type-safe implementation using Drizzle ORM.
  *
- * Exported via @orient/database-services package.
+ * Exported via @orient-bot/database-services package.
  */
 
-import { createServiceLogger } from '@orient/core';
+import { createServiceLogger } from '@orient-bot/core';
 import {
   getDatabase,
-  getSqlClient,
   closeDatabase,
+  executeRawSql,
   eq,
   and,
   or,
@@ -19,14 +19,13 @@ import {
   asc,
   sql,
   count,
-  isNull,
+  like,
   schema,
-} from '@orient/database';
+} from '@orient-bot/database';
 import type {
+  Database,
   Message,
-  NewMessage,
   Group,
-  NewGroup,
   ChatPermissionRecord as DbChatPermissionRecord,
   NewChatPermission,
   PermissionAuditEntry as DbPermissionAuditEntry,
@@ -43,62 +42,33 @@ import type {
   ChatType,
   ChatPermission,
   PromptPlatform,
-} from '@orient/database';
+} from '@orient-bot/database';
 
 const logger = createServiceLogger('message-db-drizzle');
 
-// Re-export types for consumers (matching original interface)
+// Import shared types
+import type {
+  ChatPermissionRecord,
+  PermissionAuditEntry,
+  DashboardUser,
+  SystemPromptRecord,
+  SystemPromptWithInfo,
+  ChatWithPermission,
+} from '../types/index.js';
+
+// Re-export types for consumers
 export type StoredMessage = Message;
 export type StoredGroup = Group;
 
-export interface ChatPermissionRecord {
-  chatId: string;
-  chatType: ChatType;
-  permission: ChatPermission;
-  displayName: string | null;
-  notes: string | null;
-  createdAt: Date | null;
-  updatedAt: Date | null;
-}
-
-export interface PermissionAuditEntry {
-  id: number;
-  chatId: string;
-  oldPermission: string | null;
-  newPermission: string;
-  changedBy: string | null;
-  changedAt: Date | null;
-}
-
-export interface DashboardUser {
-  id: number;
-  username: string;
-  passwordHash: string | null;
-  googleId?: string | null;
-  googleEmail?: string | null;
-  authMethod?: 'password' | 'google' | 'both';
-  createdAt: Date | null;
-}
-
-export interface SystemPromptRecord {
-  id: number;
-  chatId: string;
-  platform: PromptPlatform;
-  promptText: string;
-  isActive: boolean | null;
-  createdAt: Date | null;
-  updatedAt: Date | null;
-}
-
-export interface SystemPromptWithInfo extends SystemPromptRecord {
-  displayName: string | null;
-  isDefault: boolean;
-}
-
-export interface ChatWithPermission extends ChatPermissionRecord {
-  messageCount: number;
-  lastMessageAt: Date | null;
-}
+// Re-export shared types
+export type {
+  ChatPermissionRecord,
+  PermissionAuditEntry,
+  DashboardUser,
+  SystemPromptRecord,
+  SystemPromptWithInfo,
+  ChatWithPermission,
+};
 
 export {
   MessageSearchOptions,
@@ -112,210 +82,33 @@ export {
 
 export class MessageDatabase {
   private initialized: boolean = false;
-  private connectionString: string;
+  private _db: Database | null = null;
 
-  constructor(connectionString?: string) {
-    this.connectionString =
-      connectionString ||
-      process.env.DATABASE_URL ||
-      'postgresql://aibot:aibot123@localhost:5432/whatsapp_bot_0';
-
-    logger.info('Drizzle database client initialized', {
-      connectionString: this.connectionString.replace(/:[^:@]+@/, ':****@'),
-    });
+  constructor() {
+    // SQLite path is configured via SQLITE_DATABASE env var or defaults
+    logger.info('Drizzle database client initialized (SQLite)');
   }
 
   /**
-   * Get the database instance
+   * Get the database instance (synchronous for SQLite)
    */
-  private get db() {
-    return getDatabase({ connectionString: this.connectionString });
+  private get db(): Database {
+    if (!this._db) {
+      this._db = getDatabase();
+    }
+    return this._db;
   }
 
   /**
-   * Initialize the database (creates tables if they don't exist)
+   * Initialize the database (tables are created via migrations)
    */
   async initialize(): Promise<void> {
     if (this.initialized) return;
 
-    await this.initializeTables();
+    // Ensure database connection is established
+    this._db = getDatabase();
     this.initialized = true;
-  }
-
-  /**
-   * Initialize database tables using raw SQL
-   * Note: In production, use Drizzle migrations instead
-   */
-  private async initializeTables(): Promise<void> {
-    const sql = getSqlClient();
-
-    // CREATE TABLE IF NOT EXISTS is idempotent, no transaction needed
-
-    // Messages table
-    await sql`
-        CREATE TABLE IF NOT EXISTS messages (
-          id SERIAL PRIMARY KEY,
-          message_id TEXT UNIQUE,
-          direction TEXT NOT NULL CHECK (direction IN ('incoming', 'outgoing')),
-          jid TEXT NOT NULL,
-          phone TEXT NOT NULL,
-          text TEXT NOT NULL,
-          is_group BOOLEAN NOT NULL DEFAULT FALSE,
-          group_id TEXT,
-          timestamp TIMESTAMPTZ NOT NULL,
-          created_at TIMESTAMPTZ DEFAULT NOW(),
-          media_type TEXT,
-          media_path TEXT,
-          media_mime_type TEXT,
-          transcribed_text TEXT,
-          transcribed_language TEXT
-        )
-      `;
-
-    // Groups table
-    await sql`
-        CREATE TABLE IF NOT EXISTS groups (
-          group_id TEXT PRIMARY KEY,
-          group_name TEXT,
-          group_subject TEXT,
-          participant_count INTEGER,
-          last_updated TIMESTAMPTZ DEFAULT NOW()
-        )
-      `;
-
-    // Chat permissions table
-    await sql`
-        CREATE TABLE IF NOT EXISTS chat_permissions (
-          chat_id TEXT PRIMARY KEY,
-          chat_type TEXT NOT NULL CHECK (chat_type IN ('individual', 'group')),
-          permission TEXT NOT NULL DEFAULT 'read_only' 
-            CHECK (permission IN ('ignored', 'read_only', 'read_write')),
-          display_name TEXT,
-          notes TEXT,
-          created_at TIMESTAMPTZ DEFAULT NOW(),
-          updated_at TIMESTAMPTZ DEFAULT NOW()
-        )
-      `;
-
-    // Permission audit log
-    await sql`
-        CREATE TABLE IF NOT EXISTS permission_audit_log (
-          id SERIAL PRIMARY KEY,
-          chat_id TEXT NOT NULL,
-          old_permission TEXT,
-          new_permission TEXT NOT NULL,
-          changed_by TEXT,
-          changed_at TIMESTAMPTZ DEFAULT NOW()
-        )
-      `;
-
-    // Dashboard users
-    await sql`
-        CREATE TABLE IF NOT EXISTS dashboard_users (
-          id SERIAL PRIMARY KEY,
-          username TEXT UNIQUE NOT NULL,
-          password_hash TEXT NOT NULL,
-          created_at TIMESTAMPTZ DEFAULT NOW()
-        )
-      `;
-
-    // Add Google OAuth columns if they don't exist
-    await sql`
-        DO $$
-        BEGIN
-          -- Add google_id column
-          IF NOT EXISTS (
-            SELECT 1 FROM information_schema.columns
-            WHERE table_name = 'dashboard_users' AND column_name = 'google_id'
-          ) THEN
-            ALTER TABLE dashboard_users ADD COLUMN google_id TEXT UNIQUE;
-          END IF;
-
-          -- Add google_email column
-          IF NOT EXISTS (
-            SELECT 1 FROM information_schema.columns
-            WHERE table_name = 'dashboard_users' AND column_name = 'google_email'
-          ) THEN
-            ALTER TABLE dashboard_users ADD COLUMN google_email TEXT;
-          END IF;
-
-          -- Add auth_method column
-          IF NOT EXISTS (
-            SELECT 1 FROM information_schema.columns
-            WHERE table_name = 'dashboard_users' AND column_name = 'auth_method'
-          ) THEN
-            ALTER TABLE dashboard_users ADD COLUMN auth_method TEXT NOT NULL DEFAULT 'password'
-              CHECK (auth_method IN ('password', 'google', 'both'));
-          END IF;
-        END $$;
-      `;
-
-    // Make password_hash nullable for Google-only users
-    await sql`ALTER TABLE dashboard_users ALTER COLUMN password_hash DROP NOT NULL`;
-
-    // Drop existing check constraint if it exists (to avoid conflicts)
-    await sql`
-        DO $$
-        BEGIN
-          IF EXISTS (
-            SELECT 1 FROM information_schema.table_constraints
-            WHERE constraint_name = 'check_auth_method' AND table_name = 'dashboard_users'
-          ) THEN
-            ALTER TABLE dashboard_users DROP CONSTRAINT check_auth_method;
-          END IF;
-        END $$;
-      `;
-
-    // Add constraint: users must have either password or google_id
-    await sql`
-        ALTER TABLE dashboard_users
-        ADD CONSTRAINT check_auth_method
-        CHECK (
-          (auth_method = 'password' AND password_hash IS NOT NULL) OR
-          (auth_method = 'google' AND google_id IS NOT NULL) OR
-          (auth_method = 'both' AND password_hash IS NOT NULL AND google_id IS NOT NULL)
-        )
-      `;
-
-    // System prompts table
-    await sql`
-        CREATE TABLE IF NOT EXISTS system_prompts (
-          id SERIAL PRIMARY KEY,
-          chat_id TEXT NOT NULL,
-          platform TEXT NOT NULL CHECK (platform IN ('whatsapp', 'slack')),
-          prompt_text TEXT NOT NULL,
-          is_active BOOLEAN DEFAULT true,
-          created_at TIMESTAMPTZ DEFAULT NOW(),
-          updated_at TIMESTAMPTZ DEFAULT NOW(),
-          UNIQUE(chat_id, platform)
-        )
-      `;
-
-    // Create indexes
-    await sql`CREATE INDEX IF NOT EXISTS idx_messages_phone ON messages(phone)`;
-    await sql`CREATE INDEX IF NOT EXISTS idx_messages_timestamp ON messages(timestamp)`;
-    await sql`CREATE INDEX IF NOT EXISTS idx_messages_direction ON messages(direction)`;
-    await sql`CREATE INDEX IF NOT EXISTS idx_messages_is_group ON messages(is_group)`;
-    await sql`CREATE INDEX IF NOT EXISTS idx_messages_group_id ON messages(group_id)`;
-    await sql`CREATE INDEX IF NOT EXISTS idx_messages_media_type ON messages(media_type)`;
-    await sql`CREATE INDEX IF NOT EXISTS idx_groups_name ON groups(group_name)`;
-    await sql`CREATE INDEX IF NOT EXISTS idx_groups_subject ON groups(group_subject)`;
-    await sql`CREATE INDEX IF NOT EXISTS idx_chat_permissions_type ON chat_permissions(chat_type)`;
-    await sql`CREATE INDEX IF NOT EXISTS idx_chat_permissions_permission ON chat_permissions(permission)`;
-    await sql`CREATE INDEX IF NOT EXISTS idx_permission_audit_chat ON permission_audit_log(chat_id)`;
-    await sql`CREATE INDEX IF NOT EXISTS idx_permission_audit_time ON permission_audit_log(changed_at)`;
-    await sql`CREATE INDEX IF NOT EXISTS idx_system_prompts_lookup ON system_prompts(platform, chat_id)`;
-    await sql`CREATE INDEX IF NOT EXISTS idx_system_prompts_platform ON system_prompts(platform)`;
-    await sql`CREATE INDEX IF NOT EXISTS idx_dashboard_users_google_id ON dashboard_users(google_id)`;
-    await sql`CREATE INDEX IF NOT EXISTS idx_dashboard_users_google_email ON dashboard_users(google_email)`;
-
-    // Full-text search index
-    await sql`
-      CREATE INDEX IF NOT EXISTS idx_messages_text_search 
-      ON messages USING gin(to_tsvector('english', text))
-    `;
-
-    logger.info('Database tables initialized');
+    logger.info('Database initialized');
   }
 
   // ============================================
@@ -330,7 +123,7 @@ export class MessageDatabase {
     timestamp: Date,
     isGroup: boolean,
     groupId?: string,
-    options?: StoreMessageOptions
+    options?: Partial<StoreMessageOptions>
   ): Promise<number> {
     return this.storeMessage(
       'incoming',
@@ -352,7 +145,7 @@ export class MessageDatabase {
     text: string,
     isGroup: boolean,
     groupId?: string,
-    options?: StoreMessageOptions
+    options?: Partial<StoreMessageOptions>
   ): Promise<number> {
     return this.storeMessage(
       'outgoing',
@@ -376,9 +169,10 @@ export class MessageDatabase {
     timestamp: Date,
     isGroup: boolean,
     groupId?: string,
-    options?: StoreMessageOptions
+    options?: Partial<StoreMessageOptions>
   ): Promise<number> {
-    const result = await this.db
+    const db = this.db;
+    const result = await db
       .insert(schema.messages)
       .values({
         messageId,
@@ -429,6 +223,7 @@ export class MessageDatabase {
   // ============================================
 
   async searchMessages(options: MessageSearchOptions = {}): Promise<StoredMessage[]> {
+    const db = this.db;
     const conditions = [];
 
     if (options.phone) {
@@ -447,7 +242,7 @@ export class MessageDatabase {
       conditions.push(sql`${schema.messages.timestamp} <= ${options.toDate}`);
     }
 
-    let query = this.db
+    let query = db
       .select()
       .from(schema.messages)
       .orderBy(desc(schema.messages.timestamp))
@@ -458,42 +253,41 @@ export class MessageDatabase {
       query = query.where(and(...conditions)) as typeof query;
     }
 
-    // Handle full-text search separately using raw SQL
+    // Handle text search using LIKE (SQLite doesn't have full-text search built-in)
     if (options.text) {
-      const sqlClient = getSqlClient();
-      const results = await sqlClient`
-        SELECT * FROM messages 
-        WHERE to_tsvector('english', text) @@ plainto_tsquery('english', ${options.text})
-        ORDER BY timestamp DESC
-        LIMIT ${options.limit || 100} OFFSET ${options.offset || 0}
-      `;
-      return results as unknown as StoredMessage[];
+      const db = this.db;
+      const pattern = `%${options.text}%`;
+      return db
+        .select()
+        .from(schema.messages)
+        .where(like(schema.messages.text, pattern))
+        .orderBy(desc(schema.messages.timestamp))
+        .limit(options.limit || 100)
+        .offset(options.offset || 0);
     }
 
     return query;
   }
 
   async fullTextSearch(searchTerm: string, limit: number = 50): Promise<StoredMessage[]> {
-    const sqlClient = getSqlClient();
-    const results = await sqlClient`
-      SELECT * FROM messages
-      WHERE to_tsvector('english', text) @@ plainto_tsquery('english', ${searchTerm})
-      ORDER BY timestamp DESC
-      LIMIT ${limit}
-    `;
-    return results as unknown as StoredMessage[];
-  }
-
-  async getRecentMessages(limit: number = 50): Promise<StoredMessage[]> {
-    return this.db
+    const db = this.db;
+    const pattern = `%${searchTerm}%`;
+    return db
       .select()
       .from(schema.messages)
+      .where(like(schema.messages.text, pattern))
       .orderBy(desc(schema.messages.timestamp))
       .limit(limit);
   }
 
+  async getRecentMessages(limit: number = 50): Promise<StoredMessage[]> {
+    const db = this.db;
+    return db.select().from(schema.messages).orderBy(desc(schema.messages.timestamp)).limit(limit);
+  }
+
   async getMessagesByPhone(phone: string, limit: number = 100): Promise<StoredMessage[]> {
-    return this.db
+    const db = this.db;
+    return db
       .select()
       .from(schema.messages)
       .where(eq(schema.messages.phone, phone))
@@ -502,7 +296,8 @@ export class MessageDatabase {
   }
 
   async getMessagesByGroup(groupId: string, limit: number = 100): Promise<StoredMessage[]> {
-    return this.db
+    const db = this.db;
+    return db
       .select()
       .from(schema.messages)
       .where(eq(schema.messages.groupId, groupId))
@@ -515,7 +310,8 @@ export class MessageDatabase {
     toDate: Date,
     limit: number = 500
   ): Promise<StoredMessage[]> {
-    return this.db
+    const db = this.db;
+    return db
       .select()
       .from(schema.messages)
       .where(
@@ -529,7 +325,8 @@ export class MessageDatabase {
   }
 
   async getMessageById(messageId: string): Promise<StoredMessage | undefined> {
-    const results = await this.db
+    const db = this.db;
+    const results = await db
       .select()
       .from(schema.messages)
       .where(eq(schema.messages.messageId, messageId))
@@ -538,8 +335,6 @@ export class MessageDatabase {
   }
 
   async getStats(): Promise<MessageStats> {
-    const sqlClient = getSqlClient();
-
     const [
       totalResult,
       incomingResult,
@@ -549,13 +344,19 @@ export class MessageDatabase {
       firstResult,
       lastResult,
     ] = await Promise.all([
-      sqlClient`SELECT COUNT(*) as count FROM messages`,
-      sqlClient`SELECT COUNT(*) as count FROM messages WHERE direction = 'incoming'`,
-      sqlClient`SELECT COUNT(*) as count FROM messages WHERE direction = 'outgoing'`,
-      sqlClient`SELECT COUNT(DISTINCT phone) as count FROM messages`,
-      sqlClient`SELECT COUNT(DISTINCT group_id) as count FROM messages WHERE is_group = true`,
-      sqlClient`SELECT MIN(timestamp) as ts FROM messages`,
-      sqlClient`SELECT MAX(timestamp) as ts FROM messages`,
+      executeRawSql<{ count: number }>('SELECT COUNT(*) as count FROM messages'),
+      executeRawSql<{ count: number }>(
+        "SELECT COUNT(*) as count FROM messages WHERE direction = 'incoming'"
+      ),
+      executeRawSql<{ count: number }>(
+        "SELECT COUNT(*) as count FROM messages WHERE direction = 'outgoing'"
+      ),
+      executeRawSql<{ count: number }>('SELECT COUNT(DISTINCT phone) as count FROM messages'),
+      executeRawSql<{ count: number }>(
+        'SELECT COUNT(DISTINCT group_id) as count FROM messages WHERE is_group = 1'
+      ),
+      executeRawSql<{ ts: string | null }>('SELECT MIN(timestamp) as ts FROM messages'),
+      executeRawSql<{ ts: string | null }>('SELECT MAX(timestamp) as ts FROM messages'),
     ]);
 
     // Handle timestamp formatting - might be Date or string depending on driver
@@ -567,31 +368,35 @@ export class MessageDatabase {
     };
 
     return {
-      totalMessages: parseInt((totalResult as unknown as Array<{ count: string }>)[0].count),
-      incomingMessages: parseInt((incomingResult as unknown as Array<{ count: string }>)[0].count),
-      outgoingMessages: parseInt((outgoingResult as unknown as Array<{ count: string }>)[0].count),
-      uniqueContacts: parseInt((contactsResult as unknown as Array<{ count: string }>)[0].count),
-      uniqueGroups: parseInt((groupsResult as unknown as Array<{ count: string }>)[0].count),
-      firstMessage: formatTimestamp((firstResult as unknown as Array<{ ts: unknown }>)[0]?.ts),
-      lastMessage: formatTimestamp((lastResult as unknown as Array<{ ts: unknown }>)[0]?.ts),
+      totalMessages: Number(totalResult[0]?.count ?? 0),
+      incomingMessages: Number(incomingResult[0]?.count ?? 0),
+      outgoingMessages: Number(outgoingResult[0]?.count ?? 0),
+      uniqueContacts: Number(contactsResult[0]?.count ?? 0),
+      uniqueGroups: Number(groupsResult[0]?.count ?? 0),
+      firstMessage: formatTimestamp(firstResult[0]?.ts),
+      lastMessage: formatTimestamp(lastResult[0]?.ts),
     };
   }
 
   async getUniqueContacts(): Promise<string[]> {
-    const results = await this.db
+    const db = this.db;
+    const results = await db
       .selectDistinct({ phone: schema.messages.phone })
       .from(schema.messages)
       .orderBy(schema.messages.phone);
-    return results.map((r) => r.phone);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return results.map((r: any) => r.phone);
   }
 
   async getUniqueGroups(): Promise<string[]> {
-    const results = await this.db
+    const db = this.db;
+    const results = await db
       .selectDistinct({ groupId: schema.messages.groupId })
       .from(schema.messages)
       .where(and(eq(schema.messages.isGroup, true), sql`${schema.messages.groupId} IS NOT NULL`))
       .orderBy(schema.messages.groupId);
-    return results.filter((r) => r.groupId !== null).map((r) => r.groupId!);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return results.filter((r: any) => r.groupId !== null).map((r: any) => r.groupId!);
   }
 
   // ============================================
@@ -604,7 +409,8 @@ export class MessageDatabase {
     subject?: string,
     participantCount?: number
   ): Promise<void> {
-    await this.db
+    const db = this.db;
+    await db
       .insert(schema.groups)
       .values({
         groupId,
@@ -630,7 +436,8 @@ export class MessageDatabase {
   }
 
   async getGroup(groupId: string): Promise<StoredGroup | undefined> {
-    const results = await this.db
+    const db = this.db;
+    const results = await db
       .select()
       .from(schema.groups)
       .where(eq(schema.groups.groupId, groupId))
@@ -639,18 +446,21 @@ export class MessageDatabase {
   }
 
   async getAllGroups(): Promise<StoredGroup[]> {
-    return this.db.select().from(schema.groups).orderBy(desc(schema.groups.lastUpdated));
+    const db = this.db;
+    return db.select().from(schema.groups).orderBy(desc(schema.groups.lastUpdated));
   }
 
   async searchGroups(searchTerm: string): Promise<StoredGroup[]> {
+    const db = this.db;
     const pattern = `%${searchTerm}%`;
-    return this.db
+    // Use LIKE with LOWER() for case-insensitive search in SQLite
+    return db
       .select()
       .from(schema.groups)
       .where(
         or(
-          sql`${schema.groups.groupName} ILIKE ${pattern}`,
-          sql`${schema.groups.groupSubject} ILIKE ${pattern}`
+          sql`LOWER(${schema.groups.groupName}) LIKE LOWER(${pattern})`,
+          sql`LOWER(${schema.groups.groupSubject}) LIKE LOWER(${pattern})`
         )
       )
       .orderBy(desc(schema.groups.lastUpdated));
@@ -662,21 +472,21 @@ export class MessageDatabase {
   }
 
   async getGroupsWithoutNames(): Promise<string[]> {
-    const sqlClient = getSqlClient();
-    const results = await sqlClient`
+    const results = await executeRawSql<{ group_id: string }>(`
       SELECT DISTINCT m.group_id
       FROM messages m
-      WHERE m.is_group = true 
+      WHERE m.is_group = 1
         AND m.group_id IS NOT NULL
         AND m.group_id NOT IN (
           SELECT g.group_id FROM groups g WHERE g.group_name IS NOT NULL
         )
-    `;
-    return (results as unknown as Array<{ group_id: string }>).map((r) => r.group_id);
+    `);
+    return results.map((r) => r.group_id);
   }
 
   async getAllGroupsWithNames(): Promise<StoredGroup[]> {
-    return this.db
+    const db = this.db;
+    return db
       .select()
       .from(schema.groups)
       .where(
@@ -690,8 +500,9 @@ export class MessageDatabase {
   // ============================================
 
   async getMediaMessages(limit: number = 50, mediaType?: string): Promise<StoredMessage[]> {
+    const db = this.db;
     if (mediaType) {
-      return this.db
+      return db
         .select()
         .from(schema.messages)
         .where(eq(schema.messages.mediaType, mediaType))
@@ -699,7 +510,7 @@ export class MessageDatabase {
         .limit(limit);
     }
 
-    return this.db
+    return db
       .select()
       .from(schema.messages)
       .where(sql`${schema.messages.mediaType} IS NOT NULL`)
@@ -712,6 +523,7 @@ export class MessageDatabase {
     limit: number = 50,
     mediaType?: string
   ): Promise<StoredMessage[]> {
+    const db = this.db;
     const conditions = [eq(schema.messages.groupId, groupId)];
 
     if (mediaType) {
@@ -720,7 +532,7 @@ export class MessageDatabase {
       conditions.push(sql`${schema.messages.mediaType} IS NOT NULL`);
     }
 
-    return this.db
+    return db
       .select()
       .from(schema.messages)
       .where(and(...conditions))
@@ -737,22 +549,17 @@ export class MessageDatabase {
   }
 
   async getMediaStats(): Promise<MediaStats> {
-    const sqlClient = getSqlClient();
-    const results = await sqlClient`
-      SELECT media_type, COUNT(*) as count 
-      FROM messages 
-      WHERE media_type IS NOT NULL 
+    const results = await executeRawSql<{ media_type: string; count: number }>(`
+      SELECT media_type, COUNT(*) as count
+      FROM messages
+      WHERE media_type IS NOT NULL
       GROUP BY media_type
-    `;
+    `);
 
-    type MediaCountRow = { media_type: string; count: string };
-    const typedResults = results as unknown as MediaCountRow[];
-    const imageCount = parseInt(typedResults.find((r) => r.media_type === 'image')?.count || '0');
-    const audioCount = parseInt(typedResults.find((r) => r.media_type === 'audio')?.count || '0');
-    const videoCount = parseInt(typedResults.find((r) => r.media_type === 'video')?.count || '0');
-    const documentCount = parseInt(
-      typedResults.find((r) => r.media_type === 'document')?.count || '0'
-    );
+    const imageCount = Number(results.find((r) => r.media_type === 'image')?.count ?? 0);
+    const audioCount = Number(results.find((r) => r.media_type === 'audio')?.count ?? 0);
+    const videoCount = Number(results.find((r) => r.media_type === 'video')?.count ?? 0);
+    const documentCount = Number(results.find((r) => r.media_type === 'document')?.count ?? 0);
     return {
       totalMedia: imageCount + audioCount + videoCount + documentCount,
       byType: {
@@ -769,7 +576,8 @@ export class MessageDatabase {
   }
 
   async getConversationHistory(phone: string, limit: number = 100): Promise<StoredMessage[]> {
-    return this.db
+    const db = this.db;
+    return db
       .select()
       .from(schema.messages)
       .where(eq(schema.messages.phone, phone))
@@ -778,10 +586,11 @@ export class MessageDatabase {
   }
 
   async deleteOldMessages(daysToKeep: number): Promise<number> {
+    const db = this.db;
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - daysToKeep);
 
-    const result = await this.db
+    const result = await db
       .delete(schema.messages)
       .where(sql`${schema.messages.timestamp} < ${cutoffDate}`)
       .returning({ id: schema.messages.id });
@@ -807,7 +616,8 @@ export class MessageDatabase {
   // ============================================
 
   async getChatPermission(chatId: string): Promise<ChatPermissionRecord | undefined> {
-    const results = await this.db
+    const db = this.db;
+    const results = await db
       .select()
       .from(schema.chatPermissions)
       .where(eq(schema.chatPermissions.chatId, chatId))
@@ -820,97 +630,100 @@ export class MessageDatabase {
       chatId: r.chatId,
       chatType: r.chatType as ChatType,
       permission: r.permission as ChatPermission,
-      displayName: r.displayName,
-      notes: r.notes,
-      createdAt: r.createdAt,
-      updatedAt: r.updatedAt,
+      displayName: r.displayName ?? undefined,
+      notes: r.notes ?? undefined,
+      createdAt: r.createdAt ?? undefined,
+      updatedAt: r.updatedAt ?? undefined,
     };
   }
 
   async getAllChatPermissions(): Promise<ChatPermissionRecord[]> {
-    const results = await this.db
+    const db = this.db;
+    const results = await db
       .select()
       .from(schema.chatPermissions)
       .orderBy(desc(schema.chatPermissions.updatedAt));
 
-    return results.map((r) => ({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return results.map((r: any) => ({
       chatId: r.chatId,
       chatType: r.chatType as ChatType,
       permission: r.permission as ChatPermission,
-      displayName: r.displayName,
-      notes: r.notes,
-      createdAt: r.createdAt,
-      updatedAt: r.updatedAt,
+      displayName: r.displayName ?? undefined,
+      notes: r.notes ?? undefined,
+      createdAt: r.createdAt ?? undefined,
+      updatedAt: r.updatedAt ?? undefined,
     }));
   }
 
   async getAllChatsWithPermissions(): Promise<ChatWithPermission[]> {
-    const sqlClient = getSqlClient();
-    const results = await sqlClient`
-      SELECT 
-        cp.chat_id as "chatId",
-        cp.chat_type as "chatType",
-        cp.permission,
-        COALESCE(cp.display_name, g.group_name, g.group_subject) as "displayName",
-        cp.notes,
-        cp.created_at as "createdAt",
-        cp.updated_at as "updatedAt",
-        (SELECT COUNT(*) FROM messages m WHERE m.jid = cp.chat_id OR m.group_id = cp.chat_id) as "messageCount",
-        (SELECT MAX(timestamp) FROM messages m WHERE m.jid = cp.chat_id OR m.group_id = cp.chat_id) as "lastMessageAt"
-      FROM chat_permissions cp
-      LEFT JOIN groups g ON cp.chat_id = g.group_id
-      ORDER BY cp.updated_at DESC
-    `;
-    return results as unknown as ChatWithPermission[];
+    const db = this.db;
+    const results = await db
+      .select({
+        chatId: schema.chatPermissions.chatId,
+        chatType: schema.chatPermissions.chatType,
+        permission: schema.chatPermissions.permission,
+        displayName: sql<string>`COALESCE(${schema.chatPermissions.displayName}, ${schema.groups.groupName}, ${schema.groups.groupSubject})`,
+        notes: schema.chatPermissions.notes,
+        createdAt: schema.chatPermissions.createdAt,
+        updatedAt: schema.chatPermissions.updatedAt,
+        messageCount: sql<number>`(SELECT COUNT(*) FROM messages m WHERE m.jid = ${schema.chatPermissions.chatId} OR m.group_id = ${schema.chatPermissions.chatId})`,
+        lastMessageAt: sql<Date | null>`(SELECT MAX(timestamp) FROM messages m WHERE m.jid = ${schema.chatPermissions.chatId} OR m.group_id = ${schema.chatPermissions.chatId})`,
+      })
+      .from(schema.chatPermissions)
+      .leftJoin(schema.groups, eq(schema.chatPermissions.chatId, schema.groups.groupId))
+      .orderBy(desc(schema.chatPermissions.updatedAt));
+
+    return results as ChatWithPermission[];
   }
 
   async getChatsWithoutPermissions(): Promise<ChatWithPermission[]> {
-    const sqlClient = getSqlClient();
+    const db = this.db;
 
     // Find groups without permissions
-    const groupsResult = await sqlClient`
-      SELECT DISTINCT 
-        m.group_id as "chatId",
-        'group' as "chatType",
-        NULL as permission,
-        COALESCE(g.group_name, g.group_subject) as "displayName",
-        NULL as notes,
-        NULL as "createdAt",
-        NULL as "updatedAt",
-        COUNT(*) as "messageCount",
-        MAX(m.timestamp) as "lastMessageAt"
-      FROM messages m
-      LEFT JOIN groups g ON m.group_id = g.group_id
-      LEFT JOIN chat_permissions cp ON m.group_id = cp.chat_id
-      WHERE m.is_group = true 
-        AND m.group_id IS NOT NULL
-        AND cp.chat_id IS NULL
-      GROUP BY m.group_id, g.group_name, g.group_subject
-    `;
+    const groupsResult = await db
+      .select({
+        chatId: schema.messages.groupId,
+        chatType: sql<string>`'group'`,
+        permission: sql<string | null>`NULL`,
+        displayName: sql<string>`COALESCE(${schema.groups.groupName}, ${schema.groups.groupSubject})`,
+        notes: sql<string | null>`NULL`,
+        createdAt: sql<Date | null>`NULL`,
+        updatedAt: sql<Date | null>`NULL`,
+        messageCount: count(),
+        lastMessageAt: sql<Date | null>`MAX(${schema.messages.timestamp})`,
+      })
+      .from(schema.messages)
+      .leftJoin(schema.groups, eq(schema.messages.groupId, schema.groups.groupId))
+      .leftJoin(schema.chatPermissions, eq(schema.messages.groupId, schema.chatPermissions.chatId))
+      .where(
+        and(
+          eq(schema.messages.isGroup, true),
+          sql`${schema.messages.groupId} IS NOT NULL`,
+          sql`${schema.chatPermissions.chatId} IS NULL`
+        )
+      )
+      .groupBy(schema.messages.groupId, schema.groups.groupName, schema.groups.groupSubject);
 
     // Find individual chats without permissions
-    const individualsResult = await sqlClient`
-      SELECT DISTINCT 
-        m.jid as "chatId",
-        'individual' as "chatType",
-        NULL as permission,
-        m.phone as "displayName",
-        NULL as notes,
-        NULL as "createdAt",
-        NULL as "updatedAt",
-        COUNT(*) as "messageCount",
-        MAX(m.timestamp) as "lastMessageAt"
-      FROM messages m
-      LEFT JOIN chat_permissions cp ON m.jid = cp.chat_id
-      WHERE m.is_group = false
-        AND cp.chat_id IS NULL
-      GROUP BY m.jid, m.phone
-    `;
+    const individualsResult = await db
+      .select({
+        chatId: schema.messages.jid,
+        chatType: sql<string>`'individual'`,
+        permission: sql<string | null>`NULL`,
+        displayName: schema.messages.phone,
+        notes: sql<string | null>`NULL`,
+        createdAt: sql<Date | null>`NULL`,
+        updatedAt: sql<Date | null>`NULL`,
+        messageCount: count(),
+        lastMessageAt: sql<Date | null>`MAX(${schema.messages.timestamp})`,
+      })
+      .from(schema.messages)
+      .leftJoin(schema.chatPermissions, eq(schema.messages.jid, schema.chatPermissions.chatId))
+      .where(and(eq(schema.messages.isGroup, false), sql`${schema.chatPermissions.chatId} IS NULL`))
+      .groupBy(schema.messages.jid, schema.messages.phone);
 
-    return [
-      ...(groupsResult as unknown as ChatWithPermission[]),
-      ...(individualsResult as unknown as ChatWithPermission[]),
-    ];
+    return [...groupsResult, ...individualsResult] as ChatWithPermission[];
   }
 
   async setChatPermission(
@@ -921,10 +734,11 @@ export class MessageDatabase {
     notes?: string,
     changedBy?: string
   ): Promise<void> {
+    const db = this.db;
     const oldRecord = await this.getChatPermission(chatId);
     const oldPermission = oldRecord?.permission || null;
 
-    await this.db
+    await db
       .insert(schema.chatPermissions)
       .values({
         chatId,
@@ -947,7 +761,7 @@ export class MessageDatabase {
       });
 
     if (oldPermission !== permission) {
-      await this.db.insert(schema.permissionAuditLog).values({
+      await db.insert(schema.permissionAuditLog).values({
         chatId,
         oldPermission,
         newPermission: permission,
@@ -964,7 +778,8 @@ export class MessageDatabase {
   }
 
   async updateChatDetails(chatId: string, displayName?: string, notes?: string): Promise<boolean> {
-    const result = await this.db
+    const db = this.db;
+    const result = await db
       .update(schema.chatPermissions)
       .set({
         displayName:
@@ -979,15 +794,16 @@ export class MessageDatabase {
   }
 
   async deleteChatPermission(chatId: string, changedBy?: string): Promise<boolean> {
+    const db = this.db;
     const oldRecord = await this.getChatPermission(chatId);
 
-    const result = await this.db
+    const result = await db
       .delete(schema.chatPermissions)
       .where(eq(schema.chatPermissions.chatId, chatId))
       .returning({ chatId: schema.chatPermissions.chatId });
 
     if (result.length > 0 && oldRecord) {
-      await this.db.insert(schema.permissionAuditLog).values({
+      await db.insert(schema.permissionAuditLog).values({
         chatId,
         oldPermission: oldRecord.permission,
         newPermission: 'deleted',
@@ -1004,7 +820,8 @@ export class MessageDatabase {
     limit: number = 100,
     chatId?: string
   ): Promise<PermissionAuditEntry[]> {
-    let query = this.db
+    const db = this.db;
+    let query = db
       .select()
       .from(schema.permissionAuditLog)
       .orderBy(desc(schema.permissionAuditLog.changedAt))
@@ -1015,7 +832,8 @@ export class MessageDatabase {
     }
 
     const results = await query;
-    return results.map((r) => ({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return results.map((r: any) => ({
       id: r.id,
       chatId: r.chatId,
       oldPermission: r.oldPermission,
@@ -1026,49 +844,36 @@ export class MessageDatabase {
   }
 
   async getDashboardStats(): Promise<DashboardStats> {
-    const sqlClient = getSqlClient();
+    type PermissionRow = { permission: string; count: number };
+    type TypeRow = { chat_type: string; count: number };
 
     const [permissionCounts, typeCounts, totalMessages, chatsWithoutPerms] = await Promise.all([
-      sqlClient`
-        SELECT permission, COUNT(*) as count 
-        FROM chat_permissions 
+      executeRawSql<PermissionRow>(`
+        SELECT permission, COUNT(*) as count
+        FROM chat_permissions
         GROUP BY permission
-      `,
-      sqlClient`
-        SELECT chat_type, COUNT(*) as count 
-        FROM chat_permissions 
+      `),
+      executeRawSql<TypeRow>(`
+        SELECT chat_type, COUNT(*) as count
+        FROM chat_permissions
         GROUP BY chat_type
-      `,
-      sqlClient`SELECT COUNT(*) as count FROM messages`,
+      `),
+      executeRawSql<{ count: number }>('SELECT COUNT(*) as count FROM messages'),
       this.getChatsWithoutPermissions(),
     ]);
 
-    type PermissionRow = { permission: string; count: string };
-    type TypeRow = { chat_type: string; count: string };
-
-    const typedPermissionCounts = permissionCounts as unknown as PermissionRow[];
-    const typedTypeCounts = typeCounts as unknown as TypeRow[];
-
     return {
-      totalChats: typedPermissionCounts.reduce((sum, p) => sum + parseInt(p.count), 0),
+      totalChats: permissionCounts.reduce((sum, p) => sum + Number(p.count), 0),
       byPermission: {
-        ignored: parseInt(
-          typedPermissionCounts.find((p) => p.permission === 'ignored')?.count || '0'
-        ),
-        read_only: parseInt(
-          typedPermissionCounts.find((p) => p.permission === 'read_only')?.count || '0'
-        ),
-        read_write: parseInt(
-          typedPermissionCounts.find((p) => p.permission === 'read_write')?.count || '0'
-        ),
+        ignored: Number(permissionCounts.find((p) => p.permission === 'ignored')?.count ?? 0),
+        read_only: Number(permissionCounts.find((p) => p.permission === 'read_only')?.count ?? 0),
+        read_write: Number(permissionCounts.find((p) => p.permission === 'read_write')?.count ?? 0),
       },
       byType: {
-        individual: parseInt(
-          typedTypeCounts.find((t) => t.chat_type === 'individual')?.count || '0'
-        ),
-        group: parseInt(typedTypeCounts.find((t) => t.chat_type === 'group')?.count || '0'),
+        individual: Number(typeCounts.find((t) => t.chat_type === 'individual')?.count ?? 0),
+        group: Number(typeCounts.find((t) => t.chat_type === 'group')?.count ?? 0),
       },
-      totalMessages: parseInt((totalMessages as unknown as Array<{ count: string }>)[0].count),
+      totalMessages: Number(totalMessages[0]?.count ?? 0),
       chatsWithoutPermissions: chatsWithoutPerms.length,
     };
   }
@@ -1109,7 +914,8 @@ export class MessageDatabase {
   // ============================================
 
   async getDashboardUser(username: string): Promise<DashboardUser | undefined> {
-    const results = await this.db
+    const db = this.db;
+    const results = await db
       .select()
       .from(schema.dashboardUsers)
       .where(eq(schema.dashboardUsers.username, username))
@@ -1130,7 +936,8 @@ export class MessageDatabase {
   }
 
   async getDashboardUserById(id: number): Promise<DashboardUser | undefined> {
-    const results = await this.db
+    const db = this.db;
+    const results = await db
       .select()
       .from(schema.dashboardUsers)
       .where(eq(schema.dashboardUsers.id, id))
@@ -1151,7 +958,8 @@ export class MessageDatabase {
   }
 
   async getDashboardUserByGoogleId(googleId: string): Promise<DashboardUser | undefined> {
-    const results = await this.db
+    const db = this.db;
+    const results = await db
       .select()
       .from(schema.dashboardUsers)
       .where(eq(schema.dashboardUsers.googleId, googleId))
@@ -1172,7 +980,8 @@ export class MessageDatabase {
   }
 
   async getDashboardUserByEmail(email: string): Promise<DashboardUser | undefined> {
-    const results = await this.db
+    const db = this.db;
+    const results = await db
       .select()
       .from(schema.dashboardUsers)
       .where(eq(schema.dashboardUsers.username, email))
@@ -1193,7 +1002,8 @@ export class MessageDatabase {
   }
 
   async linkGoogleAccount(userId: number, googleId: string, googleEmail: string): Promise<boolean> {
-    const result = await this.db
+    const db = this.db;
+    const result = await db
       .update(schema.dashboardUsers)
       .set({
         googleId,
@@ -1208,7 +1018,8 @@ export class MessageDatabase {
   }
 
   async createDashboardUserWithGoogle(googleId: string, email: string): Promise<number> {
-    const result = await this.db
+    const db = this.db;
+    const result = await db
       .insert(schema.dashboardUsers)
       .values({
         username: email,
@@ -1224,7 +1035,8 @@ export class MessageDatabase {
   }
 
   async createDashboardUser(username: string, passwordHash: string): Promise<number> {
-    const result = await this.db
+    const db = this.db;
+    const result = await db
       .insert(schema.dashboardUsers)
       .values({ username, passwordHash })
       .returning({ id: schema.dashboardUsers.id });
@@ -1234,7 +1046,8 @@ export class MessageDatabase {
   }
 
   async updateDashboardUserPassword(username: string, passwordHash: string): Promise<boolean> {
-    const result = await this.db
+    const db = this.db;
+    const result = await db
       .update(schema.dashboardUsers)
       .set({ passwordHash })
       .where(eq(schema.dashboardUsers.username, username))
@@ -1244,7 +1057,8 @@ export class MessageDatabase {
   }
 
   async deleteDashboardUser(username: string): Promise<boolean> {
-    const result = await this.db
+    const db = this.db;
+    const result = await db
       .delete(schema.dashboardUsers)
       .where(eq(schema.dashboardUsers.username, username))
       .returning({ id: schema.dashboardUsers.id });
@@ -1256,7 +1070,8 @@ export class MessageDatabase {
   }
 
   async getAllDashboardUsers(): Promise<{ id: number; username: string; createdAt: string }[]> {
-    const results = await this.db
+    const db = this.db;
+    const results = await db
       .select({
         id: schema.dashboardUsers.id,
         username: schema.dashboardUsers.username,
@@ -1265,7 +1080,8 @@ export class MessageDatabase {
       .from(schema.dashboardUsers)
       .orderBy(desc(schema.dashboardUsers.createdAt));
 
-    return results.map((r) => ({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return results.map((r: any) => ({
       id: r.id,
       username: r.username,
       createdAt: r.createdAt?.toISOString() || '',
@@ -1273,7 +1089,8 @@ export class MessageDatabase {
   }
 
   async hasDashboardUsers(): Promise<boolean> {
-    const results = await this.db.select({ count: count() }).from(schema.dashboardUsers);
+    const db = this.db;
+    const results = await db.select({ count: count() }).from(schema.dashboardUsers);
 
     return results[0].count > 0;
   }
@@ -1286,8 +1103,9 @@ export class MessageDatabase {
     platform: PromptPlatform,
     chatId: string
   ): Promise<SystemPromptRecord | undefined> {
+    const db = this.db;
     // First try specific chat
-    let results = await this.db
+    let results = await db
       .select()
       .from(schema.systemPrompts)
       .where(
@@ -1306,14 +1124,14 @@ export class MessageDatabase {
         chatId: r.chatId,
         platform: r.platform as PromptPlatform,
         promptText: r.promptText,
-        isActive: r.isActive,
-        createdAt: r.createdAt,
-        updatedAt: r.updatedAt,
+        isActive: r.isActive ?? true,
+        createdAt: r.createdAt ?? undefined,
+        updatedAt: r.updatedAt ?? undefined,
       };
     }
 
     // Fall back to platform default
-    results = await this.db
+    results = await db
       .select()
       .from(schema.systemPrompts)
       .where(
@@ -1333,9 +1151,9 @@ export class MessageDatabase {
       chatId: r.chatId,
       platform: r.platform as PromptPlatform,
       promptText: r.promptText,
-      isActive: r.isActive,
-      createdAt: r.createdAt,
-      updatedAt: r.updatedAt,
+      isActive: r.isActive ?? true,
+      createdAt: r.createdAt ?? undefined,
+      updatedAt: r.updatedAt ?? undefined,
     };
   }
 
@@ -1345,7 +1163,8 @@ export class MessageDatabase {
   }
 
   async getDefaultPrompt(platform: PromptPlatform): Promise<SystemPromptRecord | undefined> {
-    const results = await this.db
+    const db = this.db;
+    const results = await db
       .select()
       .from(schema.systemPrompts)
       .where(and(eq(schema.systemPrompts.platform, platform), eq(schema.systemPrompts.chatId, '*')))
@@ -1359,9 +1178,9 @@ export class MessageDatabase {
       chatId: r.chatId,
       platform: r.platform as PromptPlatform,
       promptText: r.promptText,
-      isActive: r.isActive,
-      createdAt: r.createdAt,
-      updatedAt: r.updatedAt,
+      isActive: r.isActive ?? true,
+      createdAt: r.createdAt ?? undefined,
+      updatedAt: r.updatedAt ?? undefined,
     };
   }
 
@@ -1370,7 +1189,8 @@ export class MessageDatabase {
     chatId: string,
     promptText: string
   ): Promise<SystemPromptRecord> {
-    const result = await this.db
+    const db = this.db;
+    const result = await db
       .insert(schema.systemPrompts)
       .values({
         chatId,
@@ -1396,19 +1216,20 @@ export class MessageDatabase {
       chatId: r.chatId,
       platform: r.platform as PromptPlatform,
       promptText: r.promptText,
-      isActive: r.isActive,
-      createdAt: r.createdAt,
-      updatedAt: r.updatedAt,
+      isActive: r.isActive ?? true,
+      createdAt: r.createdAt ?? undefined,
+      updatedAt: r.updatedAt ?? undefined,
     };
   }
 
   async deleteSystemPrompt(platform: PromptPlatform, chatId: string): Promise<boolean> {
+    const db = this.db;
     if (chatId === '*') {
       logger.warn('Cannot delete platform default prompt', { platform });
       return false;
     }
 
-    const result = await this.db
+    const result = await db
       .delete(schema.systemPrompts)
       .where(
         and(eq(schema.systemPrompts.platform, platform), eq(schema.systemPrompts.chatId, chatId))
@@ -1423,56 +1244,58 @@ export class MessageDatabase {
   }
 
   async listSystemPrompts(platform?: PromptPlatform): Promise<SystemPromptWithInfo[]> {
-    const sqlClient = getSqlClient();
-
-    let results;
+    let results: SystemPromptWithInfo[];
     if (platform) {
-      results = await sqlClient`
-        SELECT 
+      results = await executeRawSql<SystemPromptWithInfo>(
+        `
+        SELECT
           sp.id,
-          sp.chat_id as "chatId",
+          sp.chat_id as chatId,
           sp.platform,
-          sp.prompt_text as "promptText",
-          sp.is_active as "isActive",
-          sp.created_at as "createdAt",
-          sp.updated_at as "updatedAt",
-          COALESCE(g.group_name, cp.display_name) as "displayName",
-          (sp.chat_id = '*') as "isDefault"
+          sp.prompt_text as promptText,
+          sp.is_active as isActive,
+          sp.created_at as createdAt,
+          sp.updated_at as updatedAt,
+          COALESCE(g.group_name, cp.display_name) as displayName,
+          (sp.chat_id = '*') as isDefault
         FROM system_prompts sp
         LEFT JOIN groups g ON sp.chat_id = g.group_id
         LEFT JOIN chat_permissions cp ON sp.chat_id = cp.chat_id
-        WHERE sp.platform = ${platform}
-        ORDER BY 
+        WHERE sp.platform = ?
+        ORDER BY
           sp.chat_id = '*' DESC,
           sp.updated_at DESC
-      `;
+      `,
+        [platform]
+      );
     } else {
-      results = await sqlClient`
-        SELECT 
+      results = await executeRawSql<SystemPromptWithInfo>(`
+        SELECT
           sp.id,
-          sp.chat_id as "chatId",
+          sp.chat_id as chatId,
           sp.platform,
-          sp.prompt_text as "promptText",
-          sp.is_active as "isActive",
-          sp.created_at as "createdAt",
-          sp.updated_at as "updatedAt",
-          COALESCE(g.group_name, cp.display_name) as "displayName",
-          (sp.chat_id = '*') as "isDefault"
+          sp.prompt_text as promptText,
+          sp.is_active as isActive,
+          sp.created_at as createdAt,
+          sp.updated_at as updatedAt,
+          COALESCE(g.group_name, cp.display_name) as displayName,
+          (sp.chat_id = '*') as isDefault
         FROM system_prompts sp
         LEFT JOIN groups g ON sp.chat_id = g.group_id
         LEFT JOIN chat_permissions cp ON sp.chat_id = cp.chat_id
-        ORDER BY 
+        ORDER BY
           sp.platform ASC,
           sp.chat_id = '*' DESC,
           sp.updated_at DESC
-      `;
+      `);
     }
 
-    return results as unknown as SystemPromptWithInfo[];
+    return results;
   }
 
   async getDefaultPrompts(): Promise<Record<PromptPlatform, SystemPromptRecord | null>> {
-    const results = await this.db
+    const db = this.db;
+    const results = await db
       .select()
       .from(schema.systemPrompts)
       .where(eq(schema.systemPrompts.chatId, '*'));
@@ -1488,9 +1311,9 @@ export class MessageDatabase {
         chatId: r.chatId,
         platform: r.platform as PromptPlatform,
         promptText: r.promptText,
-        isActive: r.isActive,
-        createdAt: r.createdAt,
-        updatedAt: r.updatedAt,
+        isActive: r.isActive ?? true,
+        createdAt: r.createdAt ?? undefined,
+        updatedAt: r.updatedAt ?? undefined,
       };
     }
 
@@ -1545,11 +1368,462 @@ Always provide concise, actionable summaries when reporting on project status.`;
     await closeDatabase();
     logger.info('Database connection pool closed');
   }
+
+  // ============================================
+  // DEMO MEETINGS MANAGEMENT
+  // ============================================
+
+  async listDemoMeetings(limit: number = 100): Promise<DemoMeeting[]> {
+    const db = this.db;
+    const results = await db
+      .select()
+      .from(schema.demoMeetings)
+      .orderBy(desc(schema.demoMeetings.startTime))
+      .limit(limit);
+
+    return results.map((r) => ({
+      id: r.id,
+      title: r.title,
+      description: r.description || undefined,
+      attendees: r.attendees || undefined,
+      startTime: r.startTime,
+      durationMinutes: r.durationMinutes,
+      sendReminder: r.sendReminder ?? true,
+      createdAt: r.createdAt || new Date(),
+    }));
+  }
+
+  async createDemoMeeting(input: CreateDemoMeetingInput): Promise<DemoMeeting> {
+    const db = this.db;
+    const result = await db
+      .insert(schema.demoMeetings)
+      .values({
+        title: input.title,
+        description: input.description || null,
+        attendees: input.attendees || null,
+        startTime: input.startTime instanceof Date ? input.startTime : new Date(input.startTime),
+        durationMinutes: input.durationMinutes,
+        sendReminder: input.sendReminder ?? true,
+      })
+      .returning();
+
+    const r = result[0];
+    return {
+      id: r.id,
+      title: r.title,
+      description: r.description || undefined,
+      attendees: r.attendees || undefined,
+      startTime: r.startTime,
+      durationMinutes: r.durationMinutes,
+      sendReminder: r.sendReminder ?? true,
+      createdAt: r.createdAt || new Date(),
+    };
+  }
+
+  // ============================================
+  // DEMO GITHUB MONITORS MANAGEMENT
+  // ============================================
+
+  async listDemoGithubMonitors(limit: number = 100): Promise<DemoGithubMonitor[]> {
+    const db = this.db;
+    const results = await db
+      .select()
+      .from(schema.demoGithubMonitors)
+      .orderBy(desc(schema.demoGithubMonitors.createdAt))
+      .limit(limit);
+
+    return results.map((r) => ({
+      id: r.id,
+      repoUrl: r.repoUrl,
+      slackChannel: r.slackChannel,
+      scheduleTime: r.scheduleTime,
+      isActive: r.isActive ?? true,
+      lastChecked: r.lastChecked || undefined,
+      createdAt: r.createdAt || new Date(),
+    }));
+  }
+
+  async createDemoGithubMonitor(input: CreateDemoGithubMonitorInput): Promise<DemoGithubMonitor> {
+    const db = this.db;
+    const result = await db
+      .insert(schema.demoGithubMonitors)
+      .values({
+        repoUrl: input.repoUrl,
+        slackChannel: input.slackChannel,
+        scheduleTime: input.scheduleTime,
+        isActive: input.isActive ?? true,
+      })
+      .returning();
+
+    const r = result[0];
+    return {
+      id: r.id,
+      repoUrl: r.repoUrl,
+      slackChannel: r.slackChannel,
+      scheduleTime: r.scheduleTime,
+      isActive: r.isActive ?? true,
+      lastChecked: r.lastChecked || undefined,
+      createdAt: r.createdAt || new Date(),
+    };
+  }
+
+  async markDemoGithubMonitorChecked(id: number): Promise<boolean> {
+    const db = this.db;
+    const result = await db
+      .update(schema.demoGithubMonitors)
+      .set({ lastChecked: new Date() })
+      .where(eq(schema.demoGithubMonitors.id, id))
+      .returning({ id: schema.demoGithubMonitors.id });
+
+    return result.length > 0;
+  }
+
+  async deleteDemoGithubMonitor(id: number): Promise<boolean> {
+    const db = this.db;
+    const result = await db
+      .delete(schema.demoGithubMonitors)
+      .where(eq(schema.demoGithubMonitors.id, id))
+      .returning({ id: schema.demoGithubMonitors.id });
+
+    return result.length > 0;
+  }
+
+  // ============================================
+  // UNIFIED CHATS
+  // ============================================
+
+  async getAllChatsUnified(): Promise<UnifiedChat[]> {
+    // Get WhatsApp chats with permissions AND without permissions
+    const [configuredChats, unconfiguredChats] = await Promise.all([
+      this.getAllChatsWithPermissions(),
+      this.getChatsWithoutPermissions(),
+    ]);
+    const configuredIds = new Set(configuredChats.map((c) => c.chatId));
+
+    const mapChat = (chat: ChatWithPermission, isConfigured: boolean): UnifiedChat => ({
+      id: chat.chatId,
+      chatId: chat.chatId,
+      chatType: chat.chatType as 'individual' | 'group',
+      platform: 'whatsapp' as const,
+      type: chat.chatType as 'individual' | 'group',
+      displayName: chat.displayName || chat.chatId,
+      permission: chat.permission || undefined,
+      messageCount: chat.messageCount,
+      lastMessageAt: chat.lastMessageAt,
+      isConfigured,
+    });
+
+    return [
+      ...configuredChats.map((chat) => mapChat(chat, true)),
+      ...unconfiguredChats
+        .filter((chat) => !configuredIds.has(chat.chatId))
+        .map((chat) => mapChat(chat, false)),
+    ];
+  }
+
+  // ============================================
+  // ONBOARDING STATUS
+  // ============================================
+
+  async checkOnboardingCompleted(platform: 'whatsapp' | 'slack'): Promise<boolean> {
+    // Check if the platform has any activity indicating it's set up
+    if (platform === 'whatsapp') {
+      // Check if there are any messages
+      const [result] = await executeRawSql<{ count: number }>(
+        'SELECT COUNT(*) as count FROM messages LIMIT 1'
+      );
+      return (result?.count || 0) > 0;
+    } else if (platform === 'slack') {
+      // Check if there are any Slack messages
+      const [result] = await executeRawSql<{ count: number }>(
+        'SELECT COUNT(*) as count FROM slack_messages LIMIT 1'
+      );
+      return (result?.count || 0) > 0;
+    }
+    return false;
+  }
+
+  async markOnboardingCompleted(platform: 'whatsapp' | 'slack'): Promise<void> {
+    // No-op for now - onboarding is considered complete when messages exist
+    logger.info('Onboarding marked complete', { platform });
+  }
+
+  // ============================================
+  // HEALTH MONITOR STATE (Key-Value Storage)
+  // ============================================
+
+  async getAllHealthMonitorState(): Promise<Record<string, unknown>> {
+    try {
+      const results = await executeRawSql<{ key: string; value: string }>(
+        "SELECT key, value FROM app_storage WHERE app_name = 'health_monitor'"
+      );
+
+      const state: Record<string, unknown> = {};
+      for (const row of results) {
+        try {
+          state[row.key] = JSON.parse(row.value);
+        } catch {
+          state[row.key] = row.value;
+        }
+      }
+      return state;
+    } catch {
+      return {};
+    }
+  }
+
+  async getHealthMonitorState(key: string): Promise<unknown | null> {
+    try {
+      const results = await executeRawSql<{ value: string }>(
+        "SELECT value FROM app_storage WHERE app_name = 'health_monitor' AND key = ?",
+        [key]
+      );
+
+      if (results.length === 0) return null;
+      try {
+        return JSON.parse(results[0].value);
+      } catch {
+        return results[0].value;
+      }
+    } catch {
+      return null;
+    }
+  }
+
+  async setHealthMonitorState(key: string, value: unknown): Promise<void> {
+    const db = this.db;
+    const valueStr = JSON.stringify(value);
+
+    await db
+      .insert(schema.appStorage)
+      .values({
+        appName: 'health_monitor',
+        key,
+        value: valueStr,
+        updatedAt: new Date(),
+      })
+      .onConflictDoUpdate({
+        target: [schema.appStorage.appName, schema.appStorage.key],
+        set: {
+          value: valueStr,
+          updatedAt: new Date(),
+        },
+      });
+  }
+
+  async deleteHealthMonitorState(key: string): Promise<boolean> {
+    const db = this.db;
+    const result = await db
+      .delete(schema.appStorage)
+      .where(and(eq(schema.appStorage.appName, 'health_monitor'), eq(schema.appStorage.key, key)))
+      .returning({ id: schema.appStorage.id });
+
+    return result.length > 0;
+  }
+
+  // ============================================
+  // ONBOARDER SESSIONS
+  // ============================================
+
+  async getActiveOnboarderSession(userId: number): Promise<OnboarderSession | null> {
+    const db = this.db;
+    const results = await db
+      .select()
+      .from(schema.onboarderSessions)
+      .where(
+        and(
+          eq(schema.onboarderSessions.userId, userId),
+          eq(schema.onboarderSessions.isActive, true)
+        )
+      )
+      .orderBy(desc(schema.onboarderSessions.lastActiveAt))
+      .limit(1);
+
+    if (results.length === 0) return null;
+
+    const r = results[0];
+    return {
+      id: r.id,
+      userId: r.userId,
+      sessionId: r.sessionId,
+      title: r.title,
+      isActive: r.isActive ?? false,
+      createdAt: r.createdAt || new Date(),
+      lastActiveAt: r.lastActiveAt || new Date(),
+    };
+  }
+
+  async touchOnboarderSession(sessionId: string): Promise<void> {
+    const db = this.db;
+    await db
+      .update(schema.onboarderSessions)
+      .set({ lastActiveAt: new Date() })
+      .where(eq(schema.onboarderSessions.sessionId, sessionId));
+  }
+
+  async createOnboarderSession(
+    userId: number,
+    sessionId: string,
+    title: string
+  ): Promise<OnboarderSession> {
+    const db = this.db;
+
+    // Deactivate any existing active sessions for this user
+    await db
+      .update(schema.onboarderSessions)
+      .set({ isActive: false })
+      .where(
+        and(
+          eq(schema.onboarderSessions.userId, userId),
+          eq(schema.onboarderSessions.isActive, true)
+        )
+      );
+
+    // Create new session
+    const result = await db
+      .insert(schema.onboarderSessions)
+      .values({
+        userId,
+        sessionId,
+        title,
+        isActive: true,
+        lastActiveAt: new Date(),
+      })
+      .returning();
+
+    const r = result[0];
+    return {
+      id: r.id,
+      userId: r.userId,
+      sessionId: r.sessionId,
+      title: r.title,
+      isActive: r.isActive ?? true,
+      createdAt: r.createdAt || new Date(),
+      lastActiveAt: r.lastActiveAt || new Date(),
+    };
+  }
+
+  async getOnboarderSessions(userId: number): Promise<OnboarderSession[]> {
+    const db = this.db;
+    const results = await db
+      .select()
+      .from(schema.onboarderSessions)
+      .where(eq(schema.onboarderSessions.userId, userId))
+      .orderBy(desc(schema.onboarderSessions.lastActiveAt));
+
+    return results.map((r) => ({
+      id: r.id,
+      userId: r.userId,
+      sessionId: r.sessionId,
+      title: r.title,
+      isActive: r.isActive ?? false,
+      createdAt: r.createdAt || new Date(),
+      lastActiveAt: r.lastActiveAt || new Date(),
+    }));
+  }
+
+  async setActiveOnboarderSession(userId: number, sessionId: string): Promise<boolean> {
+    const db = this.db;
+
+    // Deactivate all sessions for this user
+    await db
+      .update(schema.onboarderSessions)
+      .set({ isActive: false })
+      .where(eq(schema.onboarderSessions.userId, userId));
+
+    // Activate the specified session
+    const result = await db
+      .update(schema.onboarderSessions)
+      .set({ isActive: true, lastActiveAt: new Date() })
+      .where(
+        and(
+          eq(schema.onboarderSessions.userId, userId),
+          eq(schema.onboarderSessions.sessionId, sessionId)
+        )
+      )
+      .returning({ id: schema.onboarderSessions.id });
+
+    return result.length > 0;
+  }
+
+  async clearOnboarderSessions(userId: number): Promise<number> {
+    const db = this.db;
+    const result = await db
+      .delete(schema.onboarderSessions)
+      .where(eq(schema.onboarderSessions.userId, userId))
+      .returning({ id: schema.onboarderSessions.id });
+
+    return result.length;
+  }
+}
+
+// ============================================
+// DEMO TYPES
+// ============================================
+
+export interface DemoMeeting {
+  id: number;
+  title: string;
+  description?: string;
+  attendees?: string;
+  startTime: Date;
+  durationMinutes: number;
+  sendReminder: boolean;
+  createdAt: Date;
+}
+
+export interface CreateDemoMeetingInput {
+  title: string;
+  description?: string;
+  attendees?: string;
+  startTime: Date | string;
+  durationMinutes: number;
+  sendReminder?: boolean;
+}
+
+export interface DemoGithubMonitor {
+  id: number;
+  repoUrl: string;
+  slackChannel: string;
+  scheduleTime: string;
+  isActive: boolean;
+  lastChecked?: Date;
+  createdAt: Date;
+}
+
+export interface CreateDemoGithubMonitorInput {
+  repoUrl: string;
+  slackChannel: string;
+  scheduleTime: string;
+  isActive?: boolean;
+}
+
+export interface UnifiedChat {
+  id: string;
+  chatId: string;
+  chatType: 'individual' | 'group' | 'channel';
+  platform: 'whatsapp' | 'slack';
+  type: 'individual' | 'group' | 'channel';
+  displayName: string;
+  permission?: string;
+  messageCount: number;
+  lastMessageAt: Date | null;
+  isConfigured: boolean;
+}
+
+export interface OnboarderSession {
+  id: number;
+  userId: number;
+  sessionId: string;
+  title: string;
+  isActive: boolean;
+  createdAt: Date;
+  lastActiveAt: Date;
 }
 
 /**
  * Create a MessageDatabase instance using Drizzle ORM
  */
-export function createMessageDatabase(connectionString?: string): MessageDatabase {
-  return new MessageDatabase(connectionString);
+export function createMessageDatabase(): MessageDatabase {
+  return new MessageDatabase();
 }

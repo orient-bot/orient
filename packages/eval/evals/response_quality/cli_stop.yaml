@@ -1,0 +1,27 @@
+# Response Quality: CLI Stop Command
+# Tests that agent correctly explains orient stop command
+
+name: cli_orient_stop
+description: Agent explains orient stop command correctly
+type: response_quality
+agent: default
+
+input:
+  prompt: 'How do I stop the Orient service?'
+
+expect:
+  assertions:
+    - type: response_matches
+      pattern: 'orient stop|stop|service'
+
+scoring:
+  llm_judge:
+    enabled: true
+    threshold: 0.7
+    criteria:
+      - name: accuracy
+        description: Correctly recommends orient stop command
+        weight: 0.6
+      - name: clarity
+        description: Response is clear and actionable
+        weight: 0.4

@@ -70,7 +70,7 @@ services:
   # OpenCode Server + MCP Server (Staging)
   # ===========================================================================
   opencode:
-    image: ghcr.io/orient-bot/orient/opencode:staging
+    image: ghcr.io/orient/orient/opencode:staging
     container_name: orienter-opencode-staging
     environment:
       - NODE_ENV=staging
@@ -110,56 +110,10 @@ services:
       start_period: 60s
 
   # ===========================================================================
-  # WhatsApp Bot (Staging)
-  # ===========================================================================
-  bot-whatsapp:
-    image: ghcr.io/orient-bot/orient/whatsapp-bot:staging
-    container_name: orienter-bot-whatsapp-staging
-    environment:
-      - NODE_ENV=staging
-      - TZ=Asia/Jerusalem
-      # Staging database connection
-      - DATABASE_URL=postgresql://orient:orient@orienter-postgres-staging:5432/whatsapp_bot_staging
-      - OPENCODE_SERVER_URL=http://orienter-opencode-staging:5099
-      - OPENCODE_URL=http://orienter-opencode-staging:5099
-      - OPENCODE_ENABLED=true
-      - S3_BUCKET=${S3_BUCKET_STAGING:-orienter-data-staging}
-      - S3_SYNC_INTERVAL=${S3_SYNC_INTERVAL:-60}
-      - AWS_ACCESS_KEY_ID=${MINIO_ROOT_USER}
-      - AWS_SECRET_ACCESS_KEY=${MINIO_ROOT_PASSWORD}
-      - AWS_ENDPOINT_URL=http://orienter-minio-staging:9000
-      - AWS_REGION=us-east-1
-      # Staging WhatsApp Cloud API settings (optional)
-      - WHATSAPP_CLOUD_API_ENABLED=${WHATSAPP_CLOUD_API_ENABLED_STAGING:-false}
-      - WHATSAPP_CLOUD_API_PHONE_NUMBER_ID=${WHATSAPP_CLOUD_API_PHONE_NUMBER_ID_STAGING:-}
-      - WHATSAPP_CLOUD_API_ACCESS_TOKEN=${WHATSAPP_CLOUD_API_ACCESS_TOKEN_STAGING:-}
-      - WHATSAPP_CLOUD_API_BUSINESS_ACCOUNT_ID=${WHATSAPP_CLOUD_API_BUSINESS_ACCOUNT_ID_STAGING:-}
-      - WHATSAPP_CLOUD_API_WEBHOOK_VERIFY_TOKEN=${WHATSAPP_CLOUD_API_WEBHOOK_VERIFY_TOKEN_STAGING:-}
-      - WHATSAPP_CLOUD_API_APP_SECRET=${WHATSAPP_CLOUD_API_APP_SECRET_STAGING:-}
-      - WEBHOOK_FORWARD_SECRET=${WEBHOOK_FORWARD_SECRET_STAGING:-}
-      # Staging OAuth callback URL
-      - OAUTH_CALLBACK_URL=https://${ORIENT_STAGING_DOMAIN}/oauth/callback
-      # Staging Google OAuth callback URL
-      - GOOGLE_OAUTH_CALLBACK_URL=https://${ORIENT_STAGING_DOMAIN}/oauth/google/callback
-    volumes: !override
-      - ../data/staging:/app/data
-      - ../.mcp.config.local.json:/app/.mcp.config.json:ro
-      - ../logs/staging:/app/logs
-      - ../credentials:/app/credentials:ro
-    ports: !override
-      - '5097:4097'
-    healthcheck:
-      test: ['CMD', 'curl', '-f', 'http://localhost:4097/health']
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 120s
-
-  # ===========================================================================
   # Slack Bot (Staging - Optional)
   # ===========================================================================
   bot-slack:
-    image: ghcr.io/orient-bot/orient/slack-bot:staging
+    image: ghcr.io/orient/orient/slack-bot:staging
     container_name: orienter-bot-slack-staging
     environment:
       - NODE_ENV=staging
@@ -182,7 +136,7 @@ services:
   # API Gateway (Staging - Optional)
   # ===========================================================================
   api-gateway:
-    image: ghcr.io/orient-bot/orient/api-gateway:staging
+    image: ghcr.io/orient/orient/api-gateway:staging
     container_name: orienter-api-gateway-staging
     environment:
       - NODE_ENV=staging
@@ -196,10 +150,10 @@ services:
       - '5100:4100'
 
   # ===========================================================================
-  # Dashboard - Staging
+  # Dashboard - Unified server (Dashboard + WhatsApp) - Staging
   # ===========================================================================
   dashboard:
-    image: ghcr.io/orient-bot/orient/dashboard:staging
+    image: ghcr.io/orient/orient/dashboard:staging
     container_name: orienter-dashboard-staging
     environment:
       - NODE_ENV=staging
@@ -209,12 +163,22 @@ services:
       - DASHBOARD_JWT_SECRET=${DASHBOARD_JWT_SECRET_STAGING}
       # SSH key path for production monitoring (mounted from ~/.ssh)
       - SSH_KEY_PATH=/app/.ssh/id_rsa
+      # WhatsApp integration (unified server mode)
+      - WHATSAPP_ENABLED=true
+      - OPENCODE_URL=http://orienter-opencode-staging:5099
+      - SESSION_PATH=/app/data/whatsapp-auth
+      # Staging Google OAuth callback URL
+      - GOOGLE_OAUTH_CALLBACK_URL=https://${ORIENT_STAGING_DOMAIN}/oauth/google/callback
     volumes: !override
       - ../logs/staging:/app/logs
       # Mount SSH key for production server monitoring (from docker/.ssh directory)
       - ./.ssh:/app/.ssh:ro
+      # WhatsApp session data
+      - ../data/staging:/app/data
     ports: !override
       - '5098:4098'
+    stdin_open: true
+    tty: true
     # Override healthcheck with longer start_period for first deployment
     healthcheck:
       test: ['CMD', 'curl', '-f', 'http://localhost:4098/health']

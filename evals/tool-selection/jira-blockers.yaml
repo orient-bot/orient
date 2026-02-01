@@ -8,7 +8,7 @@ input:
 
 mocks:
   jira:
-    ai_first_get_blockers:
+    jira_get_blockers:
       response:
         count: 2
         issues:
@@ -28,7 +28,7 @@ mocks:
 expect:
   tool_calls:
     required:
-      - name: ai_first_get_blockers
+      - name: jira_get_blockers
 
   assertions:
     # Check response discusses blockers (not specific mock IDs since we use real APIs)

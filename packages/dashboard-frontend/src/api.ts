@@ -834,7 +834,7 @@ export async function getSlackMessageStats(): Promise<SlackMessageStats> {
 export interface SkillInfo {
   name: string;
   description: string;
-  location: 'project' | 'global';
+  location: 'builtin' | 'user';
 }
 
 export interface ToolInfo {

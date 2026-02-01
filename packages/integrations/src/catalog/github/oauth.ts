@@ -15,7 +15,7 @@ import { createServer, Server, IncomingMessage, ServerResponse } from 'http';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as crypto from 'crypto';
-import { createServiceLogger } from '@orient/core';
+import { createServiceLogger } from '@orient-bot/core';
 import {
   getGitHubAuthUrl,
   exchangeGitHubCode,

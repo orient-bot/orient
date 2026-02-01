@@ -7,7 +7,7 @@
  * service is migrated from the monolithic codebase.
  */
 
-import { createServiceLogger } from '@orient/core';
+import { createServiceLogger } from '@orient-bot/core';
 import type { ScheduledMessage, SchedulerJobInfo } from '../types.js';
 
 const logger = createServiceLogger('scheduler');

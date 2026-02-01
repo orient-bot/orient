@@ -7,7 +7,7 @@
  * Features:
  * - Default agent configuration (pm-assistant)
  *
- * Exported via @orient/agents package.
+ * Exported via @orient-bot/agents package.
  * - Image preprocessing (base64 encoding)
  * - Audio transcription context
  * - Vision model auto-switching
@@ -38,7 +38,7 @@ import {
   getVisionModelName as configGetVisionModelName,
   getProviderFromModelId as configGetProviderFromModelId,
   formatModelName as configFormatModelName,
-} from '@orient/core';
+} from '@orient-bot/core';
 
 // Re-export all model-related items for backward compatibility
 export {
@@ -217,9 +217,27 @@ export function categorizeTools(tools: string[]): Record<string, string[]> {
     let category = 'other';
     let simpleName = tool;
 
-    if (tool.startsWith('ai_first_') || tool.startsWith('jira_')) {
-      category = 'JIRA';
-      simpleName = tool.replace(/^(ai_first_|jira_)/, '').replace(/_/g, ' ');
+    if (tool.startsWith('system_')) {
+      category = 'System';
+      simpleName = tool.replace('system_', '').replace(/_/g, ' ');
+    } else if (tool.startsWith('skills_')) {
+      category = 'Skills';
+      simpleName = tool.replace('skills_', '').replace(/_/g, ' ');
+    } else if (tool.startsWith('apps_')) {
+      category = 'Apps';
+      simpleName = tool.replace('apps_', '').replace(/_/g, ' ');
+    } else if (tool.startsWith('agents_')) {
+      category = 'Agents';
+      simpleName = tool.replace('agents_', '').replace(/_/g, ' ');
+    } else if (tool.startsWith('context_')) {
+      category = 'Context';
+      simpleName = tool.replace('context_', '').replace(/_/g, ' ');
+    } else if (tool.startsWith('media_')) {
+      category = 'Media';
+      simpleName = tool.replace('media_', '').replace(/_/g, ' ');
+    } else if (tool.startsWith('config_')) {
+      category = 'Config';
+      simpleName = tool.replace('config_', '').replace(/_/g, ' ');
     } else if (tool.startsWith('slack_')) {
       category = 'Slack';
       simpleName = tool.replace('slack_', '').replace(/_/g, ' ');

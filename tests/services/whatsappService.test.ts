@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
-import { WhatsAppService, WritePermissionDeniedError } from '@orient/bot-whatsapp';
+import { WhatsAppService, WritePermissionDeniedError } from '@orient-bot/bot-whatsapp';
 
 function createConfig() {
   const sessionPath = fs.mkdtempSync(path.join(os.tmpdir(), 'wa-session-'));

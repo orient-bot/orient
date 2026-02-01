@@ -6,9 +6,10 @@
  */
 
 import { Router, Request, Response } from 'express';
-import { createServiceLogger } from '@orient/core';
-import { createSecretsService } from '@orient/database-services';
-import type { IntegrationManifest } from '@orient/integrations/types';
+import { getParam } from './paramUtils.js';
+import { createServiceLogger } from '@orient-bot/core';
+import { createSecretsService } from '@orient-bot/database-services';
+import type { IntegrationManifest } from '@orient-bot/integrations/types';
 
 const logger = createServiceLogger('integrations-routes');
 
@@ -21,7 +22,7 @@ async function getLoaderModule(): Promise<{
   loadIntegrationManifest: (name: string) => Promise<IntegrationManifest | null>;
 }> {
   if (!loaderModule) {
-    loaderModule = await import('@orient/integrations/catalog/loader');
+    loaderModule = await import('@orient-bot/integrations/catalog/loader');
   }
   return loaderModule;
 }
@@ -29,15 +30,15 @@ async function getLoaderModule(): Promise<{
 // Lazy-loaded OAuth modules - using 'any' type because these are dynamically imported
 // and TypeScript can't verify the module structure at compile time
 
-// Google OAuth service from @orient/integrations
+// Google OAuth service from @orient-bot/integrations
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let googleOAuthServiceModule: any = null;
 
-// Atlassian OAuth service from @orient/mcp-servers/oauth
+// Atlassian OAuth service from @orient-bot/mcp-servers/oauth
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let atlassianOAuthModule: any = null;
 
-// GitHub OAuth service from @orient/integrations/catalog/github
+// GitHub OAuth service from @orient-bot/integrations/catalog/github
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let gitHubOAuthModule: any = null;
 
@@ -67,7 +68,7 @@ async function getGoogleOAuthModule() {
 
   if (!googleOAuthServiceModule) {
     try {
-      googleOAuthServiceModule = await import('@orient/integrations');
+      googleOAuthServiceModule = await import('@orient-bot/integrations');
     } catch (error) {
       throw new Error(
         `Failed to load Google OAuth service: ${error instanceof Error ? error.message : String(error)}`
@@ -80,8 +81,8 @@ async function getGoogleOAuthModule() {
 async function getAtlassianOAuthModule() {
   if (!atlassianOAuthModule) {
     try {
-      // Use package import - Atlassian OAuth is re-exported from @orient/mcp-servers
-      atlassianOAuthModule = await import('@orient/mcp-servers/oauth');
+      // Use package import - Atlassian OAuth is re-exported from @orient-bot/mcp-servers
+      atlassianOAuthModule = await import('@orient-bot/mcp-servers/oauth');
       logger.info('Loaded Atlassian OAuth module');
     } catch (error) {
       throw new Error(
@@ -119,7 +120,7 @@ async function getGitHubOAuthModule() {
   if (!gitHubOAuthModule) {
     try {
       // Use package import - much cleaner than relative paths
-      gitHubOAuthModule = await import('@orient/integrations/catalog/github');
+      gitHubOAuthModule = await import('@orient-bot/integrations/catalog/github');
     } catch (error) {
       throw new Error(
         `Failed to load GitHub OAuth service: ${error instanceof Error ? error.message : String(error)}`
@@ -159,7 +160,7 @@ async function getLinearOAuthModule() {
 
   if (!linearOAuthModule) {
     try {
-      linearOAuthModule = await import('@orient/integrations/catalog/linear');
+      linearOAuthModule = await import('@orient-bot/integrations/catalog/linear');
     } catch (error) {
       throw new Error(
         `Failed to load Linear OAuth service: ${error instanceof Error ? error.message : String(error)}`
@@ -167,46 +168,6 @@ async function getLinearOAuthModule() {
     }
   }
   return linearOAuthModule;
-}
-
-// JIRA OAuth service lazy-loaded
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let jiraOAuthModule: any = null;
-
-async function getJiraOAuthModule() {
-  // Always reload credentials from secrets database
-  try {
-    const secretsService = createSecretsService();
-    const clientId = await secretsService.getSecret('JIRA_OAUTH_CLIENT_ID');
-    const clientSecret = await secretsService.getSecret('JIRA_OAUTH_CLIENT_SECRET');
-
-    if (clientId && clientSecret) {
-      const credentialsChanged =
-        process.env.JIRA_OAUTH_CLIENT_ID !== clientId ||
-        process.env.JIRA_OAUTH_CLIENT_SECRET !== clientSecret;
-
-      if (credentialsChanged) {
-        process.env.JIRA_OAUTH_CLIENT_ID = clientId;
-        process.env.JIRA_OAUTH_CLIENT_SECRET = clientSecret;
-        logger.info('Loaded JIRA OAuth credentials from secrets database');
-      }
-    }
-  } catch (error) {
-    logger.debug('Could not load JIRA OAuth credentials from secrets', {
-      error: error instanceof Error ? error.message : String(error),
-    });
-  }
-
-  if (!jiraOAuthModule) {
-    try {
-      jiraOAuthModule = await import('@orient/integrations/catalog/jira');
-    } catch (error) {
-      throw new Error(
-        `Failed to load JIRA OAuth service: ${error instanceof Error ? error.message : String(error)}`
-      );
-    }
-  }
-  return jiraOAuthModule;
 }
 
 /**
@@ -352,7 +313,7 @@ export function createIntegrationsRoutes(
         const provider = atlassianModule.createOAuthProvider(atlassianUrl, 'atlassian');
         const tokens = await provider.tokens();
         if (tokens?.access_token) {
-          activeIntegrations.push('jira');
+          activeIntegrations.push('atlassian');
         }
       } catch {
         // Atlassian not available
@@ -474,31 +435,6 @@ export function createIntegrationsRoutes(
             }
           }
 
-          // Check JIRA connection status (for API token or OAuth)
-          if (integration.manifest.name === 'jira') {
-            try {
-              const oauthModule = await getJiraOAuthModule();
-              if (oauthModule.getJiraOAuthService) {
-                const jiraOAuthService = oauthModule.getJiraOAuthService();
-                const accounts = jiraOAuthService.getConnectedAccounts();
-                result.isConnected = accounts.length > 0;
-              }
-            } catch {
-              // OAuth module not available, check API token connection
-              try {
-                const secretsService = createSecretsService();
-                const host = await secretsService.getSecret('JIRA_HOST');
-                const email = await secretsService.getSecret('JIRA_EMAIL');
-                const token = await secretsService.getSecret('JIRA_API_TOKEN');
-                if (host && email && token) {
-                  result.isConnected = true; // API token credentials are configured
-                }
-              } catch {
-                // Leave as disconnected
-              }
-            }
-          }
-
           return result;
         })
       );
@@ -515,7 +451,7 @@ export function createIntegrationsRoutes(
   // Get a specific integration
   router.get('/catalog/:name', requireAuth, async (req: Request, res: Response) => {
     try {
-      const { name } = req.params;
+      const name = getParam(req.params.name);
       const catalogEntries = await buildCatalogEntries();
       const integration = catalogEntries.find((i) => i.manifest.name === name);
 
@@ -535,7 +471,7 @@ export function createIntegrationsRoutes(
   // Save credentials for an integration (inline credential entry)
   router.post('/connect/:name/credentials', requireAuth, async (req: Request, res: Response) => {
     try {
-      const { name } = req.params;
+      const name = getParam(req.params.name);
       const { credentials, authMethod } = req.body as {
         credentials: Record<string, string>;
         authMethod?: string;
@@ -581,7 +517,7 @@ export function createIntegrationsRoutes(
   // Initiate OAuth connection for an integration
   router.post('/connect/:name', requireAuth, async (req: Request, res: Response) => {
     try {
-      const { name } = req.params;
+      const name = getParam(req.params.name);
       const { authMethod } = req.body as { authMethod?: string };
       const catalogEntries = await buildCatalogEntries();
       const integration = catalogEntries.find((i) => i.manifest.name === name);
@@ -676,7 +612,7 @@ export function createIntegrationsRoutes(
             message: 'Atlassian OAuth requires OpenCode to handle the MCP connection.',
             requiresOpenCode: true,
             openCodeUrl,
-            instructions: `Open ${openCodeUrl} and use any JIRA tool to trigger authentication.`,
+            instructions: `Open ${openCodeUrl} and use any Atlassian MCP tool to trigger authentication.`,
             callbackUrl: atlassianModule.OAUTH_CALLBACK_URL,
           });
         } catch (error) {
@@ -789,110 +725,6 @@ export function createIntegrationsRoutes(
           });
           return res.status(500).json({
             error: `Failed to initiate Linear OAuth: ${error instanceof Error ? error.message : String(error)}`,
-          });
-        }
-      }
-
-      // Handle JIRA connection (supports both API token and OAuth)
-      if (name === 'jira') {
-        try {
-          // Check if using API token method
-          if (authMethod === 'api_token') {
-            // For API token, just verify the credentials are configured
-            const secretsService = createSecretsService();
-            const host = await secretsService.getSecret('JIRA_HOST');
-            const email = await secretsService.getSecret('JIRA_EMAIL');
-            const apiToken = await secretsService.getSecret('JIRA_API_TOKEN');
-
-            if (host && email && apiToken) {
-              // Test the connection
-              try {
-                const jiraService = await import('@orient/integrations/jira');
-                jiraService.initializeJiraClient({
-                  jira: {
-                    host,
-                    email,
-                    apiToken,
-                    projectKey: 'TEST',
-                    component: 'TEST',
-                  },
-                  sla: [],
-                  board: { kanbanBacklogStatuses: [] },
-                });
-                const connected = await jiraService.testConnection();
-
-                if (connected) {
-                  return res.json({
-                    success: true,
-                    name,
-                    message: `Connected to JIRA at ${host}`,
-                    connected: true,
-                  });
-                }
-              } catch (testError) {
-                return res.status(400).json({
-                  error: `Failed to connect to JIRA: ${testError instanceof Error ? testError.message : String(testError)}`,
-                });
-              }
-            }
-
-            return res.status(400).json({
-              error: 'JIRA API token credentials not configured',
-              requiredSecrets: integration.manifest.requiredSecrets?.filter(
-                (s) => s.authMethod === 'api_token'
-              ),
-            });
-          }
-
-          // OAuth flow for JIRA
-          const jiraModule = await getJiraOAuthModule();
-
-          // Check if OAuth service is available
-          if (!jiraModule.getJiraOAuthService) {
-            return res.status(500).json({
-              error: 'JIRA OAuth service not available. Create the OAuth service first.',
-            });
-          }
-
-          const jiraOAuthService = jiraModule.getJiraOAuthService();
-
-          // Check if already connected
-          const accounts = jiraOAuthService.getConnectedAccounts();
-          if (accounts.length > 0) {
-            return res.json({
-              success: true,
-              name,
-              message: `Already connected as ${accounts[0].displayName || accounts[0].email}`,
-              connected: true,
-            });
-          }
-
-          // Start JIRA OAuth flow
-          const { authUrl, state } = await jiraOAuthService.startOAuthFlow();
-
-          // Ensure callback server is running (for local dev)
-          if (!jiraModule.IS_JIRA_OAUTH_PRODUCTION) {
-            await jiraOAuthService.ensureCallbackServerRunning();
-          }
-
-          logger.info('JIRA OAuth authorization URL generated', { name });
-
-          return res.json({
-            success: true,
-            name,
-            authUrl,
-            callbackUrl: jiraModule.IS_JIRA_OAUTH_PRODUCTION
-              ? process.env.JIRA_OAUTH_CALLBACK_URL
-              : jiraOAuthService.getCallbackUrl(),
-            oauthState: state,
-            instructions: 'Complete authorization in the popup window.',
-          });
-        } catch (error) {
-          logger.error('Failed to initiate JIRA connection', {
-            error: error instanceof Error ? error.message : String(error),
-          });
-          return res.status(500).json({
-            error: `Failed to initiate JIRA connection: ${error instanceof Error ? error.message : String(error)}`,
           });
         }
       }

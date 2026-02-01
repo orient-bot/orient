@@ -6,7 +6,7 @@
  */
 
 import OpenAI from 'openai';
-import { createServiceLogger, getEnvWithSecrets } from '@orient/core';
+import { createServiceLogger, getEnvWithSecrets } from '@orient-bot/core';
 
 const logger = createServiceLogger('openai-image');
 

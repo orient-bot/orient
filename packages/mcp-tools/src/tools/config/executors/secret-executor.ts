@@ -4,7 +4,7 @@
  * Executes confirmed secret configuration actions.
  */
 
-import { createServiceLogger } from '@orient/core';
+import { createServiceLogger } from '@orient-bot/core';
 import { getPendingActionsStore } from '../pending-store.js';
 import type { PendingAction, ActionExecutionResult } from '../pending-store.js';
 
@@ -21,7 +21,7 @@ async function executeSecretAction(action: PendingAction): Promise<ActionExecuti
   });
 
   try {
-    const { createSecretsService } = await import('@orient/database-services');
+    const { createSecretsService } = await import('@orient-bot/database-services');
     const secretsService = createSecretsService();
 
     const secretKey = action.target;

@@ -1,0 +1,27 @@
+# Response Quality: Scheduling Feature
+# Tests that agent explains scheduling feature correctly
+
+name: feature_scheduling
+description: Agent explains scheduling feature correctly
+type: response_quality
+agent: default
+
+input:
+  prompt: 'How do I schedule recurring messages in Orient?'
+
+expect:
+  assertions:
+    - type: response_matches
+      pattern: 'schedule|cron|recurring'
+
+scoring:
+  llm_judge:
+    enabled: true
+    threshold: 0.7
+    criteria:
+      - name: accuracy
+        description: Correctly explains scheduling functionality
+        weight: 0.6
+      - name: completeness
+        description: Mentions cron syntax or recurring options
+        weight: 0.4

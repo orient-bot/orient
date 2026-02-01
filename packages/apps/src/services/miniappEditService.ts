@@ -7,7 +7,7 @@
  * Workflow:
  * 1. Create worktree for isolated development
  *
- * Exported via @orient/apps package.
+ * Exported via @orient-bot/apps package.
  * 2. Create OpenCode session with working directory = worktree
  * 3. Send prompt to OpenCode for code generation
  * 4. Auto-commit changes
@@ -19,9 +19,9 @@ import path from 'path';
 import { promisify } from 'util';
 import { exec } from 'child_process';
 import fs from 'fs';
-import { createServiceLogger } from '@orient/core';
+import { createServiceLogger } from '@orient-bot/core';
 import { AppGitService } from './appGitService.js';
-import { OpenCodeClient } from '@orient/agents';
+import { OpenCodeClient } from '@orient-bot/agents';
 import { generateAppManifestTemplate } from '../types.js';
 import {
   MiniappEditDatabase,

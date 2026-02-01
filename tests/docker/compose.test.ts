@@ -58,12 +58,6 @@ describe('Docker Compose Configuration', () => {
       expect(compose.services).toBeDefined();
     });
 
-    it('should define bot-whatsapp service', () => {
-      const compose = parseYaml(path.join(dockerDir, 'docker-compose.v2.yml'));
-      expect(compose.services['bot-whatsapp']).toBeDefined();
-      expect(compose.services['bot-whatsapp'].build.dockerfile).toContain('packages/bot-whatsapp');
-    });
-
     it('should define bot-slack service', () => {
       const compose = parseYaml(path.join(dockerDir, 'docker-compose.v2.yml'));
       expect(compose.services['bot-slack']).toBeDefined();
@@ -84,15 +78,16 @@ describe('Docker Compose Configuration', () => {
       expect(compose.services['api-gateway'].build.dockerfile).toContain('packages/api-gateway');
     });
 
-    it('should define dashboard service', () => {
+    it('should define dashboard service (includes WhatsApp integration)', () => {
       const compose = parseYaml(path.join(dockerDir, 'docker-compose.v2.yml'));
       expect(compose.services['dashboard']).toBeDefined();
       expect(compose.services['dashboard'].build.dockerfile).toContain('packages/dashboard');
     });
 
-    it('should define infrastructure services', () => {
+    it('should define infrastructure services (no postgres - using SQLite)', () => {
       const compose = parseYaml(path.join(dockerDir, 'docker-compose.v2.yml'));
-      expect(compose.services['postgres']).toBeDefined();
+      // SQLite replaces PostgreSQL - no postgres service
+      expect(compose.services['postgres']).toBeUndefined();
       expect(compose.services['minio']).toBeDefined();
       expect(compose.services['nginx']).toBeDefined();
     });
@@ -101,28 +96,30 @@ describe('Docker Compose Configuration', () => {
       // Container names use ${AI_INSTANCE_ID:-0} suffix to allow running multiple
       // isolated instances (e.g., dev on instance 0, test on instance 9)
       const compose = parseYaml(path.join(dockerDir, 'docker-compose.v2.yml'));
-      expect(compose.services['bot-whatsapp'].container_name).toBe(
-        'orienter-bot-whatsapp-${AI_INSTANCE_ID:-0}'
-      );
       expect(compose.services['bot-slack'].container_name).toBe(
         'orienter-bot-slack-${AI_INSTANCE_ID:-0}'
       );
       expect(compose.services['opencode'].container_name).toBe(
         'orienter-opencode-${AI_INSTANCE_ID:-0}'
       );
+      expect(compose.services['dashboard'].container_name).toBe(
+        'orienter-dashboard-${AI_INSTANCE_ID:-0}'
+      );
     });
 
-    it('should have correct dependency chain', () => {
+    it('should have correct dependency chain (no postgres dependency)', () => {
       const compose = parseYaml(path.join(dockerDir, 'docker-compose.v2.yml'));
 
-      // WhatsApp depends on opencode and postgres
-      const whatsappDeps = compose.services['bot-whatsapp'].depends_on;
-      expect(whatsappDeps).toHaveProperty('opencode');
-      expect(whatsappDeps).toHaveProperty('postgres');
+      // Slack depends on opencode (no postgres - using SQLite)
+      const slackDeps = compose.services['bot-slack'].depends_on;
+      expect(slackDeps).toHaveProperty('opencode');
+      expect(slackDeps).not.toHaveProperty('postgres');
 
-      // OpenCode depends on postgres
-      const opencodeDeps = compose.services['opencode'].depends_on;
-      expect(opencodeDeps).toHaveProperty('postgres');
+      // OpenCode has no postgres dependency (using SQLite)
+      const opencodeDeps = compose.services['opencode']?.depends_on;
+      if (opencodeDeps) {
+        expect(opencodeDeps).not.toHaveProperty('postgres');
+      }
     });
 
     it('should define networks', () => {
@@ -131,30 +128,37 @@ describe('Docker Compose Configuration', () => {
       expect(compose.networks['orienter-network']).toBeDefined();
     });
 
-    it('should define volumes', () => {
+    it('should define volumes (no postgres-data - using SQLite)', () => {
       const compose = parseYaml(path.join(dockerDir, 'docker-compose.v2.yml'));
       expect(compose.volumes).toBeDefined();
-      expect(compose.volumes['postgres-data']).toBeDefined();
+      // No postgres-data volume since we use SQLite
+      expect(compose.volumes['postgres-data']).toBeUndefined();
       expect(compose.volumes['opencode-data']).toBeDefined();
     });
 
-    it('should use service name in DATABASE_URL for network isolation', () => {
-      // For multi-instance support, each compose project has its own isolated network.
-      // Using the service name "postgres" is correct because it resolves to the
-      // postgres container within that project's network, avoiding conflicts.
-      // Production deployments use docker-compose.prod.yml which can override this
-      // if needed for shared network scenarios.
+    it('should use SQLite database configuration instead of DATABASE_URL', () => {
+      // Services use SQLITE_DATABASE environment variable for SQLite
       const compose = parseYaml(path.join(dockerDir, 'docker-compose.v2.yml'));
 
-      const servicesWithDb = ['opencode', 'bot-whatsapp', 'bot-slack', 'api-gateway', 'dashboard'];
+      const servicesWithDb = ['opencode', 'bot-slack', 'api-gateway', 'dashboard'];
 
       for (const serviceName of servicesWithDb) {
         const service = compose.services[serviceName];
         if (service?.environment) {
-          const dbUrl = service.environment.find((env: string) => env.startsWith('DATABASE_URL='));
-          if (dbUrl) {
-            // Service name "postgres" for network isolation
-            expect(dbUrl).toContain('@postgres:');
+          // Check for SQLite configuration
+          const hasDbType = service.environment.some((env: string) =>
+            env.startsWith('DATABASE_TYPE=')
+          );
+          const hasSqliteDb = service.environment.some((env: string) =>
+            env.startsWith('SQLITE_DATABASE=')
+          );
+          // Services should use SQLite, not PostgreSQL DATABASE_URL
+          const hasPostgresUrl = service.environment.some(
+            (env: string) => env.startsWith('DATABASE_URL=') && env.includes('postgres')
+          );
+
+          if (hasDbType || hasSqliteDb) {
+            expect(hasPostgresUrl).toBe(false);
           }
         }
       }

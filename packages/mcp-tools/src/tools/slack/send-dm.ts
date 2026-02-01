@@ -21,7 +21,7 @@ interface Output {
 }
 
 export class SlackSendDMTool extends MCPTool<Input, Output> {
-  name = 'ai_first_slack_send_dm';
+  name = 'slack_send_dm';
   description = 'Send a direct message to a Slack user. Can use either user ID or email address.';
   category = 'messaging' as const;
   keywords = ['slack', 'dm', 'message', 'send', 'direct', 'private'];

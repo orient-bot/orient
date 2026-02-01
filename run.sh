@@ -50,10 +50,16 @@ show_help() {
 ║    ./run.sh doctor --fix     Auto-fix issues where possible               ║
 ║                                                                           ║
 ║  DEVELOPMENT (hot-reload):                                                ║
-║    ./run.sh dev              Start dev environment                        ║
+║    ./run.sh dev              Start dev environment (with Docker)          ║
 ║    ./run.sh dev stop         Stop dev services only                       ║
 ║    ./run.sh dev logs         View logs                                    ║
 ║    ./run.sh dev status       Show service status                          ║
+║                                                                           ║
+║  DEVELOPMENT (no Docker):                                                 ║
+║    ./run.sh dev-local        Start dev without Docker (local storage)     ║
+║    ./run.sh dev-local stop   Stop dev-local services                      ║
+║    ./run.sh dev-local logs   View logs                                    ║
+║    ./run.sh dev-local status Show service status                          ║
 ║                                                                           ║
 ║  TESTING (full Docker):                                                   ║
 ║    ./run.sh test             Start with local builds                      ║
@@ -87,8 +93,8 @@ show_instances() {
     echo -e "${BLUE}═══════════════════════════════════════════════════════════════════════════${NC}"
     echo ""
 
-    # Check for running Docker containers
-    local containers=$(docker ps --filter "name=orienter-" --format "{{.Names}}" 2>/dev/null | grep -E "orienter-(nginx|postgres|minio)-[0-9]+" | sed 's/.*-\([0-9]\+\)$/\1/' | sort -u)
+    # Check for running Docker containers (nginx and minio only - SQLite is file-based)
+    local containers=$(docker ps --filter "name=orienter-" --format "{{.Names}}" 2>/dev/null | grep -E "orienter-(nginx|minio)-[0-9]+" | sed 's/.*-\([0-9]\+\)$/\1/' | sort -u)
 
     if [ -z "$containers" ]; then
         echo "  No running instances found."
@@ -103,17 +109,15 @@ show_instances() {
         local offset=$((instance_id * 1000))
         local nginx_port=$((80 + offset))
         local dashboard_port=$((4098 + offset))
-        local whatsapp_port=$((4097 + offset))
         local opencode_port=$((4099 + offset))
-        local postgres_port=$((5432 + offset))
         local minio_console_port=$((9001 + offset))
 
         echo -e "  ${YELLOW}Instance $instance_id${NC}"
         echo "    Dashboard:   http://localhost:$nginx_port"
-        echo "    WhatsApp:    http://localhost:$whatsapp_port/health"
+        echo "    WhatsApp QR: http://localhost:$nginx_port/qr"
         echo "    OpenCode:    http://localhost:$opencode_port"
         echo "    MinIO:       http://localhost:$minio_console_port"
-        echo "    PostgreSQL:  localhost:$postgres_port"
+        echo "    Database:    SQLite (file-based)"
 
         # Check if containers are healthy
         local nginx_status=$(docker ps --filter "name=orienter-nginx-$instance_id" --format "{{.Status}}" 2>/dev/null)
@@ -151,7 +155,9 @@ show_status() {
 
     # Show key port usage
     echo -e "${YELLOW}Port Usage:${NC}"
-    local ports=(80 4097 4098 4099 5173 5432 9000 9001)
+    # Port 4098 is the unified server (Dashboard + WhatsApp)
+    # Database: SQLite (no external port needed)
+    local ports=(80 4098 4099 5173 9000 9001)
     for port in "${ports[@]}"; do
         local pid=$(lsof -ti ":$port" 2>/dev/null || true)
         if [ -n "$pid" ]; then
@@ -178,6 +184,10 @@ case "$1" in
     dev)
         # Hot-reload development mode
         exec "$SCRIPT_DIR/scripts/dev.sh" "${@:2}"
+        ;;
+    dev-local|dev:local)
+        # No-Docker development mode (local storage, no nginx/minio)
+        exec "$SCRIPT_DIR/scripts/dev-local.sh" "${@:2}"
         ;;
     test)
         # Full Docker testing mode

@@ -5,7 +5,7 @@
  * interface to access their tools. Supports both local (stdio) and
  * remote (SSE) MCP servers with OAuth 2.1 authentication.
  *
- * Exported via @orient/mcp-servers package.
+ * Exported via @orient-bot/mcp-servers package.
  *
  * Based on OpenCode's implementation for OAuth flow.
  */
@@ -19,7 +19,7 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import crypto from 'crypto';
-import { createServiceLogger } from '@orient/core';
+import { createServiceLogger } from '@orient-bot/core';
 import {
   MCPOAuthClientProvider,
   createOAuthProvider,

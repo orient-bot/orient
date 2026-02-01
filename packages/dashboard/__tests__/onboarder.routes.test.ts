@@ -6,13 +6,14 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { Request, Response } from 'express';
 
 // Mock core
-vi.mock('@orient/core', () => ({
+vi.mock('@orient-bot/core', () => ({
   createServiceLogger: () => ({
     info: vi.fn(),
     error: vi.fn(),
     debug: vi.fn(),
     warn: vi.fn(),
   }),
+  DEFAULT_AGENT: 'ori',
 }));
 
 import { createOnboarderRoutes } from '../src/server/routes/onboarder.routes.js';
@@ -45,7 +46,9 @@ const mockRequireAuth = vi.fn((req: Request, res: Response, next: () => void) =>
 // Mock database
 const mockDb: Partial<MessageDatabase> = {
   getActiveOnboarderSession: vi.fn().mockResolvedValue(undefined),
-  createOnboarderSession: vi.fn().mockResolvedValue({ id: 1, sessionId: 'session-1', title: 'Test' }),
+  createOnboarderSession: vi
+    .fn()
+    .mockResolvedValue({ id: 1, sessionId: 'session-1', title: 'Test' }),
   touchOnboarderSession: vi.fn().mockResolvedValue(true),
   getOnboarderSessions: vi.fn().mockResolvedValue([]),
   setActiveOnboarderSession: vi.fn().mockResolvedValue(true),
@@ -92,15 +95,15 @@ describe('Onboarder Routes', () => {
       if (url.includes('/session/session-1/message')) {
         return {
           ok: true,
-          text: async () => JSON.stringify({
-            parts: [
-              {
-                type: 'text',
-                text:
-                  'Hello there!\n[action:Go to Agents|/agents?ori_highlight=.agent-card]',
-              },
-            ],
-          }),
+          text: async () =>
+            JSON.stringify({
+              parts: [
+                {
+                  type: 'text',
+                  text: 'Hello there!\n[action:Go to Agents|/agents?ori_highlight=.agent-card]',
+                },
+              ],
+            }),
         } as Response;
       }
       return { ok: false, text: async () => 'Unexpected' } as Response;

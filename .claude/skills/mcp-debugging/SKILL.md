@@ -18,7 +18,7 @@ description: Debug MCP server issues and analyze logs for the Orient. Use this s
 {
   "timestamp": "2024-12-09 14:30:45.123",
   "level": "INFO",
-  "message": "Tool completed: ai_first_get_all_issues",
+  "message": "Tool completed: ai_first_health_check",
   "correlationId": "550e8400-e29b-41d4-a716-446655440000",
   "service": "mcp-server",
   "operation": "tool_call",
@@ -30,7 +30,7 @@ description: Debug MCP server issues and analyze logs for the Orient. Use this s
 **Key Fields:**
 
 - `correlationId` - UUID linking all logs for a single tool invocation
-- `service` - Component (mcp-server, jira-service, slides-service, config)
+- `service` - Component (mcp-server, slack-service, slides-service, config)
 - `durationMs` - Operation duration in milliseconds
 - `meta` - Context (JQL queries, issue counts, API responses)
 
@@ -54,10 +54,10 @@ grep "550e8400" logs/mcp-debug.log | jq .
 tail -100 logs/mcp-debug.log | grep "tool_call" | jq '{tool: .tool, status: .status}'
 ```
 
-### Check JQL Queries
+### Check Tool Arguments
 
 ```bash
-grep '"jql"' logs/mcp-debug.log | jq '.meta.jql // .jql' | sort -u
+tail -100 logs/mcp-debug.log | jq '{tool: .tool, args: .args}' | head -20
 ```
 
 ### Find Slow Operations (>3s)

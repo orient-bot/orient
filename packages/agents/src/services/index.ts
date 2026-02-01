@@ -31,9 +31,9 @@ export {
 } from './openCodeHandlerBase.js';
 
 export * from './agentService.js';
-// whatsappAgentService moved to @orient/bot-whatsapp to avoid circular dependency
+// whatsappAgentService moved to @orient-bot/bot-whatsapp to avoid circular dependency
 // export * from './whatsappAgentService.js';
-// notificationService depends on @orient/bot-whatsapp, excluded from @orient/agents
+// notificationService depends on @orient-bot/bot-whatsapp, excluded from @orient-bot/agents
 // export * from './notificationService.js';
 export * from './toolCallingService.js';
 export * from './agentRegistry.js';
@@ -45,4 +45,5 @@ export * from './contextService.js';
 export * from './openCodeClient.js';
 export * from './mcpClientManager.js';
 export * from './oauthClientProvider.js';
+export * from './integrationConnectionService.js';
 export * from './openCodeMessageProcessor.js';

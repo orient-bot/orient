@@ -5,7 +5,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // Mock core
-vi.mock('@orient/core', () => ({
+vi.mock('@orient-bot/core', () => ({
   createServiceLogger: () => ({
     info: vi.fn(),
     error: vi.fn(),
@@ -115,7 +115,7 @@ describe('HealthMonitor', () => {
       expect(uptime).toBeGreaterThanOrEqual(0);
 
       // Wait a bit and check uptime increased
-      await new Promise(resolve => setTimeout(resolve, 10));
+      await new Promise((resolve) => setTimeout(resolve, 10));
       const newUptime = monitor.getUptime();
       expect(newUptime).toBeGreaterThan(uptime);
     });

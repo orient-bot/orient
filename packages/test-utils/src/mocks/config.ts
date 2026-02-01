@@ -4,7 +4,7 @@
  * Provides a minimal test configuration.
  */
 
-import type { AppConfig } from '@orient/core';
+import type { AppConfig } from '@orient-bot/core';
 
 /**
  * Create a minimal mock config for testing
@@ -70,7 +70,7 @@ export function createMockConfig(overrides: Partial<AppConfig> = {}): AppConfig 
       dashboardPort: 4099,
     },
     database: {
-      url: 'postgresql://test:test@localhost:5432/test',
+      type: 'sqlite',
       migrationsPath: './migrations',
     },
     features: {

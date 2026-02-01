@@ -136,15 +136,15 @@ E2E_TESTS=true RUN_SLACK_LIVE_TESTS=true \
 
 ### Scan QR Code
 
-1. Open http://localhost:80/qr/
+1. Open http://localhost/qr/ (or http://localhost:4098/qr/)
 2. Open WhatsApp on phone > Settings > Linked Devices > Link a Device
 3. Scan the QR code
 
 ### Verify Connection
 
 ```bash
-curl -s http://localhost:4097/health | jq .
-# Should show: {"status":"ok","connected":true,"state":"open"}
+curl -s http://localhost:4098/qr/status | jq .
+# Should show: {"qrGenerated":true,"connected":true,"state":"open"}
 ```
 
 ### Troubleshooting WhatsApp Session Conflicts
@@ -157,7 +157,7 @@ curl -s http://localhost:4097/health | jq .
 
 1. Check logs for "loggedOut" reason:
    ```bash
-   grep -E "(loggedOut|logged out)" logs/instance-0/whatsapp-dev.log
+   grep -E "(loggedOut|logged out)" logs/instance-0/dashboard-dev.log
    ```
 2. If logged out, a new QR code is automatically generated
 3. Wait for "QR Code received" message in logs
@@ -165,7 +165,7 @@ curl -s http://localhost:4097/health | jq .
 
 **Log Locations**:
 
-- Main log: `logs/instance-0/whatsapp-dev.log`
+- Main log: `logs/instance-0/dashboard-dev.log`
 - Connection debug: `logs/whatsapp-debug-*.log`
 
 ## Phase 6: Health Verification
@@ -174,7 +174,7 @@ curl -s http://localhost:4097/health | jq .
 
 ```bash
 curl -s http://localhost:4098/health | jq .
-# Should return: {"status":"ok","timestamp":"..."}
+# Should return: {"status":"ok","timestamp":"...","whatsapp":{"connected":true}}
 ```
 
 ### Dashboard Accessibility
@@ -184,11 +184,18 @@ curl -s -o /dev/null -w "%{http_code}" http://localhost:80/
 # Should return: 200
 ```
 
-### WhatsApp API
+### WhatsApp QR Status
 
 ```bash
-curl -s http://localhost:4097/health | jq .
-# Should return: {"status":"ok","connected":true,"state":"open"}
+curl -s http://localhost:4098/qr/status | jq .
+# Should return: {"qrGenerated":true,"connected":true,"state":"open"}
+```
+
+### Database Verification
+
+```bash
+sqlite3 .dev-data/instance-0/orient.db "SELECT COUNT(*) FROM agents;"
+# Should return: 5 (or more)
 ```
 
 ## Cleanup

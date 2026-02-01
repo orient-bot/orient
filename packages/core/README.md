@@ -1,4 +1,4 @@
-# @orient/core
+# @orient-bot/core
 
 Shared utilities, types, and configuration for the Orient.
 
@@ -12,7 +12,7 @@ Shared utilities, types, and configuration for the Orient.
 ## Installation
 
 ```bash
-pnpm add @orient/core
+pnpm add @orient-bot/core
 ```
 
 ## Usage
@@ -20,7 +20,7 @@ pnpm add @orient/core
 ### Configuration
 
 ```typescript
-import { loadConfig, getConfig } from '@orient/core';
+import { loadConfig, getConfig } from '@orient-bot/core';
 
 // Load configuration from file and environment
 const config = loadConfig();
@@ -33,7 +33,7 @@ console.log(config.integrations.jira.host);
 ### Logger
 
 ```typescript
-import { createServiceLogger, logger } from '@orient/core';
+import { createServiceLogger, logger } from '@orient-bot/core';
 
 // Use the main logger
 logger.info('Application started');
@@ -55,7 +55,7 @@ try {
 ### Types
 
 ```typescript
-import type { JiraIssue, ChatPermission, WhatsAppMessage } from '@orient/core';
+import type { JiraIssue, ChatPermission, WhatsAppMessage } from '@orient-bot/core';
 
 const issue: JiraIssue = {
   id: '10001',
@@ -68,7 +68,7 @@ const issue: JiraIssue = {
 ### Utils
 
 ```typescript
-import { sleep, retryWithBackoff, formatDuration, isProduction } from '@orient/core';
+import { sleep, retryWithBackoff, formatDuration, isProduction } from '@orient-bot/core';
 
 // Wait for a duration
 await sleep(1000);

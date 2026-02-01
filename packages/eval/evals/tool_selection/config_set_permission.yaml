@@ -1,0 +1,18 @@
+# Tool Selection: Config Set Permission
+# Tests that agent uses config_set_permission to allow bot in groups
+
+name: config_set_permission
+description: Agent uses config_set_permission to allow bot in a group
+type: tool_selection
+agent: default
+
+input:
+  prompt: 'Allow bot in group X'
+
+expect:
+  tool_calls:
+    required:
+      - name: config_set_permission
+    forbidden:
+      - config_get_permission
+      - config_list_permissions

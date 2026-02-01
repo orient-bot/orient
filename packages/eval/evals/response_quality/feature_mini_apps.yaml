@@ -1,0 +1,27 @@
+# Response Quality: Mini-Apps Feature
+# Tests that agent explains mini-apps feature correctly
+
+name: feature_mini_apps
+description: Agent explains mini-apps feature correctly
+type: response_quality
+agent: default
+
+input:
+  prompt: 'How do I create a mini-app in Orient?'
+
+expect:
+  assertions:
+    - type: response_matches
+      pattern: 'mini-app|mini app|react|create'
+
+scoring:
+  llm_judge:
+    enabled: true
+    threshold: 0.7
+    criteria:
+      - name: accuracy
+        description: Correctly explains mini-app creation
+        weight: 0.6
+      - name: completeness
+        description: Mentions React and creation process
+        weight: 0.4

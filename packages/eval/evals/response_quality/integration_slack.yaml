@@ -1,0 +1,27 @@
+# Response Quality: Slack Integration
+# Tests that agent explains Slack setup correctly
+
+name: integration_slack_setup
+description: Agent explains Slack integration setup correctly
+type: response_quality
+agent: default
+
+input:
+  prompt: 'How do I set up Orient with Slack?'
+
+expect:
+  assertions:
+    - type: response_matches
+      pattern: 'slack|bot|token|oauth'
+
+scoring:
+  llm_judge:
+    enabled: true
+    threshold: 0.7
+    criteria:
+      - name: accuracy
+        description: Correctly explains Slack bot setup process
+        weight: 0.6
+      - name: completeness
+        description: Mentions tokens and OAuth configuration
+        weight: 0.4

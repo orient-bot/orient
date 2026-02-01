@@ -1,0 +1,18 @@
+# Skill Invocation: Testing Strategy
+# Tests that agent discovers testing-strategy for test guidance
+
+name: skill_invocation_testing_strategy
+description: Agent discovers testing-strategy for test guidance
+type: skill_invocation
+agent: explorer
+
+input:
+  prompt: 'How do I write and run tests?'
+
+expect:
+  skills:
+    activated:
+      - testing-strategy
+  assertions:
+    - type: skill_activated
+      skill: testing-strategy

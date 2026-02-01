@@ -1,0 +1,27 @@
+# Response Quality: WhatsApp Integration
+# Tests that agent explains WhatsApp setup correctly
+
+name: integration_whatsapp_setup
+description: Agent explains WhatsApp integration setup correctly
+type: response_quality
+agent: default
+
+input:
+  prompt: 'How do I connect Orient to WhatsApp?'
+
+expect:
+  assertions:
+    - type: response_matches
+      pattern: 'whatsapp|qr|scan|link'
+
+scoring:
+  llm_judge:
+    enabled: true
+    threshold: 0.7
+    criteria:
+      - name: accuracy
+        description: Correctly explains WhatsApp connection process
+        weight: 0.6
+      - name: completeness
+        description: Mentions QR code scanning and linking
+        weight: 0.4

@@ -1,22 +1,25 @@
 {
-  "name": "@orient/database",
-  "version": "1.0.0",
+  "name": "@orient-bot/database",
+  "version": "1.0.1",
   "description": "Database schemas, migrations, and clients for Orient",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
+      "source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "default": "./dist/index.js"
     },
     "./schema": {
+      "source": "./src/schema/index.ts",
       "types": "./dist/schema/index.d.ts",
       "import": "./dist/schema/index.js",
       "default": "./dist/schema/index.js"
     },
     "./client": {
+      "source": "./src/client.ts",
       "types": "./dist/client.d.ts",
       "import": "./dist/client.js",
       "default": "./dist/client.js"
@@ -35,15 +38,21 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio",
+    "db:generate:sqlite": "drizzle-kit generate --config=drizzle.sqlite.config.ts",
+    "db:migrate:sqlite": "drizzle-kit migrate --config=drizzle.sqlite.config.ts",
+    "db:push:sqlite": "drizzle-kit push --config=drizzle.sqlite.config.ts",
+    "db:studio:sqlite": "drizzle-kit studio --config=drizzle.sqlite.config.ts"
   },
   "dependencies": {
-    "@orient/core": "workspace:*",
+    "@orient-bot/core": "workspace:*",
+    "better-sqlite3": "^11.7.0",
     "drizzle-orm": "^0.45.1",
     "pg": "^8.13.1",
     "postgres": "^3.4.8"
   },
   "devDependencies": {
+    "@types/better-sqlite3": "^7.6.12",
     "@types/node": "^20.10.0",
     "@types/pg": "^8.15.2",
     "@vitest/coverage-v8": "^4.0.15",
@@ -59,7 +68,12 @@
   },
   "files": [
     "dist",
+    "drizzle",
     "drizzle.config.ts",
     "README.md"
-  ]
+  ],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://npm.pkg.github.com/"
+  }
 }

@@ -4,7 +4,7 @@
  * Evaluates expectations against execution traces.
  */
 
-import { createServiceLogger } from '@orient/core';
+import { createServiceLogger } from '@orient-bot/core';
 import {
   EvalExpectations,
   ExecutionTrace,

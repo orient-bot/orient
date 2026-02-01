@@ -4,7 +4,7 @@
  * Handles sending messages through the Slack Web API.
  */
 
-import { createServiceLogger } from '@orient/core';
+import { createServiceLogger } from '@orient-bot/core';
 import type { PostMessageResult, SlackUserInfo } from '../types.js';
 
 const logger = createServiceLogger('slack-messaging');

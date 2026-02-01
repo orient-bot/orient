@@ -31,7 +31,7 @@ COPY packages/api-gateway/package.json ./packages/api-gateway/
 # Install dependencies for this package and its dependencies
 # Use BuildKit cache mount for faster rebuilds
 RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
-    pnpm install --frozen-lockfile --filter @orient/api-gateway...
+    pnpm install --frozen-lockfile --filter @orient-bot/api-gateway...
 
 # ============================================
 # Build Stage
@@ -45,7 +45,7 @@ COPY packages/api-gateway ./packages/api-gateway
 COPY tsconfig.json ./
 
 # Build the package and its dependencies
-RUN pnpm --filter @orient/api-gateway... build
+RUN pnpm --filter @orient-bot/api-gateway... build
 
 # ============================================
 # Production Stage
@@ -75,7 +75,7 @@ COPY --from=builder /app/packages/api-gateway/package.json ./packages/api-gatewa
 # Install production dependencies only
 # Use BuildKit cache mount for faster rebuilds
 RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
-    pnpm install --frozen-lockfile --prod --filter @orient/api-gateway...
+    pnpm install --frozen-lockfile --prod --filter @orient-bot/api-gateway...
 
 # Create directories
 RUN mkdir -p /app/logs && \

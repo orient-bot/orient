@@ -24,7 +24,7 @@ interface Output {
 }
 
 export class UpdateTextTool extends MCPTool<Input, Output> {
-  name = 'ai_first_slides_update_text';
+  name = 'slides_update_text';
   description =
     'Update text placeholders on ALL slides globally. Placeholders should be in format {{PLACEHOLDER_NAME}}.';
   category = 'docs' as const;
