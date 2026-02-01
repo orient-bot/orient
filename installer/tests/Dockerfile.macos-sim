@@ -1,0 +1,58 @@
+# =============================================================================
+# Orient Installer Test Environment
+# =============================================================================
+# Docker image simulating a clean macOS-like environment for testing the
+# Orient installer scripts.
+#
+# Based on node:20-alpine (lightweight, has Node 20)
+# Includes: git, bash, curl, openssl (prerequisites)
+# Does NOT include: pnpm (installer should handle this)
+# =============================================================================
+
+FROM node:20-alpine
+
+# Install required tools (simulating macOS prerequisites)
+# Note: macOS users would have these via Xcode CLI tools or Homebrew
+RUN apk add --no-cache \
+    git \
+    bash \
+    curl \
+    openssl \
+    coreutils \
+    shadow
+
+# Create non-root user to simulate developer environment
+# This is important because installers should work without root
+RUN adduser -D -s /bin/bash developer && \
+    mkdir -p /home/developer && \
+    chown -R developer:developer /home/developer
+
+# pnpm is NOT pre-installed - the installer should detect this and install it
+# This simulates a fresh developer machine
+
+# Set up the developer user environment
+USER developer
+WORKDIR /home/developer
+
+# Set bash as the default shell
+SHELL ["/bin/bash", "-c"]
+
+# Create standard directories the installer might use
+RUN mkdir -p /home/developer/.local/bin
+
+# Add .local/bin to PATH for user-installed binaries
+ENV PATH="/home/developer/.local/bin:${PATH}"
+
+# Verify the environment is clean
+RUN echo "=== Environment Check ===" && \
+    echo "Node: $(node --version)" && \
+    echo "npm: $(npm --version)" && \
+    echo "Git: $(git --version)" && \
+    echo "Bash: $(bash --version | head -1)" && \
+    echo "pnpm: $(pnpm --version 2>/dev/null || echo 'NOT INSTALLED (expected)')" && \
+    echo "User: $(whoami)" && \
+    echo "Home: $HOME" && \
+    echo "========================="
+
+# Default command shows environment info
+CMD ["bash", "-c", "echo 'Orient Test Environment Ready' && bash"]

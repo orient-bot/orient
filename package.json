@@ -88,12 +88,18 @@
     "test:eval": "vitest run --config vitest.eval.config.ts",
     "eval:watch": "vitest --config vitest.eval.config.ts",
     "prepare": "husky",
+    "commit:temp": "TEMP_COMMIT=1 git commit",
+    "commit:wip": "git commit --no-verify -m '[wip] Work in progress'",
     "changeset": "changeset",
     "changeset:version": "changeset version",
     "changeset:publish": "pnpm run build:all && changeset publish",
     "verdaccio:start": "verdaccio --config installer/verdaccio-config.yaml",
     "publish:local": "./scripts/publish-local.sh",
-    "test:install": "./scripts/test-install-local.sh"
+    "test:install": "./scripts/test-install-local.sh",
+    "test:installer": "cd installer && ./tests/test-install.sh",
+    "test:installer:docker": "cd installer && ./tests/test-install.sh --docker",
+    "test:installer:verbose": "cd installer && ./tests/test-install.sh --verbose",
+    "test:installer:public": "cd installer && ./tests/test-install-public.sh"
   },
   "lint-staged": {
     "*.{ts,tsx}": [

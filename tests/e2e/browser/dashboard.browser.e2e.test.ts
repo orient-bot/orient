@@ -272,7 +272,7 @@ describe('Orient Dashboard - Browser E2E Tests', () => {
         console.log('Start URL:', startUrl);
 
         // Get all interactive elements
-        let elements = await browser.getInteractiveElements();
+        const elements = await browser.getInteractiveElements();
         console.log('Home elements:', elements.slice(0, 500));
 
         // Try to find and click settings link
