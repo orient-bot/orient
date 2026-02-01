@@ -652,7 +652,13 @@ const HTML_SUCCESS = `<!DOCTYPE html>
     <h1>✅ Authorization Successful</h1>
     <p>You can close this window and return to the application.</p>
   </div>
-  <script>setTimeout(() => window.close(), 2000);</script>
+  <script>
+    // Notify parent window that OAuth completed
+    if (window.opener) {
+      window.opener.postMessage({ type: 'oauth-complete', success: true, provider: 'atlassian' }, '*');
+    }
+    setTimeout(() => window.close(), 2000);
+  </script>
 </body>
 </html>`;
 
@@ -682,7 +688,7 @@ const HTML_ERROR = (error: string) => `<!DOCTYPE html>
  * In production mode (HTTPS callback URL), the callback is handled by nginx/main server,
  * so we don't need to start a local callback server.
  */
-async function ensureCallbackServerRunning(): Promise<void> {
+export async function ensureCallbackServerRunning(): Promise<void> {
   // In production mode, callbacks are handled by nginx/main server
   if (IS_PRODUCTION_OAUTH) {
     logger.info('Production mode - callback handled by main server', {

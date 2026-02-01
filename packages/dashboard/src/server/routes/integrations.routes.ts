@@ -397,12 +397,25 @@ export function createIntegrationsRoutes(
           }
 
           // Check Atlassian connection status
+          // Note: Check both 'atlassian' (dashboard name) and 'Atlassian-MCP-Server' (OpenCode name)
           if (integration.manifest.name === 'atlassian') {
             try {
               const atlassianModule = await getAtlassianOAuthModule();
               const atlassianUrl = 'https://mcp.atlassian.com/v1/sse';
-              const provider = atlassianModule.createOAuthProvider(atlassianUrl, 'atlassian');
-              const tokens = await provider.tokens();
+
+              // Check with dashboard name first
+              let provider = atlassianModule.createOAuthProvider(atlassianUrl, 'atlassian');
+              let tokens = await provider.tokens();
+
+              // If not found, check with OpenCode's name
+              if (!tokens?.access_token) {
+                provider = atlassianModule.createOAuthProvider(
+                  atlassianUrl,
+                  'Atlassian-MCP-Server'
+                );
+                tokens = await provider.tokens();
+              }
+
               result.isConnected = !!tokens?.access_token;
             } catch {
               // OAuth module not available, leave as disconnected
@@ -580,7 +593,7 @@ export function createIntegrationsRoutes(
         try {
           const atlassianModule = await getAtlassianOAuthModule();
 
-          // Suppress browser auto-open
+          // Suppress browser auto-open so we can capture the URL
           atlassianModule.setSuppressBrowserOpen(true);
 
           // Ensure callback server is running (for local dev)
@@ -588,9 +601,11 @@ export function createIntegrationsRoutes(
             await atlassianModule.ensureCallbackServerRunning();
           }
 
-          // Create OAuth provider for Atlassian MCP
+          // Use 'Atlassian-MCP-Server' as the server name for consistency with OpenCode
+          // This ensures tokens are shared between Dashboard and OpenCode
           const atlassianUrl = 'https://mcp.atlassian.com/v1/sse';
-          const provider = atlassianModule.createOAuthProvider(atlassianUrl, 'atlassian');
+          const atlassianServerName = 'Atlassian-MCP-Server';
+          const provider = atlassianModule.createOAuthProvider(atlassianUrl, atlassianServerName);
 
           // Check if already has valid tokens
           const existingTokens = await provider.tokens();
@@ -603,13 +618,53 @@ export function createIntegrationsRoutes(
             });
           }
 
-          // Atlassian OAuth requires OpenCode to handle the MCP connection
+          // Try to initiate the MCP connection to trigger OAuth flow
+          // This will generate the auth URL which we can capture
+          const { Client } = await import('@modelcontextprotocol/sdk/client/index.js');
+          const { SSEClientTransport } = await import('@modelcontextprotocol/sdk/client/sse.js');
+
+          const client = new Client(
+            { name: 'orient-dashboard', version: '1.0.0' },
+            { capabilities: {} }
+          );
+
+          const transport = new SSEClientTransport(new URL(atlassianUrl), {
+            authProvider: provider,
+          });
+
+          try {
+            // This will throw UnauthorizedError and trigger OAuth URL generation
+            await client.connect(transport);
+          } catch (connectError) {
+            // Expected - OAuth is required, check if we captured the auth URL
+            logger.debug('MCP connect triggered OAuth flow', {
+              error: connectError instanceof Error ? connectError.message : String(connectError),
+            });
+          }
+
+          // Get the captured auth URL
+          const authUrl = atlassianModule.getCapturedAuthUrl(atlassianServerName);
+
+          if (authUrl) {
+            logger.info('Atlassian OAuth authorization URL generated', { name });
+
+            return res.json({
+              success: true,
+              name,
+              authUrl,
+              callbackUrl: atlassianModule.OAUTH_CALLBACK_URL,
+              instructions: 'Complete authorization in the popup window.',
+            });
+          }
+
+          // Fallback: if we couldn't capture the URL, provide instructions
+          logger.warn('Could not capture Atlassian auth URL, falling back to manual flow');
           const openCodeUrl = process.env.OPENCODE_URL || 'http://localhost:4099';
 
           return res.json({
             success: true,
             name,
-            message: 'Atlassian OAuth requires OpenCode to handle the MCP connection.',
+            message: 'Please complete authorization in OpenCode.',
             requiresOpenCode: true,
             openCodeUrl,
             instructions: `Open ${openCodeUrl} and use any Atlassian MCP tool to trigger authentication.`,
@@ -740,6 +795,89 @@ export function createIntegrationsRoutes(
         error: error instanceof Error ? error.message : String(error),
       });
       res.status(500).json({ error: 'Failed to connect integration' });
+    }
+  });
+
+  // Complete OAuth callback for Atlassian (exchange code for tokens)
+  router.post('/connect/atlassian/complete', requireAuth, async (_req: Request, res: Response) => {
+    logger.info('Atlassian complete endpoint called');
+    try {
+      const atlassianModule = await getAtlassianOAuthModule();
+      const atlassianServerName = 'Atlassian-MCP-Server';
+
+      // Check if we have a received auth code
+      const authCodeData = atlassianModule.getReceivedAuthCode(atlassianServerName);
+      if (!authCodeData) {
+        return res.json({
+          success: false,
+          pending: true,
+          message: 'Waiting for authorization callback...',
+        });
+      }
+
+      const { code } = authCodeData;
+      logger.info('Got Atlassian auth code, exchanging for tokens', { atlassianServerName });
+
+      // Get the provider to access stored credentials
+      const atlassianUrl = 'https://mcp.atlassian.com/v1/sse';
+      const provider = atlassianModule.createOAuthProvider(atlassianUrl, atlassianServerName);
+
+      // Get the stored code verifier and client info
+      const codeVerifier = await provider.codeVerifier();
+      const clientInfo = await provider.clientInformation();
+
+      if (!codeVerifier || !clientInfo) {
+        throw new Error('Missing code verifier or client information');
+      }
+
+      // Exchange auth code for tokens directly via HTTP
+      // Atlassian token endpoint: https://mcp.atlassian.com/v1/token
+      const tokenUrl = 'https://mcp.atlassian.com/v1/token';
+      const tokenParams = new URLSearchParams({
+        grant_type: 'authorization_code',
+        code,
+        redirect_uri: atlassianModule.OAUTH_CALLBACK_URL,
+        client_id: clientInfo.client_id,
+        code_verifier: codeVerifier,
+      });
+
+      logger.info('Exchanging auth code for tokens', { tokenUrl });
+
+      const tokenResponse = await fetch(tokenUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: tokenParams.toString(),
+      });
+
+      if (!tokenResponse.ok) {
+        const errorText = await tokenResponse.text();
+        logger.error('Token exchange failed', {
+          status: tokenResponse.status,
+          error: errorText,
+        });
+        throw new Error(`Token exchange failed: ${tokenResponse.status} - ${errorText}`);
+      }
+
+      const tokens = await tokenResponse.json();
+      logger.info('Token exchange successful', { hasAccessToken: !!tokens.access_token });
+
+      // Save the tokens using the provider
+      await provider.saveTokens(tokens);
+
+      return res.json({
+        success: true,
+        connected: true,
+        message: 'Successfully connected to Atlassian!',
+      });
+    } catch (error) {
+      logger.error('Failed to complete Atlassian OAuth', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return res.status(500).json({
+        error: `Failed to complete Atlassian OAuth: ${error instanceof Error ? error.message : String(error)}`,
+      });
     }
   });
 

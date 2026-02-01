@@ -105,6 +105,28 @@ export { MCPClientManager } from './services/mcpClientManager.js';
 export { getAgentRegistry } from './services/agentRegistry.js';
 export { clearConfigCache } from './services/agentContextLoader.js';
 
+// Export OAuth client provider utilities
+export {
+  createOAuthProvider,
+  MCPOAuthClientProvider,
+  handleProductionOAuthCallback,
+  setSuppressBrowserOpen,
+  getCapturedAuthUrl,
+  getReceivedAuthCode,
+  waitForAuthCode,
+  waitForOAuthCallback,
+  cancelPendingOAuth,
+  stopCallbackServer,
+  getCallbackConfig,
+  syncMcpTokensToOpenCode,
+  ensureCallbackServerRunning,
+  OAUTH_CALLBACK_PORT,
+  OAUTH_CALLBACK_PATH,
+  OAUTH_CALLBACK_URL,
+  IS_PRODUCTION_OAUTH,
+  type OAuthCallbackConfig,
+} from './services/oauthClientProvider.js';
+
 // Export OpenCode message processor utilities (model config, session handling, etc.)
 export {
   // Model definitions
