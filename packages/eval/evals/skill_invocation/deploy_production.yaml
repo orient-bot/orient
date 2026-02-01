@@ -1,0 +1,18 @@
+# Skill Invocation: Deploy to Production
+# Tests that agent discovers deploy-to-production for deployment guidance
+
+name: skill_invocation_deploy_production
+description: Agent discovers deploy-to-production for deployment guidance
+type: skill_invocation
+agent: explorer
+
+input:
+  prompt: 'How do I deploy to production?'
+
+expect:
+  skills:
+    activated:
+      - deploy-to-production
+  assertions:
+    - type: skill_activated
+      skill: deploy-to-production

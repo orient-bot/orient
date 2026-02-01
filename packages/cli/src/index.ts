@@ -1,16 +1,18 @@
 /**
- * @orient/cli
+ * @orient-bot/cli
  *
  * Command-line tools for Orient.
  *
- * NOTE: This package is a work in progress during the migration.
- * The CLI commands need to be updated to use the new package structure.
+ * Main entry point for the CLI is in ./cli.ts
+ * This file exports utilities for programmatic use.
  */
 
-export const CLI_VERSION = '1.0.0';
+export const CLI_VERSION = '0.1.1';
 
-// TODO: Migrate CLI commands to use new package imports
-// - meeting.ts: needs MeetingService to be migrated
-// - workflow.ts: needs jiraService to be properly imported
-// - update-presentation.ts: needs Google Slides integration
-// - dashboard-admin.ts: needs dashboard auth to be migrated
+// Export command modules for programmatic use
+export { onboardCommand } from './commands/onboard.js';
+export { startCommand, stopCommand, restartCommand, statusCommand } from './commands/pm2.js';
+export { logsCommand } from './commands/logs.js';
+export { doctorCommand } from './commands/doctor.js';
+export { configCommand } from './commands/config.js';
+export { upgradeCommand } from './commands/upgrade.js';

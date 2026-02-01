@@ -8,7 +8,7 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import yaml from 'js-yaml';
 import { glob } from 'glob';
-import { createServiceLogger } from '@orient/core';
+import { createServiceLogger } from '@orient-bot/core';
 import { EvalCase, EvalType } from '../types.js';
 
 const logger = createServiceLogger('eval-loader');

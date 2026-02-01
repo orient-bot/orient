@@ -8,7 +8,7 @@ input:
 
 mocks:
   jira:
-    ai_first_get_blockers:
+    jira_get_blockers:
       response:
         count: 2
         issues:
@@ -28,7 +28,7 @@ mocks:
             labels: ['database', 'approval']
 
   slack:
-    ai_first_slack_send_channel_message:
+    slack_send_channel_message:
       response:
         success: true
         ts: '1705670400.000003'
@@ -37,8 +37,8 @@ mocks:
 expect:
   tool_calls:
     required:
-      - name: ai_first_get_blockers
-      - name: ai_first_slack_send_channel_message
+      - name: jira_get_blockers
+      - name: slack_send_channel_message
 
   assertions:
     # Check response discusses blocker notification workflow

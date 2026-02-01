@@ -1,0 +1,27 @@
+# Response Quality: CLI Status Command
+# Tests that agent explains orient status command
+
+name: cli_orient_status
+description: Agent explains orient status command correctly
+type: response_quality
+agent: default
+
+input:
+  prompt: 'How do I check if Orient is running?'
+
+expect:
+  assertions:
+    - type: response_matches
+      pattern: 'orient status|status|running|check'
+
+scoring:
+  llm_judge:
+    enabled: true
+    threshold: 0.7
+    criteria:
+      - name: accuracy
+        description: Correctly recommends orient status command
+        weight: 0.6
+      - name: clarity
+        description: Response is clear and actionable
+        weight: 0.4

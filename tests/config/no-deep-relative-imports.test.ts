@@ -5,7 +5,7 @@
  * other packages using relative paths. This catches the pattern:
  *   ../../../../integrations/src/catalog/github/oauth.js
  * Which should be:
- *   @orient/integrations/catalog/github
+ *   @orient-bot/integrations/catalog/github
  *
  * ALLOWED patterns:
  * - Re-exports from src/ (the migration pattern):
@@ -17,7 +17,7 @@
  * DISALLOWED patterns:
  * - Relative imports across packages:
  *   import { X } from '../../../../integrations/src/...'
- *   (Should use: @orient/integrations/...)
+ *   (Should use: @orient-bot/integrations/...)
  */
 
 import { describe, it, expect } from 'vitest';
@@ -93,23 +93,23 @@ interface DeepImportViolation {
 function getSuggestedPackageImport(importPath: string, _file: string): string | undefined {
   // Detect common patterns and suggest package imports
 
-  // Pattern: ../../../../integrations/src/... -> @orient/integrations/...
+  // Pattern: ../../../../integrations/src/... -> @orient-bot/integrations/...
   if (importPath.includes('integrations/src/')) {
     const subPath = importPath.split('integrations/src/')[1];
-    if (subPath.includes('catalog/github')) return '@orient/integrations/catalog/github';
-    if (subPath.includes('google')) return '@orient/integrations/google';
-    if (subPath.includes('jira')) return '@orient/integrations/jira';
-    return '@orient/integrations';
+    if (subPath.includes('catalog/github')) return '@orient-bot/integrations/catalog/github';
+    if (subPath.includes('google')) return '@orient-bot/integrations/google';
+    if (subPath.includes('jira')) return '@orient-bot/integrations/jira';
+    return '@orient-bot/integrations';
   }
 
-  // Pattern: ../../../../../src/services/oauthClientProvider -> @orient/mcp-servers/oauth
+  // Pattern: ../../../../../src/services/oauthClientProvider -> @orient-bot/mcp-servers/oauth
   if (importPath.includes('src/services/oauthClientProvider')) {
-    return '@orient/mcp-servers/oauth';
+    return '@orient-bot/mcp-servers/oauth';
   }
 
-  // Pattern: ../../../../../src/services/mcpClientManager -> @orient/agents
+  // Pattern: ../../../../../src/services/mcpClientManager -> @orient-bot/agents
   if (importPath.includes('src/services/mcpClientManager')) {
-    return '@orient/agents';
+    return '@orient-bot/agents';
   }
 
   // Pattern: ../../../../../src/services/... -> check if re-exported from a package
@@ -118,17 +118,17 @@ function getSuggestedPackageImport(importPath: string, _file: string): string | 
     if (serviceName) {
       // Common service -> package mappings
       const servicePackageMap: Record<string, string> = {
-        toolRegistry: '@orient/agents',
-        toolCallingService: '@orient/agents',
-        agentService: '@orient/agents',
-        agentRegistry: '@orient/agents',
-        openCodeClient: '@orient/agents',
-        whatsappAgentService: '@orient/agents',
-        billingService: '@orient/dashboard',
-        appsService: '@orient/apps',
-        appGeneratorService: '@orient/apps',
-        slackBotService: '@orient/bot-slack',
-        whatsappService: '@orient/bot-whatsapp',
+        toolRegistry: '@orient-bot/agents',
+        toolCallingService: '@orient-bot/agents',
+        agentService: '@orient-bot/agents',
+        agentRegistry: '@orient-bot/agents',
+        openCodeClient: '@orient-bot/agents',
+        whatsappAgentService: '@orient-bot/agents',
+        billingService: '@orient-bot/dashboard',
+        appsService: '@orient-bot/apps',
+        appGeneratorService: '@orient-bot/apps',
+        slackBotService: '@orient-bot/bot-slack',
+        whatsappService: '@orient-bot/bot-whatsapp',
       };
       return servicePackageMap[serviceName];
     }
@@ -390,7 +390,7 @@ describe('No Deep Relative Imports in Packages', () => {
           `  - They're hard to read and understand\n` +
           `  - They bypass the package export system\n\n` +
           `How to fix:\n` +
-          `  1. Use package exports: @orient/integrations/catalog/github instead of ../../../../integrations/src/...\n` +
+          `  1. Use package exports: @orient-bot/integrations/catalog/github instead of ../../../../integrations/src/...\n` +
           `  2. If a service isn't exported yet, add a re-export file in the appropriate package\n` +
           `  3. For legacy src/ code being migrated, the packages/ re-export is allowed:\n` +
           `     export * from '../../../../src/services/foo.js' (this is the migration pattern)`
@@ -407,9 +407,9 @@ describe('Package Import Best Practices', () => {
   it('documents the correct import patterns for packages/', () => {
     const goodPatterns = [
       // Package imports (preferred)
-      "import { X } from '@orient/core'",
-      "import { X } from '@orient/integrations/catalog/github'",
-      "import { X } from '@orient/mcp-servers/oauth'",
+      "import { X } from '@orient-bot/core'",
+      "import { X } from '@orient-bot/integrations/catalog/github'",
+      "import { X } from '@orient-bot/mcp-servers/oauth'",
 
       // Local imports within the same package
       "import { X } from './services/index.js'",

@@ -1,0 +1,18 @@
+# Skill Invocation: Skill Creator
+# Tests that agent discovers skill-creator for creating new skills
+
+name: skill_invocation_skill_creator
+description: Agent discovers skill-creator for creating new skills
+type: skill_invocation
+agent: explorer
+
+input:
+  prompt: 'I want to create a new skill for managing database migrations'
+
+expect:
+  skills:
+    activated:
+      - skill-creator
+  assertions:
+    - type: skill_activated
+      skill: skill-creator

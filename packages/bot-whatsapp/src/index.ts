@@ -1,5 +1,5 @@
 /**
- * @orient/bot-whatsapp
+ * @orient-bot/bot-whatsapp
  *
  * WhatsApp bot service for the Orient.
  *
@@ -42,6 +42,7 @@ export const WHATSAPP_SERVICES = {
   connection: 'WhatsAppConnection',
   messaging: 'WhatsAppMessaging',
   apiServer: 'WhatsAppApiServer',
+  apiRouter: 'createWhatsAppRouter',
   // Re-exported from src/services/ imports
   srcServices: [
     'whatsappService',

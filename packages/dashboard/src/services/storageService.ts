@@ -7,9 +7,8 @@
 
 import fs from 'fs';
 import path from 'path';
-import { createServiceLogger } from '@orient/core';
-import type { MessageDatabase } from './messageDatabase.js';
-import type { SlackDatabase } from './slackDatabase.js';
+import { createServiceLogger } from '@orient-bot/core';
+import type { MessageDatabase, SlackDatabase } from '@orient-bot/database-services';
 import { getBillingService } from './billingService.js';
 
 const logger = createServiceLogger('storage-service');
@@ -229,15 +228,19 @@ export class StorageService {
       const newest = withTimestamps.length > 0 ? withTimestamps[0] : null;
 
       return {
-        totalFiles: stats.imageCount + stats.audioCount + stats.videoCount + stats.documentCount,
+        totalFiles:
+          (stats.imageCount ?? 0) +
+          (stats.audioCount ?? 0) +
+          (stats.videoCount ?? 0) +
+          (stats.documentCount ?? 0),
         byType: {
-          image: stats.imageCount,
-          audio: stats.audioCount,
-          video: stats.videoCount,
-          document: stats.documentCount,
+          image: stats.imageCount ?? 0,
+          audio: stats.audioCount ?? 0,
+          video: stats.videoCount ?? 0,
+          document: stats.documentCount ?? 0,
         },
-        oldestMedia: oldest?.timestamp || undefined,
-        newestMedia: newest?.timestamp || undefined,
+        oldestMedia: oldest?.timestamp ? oldest.timestamp.toISOString() : undefined,
+        newestMedia: newest?.timestamp ? newest.timestamp.toISOString() : undefined,
       };
     } catch (error) {
       logger.error('Failed to get media stats', { error: String(error) });
@@ -395,8 +398,13 @@ export class StorageService {
       return {
         messagesCount: oldMessages.length,
         oldestMessage:
-          oldMessages.length > 0 ? oldMessages[oldMessages.length - 1]?.timestamp : undefined,
-        newestAffected: oldMessages.length > 0 ? oldMessages[0]?.timestamp : undefined,
+          oldMessages.length > 0 && oldMessages[oldMessages.length - 1]?.timestamp
+            ? oldMessages[oldMessages.length - 1].timestamp.toISOString()
+            : undefined,
+        newestAffected:
+          oldMessages.length > 0 && oldMessages[0]?.timestamp
+            ? oldMessages[0].timestamp.toISOString()
+            : undefined,
       };
     } catch (error) {
       logger.error('Failed to preview cleanup', { error: String(error) });

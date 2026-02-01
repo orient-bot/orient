@@ -29,12 +29,21 @@ cp .env.example .env
 
 ### Required Variables
 
-| Variable              | Description          |
-| --------------------- | -------------------- |
-| `POSTGRES_USER`       | PostgreSQL username  |
-| `POSTGRES_PASSWORD`   | PostgreSQL password  |
-| `MINIO_ROOT_USER`     | MinIO admin username |
-| `MINIO_ROOT_PASSWORD` | MinIO admin password |
+| Variable               | Description                       |
+| ---------------------- | --------------------------------- |
+| `MINIO_ROOT_USER`      | MinIO admin username              |
+| `MINIO_ROOT_PASSWORD`  | MinIO admin password              |
+| `DASHBOARD_JWT_SECRET` | JWT secret for dashboard auth     |
+| `ORIENT_MASTER_KEY`    | Master key for secrets encryption |
+
+### Database Variables (SQLite)
+
+| Variable         | Description                  |
+| ---------------- | ---------------------------- |
+| `DATABASE_TYPE`  | Set to `sqlite` (default)    |
+| `SQLITE_DB_PATH` | Path to SQLite database file |
+
+The database path defaults to `.dev-data/instance-N/orient.db` where N is the instance ID (0 for main repo).
 
 ### Integration Variables
 

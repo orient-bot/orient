@@ -1,6 +1,16 @@
 import { defineConfig } from 'vitest/config';
+import path from 'path';
+
+const packagesDir = path.resolve(__dirname, '..');
 
 export default defineConfig({
+  resolve: {
+    alias: {
+      '@orient-bot/core': path.resolve(packagesDir, 'core/src/index.ts'),
+      '@orient-bot/database': path.resolve(packagesDir, 'database/src/index.ts'),
+      '@orient-bot/database-services': path.resolve(packagesDir, 'database-services/src/index.ts'),
+    },
+  },
   test: {
     globals: true,
     environment: 'node',

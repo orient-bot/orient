@@ -1,0 +1,103 @@
+# Orient Development Container
+# Run: docker compose -f docker/docker-compose.dev.yml run --rm dev
+#
+# This container mounts BOTH personal and OSS repos so you can work on either:
+#   /workspace/personal → ~/code/tombensim/orient-personal (private)
+#   /workspace/oss      → ~/code/tombensim/orient (OSS)
+#
+# BROWSER AUTOMATION (Chrome MCP):
+# To use Chrome MCP from inside the container:
+# 1. On host: ./scripts/start-mcp-bridge.sh
+# 2. In container: Configure Claude Code to use http://host.docker.internal:9876/mcp
+
+services:
+  dev:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.dev
+      args:
+        USER_UID: ${USER_UID:-501}
+        # Note: USER_GID from macOS (20=staff) isn't used in container
+        # Container uses GID 1000 for dev group, but UID 501 ensures file access works
+    image: orient-dev:latest
+    container_name: orient-dev
+    hostname: orient-dev
+    stdin_open: true
+    tty: true
+
+    volumes:
+      # Mount BOTH repositories
+      - ~/code/tombensim/orient-personal:/workspace/personal
+      - ~/code/tombensim/orient:/workspace/oss
+
+      # Mount worktree directories for git operations
+      - ~/app-worktrees:/home/node/app-worktrees
+      - ~/claude-worktrees:/home/node/claude-worktrees
+
+      # Persist CLI configs and auth
+      - dev-claude:/home/node/.claude
+      - dev-config:/home/node/.config
+      - dev-aws:/home/node/.aws
+      - dev-cache:/home/node/.cache
+      - dev-pnpm:/home/node/.local/share/pnpm
+
+      # Docker socket (to control host Docker)
+      - /var/run/docker.sock:/var/run/docker.sock
+
+      # Git config (read-only from host)
+      - ~/.gitconfig:/home/node/.gitconfig:ro
+
+      # SSH keys (read-only from host)
+      - ~/.ssh:/home/node/.ssh:ro
+
+    environment:
+      # Development mode
+      - NODE_ENV=development
+      - LOG_LEVEL=info
+
+      # Database (connects to host Docker)
+      - DATABASE_URL=postgresql://aibot:aibot123@host.docker.internal:5432/whatsapp_bot
+      - TEST_DATABASE_URL=postgresql://aibot:aibot123@host.docker.internal:5432/whatsapp_bot_test
+
+      # MinIO/S3 (connects to host Docker)
+      - AWS_ENDPOINT_URL=http://host.docker.internal:9000
+      - AWS_ACCESS_KEY_ID=minioadmin
+      - AWS_SECRET_ACCESS_KEY=minioadmin123
+      - S3_BUCKET=orienter-data
+
+      # Dashboard
+      - DASHBOARD_PORT=4098
+      - BASE_URL=http://host.docker.internal:4098
+
+      # OpenCode
+      - OPENCODE_PORT=4099
+
+      # OAuth callbacks (forwarded from host)
+      - OAUTH_CALLBACK_HOST=host.docker.internal
+      - OAUTH_CALLBACK_PORT=8766
+
+      # Pass through API keys if set on host
+      - ANTHROPIC_API_KEY
+      - OPENAI_API_KEY
+      - GOOGLE_OAUTH_CLIENT_ID
+      - GOOGLE_OAUTH_CLIENT_SECRET
+
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+
+    # Use bridge network (can reach host via host.docker.internal)
+    network_mode: bridge
+
+    working_dir: /workspace
+
+volumes:
+  dev-claude:
+    name: orient-dev-claude
+  dev-config:
+    name: orient-dev-config
+  dev-aws:
+    name: orient-dev-aws
+  dev-cache:
+    name: orient-dev-cache
+  dev-pnpm:
+    name: orient-dev-pnpm

@@ -1,5 +1,5 @@
 {
-  "name": "@orient/bot-slack",
+  "name": "@orient-bot/bot-slack",
   "version": "1.0.0",
   "description": "Slack bot service for Orient",
   "type": "module",
@@ -10,6 +10,7 @@
   },
   "exports": {
     ".": {
+      "source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "default": "./dist/index.js"
@@ -17,7 +18,7 @@
   },
   "scripts": {
     "build": "tsc",
-    "dev": "tsx src/main.ts",
+    "dev": "tsx --conditions=source src/main.ts",
     "dev:watch": "tsc --watch",
     "start": "node dist/main.js",
     "test": "vitest run",
@@ -28,10 +29,10 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@orient/agents": "workspace:*",
-    "@orient/core": "workspace:*",
-    "@orient/database": "workspace:*",
-    "@orient/mcp-tools": "workspace:*",
+    "@orient-bot/agents": "workspace:*",
+    "@orient-bot/core": "workspace:*",
+    "@orient-bot/database": "workspace:*",
+    "@orient-bot/mcp-tools": "workspace:*",
     "@slack/bolt": "^3.18.0",
     "@slack/web-api": "^7.0.0"
   },
@@ -50,5 +51,9 @@
   "files": [
     "dist",
     "README.md"
-  ]
+  ],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://npm.pkg.github.com/"
+  }
 }

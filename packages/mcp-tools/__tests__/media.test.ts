@@ -6,7 +6,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { ToolContext } from '../src/types.js';
 
 // Mock the core logger
-vi.mock('@orient/core', () => ({
+vi.mock('@orient-bot/core', () => ({
   createServiceLogger: () => ({
     info: vi.fn(),
     debug: vi.fn(),
@@ -37,7 +37,7 @@ describe('Media Tools', () => {
     });
 
     it('should have correct metadata', () => {
-      expect(generateMascotTool.name).toBe('ai_first_generate_mascot');
+      expect(generateMascotTool.name).toBe('media_generate_mascot');
       expect(generateMascotTool.category).toBe('media');
       expect(generateMascotTool.keywords).toContain('mascot');
       expect(generateMascotTool.keywords).toContain('avatar');
@@ -95,7 +95,7 @@ describe('Media Tools', () => {
 
     it('should convert to MCP tool format', () => {
       const mcpTool = generateMascotTool.toMCPTool();
-      expect(mcpTool.name).toBe('ai_first_generate_mascot');
+      expect(mcpTool.name).toBe('media_generate_mascot');
       expect(mcpTool.description).toContain('mascot');
       expect(mcpTool.inputSchema).toBeDefined();
     });

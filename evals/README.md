@@ -24,12 +24,12 @@ npm run eval -- --ci
 
 The eval system tests four key aspects of agent behavior:
 
-| Type                  | Purpose                                      | Example                                                        |
-| --------------------- | -------------------------------------------- | -------------------------------------------------------------- |
-| `tool_selection`      | Agent picks the right tool for the task      | "Find blockers" → uses `ai_first_get_blockers`                 |
-| `response_quality`    | Response is clear, complete, well-structured | Weekly summaries include all key metrics                       |
-| `skill_invocation`    | Agent loads appropriate skills when needed   | Creating issues loads `personal-jira-project-management` skill |
-| `multi_step_workflow` | Agent completes multi-step tasks correctly   | Query JIRA → Update slides                                     |
+| Type                  | Purpose                                      | Example                                     |
+| --------------------- | -------------------------------------------- | ------------------------------------------- |
+| `tool_selection`      | Agent picks the right tool for the task      | "Health check" → uses `system_health_check` |
+| `response_quality`    | Response is clear, complete, well-structured | Weekly summaries include all key metrics    |
+| `skill_invocation`    | Agent loads appropriate skills when needed   | Creating apps loads the `mini-apps` skill   |
+| `multi_step_workflow` | Agent completes multi-step tasks correctly   | Query data → Update slides                  |
 
 ## Directory Structure
 
@@ -69,9 +69,9 @@ input:
 expect:
   tool_calls:
     required:
-      - name: ai_first_tool_name
+      - name: system_health_check
     forbidden:
-      - ai_first_wrong_tool
+      - wrong_tool_name
 
   assertions:
     - type: response_matches
@@ -185,11 +185,11 @@ Results are saved to `eval-results/` as JSON:
   "results": [
     {
       "evalName": "jira-blockers-detection",
-      "model": "opencode/grok-code",
+      "model": "openai/gpt-4o-mini",
       "status": "passed",
       "assertions": [...],
       "executionTrace": {
-        "toolCalls": ["ai_first_get_blockers"],
+        "toolCalls": ["system_health_check"],
         "responseText": "...",
         "latencyMs": 2500
       }
@@ -205,11 +205,11 @@ Configure models in `evals/config/models.yaml`:
 ```yaml
 models:
   default:
-    - opencode/grok-code # Free Grok model for testing
+    - openai/gpt-4o-mini # Free Grok model for testing
   fast:
     - anthropic/claude-haiku-3-5-20241022
   full_matrix:
-    - opencode/grok-code
+    - openai/gpt-4o-mini
     - anthropic/claude-sonnet-4-20250514
     - anthropic/claude-haiku-3-5-20241022
 ```
@@ -291,4 +291,4 @@ Ensure `ANTHROPIC_API_KEY` is set in your `.env` file. The eval CLI loads dotenv
 Run `npm run eval` to see current pass rates. As of the last run:
 
 - **Pass rate:** 83.3% (10/12 passing)
-- **Default model:** `opencode/grok-code`
+- **Default model:** `openai/gpt-4o-mini`

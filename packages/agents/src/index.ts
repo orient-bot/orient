@@ -1,5 +1,5 @@
 /**
- * @orient/agents
+ * @orient-bot/agents
  *
  * AI agent services for the Orient.
  *
@@ -15,7 +15,7 @@
  *   AgentContext,
  *   ToolCallingConfig,
  *   ToolCallingResult,
- * } from '@orient/agents';
+ * } from '@orient-bot/agents';
  */
 
 // Export all types
@@ -91,11 +91,19 @@ export {
   type SearchResult,
 } from './services/toolDiscovery.js';
 
+export {
+  IntegrationConnectionService,
+  CATEGORY_INTEGRATION_MAP,
+  type IntegrationName,
+  type ToolCategoryIntegration,
+} from './services/integrationConnectionService.js';
+
 // Export permissions system
 export * from './permissions/index.js';
 
 export { MCPClientManager } from './services/mcpClientManager.js';
 export { getAgentRegistry } from './services/agentRegistry.js';
+export { clearConfigCache } from './services/agentContextLoader.js';
 
 // Export OpenCode message processor utilities (model config, session handling, etc.)
 export {

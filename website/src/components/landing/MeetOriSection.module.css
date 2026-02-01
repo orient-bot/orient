@@ -1,0 +1,85 @@
+.section {
+  padding: 5rem 2rem;
+}
+
+.sectionContent {
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.sectionTitle {
+  font-size: 2.25rem;
+  font-weight: 700;
+  margin: 0 0 0.5rem;
+  text-align: left;
+}
+
+.meetOriLayout {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: 3rem;
+  align-items: center;
+}
+
+.meetOriVisual {
+  display: flex;
+  justify-content: center;
+}
+
+.meetOriImage {
+  max-width: 280px;
+  width: 100%;
+  height: auto;
+}
+
+.meetOriText {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.subtitle {
+  font-size: 1.25rem;
+  color: var(--ifm-font-color-secondary);
+  text-align: left;
+  margin: 0 0 1.5rem;
+}
+
+.body {
+  font-size: 1.125rem;
+  line-height: 1.7;
+  color: var(--ifm-font-color-secondary);
+  text-align: left;
+  margin: 0 0 1rem;
+}
+
+@media (max-width: 996px) {
+  .meetOriLayout {
+    grid-template-columns: 1fr;
+    gap: 2rem;
+  }
+
+  .sectionTitle,
+  .subtitle,
+  .body {
+    text-align: center;
+  }
+
+  .meetOriImage {
+    max-width: 200px;
+  }
+}
+
+@media (max-width: 600px) {
+  .section {
+    padding: 3rem 1.5rem;
+  }
+
+  .sectionTitle {
+    font-size: 1.75rem;
+  }
+
+  .subtitle {
+    font-size: 1rem;
+  }
+}

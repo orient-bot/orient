@@ -14,10 +14,7 @@
 1. Start demo stack:
    - `cd docker`
    - `docker compose -f docker-compose.demo.yml up -d`
-2. Pair WhatsApp:
-   - Open `http://localhost:4097/qr`
-   - Scan QR with WhatsApp
-3. Open dashboard:
+2. Open dashboard:
    - `http://localhost:4098`
 
 ## Notes

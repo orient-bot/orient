@@ -212,9 +212,70 @@ check_git() {
   fi
 }
 
+check_opencode_isolation() {
+  print_header "OpenCode Isolation"
+
+  # Check if opencode-env.sh exists
+  if [ ! -f "$PROJECT_ROOT/scripts/opencode-env.sh" ]; then
+    check_fail "opencode-env.sh not found" "Required for OpenCode isolation"
+    return
+  fi
+
+  check_pass "opencode-env.sh exists"
+
+  # Source and configure isolation
+  source "$PROJECT_ROOT/scripts/opencode-env.sh"
+
+  # Save current env
+  local old_test_home="$OPENCODE_TEST_HOME"
+  local old_xdg_data="$XDG_DATA_HOME"
+
+  # Clear and reconfigure
+  unset OPENCODE_TEST_HOME XDG_DATA_HOME XDG_CONFIG_HOME XDG_CACHE_HOME XDG_STATE_HOME
+  export PROJECT_ROOT="$PROJECT_ROOT"
+  configure_opencode_isolation
+
+  # Check isolation is configured correctly
+  local expected_home="$PROJECT_ROOT/.opencode"
+
+  if [ "$OPENCODE_TEST_HOME" = "$expected_home" ]; then
+    check_pass "OPENCODE_TEST_HOME configured correctly"
+  else
+    check_fail "OPENCODE_TEST_HOME not configured" "Expected: $expected_home"
+  fi
+
+  if [ "$XDG_DATA_HOME" = "$expected_home/data" ]; then
+    check_pass "XDG_DATA_HOME configured correctly"
+  else
+    check_fail "XDG_DATA_HOME not configured" "Expected: $expected_home/data"
+  fi
+
+  # Check that .opencode directory structure exists
+  if [ -d "$PROJECT_ROOT/.opencode" ]; then
+    check_pass ".opencode directory exists"
+  else
+    check_warn ".opencode directory does not exist" "Will be created on first run"
+  fi
+
+  # Verify isolation doesn't point to user home
+  if [[ "$OPENCODE_TEST_HOME" != "$HOME"* ]] || [[ "$OPENCODE_TEST_HOME" == "$expected_home"* ]]; then
+    check_pass "Isolation prevents use of global ~/.opencode/"
+  else
+    check_fail "Isolation may use global config" "OPENCODE_TEST_HOME points to home directory"
+  fi
+
+  # Restore env
+  if [ -n "$old_test_home" ]; then
+    export OPENCODE_TEST_HOME="$old_test_home"
+  fi
+  if [ -n "$old_xdg_data" ]; then
+    export XDG_DATA_HOME="$old_xdg_data"
+  fi
+}
+
 check_optional_tools() {
   print_header "Optional Tools"
-  
+
   # OpenCode (for MCP servers)
   if command -v opencode &> /dev/null; then
     local opencode_version=$(opencode --version 2>/dev/null || echo "unknown")
@@ -230,11 +291,11 @@ check_optional_tools() {
     check_warn "curl is not installed" "Required for health checks"
   fi
   
-  # psql (for database debugging)
-  if command -v psql &> /dev/null; then
-    check_pass "psql is available (useful for debugging)"
+  # sqlite3 (for database debugging)
+  if command -v sqlite3 &> /dev/null; then
+    check_pass "sqlite3 is available (useful for debugging)"
   else
-    check_info "psql not installed (optional, for database debugging)"
+    check_info "sqlite3 not installed (optional, for database debugging)"
   fi
   
   # lsof (for port checking)
@@ -266,8 +327,8 @@ check_config_files() {
   if [ -f "$PROJECT_ROOT/.env" ]; then
     check_pass ".env file exists"
     
-    # Check for required environment variables
-    local required_vars=("POSTGRES_USER" "POSTGRES_PASSWORD" "MINIO_ROOT_USER" "MINIO_ROOT_PASSWORD" "DASHBOARD_JWT_SECRET" "ORIENT_MASTER_KEY")
+    # Check for required environment variables (SQLite - no database credentials needed)
+    local required_vars=("MINIO_ROOT_USER" "MINIO_ROOT_PASSWORD" "DASHBOARD_JWT_SECRET" "ORIENT_MASTER_KEY")
     local missing_vars=()
     
     for var in "${required_vars[@]}"; do
@@ -341,9 +402,8 @@ check_config_files() {
       
       if [ "$FIX_MODE" = true ]; then
         echo -e "    ${CYAN}→ Replacing placeholder values with defaults...${NC}"
-        # Replace placeholder passwords with working defaults
+        # Replace placeholder passwords with working defaults (SQLite - no database password)
         sed -i.bak \
-          -e "s|POSTGRES_PASSWORD=your-secure-password|POSTGRES_PASSWORD=aibot123|g" \
           -e "s|MINIO_ROOT_PASSWORD=your-secure-password|MINIO_ROOT_PASSWORD=minioadmin123|g" \
           -e "s|DASHBOARD_JWT_SECRET=your-dashboard-jwt-secret|DASHBOARD_JWT_SECRET=$(openssl rand -base64 48 | tr -d '\n')|g" \
           -e "s|ORIENT_MASTER_KEY=your-master-key|ORIENT_MASTER_KEY=$(openssl rand -base64 48 | tr -d '\n')|g" \
@@ -353,14 +413,8 @@ check_config_files() {
       fi
     fi
     
-    # Check database credentials match Docker defaults
-    local pg_user=$(grep "^POSTGRES_USER=" "$PROJECT_ROOT/.env" 2>/dev/null | cut -d'=' -f2-)
-    local pg_pass=$(grep "^POSTGRES_PASSWORD=" "$PROJECT_ROOT/.env" 2>/dev/null | cut -d'=' -f2-)
-    
-    # Warn if using non-default credentials that might not match Docker
-    if [ "$pg_user" != "aibot" ] && [ "$pg_user" != "orient" ]; then
-      check_info "Using custom POSTGRES_USER: $pg_user (ensure Docker is configured to match)"
-    fi
+    # SQLite database - no credentials needed
+    check_info "Database: SQLite (file-based, no credentials required)"
   else
     check_fail ".env file does not exist" "Copy from template: cp .env.example .env"
     
@@ -450,8 +504,8 @@ check_dependencies() {
 check_ports() {
   print_header "Port Availability"
   
-  # Default development ports
-  local ports=("80:Nginx" "4097:WhatsApp" "4098:Dashboard" "4099:OpenCode" "5173:Vite" "5432:PostgreSQL" "9000:MinIO API" "9001:MinIO Console")
+  # Default development ports (WhatsApp is now integrated into Dashboard)
+  local ports=("80:Nginx" "4098:Dashboard" "4099:OpenCode" "5173:Vite" "9000:MinIO API" "9001:MinIO Console")
   
   for port_info in "${ports[@]}"; do
     local port="${port_info%%:*}"
@@ -479,7 +533,7 @@ check_docker_images() {
     return
   fi
   
-  local images=("nginx:alpine" "postgres:16-alpine" "minio/minio:latest" "minio/mc:latest")
+  local images=("nginx:alpine" "minio/minio:latest" "minio/mc:latest")
   
   for image in "${images[@]}"; do
     if docker image inspect "$image" &> /dev/null; then
@@ -536,6 +590,7 @@ main() {
   check_docker
   check_git
   check_optional_tools
+  check_opencode_isolation
   check_config_files
   check_dependencies
   check_ports

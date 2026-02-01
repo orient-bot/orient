@@ -12,6 +12,7 @@ interface AppSummary {
   status: 'draft' | 'pending_review' | 'published' | 'archived';
   isBuilt: boolean;
   author?: string;
+  source: 'builtin' | 'user';
   permissions?: Record<string, { read: boolean; write: boolean }>;
   capabilities?: {
     scheduler?: { enabled: boolean };
@@ -36,6 +37,7 @@ interface AppDetails {
   status: string;
   isBuilt: boolean;
   author?: string;
+  source?: 'builtin' | 'user';
   permissions: Record<string, { read: boolean; write: boolean }>;
   capabilities: {
     scheduler?: { enabled: boolean; max_jobs: number };

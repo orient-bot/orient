@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import crypto from 'crypto';
-import { WebhookService } from '@orient/dashboard';
+import { WebhookService } from '@orient-bot/dashboard';
 
 describe('WebhookService', () => {
   it('returns not_found when webhook missing', async () => {

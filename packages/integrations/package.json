@@ -1,78 +1,76 @@
 {
-  "name": "@orient/integrations",
+  "name": "@orient-bot/integrations",
   "version": "1.0.0",
-  "description": "External service integrations for Orient (JIRA, Google, etc.)",
+  "description": "External service integrations for Orient (Google, etc.)",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
+      "source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "require": "./dist/index.js",
       "default": "./dist/index.js"
     },
-    "./jira": {
-      "types": "./dist/jira/index.d.ts",
-      "import": "./dist/jira/index.js",
-      "require": "./dist/jira/index.js",
-      "default": "./dist/jira/index.js"
-    },
     "./google": {
+      "source": "./src/google/index.ts",
       "types": "./dist/google/index.d.ts",
       "import": "./dist/google/index.js",
       "require": "./dist/google/index.js",
       "default": "./dist/google/index.js"
     },
     "./gemini": {
+      "source": "./src/gemini/index.ts",
       "types": "./dist/gemini/index.d.ts",
       "import": "./dist/gemini/index.js",
       "require": "./dist/gemini/index.js",
       "default": "./dist/gemini/index.js"
     },
     "./openai": {
+      "source": "./src/openai/index.ts",
       "types": "./dist/openai/index.d.ts",
       "import": "./dist/openai/index.js",
       "require": "./dist/openai/index.js",
       "default": "./dist/openai/index.js"
     },
     "./types": {
+      "source": "./src/types/integration.ts",
       "types": "./dist/types/integration.d.ts",
       "import": "./dist/types/integration.js",
       "require": "./dist/types/integration.js",
       "default": "./dist/types/integration.js"
     },
     "./catalog": {
+      "source": "./src/catalog/index.ts",
       "types": "./dist/catalog/index.d.ts",
       "import": "./dist/catalog/index.js",
       "require": "./dist/catalog/index.js",
       "default": "./dist/catalog/index.js"
     },
     "./catalog/linear": {
+      "source": "./src/catalog/linear/index.ts",
       "types": "./dist/catalog/linear/index.d.ts",
       "import": "./dist/catalog/linear/index.js",
       "require": "./dist/catalog/linear/index.js",
       "default": "./dist/catalog/linear/index.js"
     },
     "./catalog/github": {
+      "source": "./src/catalog/github/index.ts",
       "types": "./dist/catalog/github/index.d.ts",
       "import": "./dist/catalog/github/index.js",
       "require": "./dist/catalog/github/index.js",
       "default": "./dist/catalog/github/index.js"
     },
     "./catalog/google": {
+      "source": "./src/catalog/google/index.ts",
       "types": "./dist/catalog/google/index.d.ts",
       "import": "./dist/catalog/google/index.js",
       "require": "./dist/catalog/google/index.js",
       "default": "./dist/catalog/google/index.js"
     },
-    "./catalog/jira": {
-      "types": "./dist/catalog/jira/index.d.ts",
-      "import": "./dist/catalog/jira/index.js",
-      "require": "./dist/catalog/jira/index.js",
-      "default": "./dist/catalog/jira/index.js"
-    },
     "./catalog/loader": {
+      "source": "./src/catalog/loader.ts",
       "types": "./dist/catalog/loader.d.ts",
       "import": "./dist/catalog/loader.js",
       "require": "./dist/catalog/loader.js",
@@ -89,10 +87,9 @@
   },
   "dependencies": {
     "@google/genai": "^1.36.0",
-    "@orient/core": "workspace:*",
+    "@orient-bot/core": "workspace:*",
     "google-auth-library": "^10.5.0",
     "googleapis": "^144.0.0",
-    "jira.js": "^4.1.3",
     "js-yaml": "^4.1.0",
     "openai": "^4.104.0",
     "sharp": "^0.34.5"
@@ -102,5 +99,13 @@
     "@types/node": "^20.19.27",
     "typescript": "^5.9.3",
     "vitest": "^4.0.16"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://npm.pkg.github.com/"
   }
 }

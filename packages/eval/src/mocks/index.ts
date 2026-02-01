@@ -13,7 +13,7 @@ export {
 } from './registry.js';
 export type { MockService } from './registry.js';
 
-export { JiraMockService, createMockJiraIssue, type MockJiraIssue } from './jira.js';
+export { JiraMockService } from './jira.js';
 
 export {
   SlackMockService,

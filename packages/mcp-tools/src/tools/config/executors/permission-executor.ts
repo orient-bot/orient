@@ -4,10 +4,10 @@
  * Executes confirmed permission configuration actions.
  */
 
-import { createServiceLogger } from '@orient/core';
+import { createServiceLogger } from '@orient-bot/core';
 import { getPendingActionsStore } from '../pending-store.js';
 import type { PendingAction, ActionExecutionResult } from '../pending-store.js';
-import type { ChatPermission, ChatType } from '@orient/database-services';
+import type { ChatPermission, ChatType } from '@orient-bot/database-services';
 
 const logger = createServiceLogger('permission-executor');
 
@@ -22,7 +22,7 @@ async function executePermissionAction(action: PendingAction): Promise<ActionExe
   });
 
   try {
-    const { createMessageDatabase } = await import('@orient/database-services');
+    const { createMessageDatabase } = await import('@orient-bot/database-services');
     const db = createMessageDatabase();
 
     const { permission, chatType, displayName, notes } = action.changes as {

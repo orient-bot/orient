@@ -1,4 +1,4 @@
-# @orient/api-gateway
+# @orient-bot/api-gateway
 
 REST API gateway for the Orient.
 
@@ -12,14 +12,14 @@ REST API gateway for the Orient.
 ## Installation
 
 ```bash
-pnpm add @orient/api-gateway
+pnpm add @orient-bot/api-gateway
 ```
 
 ## Usage
 
 ```typescript
-import { createApiServer, SchedulerService } from '@orient/api-gateway';
-import { loadConfig } from '@orient/core';
+import { createApiServer, SchedulerService } from '@orient-bot/api-gateway';
+import { loadConfig } from '@orient-bot/core';
 
 const config = loadConfig();
 const server = createApiServer(config);

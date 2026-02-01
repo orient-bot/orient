@@ -7,13 +7,13 @@
  *
  * This allows defining specific operations that should happen
  *
- * Exported via @orient/agents package.
+ * Exported via @orient-bot/agents package.
  * when users select certain poll options (e.g., 'prepare-examples',
  * 'select-priority', 'choose-format').
  */
 
 import type { PollActionHandler, PollActionContext, WhatsAppPoll, PollVote } from '../types.js';
-import { createDedicatedServiceLogger } from '@orient/core';
+import { createDedicatedServiceLogger } from '@orient-bot/core';
 
 const logger = createDedicatedServiceLogger('whatsapp', {
   maxSize: '20m',

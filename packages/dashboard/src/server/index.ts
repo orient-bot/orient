@@ -3,34 +3,44 @@
  *
  * Express server for the dashboard API with database integration.
  * Serves the React frontend in production.
+ * Optionally mounts WhatsApp API endpoints for unified server mode.
  */
 
-import express, { Application } from 'express';
+import express, { Application, Router } from 'express';
 import cors from 'cors';
 import path from 'path';
 import fs from 'fs';
-import { createServiceLogger } from '@orient/core';
-import { ensureAgentsSeeded } from '@orient/database-services';
-import { MessageDatabase } from '../services/messageDatabase.js';
-import { SlackDatabase } from '../services/slackDatabase.js';
-import { SchedulerDatabase } from '../services/schedulerDatabase.js';
+import { ServerResponse } from 'http';
+import { createServiceLogger } from '@orient-bot/core';
+import {
+  ensureAgentsSeeded,
+  MessageDatabase,
+  createMessageDatabase,
+  SlackDatabase,
+  createSlackDatabase,
+  SchedulerDatabase,
+  createSchedulerDatabase,
+  WebhookDatabase,
+  createWebhookDatabase,
+  StorageDatabase,
+  createStorageDatabase,
+  PromptService,
+  createPromptService,
+} from '@orient-bot/database-services';
 import { SchedulerService } from '../services/schedulerService.js';
-import { WebhookDatabase } from '../services/webhookDatabase.js';
 import { WebhookService } from '../services/webhookService.js';
 import { MonitoringService, createMonitoringService } from '../services/monitoringService.js';
-import { PromptService, createPromptService } from '../services/promptService.js';
-import { StorageDatabase } from '../services/storageDatabase.js';
 import { createDashboardAuth, DashboardAuth, createRateLimitMiddleware } from '../auth.js';
 import { createDashboardRouter } from './routes.js';
 import { createSetupRouter } from './setupRoutes.js';
 import { createSetupAuthRouter } from './setupAuthRoutes.js';
 // Apps service for mini-apps listing
 import { AppsService, createAppsService } from '../services/appsService.js';
-// Miniapp editor imports from @orient/apps and @orient/agents
-import { createMiniappEditService, MiniappEditService } from '@orient/apps';
-import { createMiniappEditDatabase } from '@orient/apps';
-import { createAppGitService } from '@orient/apps';
-import { createOpenCodeClient } from '@orient/agents';
+// Miniapp editor imports from @orient-bot/apps and @orient-bot/agents
+import { createMiniappEditService, MiniappEditService } from '@orient-bot/apps';
+import { createMiniappEditDatabase } from '@orient-bot/apps';
+import { createAppGitService } from '@orient-bot/apps';
+import { createOpenCodeClient } from '@orient-bot/agents';
 
 const logger = createServiceLogger('dashboard-server');
 
@@ -41,6 +51,8 @@ export interface DashboardServerConfig {
   corsOrigins?: string[];
   staticPath?: string;
   setupOnly?: boolean;
+  /** Optional WhatsApp router to mount for unified server mode */
+  whatsappRouter?: Router;
 }
 
 export interface DashboardServices {
@@ -62,16 +74,14 @@ export interface DashboardServices {
  * Initialize all dashboard services
  */
 async function initializeServices(config: DashboardServerConfig): Promise<DashboardServices> {
-  const databaseUrl = config.databaseUrl || process.env.DATABASE_URL;
-
-  // Initialize databases
-  const db = new MessageDatabase(databaseUrl);
+  // Initialize databases (SQLite via shared singleton)
+  const db = createMessageDatabase();
   await db.initialize();
 
-  const slackDb = new SlackDatabase(databaseUrl);
+  const slackDb = createSlackDatabase();
   await slackDb.initialize();
 
-  const schedulerDb = new SchedulerDatabase(databaseUrl);
+  const schedulerDb = createSchedulerDatabase();
   await schedulerDb.initialize();
 
   // Ensure default agents are seeded
@@ -90,8 +100,7 @@ async function initializeServices(config: DashboardServerConfig): Promise<Dashbo
   await schedulerService.start();
 
   // Initialize webhook database and service
-  const webhookDb = new WebhookDatabase(databaseUrl);
-  await webhookDb.initialize();
+  const webhookDb = createWebhookDatabase();
   const webhookService = new WebhookService(webhookDb);
 
   // Initialize prompt service
@@ -116,14 +125,14 @@ async function initializeServices(config: DashboardServerConfig): Promise<Dashbo
   }
 
   // Initialize storage database for mini-app persistence
-  const storageDb = new StorageDatabase(databaseUrl);
+  const storageDb = createStorageDatabase();
   await storageDb.initialize();
   logger.info('Storage database initialized');
 
   // Initialize miniapp edit service
   let miniappEditService: MiniappEditService | undefined;
   try {
-    const miniappEditDb = createMiniappEditDatabase(databaseUrl);
+    const miniappEditDb = createMiniappEditDatabase();
     await miniappEditDb.initialize();
 
     // Get repo path from environment or use default
@@ -178,8 +187,7 @@ async function initializeSetupAuthServices(config: DashboardServerConfig): Promi
   db: MessageDatabase;
   auth: DashboardAuth;
 }> {
-  const databaseUrl = config.databaseUrl || process.env.DATABASE_URL;
-  const db = new MessageDatabase(databaseUrl);
+  const db = new MessageDatabase();
   await db.initialize();
   const auth = createDashboardAuth(config.jwtSecret, db);
   return { db, auth };
@@ -208,6 +216,13 @@ function createBaseServer(config: DashboardServerConfig): Application {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
   });
 
+  // Mount WhatsApp router if provided (unified server mode)
+  // This provides /qr, /pairing-code, /flush-session, etc.
+  if (config.whatsappRouter) {
+    logger.info('Mounting WhatsApp API router (unified server mode)');
+    app.use(config.whatsappRouter);
+  }
+
   // Setup wizard routes (no auth required)
   app.use('/api/setup', createSetupRouter());
   app.use('/dashboard/api/setup', createSetupRouter());
@@ -225,14 +240,46 @@ function attachFrontend(app: Application, config: DashboardServerConfig): void {
 
     // Serve static files at root and /dashboard/ prefix
     // (production build uses base: '/dashboard/' for assets)
-    app.use(express.static(staticPath));
-    app.use('/dashboard', express.static(staticPath));
+    // Hashed assets (Vite output) get long-term caching; index.html must not be cached
+    // so the browser always fetches the latest version after rebuilds.
+    const staticOptions = {
+      setHeaders: (res: ServerResponse, filePath: string) => {
+        if (filePath.endsWith('.html')) {
+          res.setHeader('Cache-Control', 'no-cache');
+        } else if (filePath.includes('/assets/')) {
+          res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+        }
+      },
+    };
+    app.use(express.static(staticPath, staticOptions));
+    app.use('/dashboard', express.static(staticPath, staticOptions));
+
+    // If frontend is built with base "/dashboard/", redirect root SPA routes
+    app.use((req, res, next) => {
+      if (req.method !== 'GET') return next();
+      if (
+        req.path.startsWith('/dashboard') ||
+        req.path.startsWith('/api') ||
+        req.path.startsWith('/dashboard/api') ||
+        req.path === '/health' ||
+        req.path.startsWith('/qr') ||
+        req.path.startsWith('/pairing-code') ||
+        req.path.startsWith('/flush-session')
+      ) {
+        return next();
+      }
+
+      if (req.accepts('html')) {
+        return res.redirect(302, `/dashboard${req.path}`);
+      }
+
+      return next();
+    });
 
     // SPA fallback - serve index.html for any non-API routes
     // This allows React Router to handle client-side routing
     // Note: Express 5 / path-to-regexp v8 requires named wildcards
-    app.get('/{*splat}', (req, res, next) => {
-      // Skip API routes and health checks
+    const sendSpaIndex = (req: any, res: any, next: any) => {
       if (
         req.path.startsWith('/api') ||
         req.path.startsWith('/dashboard/api') ||
@@ -243,11 +290,15 @@ function attachFrontend(app: Application, config: DashboardServerConfig): void {
 
       const indexPath = path.join(staticPath, 'index.html');
       if (fs.existsSync(indexPath)) {
-        res.sendFile(indexPath);
-      } else {
-        next();
+        res.setHeader('Cache-Control', 'no-cache');
+        return res.sendFile(indexPath);
       }
-    });
+
+      return next();
+    };
+
+    app.get('/dashboard/{*splat}', sendSpaIndex);
+    app.get('/{*splat}', sendSpaIndex);
   } else {
     // Fallback landing page when no frontend is available
     logger.info('No frontend build found, serving fallback landing page', {

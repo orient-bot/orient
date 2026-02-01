@@ -8,7 +8,7 @@
  * This router decides which channel to use based on:
  * - Message type (notification vs conversation)
  *
- * Exported via @orient/bot-whatsapp package.
+ * Exported via @orient-bot/bot-whatsapp package.
  * - Configuration defaults
  * - Per-chat overrides
  * - Channel availability
@@ -23,7 +23,7 @@ import {
 } from './whatsappCloudApiService.js';
 // Re-export SendMessageResult for consumers
 export type { SendMessageResult } from './whatsappCloudApiService.js';
-import { createDedicatedServiceLogger } from '@orient/core';
+import { createDedicatedServiceLogger } from '@orient-bot/core';
 
 const logger = createDedicatedServiceLogger('whatsapp-router', {
   maxSize: '20m',

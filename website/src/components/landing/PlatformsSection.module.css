@@ -1,0 +1,104 @@
+.section {
+  padding: 5rem 2rem;
+}
+
+.sectionAlt {
+  background: var(--ifm-background-surface-color);
+}
+
+.sectionContent {
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.sectionTitle {
+  font-size: 2.25rem;
+  font-weight: 700;
+  margin: 0 0 0.5rem;
+  text-align: center;
+}
+
+.sectionSubtitle {
+  font-size: 1.25rem;
+  color: var(--ifm-font-color-secondary);
+  text-align: center;
+  margin: 0 0 2.5rem;
+}
+
+.platformGrid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 1.5rem;
+  margin-top: 2rem;
+}
+
+.platformCard {
+  background: var(--ifm-card-background-color);
+  border: 1px solid var(--ifm-hr-border-color);
+  border-radius: 0.5rem;
+  padding: 1.5rem;
+  text-align: center;
+  transition: border-color 0.15s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.platformCard:hover {
+  border-color: var(--ifm-font-color-secondary);
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(59, 130, 246, 0.08);
+}
+
+.platformIconWrapper {
+  margin-bottom: 1rem;
+}
+
+.platformIcon {
+  width: 48px;
+  height: 48px;
+  color: var(--ifm-font-color-base);
+  stroke-width: 2.5;
+}
+
+.platformTitle {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0 0 0.5rem;
+}
+
+.platformDescription {
+  font-size: 0.875rem;
+  color: var(--ifm-font-color-secondary);
+  margin: 0;
+  line-height: 1.5;
+}
+
+.crossPlatformTagline {
+  text-align: center;
+  font-size: 1rem;
+  color: var(--ifm-font-color-secondary);
+  margin: 2rem 0 0;
+  font-style: italic;
+}
+
+@media (max-width: 996px) {
+  .platformGrid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 600px) {
+  .section {
+    padding: 3rem 1.5rem;
+  }
+
+  .sectionTitle {
+    font-size: 1.75rem;
+  }
+
+  .sectionSubtitle {
+    font-size: 1rem;
+  }
+
+  .platformGrid {
+    grid-template-columns: 1fr 1fr;
+  }
+}

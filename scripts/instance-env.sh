@@ -3,6 +3,9 @@
 # Instance Environment Configuration
 # Detects instance ID and configures environment variables for multi-instance support
 #
+# Database: SQLite (file-based, no external database server needed)
+# WhatsApp: Integrated into Dashboard (unified server on DASHBOARD_PORT)
+#
 
 # Detect instance ID from environment or path
 detect_instance_id() {
@@ -50,48 +53,31 @@ configure_instance() {
   local offset=$(( AI_INSTANCE_ID * 1000 ))
 
   # Service ports
-  export WHATSAPP_PORT=$(calculate_port 4097 $AI_INSTANCE_ID)
+  # Note: WhatsApp is now integrated into Dashboard (unified server on DASHBOARD_PORT)
   export DASHBOARD_PORT=$(calculate_port 4098 $AI_INSTANCE_ID)
   export OPENCODE_PORT=$(calculate_port 4099 $AI_INSTANCE_ID)
   export VITE_PORT=$(calculate_port 5173 $AI_INSTANCE_ID)
 
-  # Infrastructure ports
-  export POSTGRES_PORT=$(calculate_port 5432 $AI_INSTANCE_ID)
+  # Infrastructure ports (MinIO for S3-compatible storage, Nginx for reverse proxy)
   export MINIO_API_PORT=$(calculate_port 9000 $AI_INSTANCE_ID)
   export MINIO_CONSOLE_PORT=$(calculate_port 9001 $AI_INSTANCE_ID)
   export NGINX_PORT=$(calculate_port 80 $AI_INSTANCE_ID)
   export NGINX_SSL_PORT=$(calculate_port 443 $AI_INSTANCE_ID)
-  export API_GATEWAY_PORT=$(calculate_port 4100 $AI_INSTANCE_ID)
 
   # Docker compose project name (for container isolation)
   export COMPOSE_PROJECT_NAME="orienter-instance-${AI_INSTANCE_ID}"
 
-  # Database configuration
-  # Use POSTGRES_DB_BASE to preserve original name, strip any existing instance suffix
-  local postgres_db_base="${POSTGRES_DB_BASE:-${POSTGRES_DB:-whatsapp_bot}}"
-  # Remove any trailing _N suffix (where N is a digit) to get the base name
-  postgres_db_base=$(echo "$postgres_db_base" | sed 's/_[0-9]*$//')
-  export POSTGRES_DB_BASE="$postgres_db_base"
-  export POSTGRES_DB="${postgres_db_base}_${AI_INSTANCE_ID}"
-
-  # Update DATABASE_URL with instance-specific port and database name
-  if [ -n "$DATABASE_URL" ]; then
-    # Replace port in existing DATABASE_URL
-    export DATABASE_URL=$(echo "$DATABASE_URL" | sed "s/:5432/:${POSTGRES_PORT}/")
-    # Replace database name (only the final path segment after the last /)
-    export DATABASE_URL=$(echo "$DATABASE_URL" | sed "s/\/[^\/]*$/\/${POSTGRES_DB}/")
-  else
-    # Default DATABASE_URL if not set
-    export DATABASE_URL="postgresql://${POSTGRES_USER:-aibot}:${POSTGRES_PASSWORD:-aibot123}@localhost:${POSTGRES_PORT}/${POSTGRES_DB}"
-  fi
+  # SQLite database configuration (file-based, instance-specific)
+  local project_root="${PROJECT_ROOT:-$(pwd)}"
+  export DATA_DIR="${project_root}/.dev-data/instance-${AI_INSTANCE_ID}"
+  export SQLITE_DB_PATH="${DATA_DIR}/orient.db"
+  export SQLITE_DATABASE="${SQLITE_DATABASE:-$SQLITE_DB_PATH}"
 
   # S3/MinIO configuration
   export S3_BUCKET="${S3_BUCKET:-orienter-data}-${AI_INSTANCE_ID}"
   export AWS_ENDPOINT_URL="http://localhost:${MINIO_API_PORT}"
 
   # Instance-specific directories
-  local project_root="${PROJECT_ROOT:-$(pwd)}"
-  export DATA_DIR="${project_root}/.dev-data/instance-${AI_INSTANCE_ID}"
   export LOG_DIR="${project_root}/logs/instance-${AI_INSTANCE_ID}"
   export PID_DIR="${project_root}/.dev-pids/instance-${AI_INSTANCE_ID}"
 
@@ -101,6 +87,39 @@ configure_instance() {
   else
     export WHATSAPP_ENABLED="${WHATSAPP_ENABLED:-false}"
   fi
+
+  # Configure OpenCode isolation if the script exists
+  # This ensures OpenCode uses project-local data instead of global ~/.opencode/
+  local script_dir="$(dirname "${BASH_SOURCE[0]}")"
+  if [ -f "$script_dir/opencode-env.sh" ]; then
+    source "$script_dir/opencode-env.sh"
+    configure_opencode_isolation
+  fi
+
+  # Configure pnpm/corepack caches outside .opencode to avoid ENOSPC loops
+  configure_node_package_env
+}
+
+# Keep node package caches out of .opencode (XDG isolation can redirect them)
+configure_node_package_env() {
+  local project_root="${PROJECT_ROOT:-$(pwd)}"
+  local cache_root=""
+  if [ -d "$HOME/Library/Caches" ]; then
+    cache_root="$HOME/Library/Caches"
+  else
+    cache_root="$HOME/.cache"
+  fi
+  local pnpm_home_default="$cache_root/pnpm"
+  local pnpm_store_default="$cache_root/pnpm-store"
+  local npm_cache_default="$cache_root/npm"
+  local corepack_home_default="$cache_root/corepack"
+
+  export PNPM_HOME="${PNPM_HOME:-$pnpm_home_default}"
+  export PNPM_STORE_PATH="${PNPM_STORE_PATH:-$pnpm_store_default}"
+  export NPM_CONFIG_CACHE="${NPM_CONFIG_CACHE:-$npm_cache_default}"
+  export COREPACK_HOME="${COREPACK_HOME:-$corepack_home_default}"
+
+  mkdir -p "$PNPM_HOME" "$PNPM_STORE_PATH" "$NPM_CONFIG_CACHE" "$COREPACK_HOME" 2>/dev/null || true
 }
 
 # Display instance information
@@ -125,22 +144,19 @@ display_instance_info() {
   echo "Instance Configuration:"
   echo "  Instance ID:      ${AI_INSTANCE_ID}"
   echo "  Compose Project:  ${COMPOSE_PROJECT_NAME}"
-  echo "  Database:         ${POSTGRES_DB}"
+  echo "  Database:         SQLite (${SQLITE_DB_PATH})"
   echo "  S3 Bucket:        ${S3_BUCKET}"
   echo ""
   echo "Service Ports:"
-  echo "  Dashboard:        http://localhost:${DASHBOARD_PORT}"
-  echo "  WhatsApp API:     http://localhost:${WHATSAPP_PORT} ($([ "$WHATSAPP_ENABLED" = "true" ] && echo "enabled" || echo "disabled"))"
+  echo "  Dashboard:        http://localhost:${DASHBOARD_PORT} ($([ "$WHATSAPP_ENABLED" = "true" ] && echo "+WhatsApp" || echo "WhatsApp disabled"))"
   echo "  OpenCode:         http://localhost:${OPENCODE_PORT}"
   echo "  Vite Dev:         http://localhost:${VITE_PORT}"
   echo ""
   echo "Infrastructure Ports:"
   echo "  Nginx:            http://localhost:${NGINX_PORT}"
   echo "  Nginx SSL:        https://localhost:${NGINX_SSL_PORT}"
-  echo "  PostgreSQL:       localhost:${POSTGRES_PORT}"
   echo "  MinIO Console:    http://localhost:${MINIO_CONSOLE_PORT}"
   echo "  MinIO API:        http://localhost:${MINIO_API_PORT}"
-  echo "  API Gateway:      http://localhost:${API_GATEWAY_PORT}"
   echo ""
   echo "Instance Directories:"
   echo "  Data:             ${DATA_DIR}"

@@ -9,7 +9,7 @@ description: Configure package.json exports and understand import resolution in 
 
 ```bash
 # Test package exports work correctly
-pnpm --filter @orient/core test
+pnpm --filter @orientbot/core test
 
 # Check what a package exports
 cat packages/core/package.json | jq '.exports'
@@ -20,21 +20,21 @@ ls packages/core/dist/
 
 ## The Golden Rule: Source vs Dist
 
-| Context                         | Import From           | Why                |
-| ------------------------------- | --------------------- | ------------------ |
-| **Inside same package**         | Source (`./file.js`)  | Direct file access |
-| **Cross-package (production)**  | Dist (`@orient/pkg`)  | Built output       |
-| **Cross-package (development)** | Source via path alias | TypeScript paths   |
+| Context                         | Import From             | Why                |
+| ------------------------------- | ----------------------- | ------------------ |
+| **Inside same package**         | Source (`./file.js`)    | Direct file access |
+| **Cross-package (production)**  | Dist (`@orientbot/pkg`) | Built output       |
+| **Cross-package (development)** | Source via path alias   | TypeScript paths   |
 
 **Never** import from another package's `dist/` directory directly:
 
 ```typescript
 // ❌ WRONG - importing dist directly
 import { Service } from '../../../dist/services/service.js';
-import { Service } from '@orient/core/dist/index.js';
+import { Service } from '@orientbot/core/dist/index.js';
 
 // ✅ CORRECT - use package name (resolves to dist via exports)
-import { Service } from '@orient/core';
+import { Service } from '@orientbot/core';
 
 // ✅ CORRECT - use local re-export
 import { Service } from './services/index.js';
@@ -48,7 +48,7 @@ The `exports` field defines how your package can be imported:
 
 ```json
 {
-  "name": "@orient/core",
+  "name": "@orientbot/core",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -89,9 +89,9 @@ For packages with multiple entry points:
 This enables:
 
 ```typescript
-import { loadConfig } from '@orient/core'; // Main export
-import { Config } from '@orient/core/config'; // Subpath export
-import { createLogger } from '@orient/core/logger'; // Subpath export
+import { loadConfig } from '@orientbot/core'; // Main export
+import { Config } from '@orientbot/core/config'; // Subpath export
+import { createLogger } from '@orientbot/core/logger'; // Subpath export
 ```
 
 ### Export Order Matters
@@ -119,8 +119,8 @@ During development, TypeScript uses path aliases from root `tsconfig.json`:
 {
   "compilerOptions": {
     "paths": {
-      "@orient/core": ["./packages/core/src/index"],
-      "@orient/database": ["./packages/database/src/index"]
+      "@orientbot/core": ["./packages/core/src/index"],
+      "@orientbot/database": ["./packages/database/src/index"]
     }
   }
 }
@@ -128,8 +128,8 @@ During development, TypeScript uses path aliases from root `tsconfig.json`:
 
 This means:
 
-- **Development**: `@orient/core` → `packages/core/src/index.ts`
-- **Production**: `@orient/core` → `packages/core/dist/index.js`
+- **Development**: `@orientbot/core` → `packages/core/src/index.ts`
+- **Production**: `@orientbot/core` → `packages/core/dist/index.js`
 
 ## Re-Export Patterns (Barrel Files)
 
@@ -157,10 +157,10 @@ When re-exporting from workspace dependencies:
 // packages/agents/src/index.ts
 
 // Re-export from workspace dependency
-export { MessageDatabase } from '@orient/database-services';
+export { MessageDatabase } from '@orientbot/database-services';
 
 // Or selective re-export
-import { MessageDatabase } from '@orient/database-services';
+import { MessageDatabase } from '@orientbot/database-services';
 export { MessageDatabase };
 ```
 
@@ -176,12 +176,12 @@ export { SpecificClass, specificFunction } from './some-module.js';
 
 ## Common Errors & Solutions
 
-### "Cannot find module '@orient/package'"
+### "Cannot find module '@orientbot/package'"
 
 1. **Build the package first**:
 
    ```bash
-   pnpm --filter @orient/package build
+   pnpm --filter @orientbot/package build
    ```
 
 2. **Check exports match dist structure**:
@@ -195,7 +195,7 @@ export { SpecificClass, specificFunction } from './some-module.js';
    ```json
    {
      "dependencies": {
-       "@orient/package": "workspace:*"
+       "@orientbot/package": "workspace:*"
      }
    }
    ```
@@ -223,10 +223,10 @@ Usually caused by re-export chains:
 
 ```typescript
 // Package A re-exports from B
-export { Something } from '@orient/B';
+export { Something } from '@orientbot/B';
 
 // Package B re-exports from A
-export { Other } from '@orient/A'; // Circular!
+export { Other } from '@orientbot/A'; // Circular!
 ```
 
 Solution: Import from the source package directly.
@@ -239,14 +239,14 @@ Add a contract test to verify exports work:
 // tests/contracts/core.contract.test.ts
 import { describe, it, expect } from 'vitest';
 
-describe('@orient/core exports', () => {
+describe('@orientbot/core exports', () => {
   it('should export loadConfig', async () => {
-    const { loadConfig } = await import('@orient/core');
+    const { loadConfig } = await import('@orientbot/core');
     expect(typeof loadConfig).toBe('function');
   });
 
   it('should export from subpath', async () => {
-    const { Config } = await import('@orient/core/config');
+    const { Config } = await import('@orientbot/core/config');
     expect(Config).toBeDefined();
   });
 });
@@ -266,7 +266,7 @@ This excludes `src/`, tests, and config files from the package.
 
 ## Exporting Database Schema Tables (Drizzle ORM)
 
-The `@orient/database` package uses Drizzle ORM and requires explicit exports for schema tables.
+The `@orientbot/database` package uses Drizzle ORM and requires explicit exports for schema tables.
 
 ### Step 1: Verify Table Definition Exists
 
@@ -317,10 +317,10 @@ After adding exports, rebuild the database package and all dependent packages:
 
 ```bash
 # Rebuild database package
-pnpm turbo run build --filter=@orient/database
+pnpm turbo run build --filter=@orientbot/database
 
 # Rebuild all dependent packages (dashboard depends on database)
-pnpm turbo run build --filter=@orient/dashboard
+pnpm turbo run build --filter=@orientbot/dashboard
 ```
 
 ### Step 4: Use the Export
@@ -329,7 +329,7 @@ Now you can import the table in other packages:
 
 ```typescript
 // packages/dashboard/src/server/routes/featureFlags.routes.ts
-import { getDatabase, featureFlags, eq } from '@orient/database';
+import { getDatabase, featureFlags, eq } from '@orientbot/database';
 
 const db = getDatabase();
 
@@ -352,7 +352,7 @@ Verify the export works with a contract test:
 import { describe, it, expect } from 'vitest';
 import { featureFlags } from '../src/index.js';
 
-describe('@orient/database schema exports', () => {
+describe('@orientbot/database schema exports', () => {
   it('should export featureFlags table', () => {
     expect(featureFlags).toBeDefined();
     expect(featureFlags.id).toBeDefined();
@@ -376,11 +376,11 @@ After modifying exports, follow this sequence:
 
 ```bash
 # 1. Rebuild the modified package AND its dependents in order
-pnpm turbo run build --filter=@orient/database
-pnpm turbo run build --filter=@orient/dashboard
+pnpm turbo run build --filter=@orientbot/database
+pnpm turbo run build --filter=@orientbot/dashboard
 
 # Or rebuild everything that depends on database
-pnpm turbo run build --filter=...@orient/database
+pnpm turbo run build --filter=...@orientbot/database
 ```
 
 **Why turbo?** It handles dependency order automatically. If dashboard depends on database, turbo builds database first.
@@ -405,10 +405,10 @@ Test that exports work at runtime, not just in IDE:
 
 ```bash
 # Quick runtime verification
-node -e "import('@orient/database').then(m => console.log(Object.keys(m)))"
+node -e "import('@orientbot/database').then(m => console.log(Object.keys(m)))"
 
 # Or check specific export
-node -e "import('@orient/database').then(m => console.log('featureFlags:', !!m.featureFlags))"
+node -e "import('@orientbot/database').then(m => console.log('featureFlags:', !!m.featureFlags))"
 ```
 
 ### Debugging Stale Builds
@@ -426,13 +426,13 @@ If runtime still fails after rebuilding:
 
    ```bash
    rm -rf .turbo node_modules/.cache
-   pnpm turbo run build --filter=@orient/database --force
+   pnpm turbo run build --filter=@orientbot/database --force
    ```
 
 3. **Check tsbuildinfo isn't stale**:
    ```bash
    rm packages/database/tsconfig.tsbuildinfo
-   pnpm turbo run build --filter=@orient/database
+   pnpm turbo run build --filter=@orientbot/database
    ```
 
 ## Transforming Database Rows to API Responses
@@ -533,7 +533,7 @@ res.json({ flags });
 ### Common Error: "does not provide an export named"
 
 ```
-SyntaxError: The requested module '@orient/database' does not provide an export named 'featureFlags'
+SyntaxError: The requested module '@orientbot/database' does not provide an export named 'featureFlags'
 ```
 
 **Cause**: Table is defined in `schema/index.ts` but not re-exported from main `index.ts`.
@@ -541,7 +541,7 @@ SyntaxError: The requested module '@orient/database' does not provide an export 
 **Fix**:
 
 1. Add the table name to exports in `packages/database/src/index.ts`
-2. Rebuild: `pnpm turbo run build --filter=@orient/database`
+2. Rebuild: `pnpm turbo run build --filter=@orientbot/database`
 3. Restart any running servers
 
 ### Checklist for New Database Tables
@@ -550,7 +550,7 @@ SyntaxError: The requested module '@orient/database' does not provide an export 
 - [ ] Add migration in `data/migrations/XXX_add_table.sql`
 - [ ] Export table from `packages/database/src/index.ts`
 - [ ] Export any related types from `packages/database/src/types.ts`
-- [ ] Rebuild: `pnpm turbo run build --filter=@orient/database`
+- [ ] Rebuild: `pnpm turbo run build --filter=@orientbot/database`
 - [ ] Add schema test in `packages/database/__tests__/schema.test.ts`
 - [ ] Rebuild dependent packages
 

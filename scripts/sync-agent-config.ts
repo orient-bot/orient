@@ -11,7 +11,7 @@
  * Options:
  *   --env <environment>     Environment (local, prod). Default: from DEPLOY_ENV or 'local'
  *   --project-dir <path>    Project directory. Default: cwd
- *   --skills-source <path>  Source skills directory. Default: <project-dir>/skills
+ *   --skills-source <path>  Source skills directory. Default: <project-dir>/.claude/skills
  *   --skills-target <path>  Target skills directory. Default: <project-dir>/.claude/skills
  *   --dry-run               Show what would be done without making changes
  *   --verbose               Enable verbose logging
@@ -19,11 +19,12 @@
  *   --force-seed            Force re-seed even if agents exist
  */
 
-import { getAgentRegistry } from '@orient/agents';
-import { createServiceLogger } from '@orient/core';
-import { closeDatabase } from '@orient/database';
+import { getAgentRegistry } from '@orient-bot/agents';
+import { createServiceLogger, getBuiltinSkillsPath, getUserSkillsPath } from '@orient-bot/core';
+import { closeDatabase } from '@orient-bot/database';
 import { seedAgents } from '../data/seeds/agents.js';
 import path from 'path';
+import fs from 'fs/promises';
 
 const logger = createServiceLogger('sync-agent-config');
 
@@ -31,6 +32,7 @@ interface SyncOptions {
   environment: string;
   projectDir: string;
   skillsSourceDir: string;
+  userSkillsSourceDir: string;
   skillsTargetDir: string;
   dryRun: boolean;
   verbose: boolean;
@@ -44,6 +46,7 @@ function parseArgs(): SyncOptions {
     environment: process.env.DEPLOY_ENV || 'local',
     projectDir: process.cwd(),
     skillsSourceDir: '',
+    userSkillsSourceDir: '',
     skillsTargetDir: '',
     dryRun: false,
     verbose: false,
@@ -87,7 +90,10 @@ function parseArgs(): SyncOptions {
 
   // Set defaults for skills directories
   if (!options.skillsSourceDir) {
-    options.skillsSourceDir = path.join(options.projectDir, 'skills');
+    options.skillsSourceDir = getBuiltinSkillsPath(options.projectDir);
+  }
+  if (!options.userSkillsSourceDir) {
+    options.userSkillsSourceDir = getUserSkillsPath();
   }
   if (!options.skillsTargetDir) {
     options.skillsTargetDir = path.join(options.projectDir, '.claude', 'skills');
@@ -109,7 +115,7 @@ Usage:
 Options:
   --env <environment>     Environment (local, prod). Default: from DEPLOY_ENV or 'local'
   --project-dir <path>    Project directory. Default: cwd
-  --skills-source <path>  Source skills directory. Default: <project-dir>/skills
+  --skills-source <path>  Source skills directory. Default: <project-dir>/.claude/skills
   --skills-target <path>  Target skills directory. Default: <project-dir>/.claude/skills
   --dry-run               Show what would be done without making changes
   --verbose               Enable verbose logging
@@ -140,6 +146,7 @@ async function main(): Promise<void> {
   console.log(`Environment:    ${options.environment}`);
   console.log(`Project Dir:    ${options.projectDir}`);
   console.log(`Skills Source:  ${options.skillsSourceDir}`);
+  console.log(`User Skills:    ${options.userSkillsSourceDir}`);
   console.log(`Skills Target:  ${options.skillsTargetDir}`);
   console.log(`Dry Run:        ${options.dryRun}`);
   console.log(`Seed:           ${options.seed}${options.forceSeed ? ' (force)' : ''}`);
@@ -192,16 +199,29 @@ async function main(): Promise<void> {
       console.log('🔍 Dry run - no changes will be made\n');
 
       // List what would be synced
-      const availableSkills = await registry.listAvailableSkills(options.skillsSourceDir);
+      const builtinSkills = await registry.listAvailableSkills(options.skillsSourceDir);
+      const userSkills = await registry.listAvailableSkills(options.userSkillsSourceDir);
       const enabledSkills = agentContext?.skills || [];
 
+      const mergedSkills = new Set([...builtinSkills, ...userSkills]);
+
       console.log('Skills that would be synced:');
-      for (const skill of availableSkills) {
+      for (const skill of mergedSkills) {
         const enabled = enabledSkills.includes(skill);
-        console.log(`  ${enabled ? '✓' : '✗'} ${skill}`);
+        const source = userSkills.includes(skill)
+          ? 'user'
+          : builtinSkills.includes(skill)
+            ? 'builtin'
+            : 'unknown';
+        console.log(`  ${enabled ? '✓' : '✗'} ${skill} (${source})`);
       }
     } else {
       console.log('🔧 Syncing to filesystem...');
+      await syncSkillsToFilesystem(
+        options.skillsSourceDir,
+        options.userSkillsSourceDir,
+        options.skillsTargetDir
+      );
       await registry.syncToFilesystem({
         projectDir: options.projectDir,
         environment: options.environment,
@@ -220,6 +240,36 @@ async function main(): Promise<void> {
     process.exit(1);
   } finally {
     await closeDatabase();
+  }
+}
+
+async function syncSkillsToFilesystem(
+  builtinSkillsDir: string,
+  userSkillsDir: string,
+  targetDir: string
+): Promise<void> {
+  await fs.mkdir(targetDir, { recursive: true });
+  await copyDirectory(builtinSkillsDir, targetDir);
+  await copyDirectory(userSkillsDir, targetDir);
+}
+
+async function copyDirectory(source: string, target: string): Promise<void> {
+  try {
+    const entries = await fs.readdir(source, { withFileTypes: true });
+    await fs.mkdir(target, { recursive: true });
+
+    for (const entry of entries) {
+      const sourcePath = path.join(source, entry.name);
+      const targetPath = path.join(target, entry.name);
+
+      if (entry.isDirectory()) {
+        await copyDirectory(sourcePath, targetPath);
+      } else {
+        await fs.copyFile(sourcePath, targetPath);
+      }
+    }
+  } catch {
+    // Skip missing source directories
   }
 }
 

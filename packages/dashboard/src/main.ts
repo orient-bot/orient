@@ -2,15 +2,17 @@
 /**
  * Dashboard Container Entry Point
  *
- * This is the main entry point when running as a Docker container.
+ * This is the main entry point when running as a Docker container or local install.
  * It starts the dashboard server with database connections.
+ * In unified server mode, it also initializes WhatsApp integration.
  */
 
 import crypto from 'crypto';
 import { startDashboardServer } from './server/index.js';
 import { getSetupStatus } from './server/setupWizard.js';
-import { createServiceLogger, loadConfig, getConfig, setSecretOverrides } from '@orient/core';
-import { createSecretsService } from '@orient/database-services';
+import { createServiceLogger, loadConfig, getConfig, setSecretOverrides } from '@orient-bot/core';
+import { createSecretsService } from '@orient-bot/database-services';
+import { initializeWhatsAppIntegration } from './services/whatsappIntegration.js';
 
 const logger = createServiceLogger('dashboard');
 const secretsService = createSecretsService();
@@ -19,6 +21,9 @@ const secretsService = createSecretsService();
 const DEFAULT_PORT = 4098;
 const MIN_JWT_SECRET_LENGTH = 32;
 
+// Store shutdown handlers for cleanup
+let whatsappShutdown: (() => Promise<void>) | null = null;
+
 /**
  * Graceful shutdown handler
  */
@@ -26,6 +31,10 @@ function setupGracefulShutdown(): void {
   const shutdown = async (signal: string) => {
     logger.info('Received shutdown signal', { signal });
     try {
+      // Shutdown WhatsApp if initialized
+      if (whatsappShutdown) {
+        await whatsappShutdown();
+      }
       logger.info('Dashboard shutdown complete');
       process.exit(0);
     } catch (error) {
@@ -115,11 +124,35 @@ async function main(): Promise<void> {
       if (existsSync(devFrontendPath)) {
         staticPath = devFrontendPath;
         logger.info('Auto-detected frontend path', { staticPath });
+      } else {
+        const bundledFrontendPath = resolve(__dirname, '../public');
+        if (existsSync(bundledFrontendPath)) {
+          staticPath = bundledFrontendPath;
+          logger.info('Using bundled frontend path', { staticPath });
+        }
       }
     }
 
     // Setup graceful shutdown
     setupGracefulShutdown();
+
+    // Initialize WhatsApp integration if not in setup-only mode
+    let whatsappRouter;
+    if (!setupOnly) {
+      try {
+        const whatsappIntegration = await initializeWhatsAppIntegration();
+        if (whatsappIntegration) {
+          whatsappRouter = whatsappIntegration.router;
+          whatsappShutdown = whatsappIntegration.shutdown;
+          logger.info('WhatsApp integration initialized (unified server mode)');
+        }
+      } catch (error) {
+        logger.warn('WhatsApp integration failed to initialize', {
+          error: error instanceof Error ? error.message : String(error),
+        });
+        // Continue without WhatsApp - dashboard still works
+      }
+    }
 
     // Start the dashboard server
     await startDashboardServer({
@@ -129,11 +162,13 @@ async function main(): Promise<void> {
       staticPath,
       corsOrigins: process.env.CORS_ORIGINS?.split(','),
       setupOnly,
+      whatsappRouter,
     });
 
     op.success('Dashboard started successfully');
 
-    logger.info('Dashboard running', { port });
+    const whatsappStatus = whatsappRouter ? 'enabled' : 'disabled';
+    logger.info('Dashboard running', { port, whatsappStatus });
   } catch (error) {
     op.failure(error as Error);
     logger.error('Failed to start Dashboard', { error: String(error) });

@@ -122,7 +122,7 @@ To add a new Google tool, register it in the `registerGoogleToolHandlers()` func
 function registerGoogleToolHandlers(registry: ToolExecutorRegistry): void {
   const registerHandlers = async () => {
     const { getCalendarService, getGoogleOAuthService } =
-      await import('@orient/integrations/google');
+      await import('@orientbot/integrations/google');
 
     // Register handler
     registry.registerHandler('google_calendar_list_events', async (args) => {
@@ -199,8 +199,8 @@ registry.registerHandler('google_calendar_list_events', async (args) => { ... })
 
 ```bash
 # Rebuild affected packages
-pnpm --filter @orient/agents build
-pnpm --filter @orient/mcp-servers build
+pnpm --filter @orientbot/agents build
+pnpm --filter @orientbot/mcp-servers build
 
 # Copy to root dist (used by OpenCode)
 cp packages/mcp-servers/dist/*.js dist/mcp-servers/

@@ -9,6 +9,7 @@ export {
   createWhatsAppApiServer,
   type WhatsAppApiServerConfig,
 } from './apiServer.js';
+export { createWhatsAppRouter } from './apiRouter.js';
 
 export {
   WhatsAppService,

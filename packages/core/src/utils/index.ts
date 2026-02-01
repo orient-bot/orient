@@ -5,6 +5,8 @@
  */
 
 import net from 'net';
+import path from 'path';
+import { homedir } from 'os';
 import { createDedicatedServiceLogger } from '../logger/index.js';
 
 const logger = createDedicatedServiceLogger('port-checker');
@@ -197,6 +199,32 @@ export async function ensurePortsAvailable(ports: number[]): Promise<void> {
  */
 export async function isPortInUse(port: number): Promise<boolean> {
   return !(await isPortAvailable(port));
+}
+
+// ============================================
+// ORIENT_HOME PATHS
+// ============================================
+
+export function getOrientHome(): string {
+  return process.env.ORIENT_HOME || path.join(homedir(), '.orient');
+}
+
+export function getUserSkillsPath(): string {
+  return path.join(getOrientHome(), 'skills');
+}
+
+export function getUserAppsPath(): string {
+  return path.join(getOrientHome(), 'apps');
+}
+
+export function getBuiltinSkillsPath(projectRoot?: string): string {
+  const root = projectRoot || path.join(getOrientHome(), 'orient');
+  return path.join(root, '.claude', 'skills');
+}
+
+export function getBuiltinAppsPath(projectRoot?: string): string {
+  const root = projectRoot || path.join(getOrientHome(), 'orient');
+  return path.join(root, 'apps');
 }
 
 /**

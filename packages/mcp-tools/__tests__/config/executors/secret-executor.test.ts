@@ -1,11 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { getPendingActionsStore, resetPendingActionsStore } from '../../../src/tools/config/pending-store.js';
+import {
+  getPendingActionsStore,
+  resetPendingActionsStore,
+} from '../../../src/tools/config/pending-store.js';
 import { registerSecretExecutor } from '../../../src/tools/config/executors/secret-executor.js';
 
 let setSecretSpy: ReturnType<typeof vi.fn>;
 let deleteSecretSpy: ReturnType<typeof vi.fn>;
 
-vi.mock('@orient/database-services', () => ({
+vi.mock('@orient-bot/database-services', () => ({
   createSecretsService: () => ({
     setSecret: setSecretSpy,
     deleteSecret: deleteSecretSpy,

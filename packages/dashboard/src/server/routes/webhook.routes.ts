@@ -5,7 +5,8 @@
  */
 
 import { Router, Request, Response } from 'express';
-import { createServiceLogger } from '@orient/core';
+import { getParam } from './paramUtils.js';
+import { createServiceLogger } from '@orient-bot/core';
 import { WebhookService } from '../../services/webhookService.js';
 import { AuthenticatedRequest } from '../../auth.js';
 import { CreateWebhookInput, UpdateWebhookInput } from '../../types/webhook.js';
@@ -37,7 +38,8 @@ export function createWebhookRoutes(
   // Get recent events across all webhooks (must be before /:id to avoid conflict)
   router.get('/events/recent', requireAuth, async (req: Request, res: Response) => {
     try {
-      const limit = parseInt(req.query.limit as string) || 50;
+      const limit =
+        parseInt(getParam(req.query.limit as string | string[] | undefined) as string) || 50;
       const events = await webhookService.getRecentEvents(limit);
       res.json({ events });
     } catch (error) {
@@ -66,7 +68,7 @@ export function createWebhookRoutes(
   // Get single webhook (with token for admin)
   router.get('/:id', requireAuth, async (req: Request, res: Response) => {
     try {
-      const id = parseInt(req.params.id, 10);
+      const id = parseInt(getParam(req.params.id), 10);
       if (isNaN(id)) {
         res.status(400).json({ error: 'Invalid webhook ID' });
         return;
@@ -128,7 +130,7 @@ export function createWebhookRoutes(
   // Update webhook
   router.patch('/:id', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
     try {
-      const id = parseInt(req.params.id, 10);
+      const id = parseInt(getParam(req.params.id), 10);
       if (isNaN(id)) {
         res.status(400).json({ error: 'Invalid webhook ID' });
         return;
@@ -162,7 +164,7 @@ export function createWebhookRoutes(
   // Delete webhook
   router.delete('/:id', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
     try {
-      const id = parseInt(req.params.id, 10);
+      const id = parseInt(getParam(req.params.id), 10);
       if (isNaN(id)) {
         res.status(400).json({ error: 'Invalid webhook ID' });
         return;
@@ -186,7 +188,7 @@ export function createWebhookRoutes(
   // Toggle webhook enabled/disabled
   router.post('/:id/toggle', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
     try {
-      const id = parseInt(req.params.id, 10);
+      const id = parseInt(getParam(req.params.id), 10);
       if (isNaN(id)) {
         res.status(400).json({ error: 'Invalid webhook ID' });
         return;
@@ -219,7 +221,7 @@ export function createWebhookRoutes(
     requireAuth,
     async (req: AuthenticatedRequest, res: Response) => {
       try {
-        const id = parseInt(req.params.id, 10);
+        const id = parseInt(getParam(req.params.id), 10);
         if (isNaN(id)) {
           res.status(400).json({ error: 'Invalid webhook ID' });
           return;
@@ -244,7 +246,7 @@ export function createWebhookRoutes(
   // Test webhook (send test message)
   router.post('/:id/test', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
     try {
-      const id = parseInt(req.params.id, 10);
+      const id = parseInt(getParam(req.params.id), 10);
       if (isNaN(id)) {
         res.status(400).json({ error: 'Invalid webhook ID' });
         return;
@@ -263,13 +265,14 @@ export function createWebhookRoutes(
   // Get webhook events (history)
   router.get('/:id/events', requireAuth, async (req: Request, res: Response) => {
     try {
-      const id = parseInt(req.params.id, 10);
+      const id = parseInt(getParam(req.params.id), 10);
       if (isNaN(id)) {
         res.status(400).json({ error: 'Invalid webhook ID' });
         return;
       }
 
-      const limit = parseInt(req.query.limit as string) || 50;
+      const limit =
+        parseInt(getParam(req.query.limit as string | string[] | undefined) as string) || 50;
       const events = await webhookService.getWebhookEvents(id, limit);
       res.json({ events });
     } catch (error) {

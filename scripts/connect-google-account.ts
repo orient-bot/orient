@@ -1,11 +1,11 @@
 #!/usr/bin/env npx ts-node
 /**
  * Script to connect a Google account via OAuth
- * 
+ *
  * Usage: npx ts-node scripts/connect-google-account.ts
  */
 
-import { createGoogleOAuthService, DEFAULT_SCOPES } from '@orient/integrations/google';
+import { createGoogleOAuthService, DEFAULT_SCOPES } from '@orient-bot/integrations/google';
 
 async function main() {
   const clientId = process.env.GOOGLE_OAUTH_CLIENT_ID;
