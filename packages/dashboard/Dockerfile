@@ -32,6 +32,7 @@ COPY packages/mcp-servers/package.json ./packages/mcp-servers/
 COPY packages/mcp-tools/package.json ./packages/mcp-tools/
 COPY packages/agents/package.json ./packages/agents/
 COPY packages/apps/package.json ./packages/apps/
+COPY packages/api-gateway/package.json ./packages/api-gateway/
 COPY packages/bot-whatsapp/package.json ./packages/bot-whatsapp/
 COPY packages/dashboard/package.json ./packages/dashboard/
 
@@ -54,6 +55,7 @@ COPY packages/mcp-servers ./packages/mcp-servers
 COPY packages/mcp-tools ./packages/mcp-tools
 COPY packages/agents ./packages/agents
 COPY packages/apps ./packages/apps
+COPY packages/api-gateway ./packages/api-gateway
 COPY packages/bot-whatsapp ./packages/bot-whatsapp
 COPY packages/dashboard ./packages/dashboard
 COPY tsconfig.json turbo.json ./
@@ -113,6 +115,8 @@ COPY --chown=nodejs:nodejs --from=builder /app/packages/agents/dist ./packages/a
 COPY --chown=nodejs:nodejs --from=builder /app/packages/agents/package.json ./packages/agents/
 COPY --chown=nodejs:nodejs --from=builder /app/packages/apps/dist ./packages/apps/dist
 COPY --chown=nodejs:nodejs --from=builder /app/packages/apps/package.json ./packages/apps/
+COPY --chown=nodejs:nodejs --from=builder /app/packages/api-gateway/dist ./packages/api-gateway/dist
+COPY --chown=nodejs:nodejs --from=builder /app/packages/api-gateway/package.json ./packages/api-gateway/
 COPY --chown=nodejs:nodejs --from=builder /app/packages/bot-whatsapp/dist ./packages/bot-whatsapp/dist
 COPY --chown=nodejs:nodejs --from=builder /app/packages/bot-whatsapp/package.json ./packages/bot-whatsapp/
 COPY --chown=nodejs:nodejs --from=builder /app/packages/dashboard/dist ./packages/dashboard/dist
