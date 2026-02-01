@@ -1,6 +1,6 @@
 {
   "name": "@orient-bot/database-services",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Database service implementations for Orient (messages, Slack, scheduler, webhooks)",
   "type": "module",
   "main": "./dist/index.js",

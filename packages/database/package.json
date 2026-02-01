@@ -1,6 +1,6 @@
 {
   "name": "@orient-bot/database",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Database schemas, migrations, and clients for Orient",
   "type": "module",
   "main": "./dist/index.js",
