@@ -16,8 +16,8 @@ import {
   getConfig,
   setSecretOverrides,
   startConfigPoller,
-} from '@orientbot/core';
-import { createSecretsService } from '@orientbot/database-services';
+} from '@orient-bot/core';
+import { createSecretsService } from '@orient-bot/database-services';
 
 const logger = createServiceLogger('mcp-server');
 const secretsService = createSecretsService();

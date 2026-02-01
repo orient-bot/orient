@@ -4,14 +4,14 @@
  * Central registry for all MCP tools with metadata, categories, and search capabilities.
  * Implements the "Tool Search Tool" pattern from Anthropic's advanced tool use guide.
  *
- * Exported via @orientbot/mcp-tools package.
+ * Exported via @orient-bot/mcp-tools package.
  *
  * @see https://www.anthropic.com/engineering/advanced-tool-use
  */
 
 import { Tool } from '@modelcontextprotocol/sdk/types.js';
-import { createServiceLogger } from '@orientbot/core';
-import type { ToolContext } from '@orientbot/mcp-tools';
+import { createServiceLogger } from '@orient-bot/core';
+import type { ToolContext } from '@orient-bot/mcp-tools';
 
 const logger = createServiceLogger('tool-registry');
 
@@ -2759,7 +2759,7 @@ function registerConfigToolHandlers(registry: ToolExecutorRegistry): void {
   // Import config tools and register their handlers
   const registerHandlers = async () => {
     try {
-      const mcpToolsModule = await import('@orientbot/mcp-tools');
+      const mcpToolsModule = await import('@orient-bot/mcp-tools');
 
       const {
         confirmationTools,
@@ -2859,7 +2859,7 @@ function registerMediaToolHandlers(registry: ToolExecutorRegistry): void {
 
       if (transparent) {
         // Use OpenAI for transparent backgrounds
-        const { getEnvWithSecrets } = await import('@orientbot/core');
+        const { getEnvWithSecrets } = await import('@orient-bot/core');
         const apiKey = getEnvWithSecrets('OPENAI_API_KEY');
         if (!apiKey) {
           return createToolError(
@@ -2898,7 +2898,7 @@ CRITICAL: Generate PNG with TRANSPARENT background. Keep same cartoon style with
       } else {
         // Use Gemini for regular images
         const { createGeminiService, initializeGeminiClient, isGeminiInitialized } =
-          await import('@orientbot/integrations/gemini');
+          await import('@orient-bot/integrations/gemini');
 
         if (!isGeminiInitialized()) {
           const geminiKey = process.env.GEMINI_API_KEY;
@@ -2996,7 +2996,7 @@ function registerGoogleToolHandlers(registry: ToolExecutorRegistry): void {
   // Google OAuth Status
   registry.registerHandler('google_oauth_status', async () => {
     try {
-      const { getGoogleOAuthService } = await import('@orientbot/integrations/google');
+      const { getGoogleOAuthService } = await import('@orient-bot/integrations/google');
       const oauthService = getGoogleOAuthService();
       const accounts = oauthService.getConnectedAccounts();
       const defaultAccount = oauthService.getDefaultAccount();
@@ -3035,7 +3035,7 @@ function registerGoogleToolHandlers(registry: ToolExecutorRegistry): void {
     };
 
     try {
-      const { getCalendarService } = await import('@orientbot/integrations/google');
+      const { getCalendarService } = await import('@orient-bot/integrations/google');
       const calendar = getCalendarService();
       const daysAhead = days || 7;
       const now = new Date();
@@ -3106,7 +3106,7 @@ function registerGoogleToolHandlers(registry: ToolExecutorRegistry): void {
       };
 
       try {
-        const { getCalendarService } = await import('@orientbot/integrations/google');
+        const { getCalendarService } = await import('@orient-bot/integrations/google');
         const calendar = getCalendarService();
         const event = await calendar.createEvent(
           {
@@ -3164,7 +3164,7 @@ function registerGoogleToolHandlers(registry: ToolExecutorRegistry): void {
       };
 
       try {
-        const { getCalendarService } = await import('@orientbot/integrations/google');
+        const { getCalendarService } = await import('@orient-bot/integrations/google');
         const calendar = getCalendarService();
         const updateOptions = {
           eventId,
@@ -3213,7 +3213,7 @@ function registerGoogleToolHandlers(registry: ToolExecutorRegistry): void {
       };
 
       try {
-        const { getCalendarService } = await import('@orientbot/integrations/google');
+        const { getCalendarService } = await import('@orient-bot/integrations/google');
         const calendar = getCalendarService();
         await calendar.deleteEvent(eventId, calendarId || 'primary', accountEmail);
 
@@ -3245,7 +3245,7 @@ function registerGoogleToolHandlers(registry: ToolExecutorRegistry): void {
     };
 
     try {
-      const { getTasksService } = await import('@orientbot/integrations/google');
+      const { getTasksService } = await import('@orient-bot/integrations/google');
       const tasks = getTasksService();
       const taskItems = await tasks.listTasks(
         {
@@ -3292,7 +3292,7 @@ function registerGoogleToolHandlers(registry: ToolExecutorRegistry): void {
     };
 
     try {
-      const { getTasksService } = await import('@orientbot/integrations/google');
+      const { getTasksService } = await import('@orient-bot/integrations/google');
       const tasks = getTasksService();
       const task = await tasks.createTask(
         {
@@ -3336,7 +3336,7 @@ function registerGoogleToolHandlers(registry: ToolExecutorRegistry): void {
     };
 
     try {
-      const { getTasksService } = await import('@orientbot/integrations/google');
+      const { getTasksService } = await import('@orient-bot/integrations/google');
       const tasks = getTasksService();
       const task = await tasks.completeTask(taskId, taskListId || '@default', accountEmail);
 
@@ -3389,7 +3389,7 @@ function registerWhatsAppToolHandlers(registry: ToolExecutorRegistry): void {
   let messageDbInitialized = false;
 
   async function getMessageDatabase() {
-    const { createMessageDatabase } = await import('@orientbot/database-services');
+    const { createMessageDatabase } = await import('@orient-bot/database-services');
     if (!messageDb) {
       messageDb = createMessageDatabase();
     }

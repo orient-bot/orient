@@ -6,8 +6,8 @@
  * - config_get_prompt: Get current prompt for a chat
  * - config_list_prompts: List all custom prompts
  *
- * IMPORTANT: This file uses @orientbot/database-services directly instead of
- * @orientbot/agents to avoid ESM/CJS circular import issues. The MessageDatabase
+ * IMPORTANT: This file uses @orient-bot/database-services directly instead of
+ * @orient-bot/agents to avoid ESM/CJS circular import issues. The MessageDatabase
  * in database-services provides all the prompt methods we need.
  */
 
@@ -15,7 +15,7 @@ import { z } from 'zod';
 import { createTool, MCPTool } from '../base.js';
 import type { ToolContext } from '../../types.js';
 import { getPendingActionsStore } from './pending-store.js';
-import { EMBEDDED_DEFAULT_PROMPTS } from '@orientbot/database-services';
+import { EMBEDDED_DEFAULT_PROMPTS } from '@orient-bot/database-services';
 
 // Register the executor when the module loads
 import { registerPromptExecutor } from './executors/prompt-executor.js';
@@ -250,7 +250,7 @@ export const configListPrompts: MCPTool = createTool({
  * Helper: Get prompt for a specific target using database-services directly
  */
 async function getPromptForTarget(targetType: 'chat' | 'platform', targetId: string) {
-  const { createMessageDatabase } = await import('@orientbot/database-services');
+  const { createMessageDatabase } = await import('@orient-bot/database-services');
   const messageDb = createMessageDatabase();
 
   if (targetType === 'platform') {
@@ -306,7 +306,7 @@ async function getPromptForTarget(targetType: 'chat' | 'platform', targetId: str
  * Helper: List all configured prompts using database-services directly
  */
 async function listAllPrompts(platformFilter?: 'whatsapp' | 'slack') {
-  const { createMessageDatabase } = await import('@orientbot/database-services');
+  const { createMessageDatabase } = await import('@orient-bot/database-services');
   const messageDb = createMessageDatabase();
 
   const prompts = await messageDb.listSystemPrompts(platformFilter);

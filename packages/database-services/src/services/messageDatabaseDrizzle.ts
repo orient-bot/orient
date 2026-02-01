@@ -4,10 +4,10 @@
  * SQLite database for storing and querying WhatsApp messages.
  * This is a type-safe implementation using Drizzle ORM.
  *
- * Exported via @orientbot/database-services package.
+ * Exported via @orient-bot/database-services package.
  */
 
-import { createServiceLogger } from '@orientbot/core';
+import { createServiceLogger } from '@orient-bot/core';
 import {
   getDatabase,
   closeDatabase,
@@ -21,7 +21,7 @@ import {
   count,
   like,
   schema,
-} from '@orientbot/database';
+} from '@orient-bot/database';
 import type {
   Database,
   Message,
@@ -42,7 +42,7 @@ import type {
   ChatType,
   ChatPermission,
   PromptPlatform,
-} from '@orientbot/database';
+} from '@orient-bot/database';
 
 const logger = createServiceLogger('message-db-drizzle');
 

@@ -7,7 +7,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // Mock dependencies before imports
-vi.mock('@orientbot/core', () => ({
+vi.mock('@orient-bot/core', () => ({
   createServiceLogger: () => ({
     info: vi.fn(),
     error: vi.fn(),
@@ -144,7 +144,7 @@ describe('MCP Tools Entry Point', () => {
   describe('ToolContext', () => {
     it('should create context with config', async () => {
       const { createToolContext } = await import('../src/tools/context.js');
-      const { getConfig } = await import('@orientbot/core');
+      const { getConfig } = await import('@orient-bot/core');
 
       const config = getConfig();
       const context = createToolContext(config);
@@ -156,7 +156,7 @@ describe('MCP Tools Entry Point', () => {
 
     it('should accept custom correlation ID', async () => {
       const { createToolContext } = await import('../src/tools/context.js');
-      const { getConfig } = await import('@orientbot/core');
+      const { getConfig } = await import('@orient-bot/core');
 
       const config = getConfig();
       const context = createToolContext(config, {
@@ -171,7 +171,7 @@ describe('MCP Tools Entry Point', () => {
     it('should register handler and execute', async () => {
       const { getToolRegistry } = await import('../src/registry/index.js');
       const { createToolContext } = await import('../src/tools/context.js');
-      const { getConfig } = await import('@orientbot/core');
+      const { getConfig } = await import('@orient-bot/core');
 
       const registry = getToolRegistry();
 

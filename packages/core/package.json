@@ -1,5 +1,5 @@
 {
-  "name": "@orientbot/core",
+  "name": "@orient-bot/core",
   "version": "1.0.0",
   "description": "Shared utilities, types, and configuration for Orient",
   "type": "module",
@@ -76,6 +76,6 @@
   ],
   "publishConfig": {
     "access": "public",
-    "registry": "https://registry.npmjs.org/"
+    "registry": "https://npm.pkg.github.com/"
   }
 }

@@ -10,7 +10,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // Mock core
-vi.mock('@orientbot/core', () => ({
+vi.mock('@orient-bot/core', () => ({
   createDedicatedServiceLogger: () => ({
     info: vi.fn(),
     error: vi.fn(),
@@ -28,7 +28,7 @@ vi.mock('@orientbot/core', () => ({
 }));
 
 // Mock database-services
-vi.mock('@orientbot/database-services', () => ({
+vi.mock('@orient-bot/database-services', () => ({
   SlackDatabase: class {
     getChannelPermission = vi.fn();
     storeIncomingMessage = vi.fn();
@@ -37,7 +37,7 @@ vi.mock('@orientbot/database-services', () => ({
 }));
 
 // Mock agents
-vi.mock('@orientbot/agents', () => ({
+vi.mock('@orient-bot/agents', () => ({
   PromptService: class {},
   createProgressiveResponder: () => ({
     executeWithProgress: async <T>(fn: () => Promise<T>) => ({

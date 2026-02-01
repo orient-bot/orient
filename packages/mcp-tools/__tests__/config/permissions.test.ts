@@ -15,7 +15,7 @@ const context = { config: {}, correlationId: 'test' } as ToolContext;
 let getChatPermissionSpy: ReturnType<typeof vi.fn>;
 let getAllChatPermissionsSpy: ReturnType<typeof vi.fn>;
 
-vi.mock('@orientbot/database-services', () => ({
+vi.mock('@orient-bot/database-services', () => ({
   createMessageDatabase: () => ({
     getChatPermission: getChatPermissionSpy,
     getAllChatPermissions: getAllChatPermissionsSpy,

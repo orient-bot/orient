@@ -1,5 +1,5 @@
 {
-  "name": "@orientbot/dashboard-frontend",
+  "name": "@orient-bot/dashboard-frontend",
   "private": true,
   "version": "1.0.0",
   "type": "module",
@@ -32,5 +32,8 @@
     "typescript": "^5.3.3",
     "vite": "^5.0.10",
     "vitest": "^4.0.17"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com/"
   }
 }

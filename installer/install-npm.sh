@@ -15,7 +15,7 @@
 
 set -e
 
-# Version - matches @orientbot/cli version
+# Version - matches @orient-bot/cli version
 ORIENT_VERSION="0.2.0"
 
 # Installation directory
@@ -46,11 +46,20 @@ info() {
     echo -e "${BLUE}[orient]${NC} $1"
 }
 
+is_interactive() {
+    [[ -t 0 && -z "${ORIENT_NONINTERACTIVE:-}" ]]
+}
+
 # Prompt user before installing a package
 prompt_install() {
     local package_name=$1
     local install_cmd=$2
     echo ""
+    if ! is_interactive; then
+        warn "Non-interactive mode: installing $package_name automatically"
+        eval "$install_cmd"
+        return
+    fi
     read -p "$(echo -e "${YELLOW}[orient]${NC}") $package_name is required. Install it? [Y/n] " response
     case "$response" in
         [nN])
@@ -91,6 +100,11 @@ check_prerequisites() {
 # ============================================
 
 check_opencode() {
+    if [[ "${ORIENT_SKIP_OPENCODE_CHECK:-}" == "1" ]]; then
+        warn "Skipping OpenCode check (ORIENT_SKIP_OPENCODE_CHECK=1)"
+        return
+    fi
+
     local required_version="1.1.27"
 
     if command -v opencode &>/dev/null; then
@@ -130,10 +144,11 @@ install_orient() {
     # Create directory structure
     mkdir -p "$INSTALL_DIR"/{data/sqlite,data/media,data/whatsapp-auth,logs,bin}
 
-    # Install @orientbot/cli globally from npm
+    # Install @orient-bot/cli and dashboard globally from npm
     # This installs pre-built packages - no compilation needed!
-    log "Installing @orientbot/cli (this only takes a few seconds)..."
-    npm install -g @orientbot/cli
+    log "Installing @orient-bot/cli and @orient-bot/dashboard (this only takes a few seconds)..."
+    REGISTRY="${NPM_REGISTRY:-https://registry.npmjs.org}"
+    npm install -g @orient-bot/cli @orient-bot/dashboard --registry "$REGISTRY"
 
     log "Orient CLI installed ✓"
 }
@@ -147,6 +162,10 @@ configure_orient() {
 
     if [[ -f "$env_file" ]]; then
         log "Existing configuration found at $env_file"
+        if ! is_interactive; then
+            log "Non-interactive mode: keeping existing configuration"
+            return
+        fi
         read -p "Do you want to keep existing configuration? [Y/n] " keep_config
         if [[ "$keep_config" != "n" && "$keep_config" != "N" ]]; then
             log "Keeping existing configuration"
@@ -254,7 +273,7 @@ module.exports = {
   apps: [
     {
       name: 'orient',
-      script: path.join(NPM_PREFIX, 'lib/node_modules/@orientbot/cli/dist/dashboard-server.js'),
+      script: path.join(NPM_PREFIX, 'lib/node_modules/@orient-bot/dashboard/dist/main.js'),
       env_file: path.join(ORIENT_HOME, '.env'),
       error_file: path.join(ORIENT_HOME, 'logs/orient-error.log'),
       out_file: path.join(ORIENT_HOME, 'logs/orient-out.log'),
@@ -288,6 +307,16 @@ setup_shell_profile() {
         echo '# Orient' >> "$shell_rc"
         echo 'export ORIENT_HOME="$HOME/.orient"' >> "$shell_rc"
         log "Added ORIENT_HOME to $shell_rc"
+    fi
+
+    local npm_bin="$(npm prefix -g)/bin"
+    if [[ ":$PATH:" != *":$npm_bin:"* ]]; then
+        export PATH="$npm_bin:$PATH"
+    fi
+
+    if ! grep -q "npm prefix -g" "$shell_rc" 2>/dev/null; then
+        echo 'export PATH="$(npm prefix -g)/bin:$PATH"' >> "$shell_rc"
+        log "Added npm global bin to PATH in $shell_rc"
     fi
 }
 
@@ -356,7 +385,7 @@ main() {
     echo ""
     echo "  Then open:"
     echo ""
-    echo "    Dashboard:  http://localhost:4098"
+    echo "    Dashboard:  http://localhost:4098/dashboard/"
     echo "    WhatsApp:   http://localhost:4098/qr (scan QR to connect)"
     echo ""
     echo "  Other commands:"
@@ -381,10 +410,12 @@ main() {
 
     # Auto-open browser
     log "Opening browser for configuration..."
-    if command -v open &>/dev/null; then
-        open "http://localhost:4098"
+    if [[ -n "${ORIENT_NO_BROWSER:-}" || ! -t 0 ]]; then
+        warn "Skipping browser auto-open (ORIENT_NO_BROWSER set or non-interactive)"
+    elif command -v open &>/dev/null; then
+        open "http://localhost:4098/dashboard/"
     elif command -v xdg-open &>/dev/null; then
-        xdg-open "http://localhost:4098"
+        xdg-open "http://localhost:4098/dashboard/"
     fi
 }
 

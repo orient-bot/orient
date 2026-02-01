@@ -57,7 +57,7 @@ echo -e "${BLUE}Step 1/3: Creating database schema...${NC}"
 
 # Run Drizzle push to create schema
 cd "$PROJECT_ROOT"
-if pnpm --filter @orientbot/database run db:push:sqlite 2>&1 | head -20; then
+if pnpm --filter @orient-bot/database run db:push:sqlite 2>&1 | head -20; then
   echo -e "  ${GREEN}✓${NC} Schema created/updated"
 else
   echo -e "  ${YELLOW}!${NC} Schema push may have had issues (continuing)"

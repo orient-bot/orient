@@ -7,7 +7,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // Mock dependencies before imports
-vi.mock('@orientbot/core', () => ({
+vi.mock('@orient-bot/core', () => ({
   createServiceLogger: () => ({
     info: vi.fn(),
     error: vi.fn(),

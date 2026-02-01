@@ -23,19 +23,19 @@ Docker images for this release are available on GitHub Container Registry:
 ### OpenCode Service
 
 ```bash
-ghcr.io/orient-bot/orient/opencode:v0.1.0
+ghcr.io/orient/orient/opencode:v0.1.0
 ```
 
 ### WhatsApp Bot
 
 ```bash
-ghcr.io/orient-bot/orient/whatsapp-bot:v0.1.0
+ghcr.io/orient/orient/whatsapp-bot:v0.1.0
 ```
 
 ### Dashboard
 
 ```bash
-ghcr.io/orient-bot/orient/dashboard:v0.1.0
+ghcr.io/orient/orient/dashboard:v0.1.0
 ```
 
 ---
@@ -46,7 +46,7 @@ ghcr.io/orient-bot/orient/dashboard:v0.1.0
 
 ```bash
 # Clone the repository
-git clone https://github.com/orient-bot/orient.git
+git clone https://github.com/orient/orient.git
 cd orient
 
 # Checkout the v0.1.0 release tag
@@ -66,9 +66,9 @@ pnpm build:packages
 
 ```bash
 # Pull images for v0.1.0
-docker pull ghcr.io/orient-bot/orient/opencode:v0.1.0
-docker pull ghcr.io/orient-bot/orient/whatsapp-bot:v0.1.0
-docker pull ghcr.io/orient-bot/orient/dashboard:v0.1.0
+docker pull ghcr.io/orient/orient/opencode:v0.1.0
+docker pull ghcr.io/orient/orient/whatsapp-bot:v0.1.0
+docker pull ghcr.io/orient/orient/dashboard:v0.1.0
 
 # Or use docker-compose with the v0.1.0 tag
 docker compose up -d
@@ -144,8 +144,8 @@ If upgrading from a previous version:
 
 - **Full Changelog**: [CHANGELOG.md](./CHANGELOG.md)
 - **Testing Guide**: [TESTING.md](./TESTING.md)
-- **Main Repository**: https://github.com/orient-bot/orient
-- **Issues**: https://github.com/orient-bot/orient/issues
+- **Main Repository**: https://github.com/orient/orient
+- **Issues**: https://github.com/orient/orient/issues
 
 ---
 
@@ -155,7 +155,7 @@ For issues or questions about this release:
 
 1. Check the [CHANGELOG.md](./CHANGELOG.md) for known issues
 2. Review the [TESTING.md](./TESTING.md) for troubleshooting
-3. Open an issue on [GitHub](https://github.com/orient-bot/orient/issues)
+3. Open an issue on [GitHub](https://github.com/orient/orient/issues)
 
 ---
 

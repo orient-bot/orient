@@ -6,8 +6,8 @@
  */
 
 import type { ToolContext } from '../types.js';
-import type { AppConfig } from '@orientbot/core';
-import { createServiceLogger } from '@orientbot/core';
+import type { AppConfig } from '@orient-bot/core';
+import { createServiceLogger } from '@orient-bot/core';
 
 const logger = createServiceLogger('tool-context');
 

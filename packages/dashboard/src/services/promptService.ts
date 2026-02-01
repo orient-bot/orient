@@ -1,7 +1,7 @@
 /**
  * Prompt Service
  *
- * Re-exports from @orientbot/database-services for backwards compatibility.
+ * Re-exports from @orient-bot/database-services for backwards compatibility.
  * The single source of truth is in the database-services package.
  */
 
@@ -16,4 +16,4 @@ export {
   getEmbeddedDefaultPrompt,
   type PromptServiceConfig,
   type PromptDatabaseInterface,
-} from '@orientbot/database-services';
+} from '@orient-bot/database-services';

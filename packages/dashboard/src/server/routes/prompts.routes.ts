@@ -5,7 +5,8 @@
  */
 
 import { Router, Request, Response } from 'express';
-import { createServiceLogger } from '@orientbot/core';
+import { getParam } from './paramUtils.js';
+import { createServiceLogger } from '@orient-bot/core';
 import { PromptService } from '../../services/promptService.js';
 import { AuthenticatedRequest } from '../../auth.js';
 import { PromptPlatform } from '../../types/index.js';
@@ -24,7 +25,9 @@ export function createPromptsRoutes(
   // List all system prompts
   router.get('/', requireAuth, async (req: Request, res: Response) => {
     try {
-      const platform = req.query.platform as PromptPlatform | undefined;
+      const platform = getParam(req.query.platform as string | string[] | undefined) as
+        | PromptPlatform
+        | undefined;
       const prompts = await promptService.listPrompts(platform);
       res.json(prompts);
     } catch (error) {
@@ -62,7 +65,7 @@ export function createPromptsRoutes(
     requireAuth,
     async (req: AuthenticatedRequest, res: Response) => {
       try {
-        const platform = req.params.platform as PromptPlatform;
+        const platform = getParam(req.params.platform) as PromptPlatform;
         const { promptText } = req.body;
 
         if (!promptText || typeof promptText !== 'string') {
@@ -89,8 +92,8 @@ export function createPromptsRoutes(
   // Get prompt for a specific chat
   router.get('/:platform/:chatId', requireAuth, async (req: Request, res: Response) => {
     try {
-      const platform = req.params.platform as PromptPlatform;
-      const chatId = decodeURIComponent(req.params.chatId);
+      const platform = getParam(req.params.platform) as PromptPlatform;
+      const chatId = decodeURIComponent(getParam(req.params.chatId));
 
       if (platform !== 'whatsapp' && platform !== 'slack') {
         res.status(400).json({ error: 'Invalid platform. Must be whatsapp or slack' });
@@ -120,8 +123,8 @@ export function createPromptsRoutes(
     requireAuth,
     async (req: AuthenticatedRequest, res: Response) => {
       try {
-        const platform = req.params.platform as PromptPlatform;
-        const chatId = decodeURIComponent(req.params.chatId);
+        const platform = getParam(req.params.platform) as PromptPlatform;
+        const chatId = decodeURIComponent(getParam(req.params.chatId));
         const { promptText } = req.body;
 
         if (!promptText || typeof promptText !== 'string') {
@@ -151,8 +154,8 @@ export function createPromptsRoutes(
     requireAuth,
     async (req: AuthenticatedRequest, res: Response) => {
       try {
-        const platform = req.params.platform as PromptPlatform;
-        const chatId = decodeURIComponent(req.params.chatId);
+        const platform = getParam(req.params.platform) as PromptPlatform;
+        const chatId = decodeURIComponent(getParam(req.params.chatId));
 
         if (platform !== 'whatsapp' && platform !== 'slack') {
           res.status(400).json({ error: 'Invalid platform. Must be whatsapp or slack' });

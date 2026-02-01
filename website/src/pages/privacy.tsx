@@ -63,11 +63,7 @@ export default function Privacy(): JSX.Element {
           </ul>
           <p>
             The Orient codebase is open source and available for inspection on{' '}
-            <a
-              href="https://github.com/orient-bot/orient"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
+            <a href="https://github.com/orient/orient" target="_blank" rel="noopener noreferrer">
               GitHub
             </a>
             . You can verify that there are no hidden data collection mechanisms.
@@ -169,7 +165,7 @@ export default function Privacy(): JSX.Element {
             <li>
               Open an issue on{' '}
               <a
-                href="https://github.com/orient-bot/orient/issues"
+                href="https://github.com/orient/orient/issues"
                 target="_blank"
                 rel="noopener noreferrer"
               >
@@ -179,7 +175,7 @@ export default function Privacy(): JSX.Element {
             <li>
               Join the discussion in our{' '}
               <a
-                href="https://github.com/orient-bot/orient/discussions"
+                href="https://github.com/orient/orient/discussions"
                 target="_blank"
                 rel="noopener noreferrer"
               >

@@ -5,8 +5,9 @@
  */
 
 import { Router, Request, Response } from 'express';
-import { createServiceLogger, getConfigVersion } from '@orientbot/core';
-import { createSkillsService } from '@orientbot/agents';
+import { getParam } from './routes/paramUtils.js';
+import { createServiceLogger, getConfigVersion } from '@orient-bot/core';
+import { createSkillsService } from '@orient-bot/agents';
 import type { DashboardServices } from './index.js';
 import { AuthenticatedRequest, createAuthMiddleware } from '../auth.js';
 import { ChatPermission, ChatType } from '../types/index.js';
@@ -59,7 +60,9 @@ export function createDashboardRouter(services: DashboardServices): Router {
 
   router.get('/demo/meetings', async (req: Request, res: Response) => {
     try {
-      const limitParam = req.query.limit as string | undefined;
+      const limitParam = getParam(req.query.limit as string | string[] | undefined) as
+        | string
+        | undefined;
       const parsedLimit = limitParam ? parseInt(limitParam, 10) : NaN;
       const limit = Number.isFinite(parsedLimit) ? Math.max(parsedLimit, 1) : 20;
 
@@ -115,7 +118,9 @@ export function createDashboardRouter(services: DashboardServices): Router {
 
   router.get('/demo/github-monitors', async (req: Request, res: Response) => {
     try {
-      const limitParam = req.query.limit as string | undefined;
+      const limitParam = getParam(req.query.limit as string | string[] | undefined) as
+        | string
+        | undefined;
       const parsedLimit = limitParam ? parseInt(limitParam, 10) : NaN;
       const limit = Number.isFinite(parsedLimit) ? Math.max(parsedLimit, 1) : 50;
 
@@ -156,7 +161,7 @@ export function createDashboardRouter(services: DashboardServices): Router {
 
   router.post('/demo/github-monitors/:id/check', async (req: Request, res: Response) => {
     try {
-      const id = Number(req.params.id);
+      const id = Number(getParam(req.params.id));
       if (!Number.isFinite(id)) {
         return res.status(400).json({ error: 'Invalid monitor id' });
       }
@@ -175,7 +180,7 @@ export function createDashboardRouter(services: DashboardServices): Router {
 
   router.delete('/demo/github-monitors/:id', async (req: Request, res: Response) => {
     try {
-      const id = Number(req.params.id);
+      const id = Number(getParam(req.params.id));
       if (!Number.isFinite(id)) {
         return res.status(400).json({ error: 'Invalid monitor id' });
       }
@@ -476,7 +481,7 @@ export function createDashboardRouter(services: DashboardServices): Router {
   // Get single chat permission
   router.get('/chats/:chatId', requireAuth, async (req: Request, res: Response) => {
     try {
-      const { chatId } = req.params;
+      const chatId = getParam(req.params.chatId);
       const decodedChatId = decodeURIComponent(chatId);
       const chat = await db.getChatPermission(decodedChatId);
 
@@ -506,7 +511,7 @@ export function createDashboardRouter(services: DashboardServices): Router {
     requireAuth,
     async (req: AuthenticatedRequest, res: Response) => {
       try {
-        const { chatId } = req.params;
+        const chatId = getParam(req.params.chatId);
         const decodedChatId = decodeURIComponent(chatId);
         const { permission, chatType, displayName, notes } = req.body;
 
@@ -546,7 +551,7 @@ export function createDashboardRouter(services: DashboardServices): Router {
   // Delete chat permission
   router.delete('/chats/:chatId', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
     try {
-      const { chatId } = req.params;
+      const chatId = getParam(req.params.chatId);
       const decodedChatId = decodeURIComponent(chatId);
       const deleted = await db.deleteChatPermission(decodedChatId, req.user?.username);
 
@@ -576,8 +581,11 @@ export function createDashboardRouter(services: DashboardServices): Router {
 
   router.get('/audit-log', requireAuth, async (req: Request, res: Response) => {
     try {
-      const limit = parseInt(req.query.limit as string) || 100;
-      const chatId = req.query.chatId as string | undefined;
+      const limit =
+        parseInt(getParam(req.query.limit as string | string[] | undefined) as string) || 100;
+      const chatId = getParam(req.query.chatId as string | string[] | undefined) as
+        | string
+        | undefined;
 
       const logs = await db.getPermissionAuditLog(limit, chatId);
 
@@ -616,7 +624,7 @@ export function createDashboardRouter(services: DashboardServices): Router {
 
   router.get('/groups/search', requireAuth, async (req: Request, res: Response) => {
     try {
-      const query = req.query.q as string;
+      const query = getParam(req.query.q as string | string[] | undefined) as string;
 
       if (!query) {
         return res.status(400).json({
@@ -641,7 +649,7 @@ export function createDashboardRouter(services: DashboardServices): Router {
 
   router.get('/groups/:groupId', requireAuth, async (req: Request, res: Response) => {
     try {
-      const { groupId } = req.params;
+      const groupId = getParam(req.params.groupId);
       const decodedGroupId = decodeURIComponent(groupId);
       const group = await db.getGroup(decodedGroupId);
 

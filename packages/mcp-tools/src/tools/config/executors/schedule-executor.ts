@@ -4,7 +4,7 @@
  * Executes confirmed schedule configuration actions.
  */
 
-import { createServiceLogger } from '@orientbot/core';
+import { createServiceLogger } from '@orient-bot/core';
 import { getPendingActionsStore } from '../pending-store.js';
 import type { PendingAction, ActionExecutionResult } from '../pending-store.js';
 
@@ -21,7 +21,7 @@ async function executeScheduleAction(action: PendingAction): Promise<ActionExecu
   });
 
   try {
-    const { createSchedulerDatabase } = await import('@orientbot/database-services');
+    const { createSchedulerDatabase } = await import('@orient-bot/database-services');
     const schedulerDb = createSchedulerDatabase();
 
     if (action.operation === 'delete') {

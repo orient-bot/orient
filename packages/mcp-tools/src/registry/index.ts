@@ -5,7 +5,7 @@
  * Implements the "Tool Search Tool" pattern from Anthropic's advanced tool use guide.
  */
 
-import { createServiceLogger } from '@orientbot/core';
+import { createServiceLogger } from '@orient-bot/core';
 import type {
   ToolCategory,
   ToolMetadata,

@@ -33,7 +33,7 @@ const toolsRows = [{ pattern: 'jira.*', type: 'allow' }];
 
 const allAgents = [agentRow, { ...agentRow, id: 'communicator', enabled: false }];
 
-vi.mock('@orientbot/database', () => ({
+vi.mock('@orient-bot/database', () => ({
   getDatabase: () => ({
     select: () => ({
       from: (table: unknown) => {

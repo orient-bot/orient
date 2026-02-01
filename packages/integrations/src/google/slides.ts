@@ -8,7 +8,7 @@
 import { google, slides_v1 } from 'googleapis';
 import fs from 'fs';
 import path from 'path';
-import { createServiceLogger } from '@orientbot/core';
+import { createServiceLogger } from '@orient-bot/core';
 
 // Create a service-specific logger
 const slidesLogger = createServiceLogger('slides-service');

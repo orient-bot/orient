@@ -1,12 +1,12 @@
 /**
  * Meeting Service - Processes meeting notes and creates JIRA issues.
  *
- * Exported via @orientbot/integrations package.
+ * Exported via @orient-bot/integrations package.
  */
 
 import fs from 'fs/promises';
 import path from 'path';
-import { createServiceLogger } from '@orientbot/core';
+import { createServiceLogger } from '@orient-bot/core';
 
 const logger = createServiceLogger('meeting-service');
 

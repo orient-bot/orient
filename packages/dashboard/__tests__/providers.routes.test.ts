@@ -18,7 +18,7 @@ const { mockSetSecretOverrides, mockInvalidateConfigCache, mockSecretsService } 
   })
 );
 
-vi.mock('@orientbot/core', () => ({
+vi.mock('@orient-bot/core', () => ({
   createServiceLogger: () => ({
     info: vi.fn(),
     error: vi.fn(),
@@ -29,7 +29,7 @@ vi.mock('@orientbot/core', () => ({
   setSecretOverrides: mockSetSecretOverrides,
 }));
 
-vi.mock('@orientbot/database-services', () => ({
+vi.mock('@orient-bot/database-services', () => ({
   createSecretsService: () => mockSecretsService,
 }));
 

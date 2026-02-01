@@ -1,5 +1,5 @@
 /**
- * @orientbot/database-services
+ * @orient-bot/database-services
  *
  * Database service implementations for the Orient.
  * Provides unified access to message, Slack, scheduler, and webhook databases.
@@ -10,7 +10,7 @@
  *   SlackDatabase,
  *   SchedulerDatabase,
  *   WebhookDatabase,
- * } from '@orientbot/database-services';
+ * } from '@orient-bot/database-services';
  */
 
 // Export database services and factory functions (Drizzle/SQLite implementations)

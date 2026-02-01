@@ -19,9 +19,9 @@
  *   --force-seed            Force re-seed even if agents exist
  */
 
-import { getAgentRegistry } from '@orientbot/agents';
-import { createServiceLogger, getBuiltinSkillsPath, getUserSkillsPath } from '@orientbot/core';
-import { closeDatabase } from '@orientbot/database';
+import { getAgentRegistry } from '@orient-bot/agents';
+import { createServiceLogger, getBuiltinSkillsPath, getUserSkillsPath } from '@orient-bot/core';
+import { closeDatabase } from '@orient-bot/database';
 import { seedAgents } from '../data/seeds/agents.js';
 import path from 'path';
 import fs from 'fs/promises';

@@ -16,7 +16,7 @@ const context = { config: {}, correlationId: 'test' } as ToolContext;
 let getJobSpy: ReturnType<typeof vi.fn>;
 let getAllJobsSpy: ReturnType<typeof vi.fn>;
 
-vi.mock('@orientbot/database-services', () => ({
+vi.mock('@orient-bot/database-services', () => ({
   createSchedulerDatabase: () => ({
     getJob: getJobSpy,
     getAllJobs: getAllJobsSpy,

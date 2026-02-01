@@ -34,7 +34,7 @@ npm test -- tests/e2e/message-flow.e2e.test.ts
 
 ```typescript
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { getDatabase, closeDatabase } from '@orientbot/database';
+import { getDatabase, closeDatabase } from '@orient-bot/database';
 
 describe('Feature E2E', () => {
   beforeAll(async () => {

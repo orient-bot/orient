@@ -1,4 +1,4 @@
-# @orientbot/apps
+# @orient-bot/apps
 
 Mini-apps system for the Orient.
 
@@ -18,13 +18,13 @@ Features:
 ## Installation
 
 ```bash
-pnpm add @orientbot/apps
+pnpm add @orient-bot/apps
 ```
 
 ## Usage
 
 ```typescript
-import { AppConfig, AppManifest, GeneratedApp } from '@orientbot/apps';
+import { AppConfig, AppManifest, GeneratedApp } from '@orient-bot/apps';
 
 // App configuration
 const appConfig: AppConfig = {

@@ -11,7 +11,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // Mock all external dependencies
-vi.mock('@orientbot/core', () => ({
+vi.mock('@orient-bot/core', () => ({
   createServiceLogger: () => ({
     info: vi.fn(),
     error: vi.fn(),
@@ -37,7 +37,7 @@ vi.mock('@orientbot/core', () => ({
   startConfigPoller: vi.fn(),
 }));
 
-vi.mock('@orientbot/database-services', () => ({
+vi.mock('@orient-bot/database-services', () => ({
   createSecretsService: vi.fn().mockReturnValue({
     getAllSecrets: vi.fn().mockResolvedValue({}),
   }),
@@ -46,7 +46,7 @@ vi.mock('@orientbot/database-services', () => ({
   })),
 }));
 
-vi.mock('@orientbot/agents', () => ({
+vi.mock('@orient-bot/agents', () => ({
   createOpenCodeClient: vi.fn().mockReturnValue({
     chat: vi.fn().mockResolvedValue({
       response: 'Hello! How can I help you today?',

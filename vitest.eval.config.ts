@@ -25,13 +25,13 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': '/src',
-      '@orientbot/core': path.resolve(__dirname, 'packages/core/src/index.ts'),
-      '@orientbot/database': path.resolve(__dirname, 'packages/database/src/index.ts'),
-      '@orientbot/agents': path.resolve(__dirname, 'packages/agents/src/index.ts'),
-      '@orientbot/mcp-tools': path.resolve(__dirname, 'packages/mcp-tools/src/index.ts'),
-      '@orientbot/apps': path.resolve(__dirname, 'packages/apps/src/index.ts'),
-      '@orientbot/integrations': path.resolve(__dirname, 'packages/integrations/src/index.ts'),
-      '@orientbot/test-utils': path.resolve(__dirname, 'packages/test-utils/src/index.ts'),
+      '@orient-bot/core': path.resolve(__dirname, 'packages/core/src/index.ts'),
+      '@orient-bot/database': path.resolve(__dirname, 'packages/database/src/index.ts'),
+      '@orient-bot/agents': path.resolve(__dirname, 'packages/agents/src/index.ts'),
+      '@orient-bot/mcp-tools': path.resolve(__dirname, 'packages/mcp-tools/src/index.ts'),
+      '@orient-bot/apps': path.resolve(__dirname, 'packages/apps/src/index.ts'),
+      '@orient-bot/integrations': path.resolve(__dirname, 'packages/integrations/src/index.ts'),
+      '@orient-bot/test-utils': path.resolve(__dirname, 'packages/test-utils/src/index.ts'),
     },
   },
 });

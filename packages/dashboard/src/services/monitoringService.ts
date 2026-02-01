@@ -8,7 +8,7 @@
 
 import { exec } from 'child_process';
 import { promisify } from 'util';
-import { createServiceLogger } from '@orientbot/core';
+import { createServiceLogger } from '@orient-bot/core';
 
 const execAsync = promisify(exec);
 const logger = createServiceLogger('monitoring');

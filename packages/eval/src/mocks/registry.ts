@@ -6,7 +6,7 @@
  */
 
 import { EvalMocks, MockResponse } from '../types.js';
-import { createServiceLogger } from '@orientbot/core';
+import { createServiceLogger } from '@orient-bot/core';
 
 const logger = createServiceLogger('mock-registry');
 

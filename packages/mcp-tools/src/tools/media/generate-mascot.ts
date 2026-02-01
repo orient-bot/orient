@@ -9,7 +9,7 @@
 import { z } from 'zod';
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import { getEnvWithSecrets } from '@orientbot/core';
+import { getEnvWithSecrets } from '@orient-bot/core';
 import { MCPTool } from '../base.js';
 import type { ToolContext } from '../../types.js';
 

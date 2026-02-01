@@ -7,8 +7,8 @@
 
 import fs from 'fs';
 import path from 'path';
-import { createServiceLogger, getBuiltinAppsPath, getUserAppsPath } from '@orientbot/core';
-import { type AppManifest, type AppStatus, validateAppManifest } from '@orientbot/apps';
+import { createServiceLogger, getBuiltinAppsPath, getUserAppsPath } from '@orient-bot/core';
+import { type AppManifest, type AppStatus, validateAppManifest } from '@orient-bot/apps';
 
 const logger = createServiceLogger('apps-service');
 

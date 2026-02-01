@@ -9,7 +9,7 @@
  */
 
 import { WhatsAppConnection } from '../src/services/connection.js';
-import { createServiceLogger } from '@orientbot/core';
+import { createServiceLogger } from '@orient-bot/core';
 
 const logger = createServiceLogger('test-sender');
 

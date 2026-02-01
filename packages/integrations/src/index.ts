@@ -1,16 +1,16 @@
 /**
- * @orientbot/integrations
+ * @orient-bot/integrations
  *
  * External service integrations for the Orient.
  * Provides unified access to Google, Linear, GitHub, and other services.
  *
  * @example
  * // Google types and service
- * import * as google from '@orientbot/integrations/google';
+ * import * as google from '@orient-bot/integrations/google';
  *
  * // New catalog-based integrations
- * import * as catalog from '@orientbot/integrations/catalog';
- * import { IntegrationManifest } from '@orientbot/integrations/types';
+ * import * as catalog from '@orient-bot/integrations/catalog';
+ * import { IntegrationManifest } from '@orient-bot/integrations/types';
  */
 
 // Re-export Google types

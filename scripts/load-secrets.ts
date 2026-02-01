@@ -18,7 +18,7 @@
 import { homedir } from 'os';
 import { join } from 'path';
 import { existsSync } from 'fs';
-import { createSecretsService } from '@orientbot/database-services';
+import { createSecretsService } from '@orient-bot/database-services';
 
 // Set default SQLITE_DATABASE if not specified
 if (!process.env.SQLITE_DATABASE) {

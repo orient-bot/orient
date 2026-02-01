@@ -4,7 +4,7 @@
  * Handles WhatsApp Web connection, authentication, and message handling.
  * Uses the Linked Devices feature for authentication (QR code scan).
  *
- * Exported via @orientbot/bot-whatsapp package.
+ * Exported via @orient-bot/bot-whatsapp package.
  */
 
 import makeWASocket, {
@@ -32,7 +32,7 @@ import type {
   WhatsAppPoll,
   PollVote,
 } from '../types.js';
-import { createDedicatedServiceLogger } from '@orientbot/core';
+import { createDedicatedServiceLogger } from '@orient-bot/core';
 import pino from 'pino';
 
 // Use dedicated WhatsApp logger - logs go to logs/whatsapp-debug-*.log and logs/whatsapp-error-*.log

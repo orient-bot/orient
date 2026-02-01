@@ -5,14 +5,14 @@
  */
 
 import { Router, Request, Response } from 'express';
-import { createServiceLogger } from '@orientbot/core';
+import { createServiceLogger } from '@orient-bot/core';
 import {
   getAgentRegistry,
   getToolRegistry,
   createOpenCodeClient,
   OpenCodeClient,
   OpenCodeMessage,
-} from '@orientbot/agents';
+} from '@orient-bot/agents';
 import { createMockRegistry, MockServiceRegistry } from '../mocks/index.js';
 import {
   AgentInvokeRequest,

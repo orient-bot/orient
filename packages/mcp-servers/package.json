@@ -1,5 +1,5 @@
 {
-  "name": "@orientbot/mcp-servers",
+  "name": "@orient-bot/mcp-servers",
   "version": "1.0.0",
   "description": "MCP server implementations for the Orient",
   "type": "module",
@@ -31,12 +31,12 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@orientbot/core": "workspace:*",
-    "@orientbot/mcp-tools": "workspace:*",
-    "@orientbot/agents": "workspace:*",
-    "@orientbot/apps": "workspace:*",
-    "@orientbot/database-services": "workspace:*",
-    "@orientbot/integrations": "workspace:*",
+    "@orient-bot/core": "workspace:*",
+    "@orient-bot/mcp-tools": "workspace:*",
+    "@orient-bot/agents": "workspace:*",
+    "@orient-bot/apps": "workspace:*",
+    "@orient-bot/database-services": "workspace:*",
+    "@orient-bot/integrations": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.24.3",
     "openai": "^4.104.0"
   },
@@ -57,6 +57,6 @@
   ],
   "publishConfig": {
     "access": "public",
-    "registry": "https://registry.npmjs.org/"
+    "registry": "https://npm.pkg.github.com/"
   }
 }

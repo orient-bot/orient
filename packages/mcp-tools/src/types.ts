@@ -5,7 +5,7 @@
  */
 
 import type { Tool } from '@modelcontextprotocol/sdk/types.js';
-import type { AppConfig } from '@orientbot/core';
+import type { AppConfig } from '@orient-bot/core';
 
 /**
  * Tool categories for organizing tools by domain

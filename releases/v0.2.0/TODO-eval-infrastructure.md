@@ -20,8 +20,8 @@
    - `packages/eval/src/runner/loader-sync.ts` - NEW: Synchronous loader for Vitest
 
 2. **Seed Script Fixes**
-   - `data/seeds/test-permissions.ts` - Fixed imports to use @orientbot/database
-   - `data/seeds/sample-prompts.ts` - Fixed imports to use @orientbot/database
+   - `data/seeds/test-permissions.ts` - Fixed imports to use @orient-bot/database
+   - `data/seeds/sample-prompts.ts` - Fixed imports to use @orient-bot/database
 
 3. **Eval File Fixes**
    - `evals/tool-selection/whatsapp-group-messages.yaml` - Fixed tool names (ai*first_whatsapp*\_ -> whatsapp\_\_)
@@ -138,7 +138,7 @@ Currently using OpenAI as fallback.
 DATABASE_TYPE=sqlite SQLITE_DATABASE="./data/orient.db" npx tsx data/seeds/agents.ts --force
 
 # Run all evals
-ANTHROPIC_API_KEY=test pnpm --filter @orientbot/eval test
+ANTHROPIC_API_KEY=test pnpm --filter @orient-bot/eval test
 
 # Run specific test category
 ANTHROPIC_API_KEY=test npx vitest run --grep "tool_selection"

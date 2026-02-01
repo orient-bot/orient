@@ -5,8 +5,8 @@
  * Run with: npx tsx data/seeds/agents.ts
  */
 
-import { getDatabase, agents, agentSkills, agentTools, contextRules } from '@orientbot/database';
-import { createServiceLogger } from '@orientbot/core';
+import { getDatabase, agents, agentSkills, agentTools, contextRules } from '@orient-bot/database';
+import { createServiceLogger } from '@orient-bot/core';
 
 const logger = createServiceLogger('agent-seed');
 

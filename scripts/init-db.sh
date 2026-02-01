@@ -84,7 +84,7 @@ cd "$PROJECT_ROOT"
 export DATABASE_TYPE=sqlite
 export SQLITE_DATABASE="$DB_PATH"
 
-if pnpm --filter @orientbot/database run db:push:sqlite 2>&1 | head -20; then
+if pnpm --filter @orient-bot/database run db:push:sqlite 2>&1 | head -20; then
   log_info "Schema pushed successfully"
 else
   log_warn "Schema push may have had issues - check manually if needed"

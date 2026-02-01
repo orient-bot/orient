@@ -12,8 +12,8 @@ import {
   agentSkills,
   agentTools,
   contextRules,
-} from '@orientbot/database';
-import { createServiceLogger } from '@orientbot/core';
+} from '@orient-bot/database';
+import { createServiceLogger } from '@orient-bot/core';
 
 const logger = createServiceLogger('agent-seed');
 

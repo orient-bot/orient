@@ -8,7 +8,7 @@ import { registerPromptExecutor } from '../../../src/tools/config/executors/prom
 // Create a mutable reference for the spy that can be updated in beforeEach
 const mockSetSystemPrompt = vi.fn();
 
-vi.mock('@orientbot/core', () => ({
+vi.mock('@orient-bot/core', () => ({
   createServiceLogger: () => ({
     info: vi.fn(),
     debug: vi.fn(),
@@ -17,7 +17,7 @@ vi.mock('@orientbot/core', () => ({
   }),
 }));
 
-vi.mock('@orientbot/database-services', () => ({
+vi.mock('@orient-bot/database-services', () => ({
   createMessageDatabase: () => ({
     setSystemPrompt: mockSetSystemPrompt,
   }),

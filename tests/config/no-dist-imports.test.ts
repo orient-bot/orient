@@ -174,7 +174,7 @@ describe('No Dist Imports', () => {
           `${violationDetails}\n\n` +
           `Source files should import from:\n` +
           `  - Other source files (./services/foo.js, ../utils/bar.js)\n` +
-          `  - Package exports (@orientbot/core, @orientbot/agents)\n` +
+          `  - Package exports (@orient-bot/core, @orient-bot/agents)\n` +
           `  - Re-export modules that reference source (../../../../src/services/foo.js)\n\n` +
           `Never import from dist because:\n` +
           `  - dist artifacts may not exist in fresh clones or development\n` +
@@ -199,8 +199,8 @@ describe('Import Path Best Practices', () => {
     const goodPatterns = [
       "import { X } from './services/index.js'",
       "import { X } from '../utils/logger.js'",
-      "import { X } from '@orientbot/core'",
-      "import { X } from '@orientbot/agents'",
+      "import { X } from '@orient-bot/core'",
+      "import { X } from '@orient-bot/agents'",
       "export * from '../../../../src/services/foo.js'", // Re-export from source
     ];
 

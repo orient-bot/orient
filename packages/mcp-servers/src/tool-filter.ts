@@ -6,10 +6,10 @@
  */
 
 import { Tool } from '@modelcontextprotocol/sdk/types.js';
-import { getToolRegistry, IntegrationConnectionService } from '@orientbot/agents';
-import { ToolDiscoveryService } from '@orientbot/agents';
+import { getToolRegistry, IntegrationConnectionService } from '@orient-bot/agents';
+import { ToolDiscoveryService } from '@orient-bot/agents';
 import { ServerToolConfig } from './types.js';
-import { createServiceLogger } from '@orientbot/core';
+import { createServiceLogger } from '@orient-bot/core';
 
 const logger = createServiceLogger('tool-filter');
 

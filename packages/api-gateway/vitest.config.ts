@@ -6,9 +6,9 @@ const packagesDir = path.resolve(__dirname, '..');
 export default defineConfig({
   resolve: {
     alias: {
-      '@orientbot/core': path.resolve(packagesDir, 'core/src/index.ts'),
-      '@orientbot/database': path.resolve(packagesDir, 'database/src/index.ts'),
-      '@orientbot/database-services': path.resolve(packagesDir, 'database-services/src/index.ts'),
+      '@orient-bot/core': path.resolve(packagesDir, 'core/src/index.ts'),
+      '@orient-bot/database': path.resolve(packagesDir, 'database/src/index.ts'),
+      '@orient-bot/database-services': path.resolve(packagesDir, 'database-services/src/index.ts'),
     },
   },
   test: {

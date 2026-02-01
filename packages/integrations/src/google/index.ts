@@ -9,7 +9,7 @@
  *   GmailMessage,
  *   CalendarEvent,
  *   Task,
- * } from '@orientbot/integrations/google';
+ * } from '@orient-bot/integrations/google';
  */
 
 // Re-export all types

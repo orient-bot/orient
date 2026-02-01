@@ -7,10 +7,11 @@
  */
 
 import { Router, Request, Response as ExpressResponse } from 'express';
-import { createServiceLogger, DEFAULT_AGENT } from '@orientbot/core';
-import { createSecretsService } from '@orientbot/database-services';
+import { getParam } from './paramUtils.js';
+import { createServiceLogger, DEFAULT_AGENT } from '@orient-bot/core';
+import { createSecretsService } from '@orient-bot/database-services';
 import type { AuthenticatedRequest } from '../../auth.js';
-import type { MessageDatabase } from '@orientbot/database-services';
+import type { MessageDatabase } from '@orient-bot/database-services';
 
 const logger = createServiceLogger('onboarder-routes');
 const secretsService = createSecretsService();
@@ -308,7 +309,7 @@ export function createOnboarderRoutes(
           return;
         }
 
-        const { sessionId } = req.params;
+        const sessionId = getParam(req.params.sessionId);
         const success = await db.setActiveOnboarderSession(req.user.userId, sessionId);
 
         if (!success) {
@@ -379,7 +380,10 @@ export function createOnboarderRoutes(
 
   router.get('/suggestions', requireAuth, async (req: Request, res: ExpressResponse) => {
     try {
-      const route = typeof req.query.route === 'string' ? req.query.route : null;
+      const route =
+        typeof getParam(req.query.route as string | string[] | undefined) === 'string'
+          ? getParam(req.query.route as string | string[] | undefined)
+          : null;
       const suggestions = getSuggestions(route);
       res.json({ suggestions });
     } catch (error) {

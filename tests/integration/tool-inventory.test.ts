@@ -13,7 +13,7 @@ import {
   ToolRegistry,
   ToolCategory,
   getToolExecutorRegistry,
-} from '@orientbot/agents';
+} from '@orient-bot/agents';
 import * as fs from 'fs';
 import * as path from 'path';
 

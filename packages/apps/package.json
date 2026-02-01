@@ -1,5 +1,5 @@
 {
-  "name": "@orientbot/apps",
+  "name": "@orient-bot/apps",
   "version": "1.0.0",
   "description": "Mini-apps system for the Orient",
   "type": "module",
@@ -25,9 +25,9 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.37.0",
-    "@orientbot/agents": "workspace:*",
-    "@orientbot/core": "workspace:*",
-    "@orientbot/database": "workspace:*",
+    "@orient-bot/agents": "workspace:*",
+    "@orient-bot/core": "workspace:*",
+    "@orient-bot/database": "workspace:*",
     "zod": "^4.1.13"
   },
   "devDependencies": {
@@ -47,6 +47,6 @@
   ],
   "publishConfig": {
     "access": "public",
-    "registry": "https://registry.npmjs.org/"
+    "registry": "https://npm.pkg.github.com/"
   }
 }

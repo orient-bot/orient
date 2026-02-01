@@ -5,13 +5,14 @@
  */
 
 import { Router, Request, Response } from 'express';
+import { getParam } from './paramUtils.js';
 import {
   createServiceLogger,
   invalidateConfigCache,
   setSecretOverrides,
   removeSecretOverride,
-} from '@orientbot/core';
-import { createSecretsService } from '@orientbot/database-services';
+} from '@orient-bot/core';
+import { createSecretsService } from '@orient-bot/database-services';
 
 const logger = createServiceLogger('secrets-routes');
 
@@ -33,8 +34,8 @@ export function createSecretsRoutes(
 
   router.get('/:key', requireAuth, async (req: Request, res: Response) => {
     try {
-      const { key } = req.params;
-      const reveal = req.query.reveal === 'true';
+      const key = getParam(req.params.key);
+      const reveal = getParam(req.query.reveal as string | string[] | undefined) === 'true';
       const value = await secretsService.getSecret(key);
       if (value === null) {
         return res.status(404).json({ error: 'Secret not found' });
@@ -53,7 +54,7 @@ export function createSecretsRoutes(
 
   router.put('/:key', requireAuth, async (req: Request, res: Response) => {
     try {
-      const { key } = req.params;
+      const key = getParam(req.params.key);
       const { value, category, description, changedBy } = req.body || {};
 
       if (!value || typeof value !== 'string') {
@@ -78,7 +79,7 @@ export function createSecretsRoutes(
 
   router.delete('/:key', requireAuth, async (req: Request, res: Response) => {
     try {
-      const { key } = req.params;
+      const key = getParam(req.params.key);
       const { changedBy } = req.body || {};
 
       await secretsService.deleteSecret(key, typeof changedBy === 'string' ? changedBy : undefined);

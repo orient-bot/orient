@@ -6,7 +6,7 @@ const packagesDir = path.resolve(__dirname, '..');
 export default defineConfig({
   resolve: {
     alias: {
-      '@orientbot/core': path.resolve(packagesDir, 'core/src/index.ts'),
+      '@orient-bot/core': path.resolve(packagesDir, 'core/src/index.ts'),
     },
   },
   test: {

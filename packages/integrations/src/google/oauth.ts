@@ -18,7 +18,7 @@ import net from 'net';
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
-import { createServiceLogger } from '@orientbot/core';
+import { createServiceLogger } from '@orient-bot/core';
 
 const logger = createServiceLogger('google-oauth');
 

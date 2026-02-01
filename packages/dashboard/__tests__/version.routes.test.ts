@@ -27,7 +27,7 @@ const { mockVersionCheckService, mockPreferencesService } = vi.hoisted(() => ({
   },
 }));
 
-vi.mock('@orientbot/core', () => ({
+vi.mock('@orient-bot/core', () => ({
   createServiceLogger: () => ({
     info: vi.fn(),
     error: vi.fn(),
@@ -40,7 +40,7 @@ vi.mock('../src/services/versionCheckService.js', () => ({
   getVersionCheckService: () => mockVersionCheckService,
 }));
 
-vi.mock('@orientbot/database-services', () => ({
+vi.mock('@orient-bot/database-services', () => ({
   createVersionPreferencesService: () => mockPreferencesService,
 }));
 

@@ -102,7 +102,7 @@ Logs are stored locally and can be reviewed through the dashboard or directly in
 
 ## Open Source
 
-Orient is MIT licensed. The entire codebase is available at [github.com/orient-bot/orient](https://github.com/orient-bot/orient).
+Orient is MIT licensed. The entire codebase is available at [github.com/orient/orient](https://github.com/orient/orient).
 
 - Every line of code is auditable
 - No obfuscated modules

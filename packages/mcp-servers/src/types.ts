@@ -5,7 +5,7 @@
  * the monolithic MCP server into task-focused servers.
  */
 
-import type { ToolCategory } from '@orientbot/agents';
+import type { ToolCategory } from '@orient-bot/agents';
 
 /**
  * Server types for the multi-server architecture

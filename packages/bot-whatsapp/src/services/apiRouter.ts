@@ -7,7 +7,7 @@
 
 import { Router, Request, Response } from 'express';
 import QRCode from 'qrcode';
-import { createServiceLogger } from '@orientbot/core';
+import { createServiceLogger } from '@orient-bot/core';
 import type { WhatsAppConnection } from './connection.js';
 
 const logger = createServiceLogger('whatsapp-api-router');

@@ -4,11 +4,11 @@
  * Provides functionality to interact with Gmail using OAuth 2.0.
  * Supports reading emails, searching, sending, and managing drafts.
  *
- * Exported via @orientbot/integrations package.
+ * Exported via @orient-bot/integrations package.
  */
 
 import { google, gmail_v1 } from 'googleapis';
-import { createServiceLogger } from '@orientbot/core';
+import { createServiceLogger } from '@orient-bot/core';
 import { getGoogleOAuthService } from './oauth.js';
 
 const logger = createServiceLogger('gmail-service');

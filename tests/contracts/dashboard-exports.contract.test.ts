@@ -1,11 +1,11 @@
 /**
- * Contract Tests for @orientbot/dashboard
+ * Contract Tests for @orient-bot/dashboard
  *
  * These tests verify that the dashboard package exports all expected
  * types and functions. They serve as a contract that must not break
  * when refactoring the package internals.
  *
- * TODO: These tests are skipped because importing @orientbot/dashboard
+ * TODO: These tests are skipped because importing @orient-bot/dashboard
  * triggers a complex import chain that includes database connections
  * and service initialization, causing timeouts. This should be fixed
  * by making the dashboard package more tree-shakeable.
@@ -13,14 +13,14 @@
 
 import { describe, it, expect, beforeAll } from 'vitest';
 
-let dashboardModule: typeof import('@orientbot/dashboard');
+let dashboardModule: typeof import('@orient-bot/dashboard');
 
 beforeAll(async () => {
-  dashboardModule = await import('@orientbot/dashboard');
+  dashboardModule = await import('@orient-bot/dashboard');
 }, 180000);
 
 // TODO: Unskip when dashboard package import is optimized
-describe.skip('@orientbot/dashboard Contract Tests', () => {
+describe.skip('@orient-bot/dashboard Contract Tests', () => {
   describe('Type Exports', () => {
     it('should export MessageStats type', async () => {
       const module = dashboardModule;
@@ -72,7 +72,7 @@ describe.skip('@orientbot/dashboard Contract Tests', () => {
     });
 
     it('should export createDashboardRouter function', async () => {
-      const module = await import('@orientbot/dashboard');
+      const module = await import('@orient-bot/dashboard');
       expect(typeof module.createDashboardRouter).toBe('function');
     });
   });

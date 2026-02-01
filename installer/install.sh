@@ -571,11 +571,11 @@ initialize_database() {
 
         # Push schema to SQLite
         log "Creating SQLite schema..."
-        pnpm --filter @orientbot/database run db:push:sqlite 2>/dev/null || warn "Schema push skipped (may already exist)"
+        pnpm --filter @orient-bot/database run db:push:sqlite 2>/dev/null || warn "Schema push skipped (may already exist)"
     else
         # PostgreSQL migration
         log "Running PostgreSQL migrations..."
-        pnpm --filter @orientbot/database run db:push 2>/dev/null || warn "Migration skipped (may already exist)"
+        pnpm --filter @orient-bot/database run db:push 2>/dev/null || warn "Migration skipped (may already exist)"
     fi
 }
 

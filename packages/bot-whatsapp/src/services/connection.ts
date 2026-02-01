@@ -16,7 +16,7 @@ import pino from 'pino';
 import QRCode from 'qrcode';
 import { EventEmitter } from 'events';
 import fs from 'fs';
-import { createServiceLogger } from '@orientbot/core';
+import { createServiceLogger } from '@orient-bot/core';
 import type { ConnectionState, WhatsAppBotConfig } from '../types.js';
 
 // Create a pino logger for baileys internal use (required by makeCacheableSignalKeyStore)

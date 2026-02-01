@@ -6,10 +6,10 @@
  * waiting in silence for a response, they receive acknowledgment and
  * progress messages.
  *
- * Exported via @orientbot/bot-whatsapp package.
+ * Exported via @orient-bot/bot-whatsapp package.
  */
 
-import { createServiceLogger } from '@orientbot/core';
+import { createServiceLogger } from '@orient-bot/core';
 
 const logger = createServiceLogger('progressive-responder');
 

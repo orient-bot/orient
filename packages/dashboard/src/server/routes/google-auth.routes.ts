@@ -7,14 +7,15 @@
  */
 
 import { Router, Request, Response } from 'express';
+import { getParam } from './paramUtils.js';
 import { google, Auth } from 'googleapis';
 import { CodeChallengeMethod } from 'google-auth-library';
 import crypto from 'crypto';
 import { DashboardAuth } from '../../auth.js';
-import type { MessageDatabase } from '@orientbot/database-services';
-import { createServiceLogger } from '@orientbot/core';
-import { createSecretsService } from '@orientbot/database-services';
-import { getGoogleOAuthService, DEFAULT_SCOPES } from '@orientbot/integrations';
+import type { MessageDatabase } from '@orient-bot/database-services';
+import { createServiceLogger } from '@orient-bot/core';
+import { createSecretsService } from '@orient-bot/database-services';
+import { getGoogleOAuthService, DEFAULT_SCOPES } from '@orient-bot/integrations';
 
 const logger = createServiceLogger('google-auth-routes');
 

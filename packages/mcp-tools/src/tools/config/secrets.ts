@@ -11,7 +11,7 @@ import { z } from 'zod';
 import { createTool, MCPTool } from '../base.js';
 import type { ToolContext } from '../../types.js';
 import { getPendingActionsStore } from './pending-store.js';
-import type { SecretMetadata } from '@orientbot/database-services';
+import type { SecretMetadata } from '@orient-bot/database-services';
 
 // Register the executor when the module loads
 import { registerSecretExecutor } from './executors/secret-executor.js';
@@ -221,7 +221,7 @@ export const configDeleteSecret: MCPTool = createTool({
  * Helper: Get secret metadata (not the actual value)
  */
 async function getSecretMetadata(key: string) {
-  const { createSecretsService } = await import('@orientbot/database-services');
+  const { createSecretsService } = await import('@orient-bot/database-services');
   const secretsService = createSecretsService();
 
   const secrets = await secretsService.listSecrets();
@@ -247,7 +247,7 @@ async function getSecretMetadata(key: string) {
  * Helper: List all secrets (metadata only)
  */
 async function listAllSecrets(categoryFilter?: string) {
-  const { createSecretsService } = await import('@orientbot/database-services');
+  const { createSecretsService } = await import('@orient-bot/database-services');
   const secretsService = createSecretsService();
 
   let secrets = (await secretsService.listSecrets()) as SecretMetadata[];

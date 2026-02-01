@@ -7,10 +7,11 @@
  */
 
 import { Router, Request, Response } from 'express';
-import { createServiceLogger } from '@orientbot/core';
-import type { MiniappEditService } from '@orientbot/apps';
+import { getParam } from './paramUtils.js';
+import { createServiceLogger } from '@orient-bot/core';
+import type { MiniappEditService } from '@orient-bot/apps';
 import type { AppsService } from '../../services/appsService.js';
-import type { StorageDatabase } from '@orientbot/database-services';
+import type { StorageDatabase } from '@orient-bot/database-services';
 
 const logger = createServiceLogger('apps-routes');
 
@@ -45,9 +46,9 @@ export function createAppsRoutes(
   // Get app details
   router.get('/:name', (req: Request, res: Response) => {
     try {
-      const app = appsService.getApp(req.params.name);
+      const app = appsService.getApp(getParam(req.params.name));
       if (!app) {
-        return res.status(404).json({ error: `App "${req.params.name}" not found` });
+        return res.status(404).json({ error: `App "${getParam(req.params.name)}" not found` });
       }
 
       // Build permissions object
@@ -77,7 +78,7 @@ export function createAppsRoutes(
       });
     } catch (error) {
       logger.error('Failed to get app', {
-        name: req.params.name,
+        name: getParam(req.params.name),
         error: error instanceof Error ? error.message : String(error),
       });
       res.status(500).json({ error: 'Failed to get app' });
@@ -99,9 +100,9 @@ export function createAppsRoutes(
   // Generate a share link for an app
   router.post('/:name/share', (req: Request, res: Response) => {
     try {
-      const app = appsService.getApp(req.params.name);
+      const app = appsService.getApp(getParam(req.params.name));
       if (!app) {
-        return res.status(404).json({ error: `App "${req.params.name}" not found` });
+        return res.status(404).json({ error: `App "${getParam(req.params.name)}" not found` });
       }
 
       // For local development, use the dashboard URL directly
@@ -123,7 +124,7 @@ export function createAppsRoutes(
       });
     } catch (error) {
       logger.error('Failed to generate share link', {
-        name: req.params.name,
+        name: getParam(req.params.name),
         error: error instanceof Error ? error.message : String(error),
       });
       res.status(500).json({ error: 'Failed to generate share link' });
@@ -286,7 +287,7 @@ export function createAppsRoutes(
     // Start or continue editing an app
     router.post('/:appName/edit', requireAuth, async (req: Request, res: Response) => {
       try {
-        const { appName } = req.params;
+        const appName = getParam(req.params.appName);
         const { prompt, createNew, continueSession } = req.body;
 
         // Validation
@@ -325,7 +326,7 @@ export function createAppsRoutes(
         });
       } catch (error) {
         logger.error('Failed to edit app', {
-          appName: req.params.appName,
+          appName: getParam(req.params.appName),
           error: error instanceof Error ? error.message : String(error),
         });
         res.status(500).json({
@@ -338,7 +339,7 @@ export function createAppsRoutes(
     // Trigger a build for an app
     router.post('/:appName/build', requireAuth, async (req: Request, res: Response) => {
       try {
-        const { appName } = req.params;
+        const appName = getParam(req.params.appName);
         const { sessionId } = req.body;
 
         if (!sessionId) {
@@ -357,7 +358,7 @@ export function createAppsRoutes(
         });
       } catch (error) {
         logger.error('Failed to build app', {
-          appName: req.params.appName,
+          appName: getParam(req.params.appName),
           error: error instanceof Error ? error.message : String(error),
         });
         res.status(500).json({
@@ -370,7 +371,7 @@ export function createAppsRoutes(
     // Rollback to a previous commit
     router.post('/:appName/rollback', requireAuth, async (req: Request, res: Response) => {
       try {
-        const { appName } = req.params;
+        const appName = getParam(req.params.appName);
         const { sessionId, commitHash } = req.body;
 
         if (!sessionId || !commitHash) {
@@ -387,7 +388,7 @@ export function createAppsRoutes(
         });
       } catch (error) {
         logger.error('Failed to rollback app', {
-          appName: req.params.appName,
+          appName: getParam(req.params.appName),
           error: error instanceof Error ? error.message : String(error),
         });
         res.status(500).json({
@@ -400,8 +401,8 @@ export function createAppsRoutes(
     // Get commit history for a session
     router.get('/:appName/history', requireAuth, async (req: Request, res: Response) => {
       try {
-        const { appName } = req.params;
-        const { sessionId } = req.query;
+        const appName = getParam(req.params.appName);
+        const sessionId = getParam(req.query.sessionId as string | string[] | undefined);
 
         if (!sessionId || typeof sessionId !== 'string') {
           res.status(400).json({ error: 'Session ID is required' });
@@ -417,7 +418,7 @@ export function createAppsRoutes(
         });
       } catch (error) {
         logger.error('Failed to get app history', {
-          appName: req.params.appName,
+          appName: getParam(req.params.appName),
           error: error instanceof Error ? error.message : String(error),
         });
         res.status(500).json({
@@ -430,7 +431,7 @@ export function createAppsRoutes(
     // Close a session and optionally create PR
     router.post('/:appName/close-session', requireAuth, async (req: Request, res: Response) => {
       try {
-        const { appName } = req.params;
+        const appName = getParam(req.params.appName);
         const { sessionId, merge } = req.body;
 
         if (!sessionId) {
@@ -448,7 +449,7 @@ export function createAppsRoutes(
         });
       } catch (error) {
         logger.error('Failed to close session', {
-          appName: req.params.appName,
+          appName: getParam(req.params.appName),
           error: error instanceof Error ? error.message : String(error),
         });
         res.status(500).json({
@@ -489,7 +490,7 @@ export function createAppsRoutes(
     // Get sessions for a specific app
     router.get('/:appName/sessions', requireAuth, async (req: Request, res: Response) => {
       try {
-        const { appName } = req.params;
+        const appName = getParam(req.params.appName);
 
         logger.info('Getting sessions for app', { appName });
         const sessions = await miniappEditService.getAppSessions(appName);
@@ -507,7 +508,7 @@ export function createAppsRoutes(
         });
       } catch (error) {
         logger.error('Failed to get app sessions', {
-          appName: req.params.appName,
+          appName: getParam(req.params.appName),
           error: error instanceof Error ? error.message : String(error),
         });
         res.status(500).json({

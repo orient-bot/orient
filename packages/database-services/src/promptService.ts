@@ -5,12 +5,12 @@
  * Wraps the database operations and provides caching for performance.
  *
  * This is the single source of truth for prompt management across all packages:
- * - @orientbot/agents - re-exports this service
- * - @orientbot/dashboard - re-exports this service
- * - @orientbot/mcp-tools - imports from here directly
+ * - @orient-bot/agents - re-exports this service
+ * - @orient-bot/dashboard - re-exports this service
+ * - @orient-bot/mcp-tools - imports from here directly
  */
 
-import { createServiceLogger } from '@orientbot/core';
+import { createServiceLogger } from '@orient-bot/core';
 import type { PromptPlatform, SystemPromptRecord, SystemPromptWithInfo } from './types/index.js';
 import { EMBEDDED_DEFAULT_PROMPTS } from './embeddedDefaultPrompts.js';
 

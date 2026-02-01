@@ -40,7 +40,7 @@ const { mockDb, mockAgentSkills, mockAgentTools } = vi.hoisted(() => {
 });
 
 // Mock core
-vi.mock('@orientbot/core', () => ({
+vi.mock('@orient-bot/core', () => ({
   createServiceLogger: () => ({
     info: vi.fn(),
     error: vi.fn(),
@@ -50,8 +50,8 @@ vi.mock('@orientbot/core', () => ({
 }));
 
 // Mock database
-vi.mock('@orientbot/database', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@orientbot/database')>();
+vi.mock('@orient-bot/database', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@orient-bot/database')>();
   return {
     ...actual,
     getDatabase: () => mockDb,

@@ -6,12 +6,12 @@
  *
  * This service mirrors the SkillsService pattern for consistency.
  *
- * Exported via @orientbot/apps package.
+ * Exported via @orient-bot/apps package.
  */
 
 import fs from 'fs';
 import path from 'path';
-import { createServiceLogger, getBuiltinAppsPath, getUserAppsPath } from '@orientbot/core';
+import { createServiceLogger, getBuiltinAppsPath, getUserAppsPath } from '@orient-bot/core';
 import { App, AppManifest, AppSummary, AppStatus, validateAppManifest } from '../types.js';
 
 const logger = createServiceLogger('apps-service');
