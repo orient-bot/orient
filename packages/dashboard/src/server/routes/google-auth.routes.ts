@@ -229,7 +229,8 @@ export function createGoogleAuthRoutes(auth: DashboardAuth, db: MessageDatabase)
           });
           res.status(503).json({
             error: 'Google OAuth proxy unavailable',
-            message: 'Failed to connect to OAuth proxy server',
+            message:
+              'Google sign-in is temporarily unavailable. Please create an account using username and password instead.',
           });
           return;
         }
@@ -237,7 +238,8 @@ export function createGoogleAuthRoutes(auth: DashboardAuth, db: MessageDatabase)
 
       res.status(503).json({
         error: 'Google OAuth not configured',
-        message: 'Contact administrator to enable Google sign-in',
+        message:
+          'Google sign-in is not available. Please create an account using username and password instead.',
       });
       return;
     }
