@@ -675,8 +675,7 @@ export function createMcpRoutes(
       );
 
       if (result.success) {
-        // Sync tokens to OpenCode so it can use them
-        atlassianModule.syncMcpTokensToOpenCode();
+        // Tokens are now stored in the correct location directly (uses XDG env vars)
         res.status(200).send(result.html);
       } else {
         res.status(400).send(result.html);

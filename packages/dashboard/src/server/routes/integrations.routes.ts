@@ -310,7 +310,8 @@ export function createIntegrationsRoutes(
       try {
         const atlassianModule = await getAtlassianOAuthModule();
         const atlassianUrl = 'https://mcp.atlassian.com/v1/sse';
-        const provider = atlassianModule.createOAuthProvider(atlassianUrl, 'atlassian');
+        // Always use 'Atlassian-MCP-Server' for consistency with OpenCode
+        const provider = atlassianModule.createOAuthProvider(atlassianUrl, 'Atlassian-MCP-Server');
         const tokens = await provider.tokens();
         if (tokens?.access_token) {
           activeIntegrations.push('atlassian');
@@ -397,25 +398,16 @@ export function createIntegrationsRoutes(
           }
 
           // Check Atlassian connection status
-          // Note: Check both 'atlassian' (dashboard name) and 'Atlassian-MCP-Server' (OpenCode name)
           if (integration.manifest.name === 'atlassian') {
             try {
               const atlassianModule = await getAtlassianOAuthModule();
               const atlassianUrl = 'https://mcp.atlassian.com/v1/sse';
-
-              // Check with dashboard name first
-              let provider = atlassianModule.createOAuthProvider(atlassianUrl, 'atlassian');
-              let tokens = await provider.tokens();
-
-              // If not found, check with OpenCode's name
-              if (!tokens?.access_token) {
-                provider = atlassianModule.createOAuthProvider(
-                  atlassianUrl,
-                  'Atlassian-MCP-Server'
-                );
-                tokens = await provider.tokens();
-              }
-
+              // Always use 'Atlassian-MCP-Server' for consistency with OpenCode
+              const provider = atlassianModule.createOAuthProvider(
+                atlassianUrl,
+                'Atlassian-MCP-Server'
+              );
+              const tokens = await provider.tokens();
               result.isConnected = !!tokens?.access_token;
             } catch {
               // OAuth module not available, leave as disconnected

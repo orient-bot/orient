@@ -118,7 +118,6 @@ export {
   cancelPendingOAuth,
   stopCallbackServer,
   getCallbackConfig,
-  syncMcpTokensToOpenCode,
   ensureCallbackServerRunning,
   OAUTH_CALLBACK_PORT,
   OAUTH_CALLBACK_PATH,

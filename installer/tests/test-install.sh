@@ -235,7 +235,7 @@ run_local_test() {
     log_verbose "Using temporary ORIENT_HOME: $temp_orient_home"
 
     # Cleanup function
-    local cleanup_local() {
+    cleanup_local() {
         if [ -d "$temp_orient_home" ]; then
             log_verbose "Cleaning up temporary installation..."
             rm -rf "$temp_orient_home"

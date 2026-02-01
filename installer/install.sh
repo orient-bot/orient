@@ -185,6 +185,8 @@ install_orient() {
 
     # Create directory structure
     mkdir -p "$INSTALL_DIR"/{data/sqlite,data/media,data/whatsapp-auth,logs,bin,skills,apps}
+    # Create OpenCode isolation directories for OAuth tokens and data
+    mkdir -p "$INSTALL_DIR"/opencode/{data/opencode,config/opencode,cache/opencode,state/opencode}
 
     # Clone or update repository
     if [[ -d "$INSTALL_DIR/orient" ]]; then
@@ -352,6 +354,13 @@ module.exports = {
       max_memory_restart: '500M',
       env: {
         OPENCODE_CONFIG: path.join(ORIENT_HOME, 'orient', 'opencode.json'),
+        // OpenCode data isolation - store data under ~/.orient/opencode/
+        XDG_DATA_HOME: path.join(ORIENT_HOME, 'opencode', 'data'),
+        XDG_CONFIG_HOME: path.join(ORIENT_HOME, 'opencode', 'config'),
+        XDG_CACHE_HOME: path.join(ORIENT_HOME, 'opencode', 'cache'),
+        XDG_STATE_HOME: path.join(ORIENT_HOME, 'opencode', 'state'),
+        OPENCODE_TEST_HOME: path.join(ORIENT_HOME, 'opencode'),
+        ORIENT_HOME: ORIENT_HOME,
       },
     },
     {
