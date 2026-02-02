@@ -9,7 +9,14 @@
 
 import { getAgentRegistry, AgentContext } from './agentRegistry.js';
 import { getContextService, Platform } from './contextService.js';
-import { createServiceLogger, getBuiltinSkillsPath, getUserSkillsPath } from '@orient-bot/core';
+import {
+  createServiceLogger,
+  getBuiltinSkillsPath,
+  getUserSkillsPath,
+  ModelTier,
+} from '@orient-bot/core';
+import { getModelSelector, ModelSelectionResult } from './modelSelector.js';
+import { getCachedApiKeyStatus } from './apiKeyDetector.js';
 import fs from 'fs/promises';
 import type { Dirent } from 'node:fs';
 import path from 'path';
@@ -23,6 +30,12 @@ export interface LoadedAgentConfig {
   agentId: string;
   agentName: string;
   model: string;
+  /** The model tier used for selection */
+  effectiveTier: ModelTier;
+  /** Whether a free model is being used */
+  usingFreeModel: boolean;
+  /** Reason for model selection */
+  modelSelectionReason: string;
   systemPromptEnhancement: string;
   skills: string[];
   allowedToolPatterns: string[];
@@ -35,6 +48,52 @@ export interface LoadedAgentConfig {
  */
 const configCache: Map<string, { config: LoadedAgentConfig; loadedAt: Date }> = new Map();
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
+/**
+ * Select the effective model for an agent context
+ * Uses ModelSelector to determine the best model based on tier and API key availability
+ */
+async function selectEffectiveModel(context: AgentContext): Promise<ModelSelectionResult> {
+  try {
+    // Get API key status
+    const apiKeyStatus = await getCachedApiKeyStatus();
+
+    // Determine agent tier (default to 'cheap' if not set)
+    const agentTier = (context.agent.modelTier as ModelTier) || 'cheap';
+
+    // Use model selector to determine effective model
+    const selector = getModelSelector();
+    const result = await selector.selectModel({
+      agentTier,
+      hasApiKeys: apiKeyStatus.hasAnyApiKeys,
+      specificModelId: context.model, // Use agent's configured model as preference
+    });
+
+    logger.debug('Model selection complete', {
+      agentId: context.agent.id,
+      configuredModel: context.model,
+      selectedModel: result.modelId,
+      effectiveTier: result.effectiveTier,
+      isFreeModel: result.isFreeModel,
+      hasApiKeys: apiKeyStatus.hasAnyApiKeys,
+    });
+
+    return result;
+  } catch (error) {
+    // Fallback to agent's configured model if selection fails
+    logger.warn('Model selection failed, using agent configured model', {
+      agentId: context.agent.id,
+      error: error instanceof Error ? error.message : String(error),
+    });
+
+    return {
+      modelId: context.model,
+      effectiveTier: 'balanced',
+      isFreeModel: false,
+      reason: 'Fallback to configured model due to selection error',
+    };
+  }
+}
 
 /**
  * Load agent configuration for a given platform
@@ -84,10 +143,16 @@ export async function loadAgentConfig(
     // Determine chatId for context (use chatId or channelId)
     const chatIdForContext = options?.chatId || options?.channelId;
 
+    // Select the effective model using the model selector
+    const modelSelection = await selectEffectiveModel(context);
+
     const config: LoadedAgentConfig = {
       agentId: context.agent.id,
       agentName: context.agent.name,
-      model: context.model,
+      model: modelSelection.modelId,
+      effectiveTier: modelSelection.effectiveTier,
+      usingFreeModel: modelSelection.isFreeModel,
+      modelSelectionReason: modelSelection.reason,
       systemPromptEnhancement: await buildSystemPromptEnhancement(
         context,
         skillContent,
