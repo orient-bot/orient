@@ -1,6 +1,6 @@
 {
   "name": "@orient-bot/core",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Shared utilities, types, and configuration for Orient",
   "type": "module",
   "main": "./dist/index.js",

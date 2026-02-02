@@ -1,6 +1,6 @@
 {
   "name": "@orient-bot/apps",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Mini-apps system for the Orient",
   "type": "module",
   "main": "./dist/index.js",
