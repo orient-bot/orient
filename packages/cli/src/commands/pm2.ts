@@ -9,6 +9,7 @@ import { execSync, spawnSync } from 'child_process';
 import { existsSync } from 'fs';
 import { join } from 'path';
 import { getOrientHome } from '@orient-bot/core';
+import open from 'open';
 
 const ORIENT_HOME = getOrientHome();
 const ECOSYSTEM_PATH = join(ORIENT_HOME, 'ecosystem.config.cjs');
@@ -35,7 +36,8 @@ function checkEcosystem(): boolean {
 export const startCommand = new Command('start')
   .description('Start all Orient services')
   .option('--only <service>', 'Start only a specific service')
-  .action((options) => {
+  .option('--no-browser', 'Do not auto-open dashboard in browser')
+  .action(async (options) => {
     if (!checkPM2() || !checkEcosystem()) {
       process.exit(1);
     }
@@ -60,6 +62,34 @@ export const startCommand = new Command('start')
 
       console.log('');
       console.log('Services started. Run "orient status" to check status.');
+
+      // Auto-open browser if not disabled
+      if (options.browser !== false) {
+        const dashboardUrl = process.env.BASE_URL || 'http://localhost:4098';
+        console.log('');
+        console.log(`Opening dashboard at ${dashboardUrl}...`);
+
+        // Wait for server to be ready (up to 10 seconds)
+        let ready = false;
+        for (let i = 0; i < 10; i++) {
+          try {
+            const response = await fetch(`${dashboardUrl}/health`);
+            if (response.ok) {
+              ready = true;
+              break;
+            }
+          } catch {
+            // Server not ready yet
+          }
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+        }
+
+        if (ready) {
+          await open(dashboardUrl);
+        } else {
+          console.log(`Dashboard may still be starting. Open ${dashboardUrl} manually.`);
+        }
+      }
     } catch (error) {
       console.error('Failed to start services:', error);
       process.exit(1);

@@ -29,6 +29,7 @@
 
 # Configuration files that may contain secrets
 config.json
+!.changeset/config.json
 config.local.json
 config.*.json
 !config.example.json
