@@ -17,7 +17,8 @@
 
 import { Router, Request, Response } from 'express';
 import { google, Auth } from 'googleapis';
-import { CodeChallengeMethod } from 'google-auth-library';
+// Note: CodeChallengeMethod not used - proxy mode doesn't use PKCE for Google OAuth
+// (local-to-production validation uses codeChallenge/codeVerifier separately)
 import crypto from 'crypto';
 import { createServiceLogger } from '@orient-bot/core';
 import { createSecretsService, createOAuthProxyService } from '@orient-bot/database-services';
@@ -261,12 +262,15 @@ export function createOAuthProxyRoutes(): Router {
 
       // Generate authorization URL
       // Use sessionId as state for CSRF protection
+      // NOTE: We intentionally don't use PKCE for proxy mode because:
+      // - The code verifier stays on the local instance
+      // - Production handles the callback and token exchange
+      // - Production can't validate PKCE without the verifier
+      // - Server-to-server callback is already secure (HTTPS + state parameter)
       const authUrl = oauth2Client.generateAuthUrl({
         access_type: 'offline',
         scope: requestedScopes,
         state: sessionId,
-        code_challenge_method: CodeChallengeMethod.S256,
-        code_challenge: codeChallenge,
         prompt: 'consent',
       });
 
