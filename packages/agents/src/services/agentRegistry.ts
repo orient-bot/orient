@@ -31,6 +31,7 @@ export interface Agent {
   mode: string | null;
   modelDefault: string | null;
   modelFallback: string | null;
+  modelTier: string | null; // 'free' | 'cheap' | 'balanced' | 'quality'
   basePrompt: string | null;
   enabled: boolean | null;
   createdAt: Date | null;
@@ -86,6 +87,7 @@ export interface CreateAgentInput {
   mode?: string;
   modelDefault?: string;
   modelFallback?: string;
+  modelTier?: string; // 'free' | 'cheap' | 'balanced' | 'quality'
   basePrompt?: string;
   enabled?: boolean;
 }
@@ -96,6 +98,7 @@ export interface UpdateAgentInput {
   mode?: string;
   modelDefault?: string;
   modelFallback?: string;
+  modelTier?: string; // 'free' | 'cheap' | 'balanced' | 'quality'
   basePrompt?: string;
   enabled?: boolean;
 }

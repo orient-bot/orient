@@ -415,6 +415,23 @@ NC='\033[0m'
 case "$1" in
     start)
         echo -e "${GREEN}Starting Orient...${NC}"
+
+        # Load secrets from database into environment
+        # This picks up API keys configured via the Dashboard
+        SECRETS_FILE="$ORIENT_HOME/.env.secrets"
+        if [[ -f "$ORIENT_HOME/orient/scripts/load-secrets.ts" ]]; then
+            echo "  Loading secrets from database..."
+            cd "$ORIENT_HOME/orient"
+            npx tsx scripts/load-secrets.ts 2>/dev/null | grep "^export " > "$SECRETS_FILE" || true
+            if [[ -s "$SECRETS_FILE" ]]; then
+                set -a
+                source "$SECRETS_FILE"
+                set +a
+                SECRET_COUNT=$(wc -l < "$SECRETS_FILE" | tr -d ' ')
+                echo -e "  ${GREEN}✓ Loaded $SECRET_COUNT secrets from database${NC}"
+            fi
+        fi
+
         pm2 start "$ORIENT_HOME/ecosystem.config.cjs" --silent
         pm2 save --silent
         sleep 2
@@ -437,7 +454,23 @@ case "$1" in
         ;;
     restart)
         echo -e "${GREEN}Restarting Orient...${NC}"
-        pm2 restart orient --silent 2>/dev/null
+
+        # Reload secrets from database before restart
+        SECRETS_FILE="$ORIENT_HOME/.env.secrets"
+        if [[ -f "$ORIENT_HOME/orient/scripts/load-secrets.ts" ]]; then
+            echo "  Reloading secrets from database..."
+            cd "$ORIENT_HOME/orient"
+            npx tsx scripts/load-secrets.ts 2>/dev/null | grep "^export " > "$SECRETS_FILE" || true
+            if [[ -s "$SECRETS_FILE" ]]; then
+                set -a
+                source "$SECRETS_FILE"
+                set +a
+                SECRET_COUNT=$(wc -l < "$SECRETS_FILE" | tr -d ' ')
+                echo -e "  ${GREEN}✓ Loaded $SECRET_COUNT secrets from database${NC}"
+            fi
+        fi
+
+        pm2 restart orient orient-opencode --silent 2>/dev/null
         sleep 2
         if pm2 jlist 2>/dev/null | grep -q '"status":"online"'; then
             echo -e "${GREEN}✓ Orient restarted${NC}"

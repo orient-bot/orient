@@ -1,0 +1,1 @@
+ALTER TABLE `agents` ADD `model_tier` text DEFAULT 'cheap';

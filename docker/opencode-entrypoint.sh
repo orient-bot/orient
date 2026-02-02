@@ -181,6 +181,20 @@ main() {
     # Sync data from S3 on startup
     sync_from_s3
     
+    # Load secrets from database into environment
+    # This picks up API keys configured via the Dashboard
+    if [ -f "/app/scripts/load-secrets.ts" ]; then
+        log "Loading secrets from database..."
+        SECRETS_OUTPUT=$(cd /app && npx tsx scripts/load-secrets.ts 2>/dev/null | grep "^export " || true)
+        if [ -n "$SECRETS_OUTPUT" ]; then
+            eval "$SECRETS_OUTPUT"
+            SECRET_COUNT=$(echo "$SECRETS_OUTPUT" | wc -l | tr -d ' ')
+            log "Loaded $SECRET_COUNT secrets from database"
+        else
+            log "No secrets found in database (or load failed)"
+        fi
+    fi
+
     # Sync agent configuration from database (new Agent Registry system)
     # This replaces the legacy filter-skills.sh approach
     if [ -f "/app/scripts/sync-agent-config.ts" ]; then

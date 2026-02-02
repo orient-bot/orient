@@ -1115,7 +1115,7 @@ export async function invalidateSecretsCache(): Promise<{ success: boolean }> {
 // PROVIDERS API
 // ============================================
 
-export type ProviderId = 'openai' | 'anthropic' | 'google';
+export type ProviderId = 'openai' | 'anthropic' | 'google' | 'opencode_zen';
 
 export interface ProviderStatus {
   id: ProviderId;
@@ -1128,6 +1128,7 @@ export interface ProviderDefaults {
   transcription: ProviderId;
   vision: ProviderId;
   imageGeneration: ProviderId;
+  agentChat: ProviderId;
 }
 
 export async function getProviders(): Promise<{ providers: ProviderStatus[] }> {
@@ -1154,6 +1155,66 @@ export async function setProviderDefaults(
   return apiRequest('/providers/defaults', {
     method: 'PUT',
     body: JSON.stringify(defaults),
+  });
+}
+
+export interface RestartOpenCodeResponse {
+  success: boolean;
+  message: string;
+  pid?: number;
+  secretsLoaded?: number;
+  error?: string;
+}
+
+/**
+ * Restart OpenCode to pick up newly configured API keys.
+ * This reloads secrets from the database and restarts the OpenCode process.
+ * Only works in development mode (when PID file exists).
+ */
+export async function restartOpenCode(): Promise<RestartOpenCodeResponse> {
+  return apiRequest('/providers/restart-opencode', {
+    method: 'POST',
+  });
+}
+
+// Free model types
+export interface FreeModelInfo {
+  key: string;
+  id: string;
+  name: string;
+  available: boolean;
+  status: {
+    modelId: string;
+    available: boolean;
+    lastChecked: string;
+    avgLatencyMs?: number;
+    qualityPassed?: boolean;
+    errorMessage?: string;
+  } | null;
+}
+
+export interface FreeModelStatusResponse {
+  hasApiKeys: boolean;
+  configuredProviders: string[];
+  usingFreeModels: boolean;
+  activeModel: string;
+  availableModels: string[];
+  freeModels: FreeModelInfo[];
+  lastChecked: string | null;
+  defaultFreeModel: string;
+}
+
+export async function getFreeModelStatus(): Promise<FreeModelStatusResponse> {
+  return apiRequest('/providers/free-models');
+}
+
+export async function refreshFreeModels(): Promise<{
+  success: boolean;
+  message: string;
+  availableModels: string[];
+}> {
+  return apiRequest('/providers/refresh-free-models', {
+    method: 'POST',
   });
 }
 
