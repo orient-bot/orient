@@ -411,6 +411,9 @@ jobs:
             sudo chown -R 1001:1001 "${DATA_DIR}/media" 2>/dev/null || true
             sudo chown -R 1001:1001 "${DATA_DIR}/oauth-tokens" 2>/dev/null || true
             sudo chown -R 1001:1001 "${DEPLOY_DIR}/logs" 2>/dev/null || true
+            # Fix SQLite database and WAL file permissions (critical for v0.2.0+ with SQLite default)
+            # SQLite WAL mode creates .db-shm and .db-wal files that must be owned by container user
+            sudo chown 1001:1001 "${DATA_DIR}"/orient.db* 2>/dev/null || true
             sudo chmod -R 755 "${DATA_DIR}/whatsapp-auth" 2>/dev/null || true
             sudo chmod -R 755 "${DATA_DIR}/media" 2>/dev/null || true
             sudo chmod -R 755 "${DATA_DIR}/oauth-tokens" 2>/dev/null || true
