@@ -483,6 +483,7 @@ export const agents = sqliteTable('agents', {
   mode: text('mode').default('primary'), // 'primary' | 'specialized'
   modelDefault: text('model_default'), // 'anthropic/claude-sonnet-4-20250514'
   modelFallback: text('model_fallback'),
+  modelTier: text('model_tier').default('cheap'), // 'free' | 'cheap' | 'balanced' | 'quality'
   basePrompt: text('base_prompt'),
   enabled: integer('enabled', { mode: 'boolean' }).default(true),
   createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),

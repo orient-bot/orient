@@ -23,6 +23,7 @@ const defaultAgents = [
     mode: 'primary',
     modelDefault: 'anthropic/claude-haiku-4-5-20251001',
     modelFallback: 'opencode/gpt-5-nano',
+    modelTier: 'cheap', // Will auto-downgrade to 'free' if no API keys configured
     basePrompt: `I'm Ori, a friendly border collie here to help! 🐕
 
 My motto: "Ask Ori. I act."
@@ -125,6 +126,7 @@ Ready to help! 🦴`,
     mode: 'specialized',
     modelDefault: 'anthropic/claude-haiku-4-5-20251001',
     modelFallback: 'opencode/gpt-5-nano',
+    modelTier: 'cheap',
     basePrompt: `You are a messaging specialist. Format messages appropriately for the target platform.
 
 For Slack: Use mrkdwn (bold with *single asterisks*, italic with _underscores_, code with backticks).
@@ -143,6 +145,7 @@ Keep messages clear, concise, and well-formatted.`,
     mode: 'specialized',
     modelDefault: 'anthropic/claude-haiku-4-5-20251001',
     modelFallback: 'opencode/gpt-5-nano',
+    modelTier: 'cheap',
     basePrompt: `You are a scheduling assistant. Help users manage calendars, set reminders, and schedule messages.
 
 Focus on:
@@ -162,6 +165,7 @@ Focus on:
     mode: 'specialized',
     modelDefault: 'anthropic/claude-haiku-4-5-20251001',
     modelFallback: 'opencode/gpt-5-nano',
+    modelTier: 'cheap',
     basePrompt: `You are a codebase explorer. Help users understand project structure, find code, and lookup documentation.
 
 Focus on:
@@ -182,6 +186,7 @@ Focus on:
     mode: 'specialized',
     modelDefault: 'anthropic/claude-sonnet-4-20250514',
     modelFallback: 'opencode/gpt-5-nano',
+    modelTier: 'balanced', // Uses Sonnet for better code generation quality
     basePrompt: `You are a Mini-App Builder agent. Your job is to create standalone React applications using the Mini-Apps architecture.
 
 CRITICAL RULES:

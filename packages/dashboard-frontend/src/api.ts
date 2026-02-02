@@ -1177,6 +1177,47 @@ export async function restartOpenCode(): Promise<RestartOpenCodeResponse> {
   });
 }
 
+// Free model types
+export interface FreeModelInfo {
+  key: string;
+  id: string;
+  name: string;
+  available: boolean;
+  status: {
+    modelId: string;
+    available: boolean;
+    lastChecked: string;
+    avgLatencyMs?: number;
+    qualityPassed?: boolean;
+    errorMessage?: string;
+  } | null;
+}
+
+export interface FreeModelStatusResponse {
+  hasApiKeys: boolean;
+  configuredProviders: string[];
+  usingFreeModels: boolean;
+  activeModel: string;
+  availableModels: string[];
+  freeModels: FreeModelInfo[];
+  lastChecked: string | null;
+  defaultFreeModel: string;
+}
+
+export async function getFreeModelStatus(): Promise<FreeModelStatusResponse> {
+  return apiRequest('/providers/free-models');
+}
+
+export async function refreshFreeModels(): Promise<{
+  success: boolean;
+  message: string;
+  availableModels: string[];
+}> {
+  return apiRequest('/providers/refresh-free-models', {
+    method: 'POST',
+  });
+}
+
 // ============================================
 // SCHEDULER API
 // ============================================
