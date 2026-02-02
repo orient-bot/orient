@@ -96,6 +96,8 @@ DASHBOARD_PORT=4098
 - Improved doctor command output
 - Better error handling for start/restart failures
 - Proper uninstall confirmation flow
+- OpenCode installation isolated to `~/.orient/bin` (separate from system)
+- Dashboard frontend bundled with installer (no separate build step)
 
 #### Architecture
 
@@ -103,12 +105,49 @@ DASHBOARD_PORT=4098
 - Service consolidation: Dashboard + WhatsApp on single port 4098
 - Local filesystem storage option (alternative to S3)
 
+#### Intelligent Context Control
+
+- **Context Analyzer** - Automatic detection of conversation state changes
+  - Frustration detection: Identifies when users are frustrated and need help
+  - Topic shift detection: Recognizes when conversations change direction
+  - Automatic context reset suggestions based on conversation analysis
+- Integration tests and eval cases for context analysis
+
+#### Slack Improvements
+
+- **Interactive Buttons** - Approve/Reject buttons for permission prompts instead of typing commands
+- **Session Persistence** - Conversations continue across bot restarts
+- **One-Time Onboarding** - First-time setup delivers:
+  - Slack DM with Block Kit formatted quick-start guide
+  - Dashboard notification banner with learn-more link
+  - Graceful degradation (setup succeeds even if DM fails)
+
+#### Mini-Apps
+
+- **Backend Storage** - Key-value storage API for persistent data
+  - Apps can now store data in database instead of localStorage only
+  - Bridge API endpoints: `storage.set`, `storage.get`, `storage.delete`
+
+#### OpenCode Version Management
+
+- **Git LFS Bundled Binaries** - OpenCode binaries bundled in repo via Git LFS
+  - Eliminates version drift between installations
+  - Offline installation support
+  - SHA256 checksum verification
+
+#### Production Monitoring
+
+- **SSH Dashboard Support** - Monitor production servers via SSH from dashboard
+  - SSH client installed in Docker image
+  - SSH key mounting from `docker/.ssh/`
+
 #### Features
 
 - Google OAuth proxy for external instances
 - WhatsApp onboarding improvements (syncing UI, phone pre-fill)
 - Group write permission warning in dashboard
 - OAuth proxy session management
+- Atlassian OAuth flow improvements with better token storage
 
 ### Changed
 
@@ -119,6 +158,9 @@ DASHBOARD_PORT=4098
 - Dashboard serves WhatsApp endpoints via apiRouter.ts
 - Health checks consolidated to single endpoint
 - Installer output improved with progress indicators
+- OpenCode handlers now use shared `openCodeHandlerBase.ts` for common logic
+- Slack permission prompts use interactive buttons instead of text commands
+- Conversation context persists across bot restarts
 
 ### Removed
 

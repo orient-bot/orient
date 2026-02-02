@@ -244,12 +244,18 @@ create_worktree() {
     log_info "Fetching latest changes from remote..."
     git -C "$repo_root" fetch origin
 
-    # Get the main branch name (could be 'main' or 'master')
-    local main_branch
-    main_branch=$(git -C "$repo_root" symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's@^refs/remotes/origin/@@' || echo "main")
+    # Get the current branch name (use this as the base for new worktrees)
+    local current_branch
+    current_branch=$(git -C "$repo_root" branch --show-current 2>/dev/null || echo "")
+
+    # If in detached HEAD state or can't determine branch, fall back to main
+    if [[ -z "$current_branch" ]]; then
+        current_branch=$(git -C "$repo_root" symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's@^refs/remotes/origin/@@' || echo "main")
+        log_info "Detached HEAD state, using default branch: $current_branch"
+    fi
 
     # Check if a branch with the sanitized name already exists on origin
-    local checkout_ref="origin/$main_branch"
+    local checkout_ref="origin/$current_branch"
     if git -C "$repo_root" rev-parse "origin/$sanitized_name" >/dev/null 2>&1; then
         log_info "Found existing branch on origin: $sanitized_name"
         log_info "Pulling latest changes from origin/$sanitized_name..."
@@ -259,8 +265,8 @@ create_worktree() {
         git -C "$repo_root" branch -t "$sanitized_name" "origin/$sanitized_name"
         branch_name="$sanitized_name"
     else
-        log_info "No existing branch found on origin, creating new branch from $main_branch"
-        checkout_ref="origin/$main_branch"
+        log_info "Creating new branch from current branch: $current_branch"
+        checkout_ref="origin/$current_branch"
     fi
 
     # Create the worktree
