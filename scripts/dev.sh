@@ -679,7 +679,22 @@ start_dev() {
         log_info "Mini-apps cache refreshed"
     fi
 
-    # Step 4: Start OpenCode server (dashboard must be ready first)
+    # Step 4: Load secrets from database into environment BEFORE starting OpenCode
+    # This makes secrets saved via the dashboard available to OpenCode and bots
+    if [ -f "$PROJECT_ROOT/scripts/load-secrets.ts" ]; then
+        log_step "Loading secrets from database..."
+        local secrets_output
+        # Filter to only export lines (script may output logger messages to stdout)
+        if secrets_output=$(cd "$PROJECT_ROOT" && npx tsx scripts/load-secrets.ts 2>/dev/null | grep "^export "); then
+            eval "$secrets_output"
+            local secret_count=$(echo "$secrets_output" | wc -l | tr -d ' ')
+            log_info "Loaded $secret_count secrets from database"
+        else
+            log_info "Loaded 0 secrets from database"
+        fi
+    fi
+
+    # Step 5: Start OpenCode server (dashboard must be ready first, secrets loaded)
     log_step "Starting OpenCode server..."
     # Use local config if it exists
     if [ -f "$PROJECT_ROOT/opencode.local.json" ]; then
@@ -698,10 +713,10 @@ start_dev() {
     echo $! > "$OPENCODE_PID_FILE"
     log_info "OpenCode started (PID: $(cat $OPENCODE_PID_FILE))"
 
-    # Step 5: Wait for OpenCode
+    # Step 6: Wait for OpenCode
     wait_for_opencode
 
-    # Step 6: Start WhatsApp bot with tsx watch (instant hot-reload)
+    # Step 7: Start WhatsApp bot with tsx watch (instant hot-reload)
 
     # Set environment variables for local development
     # (DATABASE_URL, AWS_ENDPOINT_URL, and S3_BUCKET are already set by instance-env.sh)
@@ -714,21 +729,6 @@ start_dev() {
     # The dashboard API is already started via @orient-bot/dashboard.
     export DASHBOARD_ENABLED="false"
 
-    # Step 5b: Load secrets from database into environment
-    # This makes secrets saved via the dashboard available to bots
-    if [ -f "$PROJECT_ROOT/scripts/load-secrets.ts" ]; then
-        log_step "Loading secrets from database..."
-        local secrets_output
-        # Filter to only export lines (script may output logger messages to stdout)
-        if secrets_output=$(cd "$PROJECT_ROOT" && npx tsx scripts/load-secrets.ts 2>/dev/null | grep "^export "); then
-            eval "$secrets_output"
-            local secret_count=$(echo "$secrets_output" | wc -l | tr -d ' ')
-            log_info "Loaded $secret_count secrets from database"
-        else
-            log_info "Loaded 0 secrets from database"
-        fi
-    fi
-
     # Run with tsx watch for instant hot-reload (JIT TypeScript execution)
     # - No compilation step needed - tsx executes TypeScript directly
     # - Watches src/ and packages/ for changes, restarts on any .ts change
@@ -738,7 +738,7 @@ start_dev() {
         npx tsx watch --clear-screen=false packages/bot-whatsapp/src/main.ts > "$LOG_DIR/whatsapp-dev.log" 2>&1 &
         echo $! > "$WHATSAPP_PID_FILE"
         log_info "WhatsApp bot started with tsx watch (PID: $(cat $WHATSAPP_PID_FILE))"
-        
+
         # Wait for WhatsApp bot to be ready before continuing
         wait_for_whatsapp
     else
@@ -749,7 +749,7 @@ start_dev() {
         fi
     fi
 
-    # Step 7: Start Slack bot if configured
+    # Step 8: Start Slack bot if configured
     if [ "$RUN_SLACK" = true ] && is_slack_configured; then
         log_step "Starting Slack bot with tsx watch..."
         npx tsx watch --clear-screen=false packages/bot-slack/src/main.ts > "$LOG_DIR/slack-dev.log" 2>&1 &

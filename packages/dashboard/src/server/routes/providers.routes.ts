@@ -5,29 +5,36 @@
  */
 
 import { Router, Request, Response } from 'express';
+import { spawn } from 'child_process';
+import { existsSync, readFileSync } from 'fs';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
 import { getParam } from './paramUtils.js';
 import { createServiceLogger, invalidateConfigCache, setSecretOverrides } from '@orient-bot/core';
 import { createSecretsService } from '@orient-bot/database-services';
 
 const logger = createServiceLogger('providers-routes');
 
-type ProviderId = 'openai' | 'anthropic' | 'google';
+type ProviderId = 'openai' | 'anthropic' | 'google' | 'opencode_zen';
 type ProviderDefaults = {
   transcription: ProviderId;
   vision: ProviderId;
   imageGeneration: ProviderId;
+  agentChat: ProviderId;
 };
 
 const PROVIDER_SECRETS: Record<ProviderId, string> = {
   openai: 'OPENAI_API_KEY',
   anthropic: 'ANTHROPIC_API_KEY',
   google: 'GOOGLE_GEMINI_API_KEY',
+  opencode_zen: 'OPENCODE_ZEN_API_KEY',
 };
 
 const PROVIDER_DESCRIPTIONS: Record<ProviderId, string> = {
   openai: 'OpenAI API key for transcription, vision, and image generation',
   anthropic: 'Anthropic API key for vision models',
   google: 'Google Gemini API key for image generation',
+  opencode_zen: 'OpenCode Zen API key for agent chat',
 };
 
 const DEFAULTS_SECRET_KEY = 'AI_PROVIDER_DEFAULTS';
@@ -35,16 +42,20 @@ const DEFAULTS_FALLBACK: ProviderDefaults = {
   transcription: 'openai',
   vision: 'anthropic',
   imageGeneration: 'openai',
+  agentChat: 'opencode_zen',
 };
 
 const VALID_DEFAULTS: Record<keyof ProviderDefaults, ProviderId[]> = {
   transcription: ['openai'],
   vision: ['anthropic', 'openai'],
   imageGeneration: ['openai', 'google'],
+  agentChat: ['opencode_zen'],
 };
 
 function isProviderId(value: string): value is ProviderId {
-  return value === 'openai' || value === 'anthropic' || value === 'google';
+  return (
+    value === 'openai' || value === 'anthropic' || value === 'google' || value === 'opencode_zen'
+  );
 }
 
 function normalizeDefaults(input?: Partial<ProviderDefaults>): ProviderDefaults {
@@ -58,6 +69,9 @@ function normalizeDefaults(input?: Partial<ProviderDefaults>): ProviderDefaults 
     imageGeneration: VALID_DEFAULTS.imageGeneration.includes(input?.imageGeneration as ProviderId)
       ? (input?.imageGeneration as ProviderId)
       : DEFAULTS_FALLBACK.imageGeneration,
+    agentChat: VALID_DEFAULTS.agentChat.includes(input?.agentChat as ProviderId)
+      ? (input?.agentChat as ProviderId)
+      : DEFAULTS_FALLBACK.agentChat,
   };
 }
 
@@ -80,7 +94,9 @@ export function createProvidersRoutes(
               ? 'OpenAI'
               : providerId === 'anthropic'
                 ? 'Anthropic'
-                : 'Google Gemini',
+                : providerId === 'google'
+                  ? 'Google Gemini'
+                  : 'OpenCode Zen',
           configured: Boolean(secret),
           updatedAt: secret?.updatedAt ?? null,
         };
@@ -156,6 +172,152 @@ export function createProvidersRoutes(
     } catch (error) {
       logger.error('Failed to set provider defaults', { error: String(error) });
       res.status(500).json({ error: 'Failed to set provider defaults' });
+    }
+  });
+
+  /**
+   * POST /providers/restart-opencode
+   * Reload secrets from database and restart OpenCode to pick up new API keys.
+   * This allows API keys configured in the Dashboard to take effect without
+   * restarting the entire dev environment.
+   */
+  router.post('/restart-opencode', requireAuth, async (_req: Request, res: Response) => {
+    try {
+      // Determine project root and PID directory
+      // In dev mode, PROJECT_ROOT is set. In production, use ORIENT_HOME.
+      const projectRoot = process.env.PROJECT_ROOT || process.cwd();
+      const instanceId = process.env.AI_INSTANCE_ID || '0';
+      const pidDir =
+        process.env.PID_DIR || join(projectRoot, '.dev-pids', `instance-${instanceId}`);
+      const pidFile = join(pidDir, 'opencode.pid');
+      const opencodePort = process.env.OPENCODE_PORT || '4099';
+
+      // Check if we're in development mode (PID file exists)
+      if (!existsSync(pidFile)) {
+        logger.warn('OpenCode PID file not found - restart only supported in dev mode', {
+          pidFile,
+        });
+        return res.status(400).json({
+          error: 'OpenCode restart only supported in development mode',
+          message:
+            'In production, restart the orient-opencode service via PM2 or your process manager.',
+        });
+      }
+
+      // Read current PID
+      const oldPid = readFileSync(pidFile, 'utf8').trim();
+      logger.info('Restarting OpenCode', { oldPid, pidFile });
+
+      // Load secrets from database to get the latest API keys
+      const allSecrets = await secretsService.getAllSecrets();
+
+      // Build environment with secrets
+      const secretEnv: Record<string, string> = {};
+      for (const [key, value] of Object.entries(allSecrets)) {
+        secretEnv[key] = value;
+        // Also update the in-memory overrides so the dashboard sees them
+        setSecretOverrides({ [key]: value });
+      }
+      invalidateConfigCache();
+
+      // Send SIGTERM to the old OpenCode process
+      try {
+        process.kill(parseInt(oldPid, 10), 'SIGTERM');
+        logger.info('Sent SIGTERM to old OpenCode process', { pid: oldPid });
+      } catch (killErr) {
+        logger.warn('Failed to kill old OpenCode process (may already be dead)', {
+          error: String(killErr),
+        });
+      }
+
+      // Wait a moment for the old process to terminate
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      // Find OpenCode binary (same logic as dev.sh)
+      let opencodeBin = process.env.OPENCODE_BIN;
+      if (!opencodeBin) {
+        const os = process.platform === 'darwin' ? 'darwin' : 'linux';
+        const arch = process.arch === 'arm64' ? 'arm64' : 'x64';
+        const bundledBinary = join(projectRoot, 'vendor', 'opencode', `${os}-${arch}`, 'opencode');
+        if (existsSync(bundledBinary)) {
+          opencodeBin = bundledBinary;
+        } else {
+          // Fall back to system opencode
+          opencodeBin = 'opencode';
+        }
+      }
+
+      // Start new OpenCode process with fresh secrets in environment
+      const logDir = process.env.LOG_DIR || join(projectRoot, 'logs', `instance-${instanceId}`);
+      const logFile = join(logDir, 'opencode-dev.log');
+
+      // Merge current env with secrets (secrets override)
+      const opencodeEnv = { ...process.env, ...secretEnv };
+
+      // Check for local config
+      const localConfig = join(projectRoot, 'opencode.local.json');
+      if (existsSync(localConfig)) {
+        opencodeEnv.OPENCODE_CONFIG = localConfig;
+      }
+
+      const opencodeProc = spawn(
+        opencodeBin,
+        ['serve', '--port', opencodePort, '--hostname', '127.0.0.1'],
+        {
+          cwd: projectRoot,
+          env: opencodeEnv,
+          detached: true,
+          stdio: ['ignore', 'pipe', 'pipe'],
+        }
+      );
+
+      // Write new PID
+      const fs = await import('fs/promises');
+      await fs.writeFile(pidFile, String(opencodeProc.pid));
+
+      // Redirect output to log file
+      const logStream = (await import('fs')).createWriteStream(logFile, { flags: 'a' });
+      opencodeProc.stdout?.pipe(logStream);
+      opencodeProc.stderr?.pipe(logStream);
+
+      // Unref so the dashboard doesn't wait for OpenCode
+      opencodeProc.unref();
+
+      logger.info('Started new OpenCode process', { pid: opencodeProc.pid, port: opencodePort });
+
+      // Wait for OpenCode to be ready
+      const maxAttempts = 30;
+      let ready = false;
+      for (let i = 0; i < maxAttempts; i++) {
+        try {
+          const healthCheck = await fetch(`http://localhost:${opencodePort}/global/health`);
+          if (healthCheck.ok) {
+            ready = true;
+            break;
+          }
+        } catch {
+          // Not ready yet
+        }
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+      }
+
+      if (!ready) {
+        logger.error('OpenCode failed to become healthy after restart');
+        return res.status(500).json({
+          error: 'OpenCode restarted but health check failed',
+          message: 'Check the logs for details.',
+        });
+      }
+
+      res.json({
+        success: true,
+        message: 'OpenCode restarted successfully with updated secrets',
+        pid: opencodeProc.pid,
+        secretsLoaded: Object.keys(allSecrets).length,
+      });
+    } catch (error) {
+      logger.error('Failed to restart OpenCode', { error: String(error) });
+      res.status(500).json({ error: 'Failed to restart OpenCode' });
     }
   });
 

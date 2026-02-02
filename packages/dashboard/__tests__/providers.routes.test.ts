@@ -113,6 +113,7 @@ describe('Providers Routes', () => {
       transcription: 'openai',
       vision: 'anthropic',
       imageGeneration: 'openai',
+      agentChat: 'opencode_zen',
     });
   });
 
