@@ -1,6 +1,6 @@
 {
   "name": "@orient-bot/dashboard",
-  "version": "1.0.11",
+  "version": "1.0.12",
   "description": "Dashboard frontend for Orient",
   "type": "module",
   "main": "dist/index.js",
