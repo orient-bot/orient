@@ -199,10 +199,10 @@ run_docker_test() {
             echo '=== Running install-local.sh ==='
             ./installer/install-local.sh $verbose_flag
 
-            # Run verification
+            # Run verification (verify OpenCode binary, not full Orient install)
             echo ''
             echo '=== Running verification ==='
-            ./installer/tests/verify-install.sh $verbose_flag
+            ./installer/tests/verify-opencode.sh $verbose_flag
 
             echo ''
             echo '=== Test Complete ==='
@@ -257,10 +257,10 @@ run_local_test() {
         die "Installation failed"
     fi
 
-    # Run verification
+    # Run verification (verify OpenCode binary, not full Orient install)
     log "Running verification..."
 
-    if "$SCRIPT_DIR/verify-install.sh" $verbose_flag; then
+    if "$SCRIPT_DIR/verify-opencode.sh" $verbose_flag; then
         log_success "Verification passed"
     else
         die "Verification failed"
