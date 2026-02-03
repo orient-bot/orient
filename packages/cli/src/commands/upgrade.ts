@@ -8,9 +8,9 @@ import { Command } from 'commander';
 import { execSync, spawnSync } from 'child_process';
 import { existsSync, readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
-import { homedir } from 'os';
+import { getOrientHome } from '@orient-bot/core';
 
-const ORIENT_HOME = process.env.ORIENT_HOME || join(homedir(), '.orient');
+const ORIENT_HOME = getOrientHome();
 const ORIENT_REPO = join(ORIENT_HOME, 'orient');
 
 export const upgradeCommand = new Command('upgrade')

@@ -1,0 +1,5 @@
+# Git LFS tracking for OpenCode binaries
+vendor/opencode/darwin-arm64/opencode filter=lfs diff=lfs merge=lfs -text
+vendor/opencode/darwin-x64/opencode filter=lfs diff=lfs merge=lfs -text
+vendor/opencode/linux-arm64/opencode filter=lfs diff=lfs merge=lfs -text
+vendor/opencode/linux-x64/opencode filter=lfs diff=lfs merge=lfs -text

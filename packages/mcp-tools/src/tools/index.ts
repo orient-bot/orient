@@ -5,4 +5,4 @@
  */
 
 export { MCPTool, createTool } from './base.js';
-export { createToolContext, clearContextCache, requireJiraClient } from './context.js';
+export { createToolContext, clearContextCache } from './context.js';

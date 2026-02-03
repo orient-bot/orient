@@ -21,9 +21,14 @@ This directory contains the official documentation for the Orient v0.2.0 release
 Orient v0.2.0 is a major architecture update:
 
 - **Mac Installer** - One-line install with `orient` CLI
-- **npm Packages** - `@orientbot/*` scope on npm (future: `npm install -g @orientbot/cli`)
+- **npm Packages** - `@orient-bot/*` scope on npm (future: `npm install -g @orient-bot/cli`)
 - **SQLite-Only** - Zero database setup required
 - **Single Port** - All services on port 4098
+- **Intelligent Context Control** - Automatic frustration and topic-shift detection
+- **Slack Interactive Buttons** - Approve/Reject buttons for permissions
+- **Session Persistence** - Conversations continue across bot restarts
+- **Mini-Apps Backend Storage** - Persistent key-value storage for apps
+- **OpenCode Bundled Binaries** - Git LFS-managed, offline-capable installation
 
 **IMPORTANT**: This is a breaking release. Fresh install required - no upgrade path from v0.1.x.
 
@@ -161,9 +166,10 @@ See **[TESTING.md](./TESTING.md)** for complete testing procedures.
 # Start services
 ./run.sh dev start
 
-# Run test suite (~286 tests expected)
-pnpm test:unit                               # ~243 tests
-INTEGRATION_TESTS=true pnpm test:integration # ~43 tests
+# Run test suite (~350+ tests expected)
+pnpm test:unit                               # ~280 tests
+INTEGRATION_TESTS=true pnpm test:integration # ~50 tests
+E2E_TESTS=true pnpm test:e2e                 # ~20 tests (optional)
 ```
 
 ---

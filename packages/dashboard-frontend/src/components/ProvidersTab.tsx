@@ -4,6 +4,7 @@ import {
   setProviderKey,
   getProviderDefaults,
   setProviderDefaults,
+  restartOpenCode,
   type ProviderDefaults,
   type ProviderId,
   type ProviderStatus,
@@ -56,6 +57,8 @@ export default function ProvidersTab() {
   const [loading, setLoading] = useState(true);
   const [savingProvider, setSavingProvider] = useState<ProviderId | null>(null);
   const [savingDefaults, setSavingDefaults] = useState(false);
+  const [restartingOpenCode, setRestartingOpenCode] = useState(false);
+  const [restartMessage, setRestartMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [keyInputs, setKeyInputs] = useState<Record<ProviderId, string>>({
     openai: '',
@@ -137,6 +140,33 @@ export default function ProvidersTab() {
     }
   };
 
+  const handleRestartOpenCode = async () => {
+    setRestartingOpenCode(true);
+    setRestartMessage(null);
+    setError(null);
+    try {
+      const result = await restartOpenCode();
+      if (result.success) {
+        setRestartMessage(
+          `OpenCode restarted successfully. ${result.secretsLoaded || 0} secrets loaded.`
+        );
+      } else {
+        setError(result.error || 'Failed to restart OpenCode');
+      }
+    } catch (err) {
+      console.error('Failed to restart OpenCode', err);
+      const message = err instanceof Error ? err.message : 'Unknown error';
+      // Check if this is a "dev mode only" error
+      if (message.includes('development mode') || message.includes('PID file')) {
+        setError('Restart only available in development mode. Use PM2 in production.');
+      } else {
+        setError('Failed to restart OpenCode. Please try again.');
+      }
+    } finally {
+      setRestartingOpenCode(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="rounded-xl border border-border bg-card p-6 text-sm text-muted-foreground">
@@ -215,6 +245,29 @@ export default function ProvidersTab() {
             </div>
           );
         })}
+      </div>
+
+      <div className="rounded-xl border border-border bg-card p-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-sm font-semibold text-foreground">Apply Changes to OpenCode</h3>
+            <p className="text-xs text-muted-foreground mt-1">
+              Restart OpenCode to use newly configured API keys. Changes to provider keys only take
+              effect after restart.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={handleRestartOpenCode}
+            disabled={restartingOpenCode}
+            className="h-9 px-4 rounded-md border border-input bg-background text-foreground text-sm font-medium hover:bg-muted disabled:opacity-50"
+          >
+            {restartingOpenCode ? 'Restarting...' : 'Restart OpenCode'}
+          </button>
+        </div>
+        {restartMessage && (
+          <p className="mt-3 text-sm text-emerald-600 dark:text-emerald-400">{restartMessage}</p>
+        )}
       </div>
 
       <div className="rounded-xl border border-border bg-card p-6 space-y-4">

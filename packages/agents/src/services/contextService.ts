@@ -7,15 +7,15 @@
  * Key responsibilities:
  * - CRUD operations for chat context
  *
- * Exported via @orientbot/agents package.
+ * Exported via @orient-bot/agents package.
  * - Deep merge updates for partial context changes
  * - Activity history management with capping
  * - Format context for system prompt injection
  */
 
-import { getDatabase, eq, and } from '@orientbot/database';
-import { chatContext } from '@orientbot/database';
-import { createServiceLogger } from '@orientbot/core';
+import { getDatabase, eq, and } from '@orient-bot/database';
+import { chatContext } from '@orient-bot/database';
+import { createServiceLogger } from '@orient-bot/core';
 
 const logger = createServiceLogger('context-service');
 
@@ -69,6 +69,10 @@ export interface PersistentContext {
     lastTopic?: string;
     workingDirectory?: string;
     openItems?: string[];
+    // Intelligent context control fields
+    recentKeywords?: string[]; // Keywords from last 3-5 messages
+    topicStartedAt?: string; // ISO timestamp when current topic started
+    messagesSinceClear?: number; // Count of messages since last clear/compact
     [key: string]: unknown;
   };
 

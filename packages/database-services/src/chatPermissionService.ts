@@ -20,7 +20,7 @@
  * - checkWritePermission(): For outgoing messages - strict database check only
  */
 
-import { createServiceLogger } from '@orientbot/core';
+import { createServiceLogger } from '@orient-bot/core';
 import type { ChatPermission, ChatType, ChatPermissionRecord } from './types/index.js';
 
 const logger = createServiceLogger('chat-permission');
@@ -53,6 +53,7 @@ export interface WritePermissionCheckResult {
 export interface ChatPermissionServiceConfig {
   defaultPermission: ChatPermission; // Fallback for chats without explicit or smart-default permissions
   adminPhone: string; // Admin phone number (always allowed to trigger responses)
+  adminLid?: string; // Admin LID (Linked ID) - WhatsApp's new ID format for group participants
 }
 
 /**
@@ -296,11 +297,29 @@ export class ChatPermissionService {
   }
 
   /**
-   * Check if a phone number is the admin
+   * Check if a phone number or LID is the admin
+   * WhatsApp uses LID (Linked ID) format for group participants instead of phone numbers
    */
   private isAdminPhone(phone: string): boolean {
     const adminPhone = this.config.adminPhone.replace(/\D/g, '');
-    return phone === adminPhone;
+    const adminLid = this.config.adminLid?.replace(/\D/g, '');
+
+    // Check both phone number and LID formats
+    const isMatch = phone === adminPhone || (adminLid !== undefined && phone === adminLid);
+
+    if (isMatch) {
+      logger.debug('Admin phone/LID match', { phone, adminPhone, adminLid });
+    }
+
+    return isMatch;
+  }
+
+  /**
+   * Update the admin LID (called when connection captures it)
+   */
+  setAdminLid(lid: string): void {
+    this.config.adminLid = lid;
+    logger.info('Admin LID updated', { lid });
   }
 
   /**

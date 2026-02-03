@@ -1,12 +1,13 @@
 {
-  "name": "@orientbot/agents",
-  "version": "1.0.0",
+  "name": "@orient-bot/agents",
+  "version": "1.1.0",
   "description": "AI agent services for the Orient",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
+      "source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "require": "./dist/index.js",
@@ -24,11 +25,11 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.5.0",
-    "@orientbot/core": "workspace:*",
-    "@orientbot/database": "workspace:*",
-    "@orientbot/database-services": "workspace:*",
-    "@orientbot/integrations": "workspace:*",
-    "@orientbot/mcp-tools": "workspace:*",
+    "@orient-bot/core": "workspace:*",
+    "@orient-bot/database": "workspace:*",
+    "@orient-bot/database-services": "workspace:*",
+    "@orient-bot/integrations": "workspace:*",
+    "@orient-bot/mcp-tools": "workspace:*",
     "@anthropic-ai/sdk": "^0.39.0",
     "openai": "^4.104.0"
   },

@@ -4,11 +4,11 @@
  * Provides functionality to interact with Google Calendar using OAuth 2.0.
  * Supports listing events, creating/updating/deleting events, and managing calendars.
  *
- * Exported via @orientbot/integrations package.
+ * Exported via @orient-bot/integrations package.
  */
 
 import { google, calendar_v3 } from 'googleapis';
-import { createServiceLogger } from '@orientbot/core';
+import { createServiceLogger } from '@orient-bot/core';
 import { getGoogleOAuthService } from './oauth.js';
 
 const logger = createServiceLogger('calendar-service');

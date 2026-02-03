@@ -1,0 +1,40 @@
+# Topic Shift False Positive Test
+# Should NOT suggest clear for related topics
+
+name: topic-shift-false-positive-related
+description: Should NOT suggest clear for related topics
+type: response_quality
+agent: ori
+
+context:
+  platform: slack
+  channelId: 'C12345678'
+
+input:
+  prompt: 'What about caching strategies for the database?'
+  conversationHistory:
+    - role: user
+      content: 'Help me with database performance'
+    - role: assistant
+      content: 'Database performance can be improved through...'
+    - role: user
+      content: 'Tell me about indexing'
+    - role: assistant
+      content: 'Indexes help speed up queries...'
+
+expect:
+  assertions:
+    - type: response_matches
+      pattern: 'cache|caching|redis|memcached|performance'
+
+scoring:
+  llm_judge:
+    enabled: true
+    criteria:
+      - name: no_false_positive
+        description: The system did NOT incorrectly detect a topic shift for related topics
+        weight: 0.7
+      - name: continuity
+        description: The response maintains conversation continuity
+        weight: 0.3
+    threshold: 0.7

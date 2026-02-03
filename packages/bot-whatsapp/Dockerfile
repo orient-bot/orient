@@ -36,7 +36,7 @@ COPY packages/bot-whatsapp/package.json ./packages/bot-whatsapp/
 # Install dependencies for this package and its dependencies
 # Use BuildKit cache mount for faster rebuilds
 RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
-    pnpm install --frozen-lockfile --filter @orientbot/bot-whatsapp...
+    pnpm install --frozen-lockfile --filter @orient-bot/bot-whatsapp...
 
 # ============================================
 # Build Stage
@@ -55,7 +55,7 @@ COPY packages/bot-whatsapp ./packages/bot-whatsapp
 COPY tsconfig.json turbo.json ./
 
 # Build the package and its dependencies using turbo for correct ordering
-RUN pnpm turbo run build --filter='@orientbot/bot-whatsapp...'
+RUN pnpm turbo run build --filter='@orient-bot/bot-whatsapp...'
 
 # ============================================
 # Production Stage
@@ -95,7 +95,7 @@ COPY --chown=nodejs:nodejs --from=builder /app/packages/bot-whatsapp/package.jso
 # Install production dependencies only
 # Use BuildKit cache mount for faster rebuilds
 RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
-    pnpm install --frozen-lockfile --prod --ignore-scripts --filter @orientbot/bot-whatsapp... && \
+    pnpm install --frozen-lockfile --prod --ignore-scripts --filter @orient-bot/bot-whatsapp... && \
     chown -R nodejs:nodejs node_modules
 
 # Create data directories and set ownership only for runtime directories

@@ -8,13 +8,13 @@
  * - CRUD operations for agents, skills, tools, and context rules
  * - Context-based agent resolution (platform, chat, environment)
  *
- * Exported via @orientbot/agents package.
+ * Exported via @orient-bot/agents package.
  * - Filesystem sync for OpenCode compatibility
  */
 
-import { getDatabase, eq, and, desc, sql } from '@orientbot/database';
-import { agents, agentSkills, agentTools, contextRules } from '@orientbot/database';
-import { createServiceLogger } from '@orientbot/core';
+import { getDatabase, eq, and, desc, sql } from '@orient-bot/database';
+import { agents, agentSkills, agentTools, contextRules } from '@orient-bot/database';
+import { createServiceLogger, DEFAULT_AGENT } from '@orient-bot/core';
 import fs from 'fs/promises';
 import path from 'path';
 
@@ -31,6 +31,7 @@ export interface Agent {
   mode: string | null;
   modelDefault: string | null;
   modelFallback: string | null;
+  modelTier: string | null; // 'free' | 'cheap' | 'balanced' | 'quality'
   basePrompt: string | null;
   enabled: boolean | null;
   createdAt: Date | null;
@@ -86,6 +87,7 @@ export interface CreateAgentInput {
   mode?: string;
   modelDefault?: string;
   modelFallback?: string;
+  modelTier?: string; // 'free' | 'cheap' | 'balanced' | 'quality'
   basePrompt?: string;
   enabled?: boolean;
 }
@@ -96,6 +98,7 @@ export interface UpdateAgentInput {
   mode?: string;
   modelDefault?: string;
   modelFallback?: string;
+  modelTier?: string; // 'free' | 'cheap' | 'balanced' | 'quality'
   basePrompt?: string;
   enabled?: boolean;
 }
@@ -500,9 +503,9 @@ export class AgentRegistry {
         }
       }
 
-      // If no agent selected, use the default (pm-assistant)
+      // If no agent selected, use the default
       if (!selectedAgent) {
-        selectedAgent = await this.getAgent('pm-assistant');
+        selectedAgent = await this.getAgent(DEFAULT_AGENT);
       }
 
       if (!selectedAgent) {
@@ -536,7 +539,7 @@ export class AgentRegistry {
       const deniedTools = agentToolsList.filter((t) => t.type === 'deny').map((t) => t.pattern);
       const askTools = agentToolsList.filter((t) => t.type === 'ask').map((t) => t.pattern);
 
-      const fallbackModel = await this.getAgent('pm-assistant');
+      const fallbackModel = await this.getAgent(DEFAULT_AGENT);
       const resolvedModel =
         selectedAgent.modelDefault ||
         fallbackModel?.modelDefault ||

@@ -54,16 +54,44 @@
 
 .installBadge {
   animation: fadeInUp 0.5s ease 0.6s both;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--ifm-background-surface-color);
+  border: 1px solid var(--ifm-hr-border-color);
+  border-radius: 2rem;
+  padding: 0.5rem 0.75rem 0.5rem 1rem;
 }
 
 .installBadge code {
   font-family: 'JetBrains Mono', ui-monospace, monospace;
   font-size: 0.875rem;
-  padding: 0.5rem 1rem;
-  background: var(--ifm-background-surface-color);
-  border: 1px solid var(--ifm-hr-border-color);
-  border-radius: 2rem;
   color: var(--ifm-font-color-secondary);
+  background: none;
+  border: none;
+  padding: 0;
+}
+
+.copyButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  padding: 0.25rem;
+  cursor: pointer;
+  color: var(--ifm-font-color-secondary);
+  border-radius: 0.25rem;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.copyButton:hover {
+  color: var(--ifm-font-color-base);
+  background: var(--ifm-hr-border-color);
+}
+
+.copyButton:active {
+  transform: scale(0.95);
 }
 
 .heroVisual {

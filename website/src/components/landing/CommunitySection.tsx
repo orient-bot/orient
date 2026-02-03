@@ -17,7 +17,7 @@ export default function CommunitySection() {
           </p>
           <div className={styles.badges}>
             <img
-              src="https://img.shields.io/github/stars/orient-bot/orient?style=social"
+              src="https://img.shields.io/github/stars/orient/orient?style=social"
               alt="GitHub stars"
               loading="lazy"
             />
@@ -30,7 +30,7 @@ export default function CommunitySection() {
         <div className={styles.ctaGroup}>
           <Link
             className={clsx('button', styles.secondaryButton)}
-            to="https://github.com/orient-bot/orient"
+            to="https://github.com/orient/orient"
           >
             <GitHubIcon className={styles.githubIcon} /> View on GitHub
           </Link>

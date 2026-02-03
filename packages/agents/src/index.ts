@@ -1,5 +1,5 @@
 /**
- * @orientbot/agents
+ * @orient-bot/agents
  *
  * AI agent services for the Orient.
  *
@@ -15,7 +15,7 @@
  *   AgentContext,
  *   ToolCallingConfig,
  *   ToolCallingResult,
- * } from '@orientbot/agents';
+ * } from '@orient-bot/agents';
  */
 
 // Export all types
@@ -91,11 +91,73 @@ export {
   type SearchResult,
 } from './services/toolDiscovery.js';
 
+export {
+  IntegrationConnectionService,
+  CATEGORY_INTEGRATION_MAP,
+  type IntegrationName,
+  type ToolCategoryIntegration,
+} from './services/integrationConnectionService.js';
+
+export {
+  CapabilityAvailabilityService,
+  getCapabilityAvailabilityService,
+  resetCapabilityAvailabilityService,
+  type CapabilityType,
+  type CapabilityStatus,
+} from './services/capabilityAvailabilityService.js';
+
 // Export permissions system
 export * from './permissions/index.js';
 
 export { MCPClientManager } from './services/mcpClientManager.js';
 export { getAgentRegistry } from './services/agentRegistry.js';
+export { clearConfigCache } from './services/agentContextLoader.js';
+
+// Export free model and API key utilities
+export {
+  FreeModelHealthChecker,
+  getFreeModelHealthChecker,
+  resetFreeModelHealthChecker,
+  type FreeModelStatus,
+  type FreeModelHealthCheckerOptions,
+} from './services/freeModelHealthChecker.js';
+
+export {
+  ModelSelector,
+  getModelSelector,
+  resetModelSelector,
+  type ModelSelectionContext,
+  type ModelSelectionResult,
+  type ModelSelectorOptions,
+} from './services/modelSelector.js';
+
+export {
+  detectApiKeys,
+  getCachedApiKeyStatus,
+  clearApiKeyCache,
+  type ApiKeyDetectionResult,
+} from './services/apiKeyDetector.js';
+
+// Export OAuth client provider utilities
+export {
+  createOAuthProvider,
+  MCPOAuthClientProvider,
+  handleProductionOAuthCallback,
+  setSuppressBrowserOpen,
+  getCapturedAuthUrl,
+  getReceivedAuthCode,
+  waitForAuthCode,
+  waitForOAuthCallback,
+  cancelPendingOAuth,
+  stopCallbackServer,
+  getCallbackConfig,
+  ensureCallbackServerRunning,
+  OAUTH_CALLBACK_PORT,
+  OAUTH_CALLBACK_PATH,
+  OAUTH_CALLBACK_URL,
+  IS_PRODUCTION_OAUTH,
+  type OAuthCallbackConfig,
+} from './services/oauthClientProvider.js';
 
 // Export OpenCode message processor utilities (model config, session handling, etc.)
 export {
@@ -145,6 +207,18 @@ export {
   ProgressiveResponder,
   createProgressiveResponder,
 } from './services/progressiveResponder.js';
+
+// Export context analyzer
+export {
+  ContextAnalyzer,
+  getContextAnalyzer,
+  resetContextAnalyzer,
+  extractKeywords,
+  detectFrustration,
+  detectTopicShiftByKeywords,
+  type ContextSuggestion,
+  type AnalysisResult,
+} from './services/contextAnalyzer.js';
 
 /**
  * Migration Status

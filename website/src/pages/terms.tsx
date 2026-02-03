@@ -39,7 +39,7 @@ export default function Terms(): JSX.Element {
           <p>
             Orient is licensed under the{' '}
             <a
-              href="https://github.com/orient-bot/orient/blob/main/LICENSE"
+              href="https://github.com/orient/orient/blob/main/LICENSE"
               target="_blank"
               rel="noopener noreferrer"
             >
@@ -200,7 +200,7 @@ export default function Terms(): JSX.Element {
           <p>
             See our{' '}
             <a
-              href="https://github.com/orient-bot/orient/blob/main/CONTRIBUTING.md"
+              href="https://github.com/orient/orient/blob/main/CONTRIBUTING.md"
               target="_blank"
               rel="noopener noreferrer"
             >
@@ -238,7 +238,7 @@ export default function Terms(): JSX.Element {
             <li>
               Search{' '}
               <a
-                href="https://github.com/orient-bot/orient/issues"
+                href="https://github.com/orient/orient/issues"
                 target="_blank"
                 rel="noopener noreferrer"
               >
@@ -248,7 +248,7 @@ export default function Terms(): JSX.Element {
             <li>
               Ask questions in{' '}
               <a
-                href="https://github.com/orient-bot/orient/discussions"
+                href="https://github.com/orient/orient/discussions"
                 target="_blank"
                 rel="noopener noreferrer"
               >

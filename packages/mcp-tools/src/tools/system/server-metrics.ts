@@ -74,7 +74,7 @@ interface Output {
  * Server Metrics Tool Implementation
  */
 export class ServerMetricsTool extends MCPTool<Input, Output> {
-  readonly name = 'ai_first_server_metrics';
+  readonly name = 'system_server_metrics';
   readonly description =
     'Get real-time CPU, memory, disk, and container metrics from the production server.';
   readonly category = 'system' as const;

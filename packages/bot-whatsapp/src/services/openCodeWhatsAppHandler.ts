@@ -7,10 +7,10 @@
  * - Access to MCP tools (JIRA, Slack, etc.)
  * - Support for multiple LLM providers
  *
- * Exported via @orientbot/bot-whatsapp package.
+ * Exported via @orient-bot/bot-whatsapp package.
  */
 
-import { createDedicatedServiceLogger } from '@orientbot/core';
+import { createDedicatedServiceLogger } from '@orient-bot/core';
 import {
   DEFAULT_AGENT,
   WHATSAPP_DEFAULT_MODEL,
@@ -36,7 +36,7 @@ import {
   OpenCodeHandlerBase,
   type PromptService,
   createOpenCodeClient,
-} from '@orientbot/agents';
+} from '@orient-bot/agents';
 
 // Use dedicated WhatsApp logger
 const logger = createDedicatedServiceLogger('whatsapp', {
@@ -126,6 +126,9 @@ export class OpenCodeWhatsAppHandler extends OpenCodeHandlerBase<
       visionModel: this.visionModel,
       note: 'Grok is default for text; vision model auto-switches for images',
     });
+
+    // Initialize LLM classifier for intelligent context control
+    this.initializeLLMClassifier();
   }
 
   /**
@@ -270,11 +273,18 @@ export class OpenCodeWhatsAppHandler extends OpenCodeHandlerBase<
     // Check for session commands first (/reset, /compact, /help)
     const cmdResult = sharedDetectSessionCommand(text);
     if (cmdResult.isCommand && cmdResult.commandType) {
+      // Reset context counters on clear/compact commands
+      if (cmdResult.commandType === 'reset' || cmdResult.commandType === 'compact') {
+        await this.resetContextCounters('whatsapp', context.jid);
+      }
       return await this.handleSessionCommand(cmdResult.commandType, context, {
         helpText: buildWhatsAppHelpText(),
         resetCommandLabel: '/reset',
       });
     }
+
+    // Analyze message for context management suggestions (topic shift, frustration)
+    const analysisResult = await this.analyzeMessageForContext(text, 'whatsapp', context.jid);
 
     // Check if this is a model switch command
     const switchResult = this.detectModelSwitch(text);
@@ -390,8 +400,15 @@ export class OpenCodeWhatsAppHandler extends OpenCodeHandlerBase<
       // Store session mapping for potential future reference
       this.sessionMap.set(contextKey, result.sessionId);
 
+      // Update context with extracted keywords
+      await this.updateContextAfterMessage('whatsapp', context.jid, analysisResult);
+
+      // Append context management suggestion if any
+      const suggestion = this.formatContextSuggestion(analysisResult.suggestion, 'whatsapp');
+      const finalResponse = suggestion ? result.response + suggestion : result.response;
+
       return {
-        text: result.response,
+        text: finalResponse,
         sessionId: result.sessionId,
         cost: result.cost,
         tokens: result.tokens,

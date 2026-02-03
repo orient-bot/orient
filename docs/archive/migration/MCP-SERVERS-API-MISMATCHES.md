@@ -1,12 +1,12 @@
 # MCP-Servers API Mismatch Issues
 
 > **Status**: Pending - Requires separate PR  
-> **Package**: `@orientbot/mcp-servers`  
+> **Package**: `@orient-bot/mcp-servers`  
 > **Last Updated**: January 2026
 
 ## Overview
 
-During the src/ to packages/ migration, the `@orientbot/mcp-servers` package failed to build due to API mismatches between the legacy code in `mcp-server.ts` (~6800 lines) and the updated package interfaces.
+During the src/ to packages/ migration, the `@orient-bot/mcp-servers` package failed to build due to API mismatches between the legacy code in `mcp-server.ts` (~6800 lines) and the updated package interfaces.
 
 The file `mcp-server.ts` is the monolithic MCP server that needs to be updated to use the new package APIs.
 
@@ -19,18 +19,18 @@ The file `mcp-server.ts` is the monolithic MCP server that needs to be updated t
 **Location**: Lines 52-53, 86-88
 
 ```typescript
-// These exports don't exist in @orientbot/integrations/google
-import { getSheetsOAuthService, getSlidesOAuthService } from '@orientbot/integrations/google';
+// These exports don't exist in @orient-bot/integrations/google
+import { getSheetsOAuthService, getSlidesOAuthService } from '@orient-bot/integrations/google';
 
-// @orientbot/apps module resolution issues
-import { ... } from '@orientbot/apps';
+// @orient-bot/apps module resolution issues
+import { ... } from '@orient-bot/apps';
 ```
 
 **Root Cause**: The OAuth services were renamed or restructured during migration.
 
 **Proposed Fix**:
 
-- Check `@orientbot/integrations/google` for actual export names
+- Check `@orient-bot/integrations/google` for actual export names
 - The exports should be `getGoogleOAuthService` (singular) instead of separate sheets/slides services
 - Update imports to use the actual exported function names
 
@@ -81,7 +81,7 @@ Option B - Update StoredMessage type to use string (requires database migration)
 
 **Proposed Fix**:
 
-- Check `@orientbot/integrations/google` for the current `CreateEventOptions` interface
+- Check `@orient-bot/integrations/google` for the current `CreateEventOptions` interface
 - Either add the property back to the interface, or remove it from the call site
 - If Meet links are needed, implement via `conferenceData` in the Google Calendar API
 
@@ -124,7 +124,7 @@ CreateTaskOptions.dueDate;
 
 **Proposed Fix**:
 
-- Add `dueDate?: string` to `TaskInfo` and `CreateTaskOptions` in `@orientbot/integrations/google`
+- Add `dueDate?: string` to `TaskInfo` and `CreateTaskOptions` in `@orient-bot/integrations/google`
 - Or remove dueDate usage from MCP server if not needed
 
 ---
@@ -224,7 +224,7 @@ rows.map((row: unknown[]) => ({
 
 After fixes:
 
-1. Run `pnpm build --filter=@orientbot/mcp-servers`
+1. Run `pnpm build --filter=@orient-bot/mcp-servers`
 2. Start the MCP server and verify tool registration
 3. Test each tool category:
    - JIRA tools

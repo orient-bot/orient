@@ -4,13 +4,15 @@
  * Bridges the AgentRegistry with runtime agent services.
  * Provides context-aware configuration loading for Slack and WhatsApp agents.
  *
- * Exported via @orientbot/agents package.
+ * Exported via @orient-bot/agents package.
  */
 
 import { getAgentRegistry, AgentContext } from './agentRegistry.js';
 import { getContextService, Platform } from './contextService.js';
-import { createServiceLogger } from '@orientbot/core';
+import { getCapabilityAvailabilityService } from './capabilityAvailabilityService.js';
+import { createServiceLogger, getBuiltinSkillsPath, getUserSkillsPath } from '@orient-bot/core';
 import fs from 'fs/promises';
+import type { Dirent } from 'node:fs';
 import path from 'path';
 
 const logger = createServiceLogger('agent-context-loader');
@@ -115,68 +117,102 @@ export async function loadAgentConfig(
 }
 
 /**
+ * Skill data with content and requirements
+ */
+interface SkillWithRequirements {
+  content: string;
+  requires?: string[];
+}
+
+/**
+ * Parse YAML list for requires field from frontmatter
+ */
+function parseRequiresFromFrontmatter(frontmatter: string): string[] | undefined {
+  const requiresMatch = frontmatter.match(/^requires:\s*\n((?:\s*-\s*.+\n?)+)/m);
+  if (!requiresMatch) return undefined;
+
+  const lines = requiresMatch[1].match(/^\s*-\s*(.+)$/gm);
+  return lines?.map((line) => line.replace(/^\s*-\s*/, '').trim());
+}
+
+/**
  * Load skill content from filesystem
  */
-async function loadSkillContent(skillNames: string[]): Promise<Map<string, string>> {
-  const content = new Map<string, string>();
+async function loadSkillContent(skillNames: string[]): Promise<Map<string, SkillWithRequirements>> {
+  const content = new Map<string, SkillWithRequirements>();
 
-  const skillsDir = path.join(process.cwd(), '.claude', 'skills');
+  const builtinDir = getBuiltinSkillsPath();
+  const userDir = getUserSkillsPath();
+  const skillPathByName = new Map<string, string>();
 
-  const skillFiles: string[] = [];
+  const collectSkillPaths = async (currentDir: string): Promise<void> => {
+    let entries: Dirent[];
+    try {
+      entries = await fs.readdir(currentDir, { withFileTypes: true });
+    } catch {
+      return;
+    }
 
-  const collectSkillFiles = async (currentDir: string): Promise<void> => {
-    const entries = await fs.readdir(currentDir, { withFileTypes: true });
     const hasSkillFile = entries.some(
       (entry) => entry.isFile() && entry.name.toLowerCase() === 'skill.md'
     );
 
     if (hasSkillFile) {
-      skillFiles.push(path.join(currentDir, 'SKILL.md'));
+      const skillFile = path.join(currentDir, 'SKILL.md');
+      try {
+        const skillText = await fs.readFile(skillFile, 'utf-8');
+        const frontmatterMatch = skillText.match(/^---\s*\n([\s\S]*?)\n---\s*\n/);
+        const frontmatter = frontmatterMatch?.[1] ?? '';
+        const nameMatch = frontmatter.match(/^name:\s*(.+)$/m);
+        const skillName = nameMatch?.[1]?.trim() || path.basename(path.dirname(skillFile));
+        skillPathByName.set(skillName, skillFile);
+      } catch {
+        // Skip unreadable skill files
+      }
       return;
     }
 
     for (const entry of entries) {
       if (!entry.isDirectory()) continue;
-      await collectSkillFiles(path.join(currentDir, entry.name));
+      await collectSkillPaths(path.join(currentDir, entry.name));
     }
   };
 
-  try {
-    await collectSkillFiles(skillsDir);
-  } catch {
-    // If skills directory is missing, return empty map
-    return content;
-  }
-
-  const skillPathByName = new Map<string, string>();
-
-  for (const skillFile of skillFiles) {
-    try {
-      const skillText = await fs.readFile(skillFile, 'utf-8');
-      const frontmatterMatch = skillText.match(/^---\s*\n([\s\S]*?)\n---\s*\n/);
-      const frontmatter = frontmatterMatch?.[1] ?? '';
-      const nameMatch = frontmatter.match(/^name:\s*(.+)$/m);
-      const skillName = nameMatch?.[1]?.trim() || path.basename(path.dirname(skillFile));
-      skillPathByName.set(skillName, skillFile);
-    } catch {
-      // Skip unreadable skill files
-    }
-  }
+  await collectSkillPaths(builtinDir);
+  await collectSkillPaths(userDir);
 
   for (const skillName of skillNames) {
-    try {
-      const skillPath =
-        skillPathByName.get(skillName) || path.join(skillsDir, skillName, 'SKILL.md');
-      const skillText = await fs.readFile(skillPath, 'utf-8');
+    const candidates = [
+      skillPathByName.get(skillName),
+      path.join(userDir, skillName, 'SKILL.md'),
+      path.join(builtinDir, skillName, 'SKILL.md'),
+    ].filter((candidate): candidate is string => !!candidate);
 
-      // Extract just the body (remove YAML frontmatter)
-      const bodyMatch = skillText.match(/^---[\s\S]*?---\s*([\s\S]*)$/);
-      const body = bodyMatch ? bodyMatch[1].trim() : skillText;
+    let loaded = false;
+    for (const skillPath of candidates) {
+      try {
+        const skillText = await fs.readFile(skillPath, 'utf-8');
 
-      content.set(skillName, body);
-    } catch (error) {
-      // Skill file not found - skip silently
-      logger.debug('Could not load skill content', { skillName, error: String(error) });
+        // Parse frontmatter for requires
+        const frontmatterMatch = skillText.match(/^---\s*\n([\s\S]*?)\n---\s*\n/);
+        const frontmatter = frontmatterMatch?.[1] ?? '';
+        const requires = parseRequiresFromFrontmatter(frontmatter);
+
+        // Extract just the body (remove YAML frontmatter)
+        const bodyMatch = skillText.match(/^---[\s\S]*?---\s*([\s\S]*)$/);
+        const body = bodyMatch ? bodyMatch[1].trim() : skillText;
+
+        content.set(skillName, { content: body, requires });
+        loaded = true;
+        break;
+      } catch (error) {
+        // Try next candidate
+        logger.debug('Could not load skill content', { skillName, error: String(error) });
+      }
+    }
+
+    if (!loaded) {
+      logger.debug('Skill not found in merged directories', { skillName });
     }
   }
 
@@ -188,7 +224,7 @@ async function loadSkillContent(skillNames: string[]): Promise<Map<string, strin
  */
 async function buildSystemPromptEnhancement(
   context: AgentContext,
-  skillContent: Map<string, string>,
+  skillContent: Map<string, SkillWithRequirements>,
   platform?: Platform,
   chatId?: string
 ): Promise<string> {
@@ -223,12 +259,30 @@ async function buildSystemPromptEnhancement(
     }
   }
 
+  // Filter skills by capability availability
+  const capabilityService = getCapabilityAvailabilityService();
+  const availableSkills = new Map<string, SkillWithRequirements>();
+  const filteredSkills: string[] = [];
+
+  for (const [skillName, skillData] of skillContent.entries()) {
+    const available = await capabilityService.areCapabilitiesAvailable(skillData.requires);
+    if (available) {
+      availableSkills.set(skillName, skillData);
+    } else {
+      filteredSkills.push(skillName);
+    }
+  }
+
+  if (filteredSkills.length > 0) {
+    logger.debug('Skills filtered due to unavailable capabilities', { filtered: filteredSkills });
+  }
+
   // Add skill knowledge (summarized to avoid token bloat)
-  if (skillContent.size > 0) {
+  if (availableSkills.size > 0) {
     sections.push('\n## Available Skills Reference');
-    for (const [skillName, content] of skillContent.entries()) {
+    for (const [skillName, skillData] of availableSkills.entries()) {
       // Extract just the first section or quick reference
-      const quickRef = extractQuickReference(content);
+      const quickRef = extractQuickReference(skillData.content);
       if (quickRef) {
         sections.push(`### ${skillName}\n${quickRef}`);
       }

@@ -1,0 +1,18 @@
+# Tool Selection: JIRA Issues
+# Tests that agent selects JIRA tools when asked about issues
+
+name: tool_selection_jira_issues
+description: Test that agent selects JIRA tools when asked about issues
+type: tool_selection
+agent: default
+
+input:
+  prompt: 'Show me my JIRA issues'
+
+expect:
+  tool_calls:
+    required:
+      - name: jira_get_all_issues
+    forbidden:
+      - slack_send_message
+      - whatsapp_send_message

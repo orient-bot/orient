@@ -1,6 +1,6 @@
 {
-  "name": "@orientbot/bot-whatsapp",
-  "version": "1.0.0",
+  "name": "@orient-bot/bot-whatsapp",
+  "version": "1.1.0",
   "description": "WhatsApp bot service for Orient",
   "type": "module",
   "main": "./dist/index.js",
@@ -10,6 +10,7 @@
   },
   "exports": {
     ".": {
+      "source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "default": "./dist/index.js"
@@ -17,7 +18,7 @@
   },
   "scripts": {
     "build": "tsc",
-    "dev": "tsx src/main.ts",
+    "dev": "tsx --conditions=source src/main.ts",
     "dev:watch": "tsc --watch",
     "start": "node dist/main.js",
     "test": "vitest run",
@@ -28,16 +29,17 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@orientbot/agents": "workspace:*",
-    "@orientbot/core": "workspace:*",
-    "@orientbot/database": "workspace:*",
-    "@orientbot/database-services": "workspace:*",
-    "@orientbot/mcp-tools": "workspace:*",
+    "@orient-bot/agents": "workspace:*",
+    "@orient-bot/core": "workspace:*",
+    "@orient-bot/database": "workspace:*",
+    "@orient-bot/database-services": "workspace:*",
+    "@orient-bot/mcp-tools": "workspace:*",
     "@types/hapi__boom": "^9.0.1",
     "baileys": "7.0.0-rc.9",
     "express": "^5.0.0",
     "qrcode": "^1.5.3",
-    "@orientbot/api-gateway": "workspace:*"
+    "qrcode-terminal": "^0.12.0",
+    "@orient-bot/api-gateway": "workspace:*"
   },
   "devDependencies": {
     "@types/express": "^5.0.0",

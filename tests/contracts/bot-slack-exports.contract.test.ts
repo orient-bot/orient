@@ -1,5 +1,5 @@
 /**
- * Contract Tests for @orientbot/bot-slack
+ * Contract Tests for @orient-bot/bot-slack
  *
  * These tests verify that the bot-slack package exports all expected
  * types and classes. They serve as a contract that must not break
@@ -37,7 +37,7 @@ vi.mock('@slack/web-api', () => ({
   WebClient: class MockWebClient {},
 }));
 
-describe('@orientbot/bot-slack Contract Tests', () => {
+describe('@orient-bot/bot-slack Contract Tests', () => {
   describe('Type Exports', () => {
     it('should export SlackBotConfig type', async () => {
       const module = await import('../../packages/bot-slack/src/types.ts');

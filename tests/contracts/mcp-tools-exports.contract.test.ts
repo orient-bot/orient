@@ -1,13 +1,13 @@
 /**
- * Contract Tests for @orientbot/mcp-tools
+ * Contract Tests for @orient-bot/mcp-tools
  *
- * These tests verify that the public API of @orientbot/mcp-tools remains stable.
+ * These tests verify that the public API of @orient-bot/mcp-tools remains stable.
  */
 
 import { describe, it, expect, vi, beforeAll } from 'vitest';
 
 // Mock logger for registry
-vi.mock('@orientbot/core', () => ({
+vi.mock('@orient-bot/core', () => ({
   createServiceLogger: () => ({
     debug: vi.fn(),
     info: vi.fn(),
@@ -23,7 +23,7 @@ beforeAll(async () => {
   mcpToolsModule = await import('../../packages/mcp-tools/src/index.ts');
 }, 60000);
 
-describe('@orientbot/mcp-tools Public API Contract', () => {
+describe('@orient-bot/mcp-tools Public API Contract', () => {
   describe('Tool Base Class Exports', () => {
     it('should export MCPTool class', async () => {
       const { MCPTool } = mcpToolsModule;
@@ -46,11 +46,6 @@ describe('@orientbot/mcp-tools Public API Contract', () => {
     it('should export clearContextCache function', async () => {
       const { clearContextCache } = mcpToolsModule;
       expect(typeof clearContextCache).toBe('function');
-    });
-
-    it('should export requireJiraClient function', async () => {
-      const { requireJiraClient } = mcpToolsModule;
-      expect(typeof requireJiraClient).toBe('function');
     });
   });
 
@@ -90,7 +85,7 @@ describe('@orientbot/mcp-tools Public API Contract', () => {
           description: 'Test',
           inputSchema: { type: 'object' as const, properties: {} },
         },
-        category: 'jira' as const,
+        category: 'system' as const,
         keywords: ['test'],
         useCases: ['Testing'],
       };

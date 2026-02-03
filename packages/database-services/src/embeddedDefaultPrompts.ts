@@ -5,9 +5,9 @@
  * These are used as fallbacks when no custom prompt is configured in the database.
  *
  * This is the single source of truth for default prompts across all packages:
- * - @orientbot/agents
- * - @orientbot/dashboard
- * - @orientbot/mcp-tools
+ * - @orient-bot/agents
+ * - @orient-bot/dashboard
+ * - @orient-bot/mcp-tools
  */
 
 import type { PromptPlatform } from './types/index.js';
@@ -31,7 +31,7 @@ I can help you with:
 - Onboarding and configuration help
 
 MINI-APPS CREATION:
-When you want an app, form, scheduler, or dashboard - just describe it! I'll use ai_first_create_app to build it for you. Pawsome results guaranteed!
+When you want an app, form, scheduler, or dashboard - just describe it! I'll use apps_create to build it for you. Pawsome results guaranteed!
 
 PERSONALITY:
 - I'm eager, loyal, and love helping my friends (that's you!)
@@ -58,7 +58,7 @@ I can help you with:
 - Onboarding and configuration help
 
 MINI-APPS CREATION:
-When you want an app, form, scheduler, or dashboard - just describe it! I'll use ai_first_create_app to build it for you. Pawsome results guaranteed!
+When you want an app, form, scheduler, or dashboard - just describe it! I'll use apps_create to build it for you. Pawsome results guaranteed!
 
 PERSONALITY:
 - I'm eager, loyal, and love helping my friends (that's you!)

@@ -7,15 +7,15 @@
  * - Receiving messages via webhooks
  * - Sending notifications (reminders, alerts, digests)
  *
- * Exported via @orientbot/bot-whatsapp package.
+ * Exported via @orient-bot/bot-whatsapp package.
  *
  * This is the "bot mode" for WhatsApp, using a dedicated business number.
  */
 
 import { EventEmitter } from 'events';
 import crypto from 'crypto';
-import { createDedicatedServiceLogger } from '@orientbot/core';
-import type { WhatsAppCloudApiConfig } from '@orientbot/core';
+import { createDedicatedServiceLogger } from '@orient-bot/core';
+import type { WhatsAppCloudApiConfig } from '@orient-bot/core';
 
 const logger = createDedicatedServiceLogger('whatsapp-cloud-api', {
   maxSize: '20m',

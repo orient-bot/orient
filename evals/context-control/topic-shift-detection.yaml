@@ -1,0 +1,50 @@
+# Topic Shift Detection Eval
+# Tests the context analyzer's ability to detect when users change topics
+
+name: topic-shift-database-to-weather
+description: Detect topic shift from technical to casual conversation
+type: response_quality
+agent: ori
+
+context:
+  platform: whatsapp
+  chatId: 'test-topic-shift-basic'
+
+input:
+  prompt: "What's the weather going to be like tomorrow?"
+  conversationHistory:
+    - role: user
+      content: 'Help me optimize my PostgreSQL queries'
+    - role: assistant
+      content: 'To optimize PostgreSQL queries, you should look at indexes, query plans...'
+    - role: user
+      content: 'What about table partitioning?'
+    - role: assistant
+      content: 'Table partitioning can help with large datasets...'
+    - role: user
+      content: 'And how do I monitor query performance?'
+    - role: assistant
+      content: 'PostgreSQL has several tools for monitoring...'
+
+expect:
+  assertions:
+    - type: response_mentions
+      values:
+        - '/clear'
+    - type: response_matches
+      pattern: 'new topic|fresh|start'
+
+scoring:
+  llm_judge:
+    enabled: true
+    criteria:
+      - name: topic_shift_detected
+        description: The system correctly identified a topic shift
+        weight: 0.5
+      - name: suggestion_timing
+        description: The suggestion comes at the right time
+        weight: 0.3
+      - name: non_intrusive
+        description: The suggestion is helpful but not disruptive
+        weight: 0.2
+    threshold: 0.7

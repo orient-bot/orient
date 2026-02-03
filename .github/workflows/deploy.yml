@@ -411,6 +411,9 @@ jobs:
             sudo chown -R 1001:1001 "${DATA_DIR}/media" 2>/dev/null || true
             sudo chown -R 1001:1001 "${DATA_DIR}/oauth-tokens" 2>/dev/null || true
             sudo chown -R 1001:1001 "${DEPLOY_DIR}/logs" 2>/dev/null || true
+            # Fix SQLite database and WAL file permissions (critical for v0.2.0+ with SQLite default)
+            # SQLite WAL mode creates .db-shm and .db-wal files that must be owned by container user
+            sudo chown 1001:1001 "${DATA_DIR}"/orient.db* 2>/dev/null || true
             sudo chmod -R 755 "${DATA_DIR}/whatsapp-auth" 2>/dev/null || true
             sudo chmod -R 755 "${DATA_DIR}/media" 2>/dev/null || true
             sudo chmod -R 755 "${DATA_DIR}/oauth-tokens" 2>/dev/null || true
@@ -449,6 +452,9 @@ jobs:
           echo "Configuration synced"
 
       - name: Sync and run database migrations
+        # v0.2.0+ uses SQLite with auto-migrations on startup, so this step is optional
+        # TODO: Remove PostgreSQL migration code when fully migrated to SQLite
+        continue-on-error: true
         env:
           OCI_HOST: ${{ secrets.OCI_HOST }}
           OCI_USER: ${{ secrets.OCI_USER }}
@@ -616,12 +622,13 @@ jobs:
               echo "${{ github.sha }}" > "${BACKUP_DIR}/${TIMESTAMP}/commit.txt"
             fi
 
-            # Stop non-database services (keep postgres running to avoid startup delays)
-            echo "Stopping non-database services..."
-            sudo docker compose ${COMPOSE_FILES} stop nginx bot-whatsapp opencode dashboard bot-slack 2>/dev/null || true
+            # Stop services
+            # v0.2.0: Uses SQLite (no postgres), bot-whatsapp integrated into dashboard
+            echo "Stopping services..."
+            sudo docker compose ${COMPOSE_FILES} stop nginx opencode dashboard bot-slack 2>/dev/null || true
 
-            echo "Removing application containers (preserving postgres)..."
-            sudo docker rm -f orienter-nginx orienter-bot-whatsapp orienter-opencode orienter-bot-slack orienter-dashboard 2>/dev/null || true
+            echo "Removing application containers..."
+            sudo docker rm -f orienter-nginx orienter-opencode orienter-bot-slack orienter-dashboard 2>/dev/null || true
 
             echo "Cleaning up orphaned containers..."
             sudo docker container prune -f 2>/dev/null || true
@@ -635,34 +642,11 @@ jobs:
               sudo docker images | grep -E "orient|orienter" | head -10
             }
 
-            # Ensure postgres is running before starting other services
-            echo "Ensuring PostgreSQL is running..."
-            if ! sudo docker ps --format '{{.Names}}' | grep -qx "orienter-postgres"; then
-              echo "  Starting postgres..."
-              sudo docker compose --env-file "${DEPLOY_DIR}/.env" ${COMPOSE_FILES} up -d postgres
-            else
-              echo "  PostgreSQL already running"
-            fi
-
-            # Get database credentials from .env
-            DB_USER=$(grep '^POSTGRES_USER=' "${DEPLOY_DIR}/.env" | cut -d= -f2 | tr -d '"' || echo "aibot")
-            DB_NAME=$(grep '^POSTGRES_DB=' "${DEPLOY_DIR}/.env" | cut -d= -f2 | tr -d '"' || echo "whatsapp_bot")
-
-            # Wait for database to be fully accessible (not just pg_isready)
-            echo "Waiting for database to be accessible..."
-            for i in {1..30}; do
-              if sudo docker exec orienter-postgres psql -U "$DB_USER" -d "$DB_NAME" -c "SELECT 1" > /dev/null 2>&1; then
-                echo "  Database '$DB_NAME' is accessible"
-                break
-              fi
-              if [ $i -eq 30 ]; then
-                echo "  WARNING: Database may not be fully ready, proceeding anyway"
-              fi
-              sleep 2
-            done
+            # v0.2.0: SQLite is used, no PostgreSQL needed
+            # SQLite migrations are handled automatically on dashboard startup
 
             # Start services in stages to avoid health check race conditions
-            # Stage 1: Start backend services (depends on postgres being ready)
+            # Stage 1: Start backend services
             echo "Starting backend services (dashboard, opencode)..."
             sudo docker compose --env-file "${DEPLOY_DIR}/.env" ${COMPOSE_FILES} up -d dashboard opencode
 
@@ -679,22 +663,8 @@ jobs:
               sleep 3
             done
 
-            # Stage 2: Start bot services
-            echo "Starting bot services..."
-            sudo docker compose --env-file "${DEPLOY_DIR}/.env" ${COMPOSE_FILES} up -d bot-whatsapp
-
-            # Wait for bot service
-            echo "Waiting for bot services..."
-            for i in {1..20}; do
-              bot_health=$(sudo docker inspect --format='{{.State.Health.Status}}' orienter-bot-whatsapp 2>/dev/null || echo "starting")
-              if [[ "$bot_health" == "healthy" ]]; then
-                echo "  Bot services healthy"
-                break
-              fi
-              sleep 3
-            done
-
-            # Stage 3: Start nginx (depends on all other services)
+            # Stage 2: Start nginx (v0.2.0: bot-whatsapp is now integrated into dashboard)
+            # Note: bot-slack is optional and started separately if configured
             echo "Starting nginx..."
             sudo docker compose --env-file "${DEPLOY_DIR}/.env" ${COMPOSE_FILES} up -d nginx
 

@@ -7,10 +7,11 @@
  */
 
 import { Router, Request, Response as ExpressResponse } from 'express';
-import { createServiceLogger } from '@orientbot/core';
-import { createSecretsService } from '@orientbot/database-services';
+import { getParam } from './paramUtils.js';
+import { createServiceLogger, DEFAULT_AGENT } from '@orient-bot/core';
+import { createSecretsService } from '@orient-bot/database-services';
 import type { AuthenticatedRequest } from '../../auth.js';
-import type { MessageDatabase } from '@orientbot/database-services';
+import type { MessageDatabase } from '@orient-bot/database-services';
 
 const logger = createServiceLogger('onboarder-routes');
 const secretsService = createSecretsService();
@@ -51,6 +52,13 @@ function parseActions(content: string): { cleanContent: string; actions: Onboard
 
 type FetchResponse = globalThis.Response;
 
+function getAuthHeaders(): Record<string, string> {
+  const password = process.env.OPENCODE_SERVER_PASSWORD;
+  if (!password) return {};
+  const credentials = Buffer.from(`opencode:${password}`).toString('base64');
+  return { Authorization: `Basic ${credentials}` };
+}
+
 async function opencodeFetch(path: string, options?: RequestInit): Promise<FetchResponse> {
   const baseUrl = getOpenCodeUrl();
   if (!baseUrl) {
@@ -61,6 +69,10 @@ async function opencodeFetch(path: string, options?: RequestInit): Promise<Fetch
   try {
     return await fetch(`${baseUrl}${path}`, {
       ...options,
+      headers: {
+        ...options?.headers,
+        ...getAuthHeaders(),
+      },
       signal: controller.signal,
     });
   } catch (error) {
@@ -297,7 +309,7 @@ export function createOnboarderRoutes(
           return;
         }
 
-        const { sessionId } = req.params;
+        const sessionId = getParam(req.params.sessionId);
         const success = await db.setActiveOnboarderSession(req.user.userId, sessionId);
 
         if (!success) {
@@ -368,7 +380,10 @@ export function createOnboarderRoutes(
 
   router.get('/suggestions', requireAuth, async (req: Request, res: ExpressResponse) => {
     try {
-      const route = typeof req.query.route === 'string' ? req.query.route : null;
+      const route =
+        typeof getParam(req.query.route as string | string[] | undefined) === 'string'
+          ? getParam(req.query.route as string | string[] | undefined)
+          : null;
       const suggestions = getSuggestions(route);
       res.json({ suggestions });
     } catch (error) {
@@ -394,7 +409,7 @@ export function createOnboarderRoutes(
 
       const contextPrefix = route ? `Context: ${route}\n\n` : '';
       const prompt = `${contextPrefix}${message}`;
-      const agentId = typeof agent === 'string' ? agent : 'onboarder';
+      const agentId = typeof agent === 'string' ? agent : DEFAULT_AGENT;
 
       let sessionId = providedSessionId as string | undefined;
       if (!sessionId) {

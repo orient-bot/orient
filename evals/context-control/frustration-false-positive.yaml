@@ -1,0 +1,31 @@
+# Frustration False Positive Test
+# Should NOT detect frustration for "forget password" queries
+
+name: frustration-false-positive-forget-password
+description: Should NOT detect frustration for forget password queries
+type: response_quality
+agent: ori
+
+context:
+  platform: whatsapp
+  chatId: 'test-forget-password'
+
+input:
+  prompt: 'I forgot my password, how do I reset it?'
+
+expect:
+  assertions:
+    - type: response_matches
+      pattern: 'password|reset|recovery|email'
+
+scoring:
+  llm_judge:
+    enabled: true
+    criteria:
+      - name: no_false_positive
+        description: The system did NOT incorrectly detect frustration
+        weight: 0.6
+      - name: helpful_response
+        description: The response is helpful about password reset
+        weight: 0.4
+    threshold: 0.7

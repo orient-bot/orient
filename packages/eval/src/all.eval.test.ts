@@ -2,7 +2,13 @@
  * All Evals Test Suite
  *
  * Runs all eval cases as Vitest tests.
- * Use: npm run test:eval
+ *
+ * Requirements:
+ * 1. ANTHROPIC_API_KEY must be set
+ * 2. Development server must be running (`./run.sh dev start`)
+ *    - OpenCode server at localhost:4099
+ *
+ * Usage: ANTHROPIC_API_KEY=xxx npm run test:eval
  */
 
 import * as path from 'path';

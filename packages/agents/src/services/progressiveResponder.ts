@@ -2,11 +2,11 @@
  * Progressive Responder
  *
  * Provides progressive feedback to users during long-running operations.
- * This module is self-contained within @orientbot/agents to avoid cross-package
+ * This module is self-contained within @orient-bot/agents to avoid cross-package
  * import issues in dev mode.
  */
 
-import { createServiceLogger } from '@orientbot/core';
+import { createServiceLogger } from '@orient-bot/core';
 
 const logger = createServiceLogger('progressive-responder');
 

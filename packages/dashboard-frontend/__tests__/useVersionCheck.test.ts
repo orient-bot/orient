@@ -29,7 +29,7 @@ describe('useVersionCheck', () => {
     currentVersion: '1.0.0',
     latestVersion: '1.1.0',
     updateAvailable: true,
-    changelogUrl: 'https://github.com/orient-bot/orient/releases',
+    changelogUrl: 'https://github.com/orient/orient/releases',
     updateInstructions: null,
     lastChecked: new Date().toISOString(),
     shouldShowNotification: true,

@@ -175,12 +175,14 @@ docker compose -f docker-compose.v2.yml -f docker-compose.prod.yml -f docker-com
 
 The v2 compose uses specific service names:
 
-| Service   | V2 Service Name | Container Name        |
-| --------- | --------------- | --------------------- |
-| WhatsApp  | bot-whatsapp    | orienter-bot-whatsapp |
-| Slack     | bot-slack       | orienter-bot-slack    |
-| OpenCode  | opencode        | orienter-opencode     |
-| Dashboard | dashboard       | orienter-dashboard    |
+| Service   | V2 Service Name | Container Name     | Notes                         |
+| --------- | --------------- | ------------------ | ----------------------------- |
+| Dashboard | dashboard       | orienter-dashboard | Includes WhatsApp integration |
+| OpenCode  | opencode        | orienter-opencode  |                               |
+| Slack     | bot-slack       | orienter-bot-slack | Optional                      |
+| Nginx     | nginx           | orienter-nginx     |                               |
+
+**v0.2.0 Architecture Change**: WhatsApp is now integrated into the dashboard service. There is no separate `bot-whatsapp` service in v0.2.0.
 
 ### 3. Environment Variables & GitHub Secrets
 
@@ -512,9 +514,103 @@ cat ~/.ssh/id_rsa | pbcopy
    gh auth token | sudo docker login ghcr.io -u orient-bot --password-stdin
    ```
 
-### Database Migration Failures
+### SQLite Database (v0.2.0+)
 
-The database is now SQLite-based, which simplifies migrations significantly. Migrations are run automatically on startup.
+Orient v0.2.0 uses SQLite instead of PostgreSQL, which simplifies deployment significantly.
+
+#### How Migrations Work
+
+1. **Automatic on startup**: The dashboard container automatically applies Drizzle migrations when it starts
+2. **Migration files**: Located in `packages/database/drizzle/sqlite/`
+3. **Migrations table**: Drizzle creates `__drizzle_migrations` to track applied migrations
+
+#### Database Location
+
+- **In container**: `/app/data/orient.db`
+- **On host**: `~/orient/data/orient.db`
+- **Volume mount**: `~/orient/data` → `/app/data`
+
+#### Common SQLite Issues
+
+**Read-only database error**:
+
+```
+SqliteError: attempt to write a readonly database
+```
+
+**Cause**: The database file or WAL files aren't writable by the nodejs user (UID 1001).
+
+**CRITICAL**: SQLite uses Write-Ahead Logging (WAL) which creates `.db-shm` and `.db-wal` files. ALL THREE files must be owned by UID 1001:
+
+```bash
+# Check current ownership
+ssh opc@152.70.172.33 "ls -la ~/orient/data/orient.db*"
+
+# Fix ALL SQLite files (main db + WAL files)
+ssh opc@152.70.172.33 "sudo chown 1001:1001 ~/orient/data/orient.db* ~/orient/data/"
+
+# Restart dashboard
+ssh opc@152.70.172.33 "cd ~/orient/docker && sudo docker compose --env-file ../.env -f docker-compose.v2.yml -f docker-compose.prod.yml -f docker-compose.r2.yml restart dashboard"
+```
+
+**Why this happens**: Manual database access (e.g., using `sqlite3` via alpine container) creates WAL files owned by root or opc, making the database read-only for the container.
+
+**No such table error**:
+
+```
+SqliteError: no such table: scheduled_jobs
+```
+
+**Cause**: Drizzle auto-migration failed. This can happen if the migrations table syntax is incompatible.
+
+**Manual Migration Recovery**:
+
+```bash
+ssh opc@152.70.172.33 '
+# Get migration SQL from container
+sudo docker run --rm ghcr.io/orient-core/orient/dashboard:latest \
+  cat /app/packages/database/drizzle/sqlite/0000_many_william_stryker.sql > /tmp/migration.sql
+
+# Apply using alpine container with sqlite
+sudo docker run --rm -v ~/orient/data:/data -v /tmp/migration.sql:/tmp/migration.sql alpine sh -c "
+  apk add --no-cache sqlite > /dev/null 2>&1
+  cd /data
+
+  # Create migrations tracking table
+  sqlite3 orient.db \"CREATE TABLE IF NOT EXISTS __drizzle_migrations (id INTEGER PRIMARY KEY AUTOINCREMENT, hash TEXT NOT NULL, created_at INTEGER);\"
+
+  # Apply the migration
+  grep -v \"^-->\" /tmp/migration.sql | sqlite3 orient.db
+
+  # Mark migration as applied
+  sqlite3 orient.db \"INSERT OR IGNORE INTO __drizzle_migrations (hash, created_at) VALUES ('\''0000_many_william_stryker'\'', strftime('\''%s'\'', '\''now'\''));\"
+
+  echo \"Tables created:\"
+  sqlite3 orient.db \".tables\"
+"
+
+# Fix permissions and restart
+sudo chown 1001:1001 ~/orient/data/orient.db
+sudo docker restart orienter-dashboard
+'
+```
+
+#### Verifying Database Health
+
+```bash
+# Check database file exists and has correct permissions
+ssh opc@152.70.172.33 "ls -la ~/orient/data/orient.db"
+
+# List tables in database
+ssh opc@152.70.172.33 "sudo docker run --rm -v ~/orient/data:/data alpine sh -c 'apk add sqlite > /dev/null; sqlite3 /data/orient.db .tables'"
+
+# Check migration status
+ssh opc@152.70.172.33 "sudo docker run --rm -v ~/orient/data:/data alpine sh -c 'apk add sqlite > /dev/null; sqlite3 /data/orient.db \"SELECT * FROM __drizzle_migrations\"'"
+```
+
+### Database Migration Failures (Legacy PostgreSQL)
+
+**Note**: v0.2.0+ uses SQLite. This section is for legacy PostgreSQL deployments only.
 
 **If migrations fail**, check the logs:
 
@@ -718,14 +814,24 @@ sudo $COMPOSE up -d
 
 ### WhatsApp Pairing Issues After Deploy
 
+**v0.2.0+**: WhatsApp is integrated into the dashboard service.
+
 ```bash
 # Container restart usually fixes pairing issues
-docker restart orienter-bot-whatsapp
+docker restart orienter-dashboard
 
 # Full reset if needed (clears session)
 rm -rf ~/orient/data/whatsapp-auth/*
-docker restart orienter-bot-whatsapp
+docker restart orienter-dashboard
+
+# Check WhatsApp logs within dashboard
+docker logs orienter-dashboard --tail 100 | grep -i whatsapp
 ```
+
+**Access QR code for pairing**:
+
+- URL: https://app.orient.bot/qr/
+- Or via API: https://app.orient.bot/api/whatsapp/qr
 
 ### Health Endpoint Testing
 

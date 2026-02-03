@@ -2,11 +2,12 @@
  * Agents Routes
  *
  * API endpoints for agent registry management.
- * Uses @orientbot/database for Drizzle ORM integration.
+ * Uses @orient-bot/database for Drizzle ORM integration.
  */
 
 import { Router, Request, Response } from 'express';
-import { createServiceLogger } from '@orientbot/core';
+import { getParam } from './paramUtils.js';
+import { createServiceLogger } from '@orient-bot/core';
 import {
   getDatabase,
   agents,
@@ -16,7 +17,7 @@ import {
   eq,
   and,
   desc,
-} from '@orientbot/database';
+} from '@orient-bot/database';
 import { AuthenticatedRequest } from '../../auth.js';
 
 const logger = createServiceLogger('agents-routes');
@@ -203,7 +204,7 @@ export function createAgentsRoutes(
   router.get('/:id', requireAuth, async (req: Request, res: Response) => {
     try {
       const db = await getDb();
-      const { id } = req.params;
+      const id = getParam(req.params.id);
 
       const [agent] = await db.select().from(agents).where(eq(agents.id, id));
 
@@ -279,7 +280,7 @@ export function createAgentsRoutes(
   router.patch('/:id', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
     try {
       const db = await getDb();
-      const { id } = req.params;
+      const id = getParam(req.params.id);
       const updates = req.body;
 
       // Check agent exists
@@ -317,7 +318,7 @@ export function createAgentsRoutes(
   router.delete('/:id', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
     try {
       const db = await getDb();
-      const { id } = req.params;
+      const id = getParam(req.params.id);
 
       // Check agent exists
       const [existing] = await db.select().from(agents).where(eq(agents.id, id));
@@ -347,7 +348,7 @@ export function createAgentsRoutes(
   router.post('/:id/toggle', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
     try {
       const db = await getDb();
-      const { id } = req.params;
+      const id = getParam(req.params.id);
       const { enabled } = req.body;
 
       if (typeof enabled !== 'boolean') {
@@ -377,7 +378,7 @@ export function createAgentsRoutes(
   router.get('/:id/skills', requireAuth, async (req: Request, res: Response) => {
     try {
       const db = await getDb();
-      const { id } = req.params;
+      const id = getParam(req.params.id);
       const skills = await db.select().from(agentSkills).where(eq(agentSkills.agentId, id));
       res.json({
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -395,7 +396,7 @@ export function createAgentsRoutes(
   router.put('/:id/skills', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
     try {
       const db = await getDb();
-      const { id } = req.params;
+      const id = getParam(req.params.id);
       const { skills } = req.body;
 
       if (!Array.isArray(skills)) {
@@ -434,7 +435,7 @@ export function createAgentsRoutes(
   router.get('/:id/tools', requireAuth, async (req: Request, res: Response) => {
     try {
       const db = await getDb();
-      const { id } = req.params;
+      const id = getParam(req.params.id);
       const tools = await db.select().from(agentTools).where(eq(agentTools.agentId, id));
       res.json({
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -456,7 +457,7 @@ export function createAgentsRoutes(
   router.put('/:id/tools', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
     try {
       const db = await getDb();
-      const { id } = req.params;
+      const id = getParam(req.params.id);
       const allowTools = req.body.allowTools ?? req.body.allow ?? [];
       const denyTools = req.body.denyTools ?? req.body.deny ?? [];
       const askTools = req.body.askTools ?? req.body.ask ?? [];
@@ -537,7 +538,7 @@ export function createAgentsRoutes(
     requireAuth,
     async (req: AuthenticatedRequest, res: Response) => {
       try {
-        const { id } = req.params;
+        const id = getParam(req.params.id);
         const ruleId = parseInt(id, 10);
 
         if (isNaN(ruleId)) {

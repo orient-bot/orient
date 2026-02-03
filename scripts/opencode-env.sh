@@ -25,7 +25,9 @@ configure_opencode_isolation() {
 
     # Create isolation directories
     # OpenCode expects these subdirectories under XDG paths
+    # Note: data/opencode is where mcp-auth.json is stored (OAuth tokens)
     mkdir -p "$opencode_home/data/opencode/storage"
+    mkdir -p "$opencode_home/data/opencode"  # Parent dir for mcp-auth.json
     mkdir -p "$opencode_home/config/opencode"
     mkdir -p "$opencode_home/cache/opencode"
     mkdir -p "$opencode_home/state/opencode"

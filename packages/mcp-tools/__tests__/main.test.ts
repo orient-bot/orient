@@ -7,7 +7,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // Mock dependencies before imports
-vi.mock('@orientbot/core', () => ({
+vi.mock('@orient-bot/core', () => ({
   createServiceLogger: () => ({
     info: vi.fn(),
     error: vi.fn(),
@@ -20,25 +20,12 @@ vi.mock('@orientbot/core', () => ({
   }),
   loadConfig: vi.fn().mockResolvedValue(undefined),
   getConfig: vi.fn().mockReturnValue({
-    integrations: {
-      jira: { host: 'test.atlassian.net', email: 'test@test.com', apiToken: 'token' },
-    },
     organization: {
       name: 'Test Org',
       jiraProjectKey: 'TEST',
     },
   }),
 }));
-
-vi.mock('jira.js', () => {
-  return {
-    Version3Client: class MockVersion3Client {
-      issues = {
-        searchForIssuesUsingJql: vi.fn().mockResolvedValue({ issues: [] }),
-      };
-    },
-  };
-});
 
 import { resetToolRegistry } from '../src/registry/index.js';
 
@@ -108,18 +95,17 @@ describe('MCP Tools Entry Point', () => {
 
       registry.registerTool({
         tool: {
-          name: 'jira_get_issues',
-          description: 'Get JIRA issues',
+          name: 'system_get_issues',
+          description: 'Get system issues',
           inputSchema: { type: 'object', properties: {} },
         },
-        category: 'jira',
-        keywords: ['jira', 'issues', 'tickets'],
+        category: 'system',
+        keywords: ['issues', 'tickets'],
         useCases: ['list issues', 'get tickets'],
       });
-
-      const results = registry.searchTools('jira issues');
+      const results = registry.searchTools('issues');
       expect(results.length).toBeGreaterThan(0);
-      expect(results[0].tool.tool.name).toBe('jira_get_issues');
+      expect(results[0].tool.tool.name).toBe('system_get_issues');
     });
 
     it('should get tools by category', async () => {
@@ -150,7 +136,6 @@ describe('MCP Tools Entry Point', () => {
       const categories = registry.getAllCategories();
 
       expect(categories.length).toBeGreaterThan(0);
-      expect(categories.map((c) => c.name)).toContain('jira');
       expect(categories.map((c) => c.name)).toContain('messaging');
       expect(categories.map((c) => c.name)).toContain('system');
     });
@@ -159,7 +144,7 @@ describe('MCP Tools Entry Point', () => {
   describe('ToolContext', () => {
     it('should create context with config', async () => {
       const { createToolContext } = await import('../src/tools/context.js');
-      const { getConfig } = await import('@orientbot/core');
+      const { getConfig } = await import('@orient-bot/core');
 
       const config = getConfig();
       const context = createToolContext(config);
@@ -167,12 +152,11 @@ describe('MCP Tools Entry Point', () => {
       expect(context).toBeDefined();
       expect(context.config).toBe(config);
       expect(context.correlationId).toBeDefined();
-      expect(context.jiraClient).toBeDefined();
     });
 
     it('should accept custom correlation ID', async () => {
       const { createToolContext } = await import('../src/tools/context.js');
-      const { getConfig } = await import('@orientbot/core');
+      const { getConfig } = await import('@orient-bot/core');
 
       const config = getConfig();
       const context = createToolContext(config, {
@@ -187,7 +171,7 @@ describe('MCP Tools Entry Point', () => {
     it('should register handler and execute', async () => {
       const { getToolRegistry } = await import('../src/registry/index.js');
       const { createToolContext } = await import('../src/tools/context.js');
-      const { getConfig } = await import('@orientbot/core');
+      const { getConfig } = await import('@orient-bot/core');
 
       const registry = getToolRegistry();
 

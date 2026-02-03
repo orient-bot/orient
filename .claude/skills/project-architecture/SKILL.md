@@ -26,13 +26,13 @@ Orient is a **pnpm monorepo** implementing an AI-powered project management syst
 │   ┌─────────────────────────────────────────────────────────────────────┐   │
 │   │                   OpenCode Server (AI Processing)                    │   │
 │   │    ├── coding-server  (MCP for dev tasks)                           │   │
-│   │    ├── assistant-server (MCP for JIRA, Slack, Messaging, Calendar)  │   │
+│   │    ├── assistant-server (MCP for Slack, WhatsApp, Google, Docs)     │   │
 │   │    └── core-server (MCP for skills, system, agents)                 │   │
 │   └──────────────────────────────┬──────────────────────────────────────┘   │
 │                                  ▼                                           │
 │   ┌─────────────────┐ ┌─────────────────┐ ┌─────────────────┐               │
 │   │   SQLite DB     │ │ Object Storage  │ │ External APIs   │               │
-│   │ (Drizzle ORM)   │ │ (MinIO / R2)    │ │ (JIRA, Google)  │               │
+│   │ (Drizzle ORM)   │ │ (MinIO / R2)    │ │ (Atlassian, Google) │           │
 │   └─────────────────┘ └─────────────────┘ └─────────────────┘               │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -49,7 +49,7 @@ orient/
 │   ├── core/                  # Shared utilities, config, logging, types
 │   ├── database/              # Drizzle ORM schemas (SQLite)
 │   ├── database-services/     # DB service implementations
-│   ├── integrations/          # External integrations (JIRA, GitHub, Google)
+│   ├── integrations/          # External integrations (GitHub, Google, Linear)
 │   ├── bot-whatsapp/          # WhatsApp bot (Baileys) - integrated into Dashboard
 │   ├── bot-slack/             # Slack bot (Bolt)
 │   ├── api-gateway/           # REST API, webhooks, schedulers
@@ -66,31 +66,31 @@ orient/
 
 ## Package Descriptions
 
-| Package                        | Status     | Description                                                                |
-| ------------------------------ | ---------- | -------------------------------------------------------------------------- |
-| `@orientbot/core`              | Stable     | Config loading, logging (`winston`), base types                            |
-| `@orientbot/database`          | Stable     | Drizzle ORM schemas, SQLite client                                         |
-| `@orientbot/database-services` | Stable     | `MessageDatabase`, `SlackDatabase`, `SchedulerDatabase`, `WebhookDatabase` |
-| `@orientbot/agents`            | Stable     | Agent registry, skills service, prompts, tool permissions                  |
-| `@orientbot/apps`              | Stable     | Mini-apps manifests, types, validation, edit sessions                      |
-| `@orientbot/mcp-servers`       | Types Only | MCP server type definitions (impl in `src/mcp-servers/`)                   |
-| `@orientbot/mcp-tools`         | Stable     | MCP tool registry & definitions                                            |
-| `@orientbot/integrations`      | Stable     | JIRA, GitHub, Google (Sheets, Slides, Gmail, Calendar)                     |
-| `@orientbot/bot-whatsapp`      | Stable     | WhatsApp bot using Baileys (integrated into Dashboard)                     |
-| `@orientbot/bot-slack`         | Stable     | Slack bot using Bolt                                                       |
-| `@orientbot/api-gateway`       | Stable     | REST API, webhooks                                                         |
-| `@orientbot/dashboard`         | Stable     | Admin dashboard (React + Express) + WhatsApp API routes                    |
-| `@orientbot/test-utils`        | Stable     | Test factories, mocks, DB helpers                                          |
+| Package                     | Status        | Description                                                                |
+| --------------------------- | ------------- | -------------------------------------------------------------------------- |
+| `@orient/core`              | ✅ Stable     | Config loading, logging (`winston`), base types                            |
+| `@orient/database`          | ✅ Stable     | Drizzle ORM schemas, SQLite client                                         |
+| `@orient/database-services` | ✅ Stable     | `MessageDatabase`, `SlackDatabase`, `SchedulerDatabase`, `WebhookDatabase` |
+| `@orient/agents`            | ✅ Stable     | Agent registry, skills service, prompts, tool permissions                  |
+| `@orient/apps`              | ✅ Stable     | Mini-apps manifests, types, validation, edit sessions                      |
+| `@orient/mcp-servers`       | 🚧 Types Only | MCP server type definitions (impl in `src/mcp-servers/`)                   |
+| `@orient/mcp-tools`         | ✅ Stable     | MCP tool registry & definitions                                            |
+| `@orient/integrations`      | ✅ Stable     | GitHub, Google (Sheets, Slides, Gmail, Calendar), Linear, Gemini           |
+| `@orient/bot-whatsapp`      | ✅ Stable     | WhatsApp bot using Baileys (integrated into Dashboard)                     |
+| `@orient/bot-slack`         | ✅ Stable     | Slack bot using Bolt                                                       |
+| `@orient/api-gateway`       | ✅ Stable     | REST API, webhooks                                                         |
+| `@orient/dashboard`         | ✅ Stable     | Admin dashboard (React + Express) + WhatsApp API routes                    |
+| `@orient/test-utils`        | ✅ Stable     | Test factories, mocks, DB helpers                                          |
 
 ## Multi-MCP-Server Architecture
 
 Orient implements three specialized MCP servers, replacing the legacy monolithic server:
 
-| Server               | Purpose              | Key Tools                                                        |
-| -------------------- | -------------------- | ---------------------------------------------------------------- |
-| **coding-server**    | Development tasks    | `ai_first_slides_*`, `ai_first_create_app`, Agent tools          |
-| **assistant-server** | Full PM capabilities | All JIRA tools, Slack/WhatsApp, Google (Calendar, Gmail), Sheets |
-| **core-server**      | System & skills      | `ai_first_list_skills`, `ai_first_health_check`, Agent tools     |
+| Server               | Purpose              | Key Tools                                                    |
+| -------------------- | -------------------- | ------------------------------------------------------------ |
+| **coding-server**    | Development tasks    | `ai_first_slides_*`, `ai_first_create_app`, Agent tools      |
+| **assistant-server** | Full PM capabilities | Slack/WhatsApp, Google (Calendar, Gmail), Sheets             |
+| **core-server**      | System & skills      | `ai_first_list_skills`, `ai_first_health_check`, Agent tools |
 
 All servers share the `discover_tools` tool for dynamic capability discovery.
 
@@ -129,14 +129,14 @@ Agents are managed via the **Dashboard UI** and stored in SQLite. The `@orientbo
 
 ### Default Agents
 
-| Agent          | Description                                          |
-| -------------- | ---------------------------------------------------- |
-| `pm-assistant` | Primary agent for JIRA, meetings, project management |
-| `communicator` | Slack/WhatsApp messaging with proper formatting      |
-| `scheduler`    | Calendar management, reminders                       |
-| `explorer`     | Fast codebase exploration, documentation lookup      |
-| `app-builder`  | Create Mini-Apps via PR workflow                     |
-| `onboarder`    | Guides new users through setup                       |
+| Agent          | Description                                       |
+| -------------- | ------------------------------------------------- |
+| `pm-assistant` | Primary agent for meetings and project management |
+| `communicator` | Slack/WhatsApp messaging with proper formatting   |
+| `scheduler`    | Calendar management, reminders                    |
+| `explorer`     | Fast codebase exploration, documentation lookup   |
+| `app-builder`  | Create Mini-Apps via PR workflow                  |
+| `onboarder`    | Guides new users through setup                    |
 
 ### Agent Mentions
 
@@ -187,7 +187,7 @@ Allows generating small React apps via AI prompts, managed through Git worktrees
 3. Send to OpenCode server (MCP) for AI processing
         │
         ▼
-4. OpenCode uses MCP tools (JIRA, Slides, etc.)
+4. OpenCode uses MCP tools (Atlassian, Slides, etc.)
         │
         ▼
 5. Return response to user

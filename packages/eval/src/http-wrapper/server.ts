@@ -8,7 +8,7 @@
 import express, { Express, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import { createServer, Server } from 'http';
-import { createServiceLogger } from '@orientbot/core';
+import { createServiceLogger } from '@orient-bot/core';
 import { createEvalRoutes } from './routes.js';
 import { EvalServerConfig } from '../types.js';
 
@@ -66,7 +66,7 @@ export class EvalServer {
    */
   private setupRoutes(): void {
     // Mount eval routes under /api/eval
-    this.app.use('/api/eval', createEvalRoutes());
+    this.app.use('/api/eval', createEvalRoutes({ openCodePassword: this.config.openCodePassword }));
 
     // Root health check
     this.app.get('/health', (_req: Request, res: Response) => {
@@ -175,6 +175,7 @@ export async function startEvalServer(config: Partial<EvalServerConfig> = {}): P
   const fullConfig: EvalServerConfig = {
     port: config.port ?? 0, // 0 = auto-assign
     debug: config.debug ?? false,
+    openCodePassword: config.openCodePassword,
   };
 
   const server = new EvalServer(fullConfig);

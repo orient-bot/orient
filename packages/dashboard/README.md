@@ -1,4 +1,4 @@
-# @orientbot/dashboard
+# @orient-bot/dashboard
 
 Dashboard package for the Orient.
 
@@ -13,7 +13,7 @@ Dashboard package for the Orient.
 ## Installation
 
 ```bash
-pnpm add @orientbot/dashboard
+pnpm add @orient-bot/dashboard
 ```
 
 ## Usage
@@ -21,7 +21,7 @@ pnpm add @orientbot/dashboard
 ### Starting the Server
 
 ```typescript
-import { startDashboardServer } from '@orientbot/dashboard';
+import { startDashboardServer } from '@orient-bot/dashboard';
 
 await startDashboardServer({
   port: 3001,
@@ -33,7 +33,7 @@ await startDashboardServer({
 
 ```typescript
 import express from 'express';
-import { createDashboardRouter } from '@orientbot/dashboard/server';
+import { createDashboardRouter } from '@orient-bot/dashboard/server';
 
 const app = express();
 app.use('/dashboard/api', createDashboardRouter());
@@ -59,7 +59,7 @@ import type {
   ChatConfig,
   ScheduledMessage,
   AuditLogEntry,
-} from '@orientbot/dashboard';
+} from '@orient-bot/dashboard';
 ```
 
 ## Development

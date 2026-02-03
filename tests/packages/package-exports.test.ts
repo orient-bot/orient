@@ -149,7 +149,7 @@ describe('Cross-Package Dependencies', () => {
   const criticalPackages = ['database', 'core', 'database-services'];
 
   it.each(criticalPackages)(
-    '@orientbot/%s should have complete exports configuration',
+    '@orient-bot/%s should have complete exports configuration',
     (pkgName) => {
       const pkgDir = join(PACKAGES_DIR, pkgName);
 
@@ -210,7 +210,7 @@ describe('Build Artifacts', () => {
 });
 
 describe('Import Resolution Simulation', () => {
-  it('should be able to resolve @orientbot/database from @orientbot/database-services', async () => {
+  it('should be able to resolve @orient-bot/database from @orient-bot/database-services', async () => {
     // Simulate the resolution path that tsx uses
     const dbServicesDir = join(PACKAGES_DIR, 'database-services');
     const dbServicesNodeModules = join(dbServicesDir, 'node_modules', '@orient', 'database');

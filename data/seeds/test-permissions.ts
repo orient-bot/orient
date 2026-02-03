@@ -5,8 +5,8 @@
  * Run with: npx tsx data/seeds/test-permissions.ts
  */
 
-import { getDatabase, chatPermissions, slackChannelPermissions } from '@orientbot/database';
-import { createServiceLogger } from '@orientbot/core';
+import { getDatabase, chatPermissions, slackChannelPermissions } from '@orient-bot/database';
+import { createServiceLogger } from '@orient-bot/core';
 
 const logger = createServiceLogger('test-permissions-seed');
 

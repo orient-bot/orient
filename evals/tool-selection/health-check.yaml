@@ -8,7 +8,7 @@ input:
 
 mocks:
   jira:
-    ai_first_health_check:
+    system_health_check:
       response:
         status: ok
         jira:
@@ -23,7 +23,7 @@ mocks:
 expect:
   tool_calls:
     required:
-      - name: ai_first_health_check
+      - name: system_health_check
 
   assertions:
     # Check response discusses system health

@@ -1,592 +1,271 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
-# Orient Local Installer (for testing)
+# Install OpenCode from bundled binary (local development)
 #
-# Usage: ./installer/install-local.sh
+# This script installs the bundled OpenCode binary to ~/.opencode/bin/
+# ensuring the local development environment uses the same version
+# that's bundled with the repo (tracked via Git LFS).
 #
-# This version copies from local source instead of cloning from GitHub.
+# Usage:
+#   ./installer/install-local.sh           # Install bundled binary
+#   ./installer/install-local.sh --check   # Check versions only
+#   ./installer/install-local.sh --force   # Force reinstall
 #
 
-set -e
+set -euo pipefail
 
-# Get the directory where this script is located
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SOURCE_DIR="$(dirname "$SCRIPT_DIR")"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+VENDOR_DIR="$REPO_ROOT/vendor/opencode"
+MANIFEST_FILE="$VENDOR_DIR/manifest.json"
+INSTALL_DIR="$HOME/.opencode/bin"
 
-# Version
-ORIENT_VERSION="0.2.0"
-
-# Installation directory
-INSTALL_DIR="${ORIENT_HOME:-$HOME/.orient}"
-
-# Colors for output
+# Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
-NC='\033[0m' # No Color
-
-# Logging functions
-log() {
-    echo -e "${GREEN}[orient]${NC} $1"
-}
-
-warn() {
-    echo -e "${YELLOW}[orient]${NC} $1"
-}
-
-error() {
-    echo -e "${RED}[orient]${NC} $1"
-    exit 1
-}
-
-info() {
-    echo -e "${BLUE}[orient]${NC} $1"
-}
-
-# ============================================
-# PREREQUISITE CHECKS
-# ============================================
-
-check_prerequisites() {
-    log "Checking prerequisites..."
-
-    # macOS only
-    if [[ "$(uname)" != "Darwin" ]]; then
-        error "This installer is for macOS only."
-    fi
-
-    # Node.js 20+
-    if ! command -v node &>/dev/null; then
-        error "Node.js not found. Install with: brew install node@20"
-    fi
-
-    local node_version=$(node -v | cut -d. -f1 | tr -d 'v')
-    if [[ "$node_version" -lt 20 ]]; then
-        error "Node.js 20+ required (found: $(node -v))"
-    fi
-    log "Node.js $(node -v) ✓"
-
-    # pnpm
-    if ! command -v pnpm &>/dev/null; then
-        error "pnpm not found. Install with: npm install -g pnpm"
-    fi
-    log "pnpm $(pnpm -v) ✓"
-
-    # PM2
-    if ! command -v pm2 &>/dev/null; then
-        log "Installing PM2..."
-        npm install -g pm2
-    fi
-    log "PM2 $(pm2 -v) ✓"
-
-    # OpenCode CLI (for AI agent capabilities)
-    if ! command -v opencode &>/dev/null; then
-        # Check common installation locations
-        if [[ -x "$HOME/.opencode/bin/opencode" ]]; then
-            log "OpenCode found at ~/.opencode/bin/opencode ✓"
-        else
-            warn "OpenCode CLI not found. AI agent features will be disabled."
-            warn "Install with: curl -fsSL https://opencode.ai/install.sh | bash"
-        fi
-    else
-        log "OpenCode $(opencode --version 2>/dev/null || echo 'installed') ✓"
-    fi
-}
-
-# ============================================
-# INSTALLATION (LOCAL COPY)
-# ============================================
-
-install_orient() {
-    log "Installing Orient from local source..."
-    log "Source: $SOURCE_DIR"
-    log "Target: $INSTALL_DIR"
-
-    # Create directory structure
-    mkdir -p "$INSTALL_DIR"/{data/sqlite,data/media,data/whatsapp-auth,logs,bin}
-
-    # Clean and rebuild to ensure fresh builds with correct imports
-    log "Cleaning previous builds..."
-    cd "$SOURCE_DIR"
-    # Remove all dist folders, tsbuildinfo files, and turbo cache to ensure clean build
-    find packages -name "dist" -type d -maxdepth 2 -exec rm -rf {} + 2>/dev/null || true
-    find packages -name "tsconfig.tsbuildinfo" -type f -delete 2>/dev/null || true
-    rm -rf .turbo node_modules/.cache 2>/dev/null || true
-
-    # Ensure workspace symlinks are set up before building
-    log "Setting up workspace dependencies..."
-    pnpm install --reporter=silent 2>/dev/null || pnpm install
-
-    log "Building packages (this may take a moment)..."
-    pnpm run build:all
-
-    # Copy from local source (including dist, excluding node_modules)
-    log "Copying source files..."
-    rsync -a --delete \
-        --exclude 'node_modules' \
-        --exclude '.git' \
-        --exclude '*.log' \
-        "$SOURCE_DIR/" "$INSTALL_DIR/orient/"
-
-    # Install dependencies (will link to existing dist folders)
-    cd "$INSTALL_DIR/orient"
-    log "Installing dependencies..."
-    pnpm install --reporter=silent 2>/dev/null
-    log "Dependencies installed ✓"
-}
-
-# ============================================
-# CONFIGURATION
-# ============================================
-
-configure_orient() {
-    local env_file="$INSTALL_DIR/.env"
-
-    if [[ -f "$env_file" ]]; then
-        log "Keeping existing configuration"
-        return
-    fi
-
-    # Generate secrets
-    local master_key=$(openssl rand -hex 32)
-    local jwt_secret=$(openssl rand -hex 32)
-
-    log "Creating configuration..."
-
-    # Write configuration
-    cat > "$env_file" << EOF
-# Orient Configuration (Generated: $(date))
-
-NODE_ENV=production
-LOG_LEVEL=info
-
-# Database (SQLite)
-DATABASE_TYPE=sqlite
-SQLITE_DATABASE=$INSTALL_DIR/data/sqlite/orient.db
-
-# Storage
-STORAGE_TYPE=local
-STORAGE_PATH=$INSTALL_DIR/data/media
-
-# Security
-ORIENT_MASTER_KEY=$master_key
-DASHBOARD_JWT_SECRET=$jwt_secret
-
-# Dashboard
-DASHBOARD_PORT=4098
-BASE_URL=http://localhost:4098
-
-# OpenCode (AI Agent Server)
-OPENCODE_PORT=4099
-EOF
-
-    chmod 600 "$env_file"
-    log "Configuration saved ✓"
-}
-
-# ============================================
-# PM2 SETUP
-# ============================================
-
-setup_pm2() {
-    # Find opencode binary path
-    local opencode_bin=""
-    if command -v opencode &>/dev/null; then
-        opencode_bin=$(which opencode)
-    elif [[ -x "$HOME/.opencode/bin/opencode" ]]; then
-        opencode_bin="$HOME/.opencode/bin/opencode"
-    fi
-
-    cat > "$INSTALL_DIR/ecosystem.config.cjs" << ECOSYSTEM
-const path = require('path');
-const ORIENT_HOME = process.env.ORIENT_HOME || \`\${process.env.HOME}/.orient\`;
-
-// OpenCode binary location (detected during install)
-const OPENCODE_BIN = '${opencode_bin}' || process.env.HOME + '/.opencode/bin/opencode';
-
-module.exports = {
-  apps: [
-    {
-      name: 'orient',
-      cwd: path.join(ORIENT_HOME, 'orient'),
-      script: 'packages/dashboard/dist/main.js',
-      env_file: path.join(ORIENT_HOME, '.env'),
-      error_file: path.join(ORIENT_HOME, 'logs/orient-error.log'),
-      out_file: path.join(ORIENT_HOME, 'logs/orient-out.log'),
-      max_memory_restart: '750M',
-    },
-    {
-      name: 'orient-opencode',
-      script: OPENCODE_BIN,
-      args: 'serve --port 4099 --hostname 0.0.0.0',
-      cwd: path.join(ORIENT_HOME, 'orient'),
-      env_file: path.join(ORIENT_HOME, '.env'),
-      error_file: path.join(ORIENT_HOME, 'logs/opencode-error.log'),
-      out_file: path.join(ORIENT_HOME, 'logs/opencode-out.log'),
-      max_memory_restart: '500M',
-      env: {
-        OPENCODE_CONFIG: path.join(ORIENT_HOME, 'orient', 'opencode.json'),
-      },
-    },
-    {
-      name: 'orient-slack',
-      cwd: path.join(ORIENT_HOME, 'orient'),
-      script: 'packages/bot-slack/dist/main.js',
-      env_file: path.join(ORIENT_HOME, '.env'),
-      error_file: path.join(ORIENT_HOME, 'logs/slack-error.log'),
-      out_file: path.join(ORIENT_HOME, 'logs/slack-out.log'),
-      max_memory_restart: '500M',
-      autorestart: false, // Don't auto-restart if not configured
-      env: {
-        OPENCODE_URL: 'http://localhost:4099',
-      },
-    },
-  ],
-};
-ECOSYSTEM
-
-    log "PM2 configuration created (Dashboard + OpenCode + Slack) ✓"
-}
-
-# ============================================
-# CLI SETUP
-# ============================================
-
-setup_cli() {
-    # Create CLI wrapper
-    cat > "$INSTALL_DIR/bin/orient" << 'SCRIPT'
-#!/bin/bash
-ORIENT_HOME="${ORIENT_HOME:-$HOME/.orient}"
-
-# Source environment
-if [[ -f "$ORIENT_HOME/.env" ]]; then
-    set -a
-    source "$ORIENT_HOME/.env"
-    set +a
-fi
-
-# Colors
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-RED='\033[0;31m'
 NC='\033[0m'
 
-case "$1" in
-    start)
-        echo -e "${GREEN}Starting Orient...${NC}"
-        pm2 start "$ORIENT_HOME/ecosystem.config.cjs" --silent
-        pm2 save --silent
-        sleep 3
-        # Check if services are running using simpler pattern
-        pm2_output=$(pm2 jlist 2>/dev/null)
-        dashboard_online=$(echo "$pm2_output" | grep -c '"name":"orient",".*"status":"online"' || true)
-        opencode_online=$(echo "$pm2_output" | grep -c '"name":"orient-opencode",".*"status":"online"' || true)
-        opencode_exists=$(echo "$pm2_output" | grep -c '"name":"orient-opencode"' || true)
+log_info() { echo -e "${GREEN}[INFO]${NC} $*"; }
+log_warn() { echo -e "${YELLOW}[WARN]${NC} $*"; }
+log_error() { echo -e "${RED}[ERROR]${NC} $*" >&2; }
+log_step() { echo -e "${BLUE}[STEP]${NC} $*"; }
 
-        echo ""
-        if [[ "$dashboard_online" -gt 0 ]] || curl -s http://localhost:${DASHBOARD_PORT:-4098}/health &>/dev/null; then
-            echo -e "${GREEN}✓ Dashboard is running${NC}"
-        else
-            echo -e "${RED}✗ Dashboard failed to start${NC}"
-        fi
+# Detect current platform
+detect_platform() {
+    local os arch
 
-        if [[ "$opencode_online" -gt 0 ]] || curl -s http://localhost:${OPENCODE_PORT:-4099}/global/health &>/dev/null; then
-            echo -e "${GREEN}✓ OpenCode is running${NC}"
-        elif [[ "$opencode_exists" -eq 0 ]]; then
-            echo -e "${YELLOW}○ OpenCode not configured${NC}"
-        else
-            echo -e "${RED}✗ OpenCode failed to start${NC}"
-        fi
+    os=$(uname -s | tr '[:upper:]' '[:lower:]')
+    arch=$(uname -m)
 
-        echo ""
-        echo "  Dashboard:  http://localhost:${DASHBOARD_PORT:-4098}"
-        echo "  WhatsApp:   http://localhost:${DASHBOARD_PORT:-4098}/qr"
-        echo "  OpenCode:   http://localhost:${OPENCODE_PORT:-4099}"
-        echo ""
+    # Normalize architecture
+    case "$arch" in
+        arm64|aarch64) arch="arm64" ;;
+        x86_64|amd64) arch="x64" ;;
+        *)
+            log_error "Unsupported architecture: $arch"
+            exit 1
+            ;;
+    esac
 
-        # Check if dashboard health endpoint works
-        if ! curl -s http://localhost:${DASHBOARD_PORT:-4098}/health &>/dev/null; then
-            echo "  Run 'orient logs' to see what went wrong"
-        fi
-        ;;
-    stop)
-        echo -e "${YELLOW}Stopping Orient...${NC}"
-        pm2 stop orient --silent 2>/dev/null || true
-        pm2 stop orient-opencode --silent 2>/dev/null || true
-        echo -e "${GREEN}✓ Orient stopped${NC}"
-        ;;
-    restart)
-        echo -e "${GREEN}Restarting Orient...${NC}"
-        pm2 restart orient --silent 2>/dev/null
-        pm2 restart orient-opencode --silent 2>/dev/null || true
-        sleep 3
-        if pm2 jlist 2>/dev/null | grep -q '"status":"online"'; then
-            echo -e "${GREEN}✓ Orient restarted${NC}"
-        else
-            echo -e "${RED}✗ Orient failed to restart${NC}"
-            echo "  Run 'orient logs' to see what went wrong"
-        fi
-        ;;
-    status)
-        pm2 status
-        ;;
-    logs)
-        if [[ "$2" == "opencode" ]]; then
-            pm2 logs orient-opencode ${@:3}
-        elif [[ "$2" == "dashboard" ]]; then
-            pm2 logs orient ${@:3}
-        else
-            # Show all Orient logs by default
-            pm2 logs orient orient-opencode ${@:2}
-        fi
-        ;;
-    doctor)
-        echo -e "${GREEN}Orient Diagnostics${NC}"
-        echo ""
-        echo "System:"
-        echo "  Node.js: $(node -v)"
-        echo "  pnpm: $(pnpm -v)"
-        echo "  PM2: $(pm2 -v)"
-        if command -v opencode &>/dev/null; then
-            echo "  OpenCode: $(opencode --version 2>/dev/null || echo 'installed')"
-        elif [[ -x "$HOME/.opencode/bin/opencode" ]]; then
-            echo "  OpenCode: installed (at ~/.opencode/bin/opencode)"
-        else
-            echo "  OpenCode: not installed"
-        fi
-        echo ""
-        echo "Configuration:"
-        echo "  ORIENT_HOME: $ORIENT_HOME"
-        echo "  Database: ${DATABASE_TYPE:-sqlite}"
-        echo "  Dashboard: http://localhost:${DASHBOARD_PORT:-4098}"
-        echo "  OpenCode: http://localhost:${OPENCODE_PORT:-4099}"
-        echo ""
-        echo "Services:"
-        pm2 jlist 2>/dev/null | node -e "
-            const data = JSON.parse(require('fs').readFileSync('/dev/stdin', 'utf8'));
-            const orientApps = data.filter(p => p.name.startsWith('orient'));
-            if (orientApps.length === 0) {
-                console.log('  No Orient services running');
-            } else {
-                orientApps.forEach(p => {
-                    const status = p.pm2_env.status;
-                    const color = status === 'online' ? '\\x1b[32m' : '\\x1b[31m';
-                    console.log('  ' + p.name + ': ' + color + status + '\\x1b[0m');
-                });
-            }
-        " 2>/dev/null || echo "  No services running"
-        echo ""
-        echo "Health checks:"
-        if curl -s http://localhost:${DASHBOARD_PORT:-4098}/health &>/dev/null; then
-            echo -e "  Dashboard: ${GREEN}healthy${NC}"
-        else
-            echo -e "  Dashboard: ${RED}not responding${NC}"
-        fi
-        if curl -s http://localhost:${OPENCODE_PORT:-4099}/global/health &>/dev/null; then
-            echo -e "  OpenCode: ${GREEN}healthy${NC}"
-        else
-            echo -e "  OpenCode: ${RED}not responding${NC}"
-        fi
-        ;;
-    config)
-        ${EDITOR:-nano} "$ORIENT_HOME/.env"
-        ;;
-    version)
-        cat "$ORIENT_HOME/.orient-version" 2>/dev/null || echo "Unknown"
-        ;;
-    uninstall)
-        shift
-        KEEP_DATA=false
-        FORCE=false
-        while [[ $# -gt 0 ]]; do
-            case "$1" in
-                --keep-data) KEEP_DATA=true ;;
-                --force) FORCE=true ;;
-            esac
-            shift
-        done
+    # Normalize OS
+    case "$os" in
+        darwin|linux) ;;
+        *)
+            log_error "Unsupported OS: $os"
+            exit 1
+            ;;
+    esac
 
-        if [[ "$FORCE" != "true" ]]; then
-            echo ""
-            if [[ "$KEEP_DATA" == "true" ]]; then
-                echo -e "${YELLOW}This will remove Orient but keep your data.${NC}"
-            else
-                echo -e "${RED}This will completely remove Orient including all data.${NC}"
-            fi
-            echo ""
-            read -p "Type 'yes' to confirm: " confirm
-            if [[ "$confirm" != "yes" ]]; then
-                echo "Uninstall cancelled."
-                exit 0
-            fi
-        fi
+    echo "${os}-${arch}"
+}
 
-        echo ""
-        echo -e "${YELLOW}Stopping services...${NC}"
-        pm2 stop orient --silent 2>/dev/null || true
-        pm2 stop orient-opencode --silent 2>/dev/null || true
-        pm2 delete orient --silent 2>/dev/null || true
-        pm2 delete orient-opencode --silent 2>/dev/null || true
+# Get bundled version from manifest
+get_bundled_version() {
+    if [[ ! -f "$MANIFEST_FILE" ]]; then
+        log_error "Manifest not found: $MANIFEST_FILE"
+        log_error "Run 'git lfs pull' to fetch bundled binaries"
+        exit 1
+    fi
+    jq -r '.version' "$MANIFEST_FILE"
+}
 
-        if [[ "$KEEP_DATA" == "true" ]]; then
-            echo -e "${YELLOW}Removing Orient (keeping data)...${NC}"
-            rm -rf "$ORIENT_HOME/orient"
-            rm -rf "$ORIENT_HOME/bin"
-            rm -rf "$ORIENT_HOME/logs"
-            rm -f "$ORIENT_HOME/ecosystem.config.cjs"
-            rm -f "$ORIENT_HOME/.orient-version"
-            echo ""
-            echo -e "${GREEN}Orient has been uninstalled.${NC}"
-            echo "Your data is preserved in: $ORIENT_HOME/data"
-            echo "Your config is preserved in: $ORIENT_HOME/.env"
-        else
-            echo -e "${YELLOW}Removing Orient completely...${NC}"
-            rm -rf "$ORIENT_HOME"
-            echo ""
-            echo -e "${GREEN}Orient has been completely uninstalled.${NC}"
-        fi
-
-        # Clean shell profile
-        for rc_file in "$HOME/.zshrc" "$HOME/.bashrc" "$HOME/.profile"; do
-            if [[ -f "$rc_file" ]]; then
-                sed -i '' '/# Orient/d' "$rc_file" 2>/dev/null || true
-                sed -i '' '/ORIENT_HOME/d' "$rc_file" 2>/dev/null || true
-            fi
-        done
-        echo ""
-        echo "Note: Run 'source ~/.zshrc' or restart your terminal to update PATH."
-        ;;
-    *)
-        echo ""
-        echo -e "${GREEN}Orient CLI${NC} - AI Assistant Platform"
-        echo ""
-        echo "Usage: orient <command>"
-        echo ""
-        echo "Commands:"
-        echo "  start       Start Orient services (Dashboard + OpenCode)"
-        echo "  stop        Stop Orient services"
-        echo "  restart     Restart Orient services"
-        echo "  status      Show service status"
-        echo "  logs        View all logs"
-        echo "  logs dashboard  View Dashboard logs only"
-        echo "  logs opencode   View OpenCode logs only"
-        echo "  doctor      Run diagnostics"
-        echo "  config      Edit configuration"
-        echo "  version     Show installed version"
-        echo "  uninstall   Remove Orient"
-        echo "              --keep-data  Keep database and config"
-        echo "              --force      Skip confirmation"
-        echo ""
-        echo "Services:"
-        echo "  Dashboard:  http://localhost:4098"
-        echo "  OpenCode:   http://localhost:4099"
-        echo ""
-        ;;
-esac
-SCRIPT
-
-    chmod +x "$INSTALL_DIR/bin/orient"
-
-    # Add to PATH
-    local shell_rc="$HOME/.zshrc"
-    if ! grep -q "ORIENT_HOME" "$shell_rc" 2>/dev/null; then
-        echo '' >> "$shell_rc"
-        echo '# Orient' >> "$shell_rc"
-        echo 'export ORIENT_HOME="$HOME/.orient"' >> "$shell_rc"
-        echo 'export PATH="$ORIENT_HOME/bin:$PATH"' >> "$shell_rc"
-        log "Added Orient to PATH"
+# Get installed version
+get_installed_version() {
+    if command -v opencode &> /dev/null; then
+        opencode --version 2>&1 | tail -1 || echo "unknown"
+    else
+        echo "not installed"
     fi
 }
 
-# ============================================
-# DATABASE INITIALIZATION
-# ============================================
-
-initialize_database() {
-    log "Initializing database..."
-
-    cd "$INSTALL_DIR/orient"
-
-    # Source environment
-    set -a
-    source "$INSTALL_DIR/.env"
-    set +a
-
-    mkdir -p "$(dirname "$SQLITE_DATABASE")"
-
-    # Push schema (suppress verbose output)
-    pnpm --filter @orientbot/database run db:push:sqlite >/dev/null 2>&1 || true
-
-    log "Database initialized ✓"
+# Get checksum from manifest
+get_expected_checksum() {
+    local platform="$1"
+    jq -r ".binaries[\"$platform\"].sha256" "$MANIFEST_FILE"
 }
 
-# ============================================
-# MAIN
-# ============================================
+# Calculate checksum of a file
+calculate_checksum() {
+    local file="$1"
+    if command -v sha256sum &> /dev/null; then
+        sha256sum "$file" | cut -d' ' -f1
+    elif command -v shasum &> /dev/null; then
+        shasum -a 256 "$file" | cut -d' ' -f1
+    else
+        log_error "No checksum command available (sha256sum or shasum)"
+        exit 1
+    fi
+}
 
+# Verify binary checksum
+verify_checksum() {
+    local binary="$1"
+    local platform="$2"
+
+    local expected actual
+    expected=$(get_expected_checksum "$platform")
+    actual=$(calculate_checksum "$binary")
+
+    if [[ "$expected" != "$actual" ]]; then
+        log_error "Checksum verification failed!"
+        log_error "  Expected: $expected"
+        log_error "  Actual:   $actual"
+        return 1
+    fi
+    return 0
+}
+
+# Check if binary is an LFS pointer (not actual binary)
+check_lfs_fetched() {
+    local binary="$1"
+    local size
+
+    if [[ ! -f "$binary" ]]; then
+        return 1
+    fi
+
+    # LFS pointers are small text files (~130 bytes)
+    size=$(stat -f%z "$binary" 2>/dev/null || stat -c%s "$binary" 2>/dev/null)
+    if [[ "$size" -lt 1000000 ]]; then
+        return 1  # Likely an LFS pointer, not actual binary
+    fi
+    return 0
+}
+
+# Show version check
+check_versions() {
+    local platform bundled_version installed_version
+
+    platform=$(detect_platform)
+    bundled_version=$(get_bundled_version)
+    installed_version=$(get_installed_version)
+
+    echo ""
+    echo -e "${BLUE}OpenCode Version Check${NC}"
+    echo "────────────────────────────────────────"
+    echo -e "  Platform:         ${platform}"
+    echo -e "  Bundled version:  ${GREEN}${bundled_version}${NC}"
+    echo -e "  Installed version: ${installed_version}"
+    echo ""
+
+    if [[ "$installed_version" == "$bundled_version" ]]; then
+        echo -e "${GREEN}✓ Versions match${NC}"
+        return 0
+    elif [[ "$installed_version" == "not installed" ]]; then
+        echo -e "${YELLOW}⚠ OpenCode not installed${NC}"
+        echo "  Run: ./installer/install-local.sh"
+        return 1
+    else
+        echo -e "${YELLOW}⚠ Version mismatch${NC}"
+        echo "  Run: ./installer/install-local.sh --force"
+        return 1
+    fi
+}
+
+# Install the bundled binary
+install_binary() {
+    local force="${1:-false}"
+    local platform bundled_version installed_version source_binary
+
+    platform=$(detect_platform)
+    bundled_version=$(get_bundled_version)
+    installed_version=$(get_installed_version)
+    source_binary="$VENDOR_DIR/$platform/opencode"
+
+    log_step "Installing OpenCode v${bundled_version} for ${platform}"
+
+    # Check if already installed and matching
+    if [[ "$force" != "true" ]] && [[ "$installed_version" == "$bundled_version" ]]; then
+        log_info "OpenCode v${bundled_version} is already installed"
+        return 0
+    fi
+
+    # Check source binary exists and is not LFS pointer
+    if [[ ! -f "$source_binary" ]]; then
+        log_error "Bundled binary not found: $source_binary"
+        log_error "Run 'git lfs pull' to fetch bundled binaries"
+        exit 1
+    fi
+
+    if ! check_lfs_fetched "$source_binary"; then
+        log_error "Binary appears to be an LFS pointer, not actual binary"
+        log_error "Run 'git lfs pull' to fetch bundled binaries"
+        exit 1
+    fi
+
+    # Verify checksum
+    log_step "Verifying checksum..."
+    if ! verify_checksum "$source_binary" "$platform"; then
+        log_error "Checksum verification failed"
+        exit 1
+    fi
+    log_info "Checksum verified"
+
+    # Create install directory
+    mkdir -p "$INSTALL_DIR"
+
+    # Copy binary
+    log_step "Installing to $INSTALL_DIR/opencode..."
+    cp "$source_binary" "$INSTALL_DIR/opencode"
+    chmod +x "$INSTALL_DIR/opencode"
+
+    # Verify installation
+    log_step "Verifying installation..."
+    local new_version
+    new_version=$("$INSTALL_DIR/opencode" --version 2>&1 | tail -1)
+
+    if [[ "$new_version" != "$bundled_version" ]]; then
+        log_error "Installation verification failed"
+        log_error "Expected: $bundled_version"
+        log_error "Got: $new_version"
+        exit 1
+    fi
+
+    log_info "OpenCode v${bundled_version} installed successfully!"
+
+    # Check PATH
+    if ! echo "$PATH" | grep -q "$INSTALL_DIR"; then
+        log_warn "$INSTALL_DIR is not in your PATH"
+        log_warn "Add to your shell profile:"
+        log_warn "  export PATH=\"$INSTALL_DIR:\$PATH\""
+    fi
+
+    echo ""
+    echo -e "${GREEN}Installation complete!${NC}"
+    echo "  Binary:  $INSTALL_DIR/opencode"
+    echo "  Version: $new_version"
+}
+
+# Main
 main() {
-    echo ""
-    echo "╔════════════════════════════════════════════════════════════╗"
-    echo "║                                                            ║"
-    echo "║     ██████╗ ██████╗ ██╗███████╗███╗   ██╗████████╗        ║"
-    echo "║    ██╔═══██╗██╔══██╗██║██╔════╝████╗  ██║╚══██╔══╝        ║"
-    echo "║    ██║   ██║██████╔╝██║█████╗  ██╔██╗ ██║   ██║           ║"
-    echo "║    ██║   ██║██╔══██╗██║██╔══╝  ██║╚██╗██║   ██║           ║"
-    echo "║    ╚██████╔╝██║  ██║██║███████╗██║ ╚████║   ██║           ║"
-    echo "║     ╚═════╝ ╚═╝  ╚═╝╚═╝╚══════╝╚═╝  ╚═══╝   ╚═╝           ║"
-    echo "║                                                            ║"
-    echo "║              AI Assistant Platform v$ORIENT_VERSION               ║"
-    echo "║                    (Local Install)                         ║"
-    echo "║                                                            ║"
-    echo "╚════════════════════════════════════════════════════════════╝"
-    echo ""
-
-    check_prerequisites
-    install_orient
-    configure_orient
-    setup_pm2
-    setup_cli
-    initialize_database
-
-    # Save version
-    echo "$ORIENT_VERSION" > "$INSTALL_DIR/.orient-version"
-
-    echo ""
-    echo "════════════════════════════════════════════════════════════════"
-    log "Installation complete!"
-    echo "════════════════════════════════════════════════════════════════"
-    echo ""
-    echo "  Quick start:"
-    echo ""
-    echo "    source ~/.zshrc     # Load Orient into PATH"
-    echo "    orient start        # Start services"
-    echo ""
-    echo "  Or run directly:"
-    echo ""
-    echo "    $INSTALL_DIR/bin/orient start"
-    echo ""
-    echo "  Dashboard: http://localhost:4098"
-    echo ""
-
-    # Make orient available in current session
-    export PATH="$INSTALL_DIR/bin:$PATH"
-    export ORIENT_HOME="$INSTALL_DIR"
-
-    # Start services
-    "$INSTALL_DIR/bin/orient" start
-
-    # Wait for server to be ready
-    for i in {1..10}; do
-        if curl -s http://localhost:4098/health &>/dev/null; then
-            break
-        fi
-        sleep 1
-    done
-
-    # Open browser
-    log "Opening dashboard..."
-    open "http://localhost:4098"
+    case "${1:-}" in
+        --check|-c)
+            check_versions
+            ;;
+        --force|-f)
+            install_binary "true"
+            ;;
+        --help|-h)
+            echo "Usage: $0 [--check|--force|--help]"
+            echo ""
+            echo "Install bundled OpenCode binary for local development."
+            echo ""
+            echo "Options:"
+            echo "  --check   Check versions without installing"
+            echo "  --force   Force reinstall even if versions match"
+            echo "  --help    Show this help"
+            ;;
+        "")
+            install_binary "false"
+            ;;
+        *)
+            log_error "Unknown option: $1"
+            echo "Run: $0 --help"
+            exit 1
+            ;;
+    esac
 }
 
 main "$@"

@@ -4,7 +4,7 @@
  * Handles WhatsApp Web connection, authentication, and message handling.
  * Uses the Linked Devices feature for authentication (QR code scan).
  *
- * Exported via @orientbot/bot-whatsapp package.
+ * Exported via @orient-bot/bot-whatsapp package.
  */
 
 import makeWASocket, {
@@ -32,7 +32,7 @@ import type {
   WhatsAppPoll,
   PollVote,
 } from '../types.js';
-import { createDedicatedServiceLogger } from '@orientbot/core';
+import { createDedicatedServiceLogger } from '@orient-bot/core';
 import pino from 'pino';
 
 // Use dedicated WhatsApp logger - logs go to logs/whatsapp-debug-*.log and logs/whatsapp-error-*.log
@@ -1281,6 +1281,47 @@ export class WhatsAppService extends EventEmitter {
         }
       );
       op.success('Reply sent', { to: this.extractPhoneNumber(jid) });
+    } catch (error) {
+      op.failure(error instanceof Error ? error : String(error));
+      throw error;
+    }
+  }
+
+  /**
+   * Send an image message
+   *
+   * PERMISSION ENFORCED: Will throw WritePermissionDeniedError if the chat
+   * does not have explicit 'read_write' permission.
+   */
+  async sendImage(
+    jid: string,
+    image: Buffer | string,
+    options?: { caption?: string; mimetype?: string }
+  ): Promise<{ key: { id: string } } | null> {
+    // CRITICAL: Check write permission BEFORE doing anything else
+    await this.checkWritePermission(jid);
+
+    if (!this.socket || !this.isConnected) {
+      throw new Error('WhatsApp not connected');
+    }
+
+    const op = logger.startOperation('sendImage');
+
+    try {
+      const content: any =
+        typeof image === 'string'
+          ? { image: { url: image }, caption: options?.caption }
+          : { image, caption: options?.caption, mimetype: options?.mimetype || 'image/jpeg' };
+
+      const result = await this.socket.sendMessage(jid, content);
+      op.success('Image sent', { to: this.extractPhoneNumber(jid) });
+      return result
+        ? {
+            key: {
+              id: result.key.id || '',
+            },
+          }
+        : null;
     } catch (error) {
       op.failure(error instanceof Error ? error : String(error));
       throw error;

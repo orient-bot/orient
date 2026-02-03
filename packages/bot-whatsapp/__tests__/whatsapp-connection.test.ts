@@ -10,7 +10,7 @@ import fs from 'fs';
 import path from 'path';
 
 // Mock dependencies before importing
-vi.mock('@orientbot/core', () => ({
+vi.mock('@orient-bot/core', () => ({
   createServiceLogger: () => ({
     info: vi.fn(),
     error: vi.fn(),

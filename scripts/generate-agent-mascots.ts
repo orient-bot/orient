@@ -140,7 +140,7 @@ async function main() {
   if (!apiKey) {
     console.log('OPENAI_API_KEY not in env, checking database...');
     try {
-      const { createSecretsService } = await import('@orientbot/database-services');
+      const { createSecretsService } = await import('@orient-bot/database-services');
       const secretsService = createSecretsService();
       const secret = await secretsService.getSecret('OPENAI_API_KEY');
       if (secret?.value) {

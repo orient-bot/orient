@@ -8,7 +8,7 @@
 
 import fs from 'fs';
 import path from 'path';
-import { createServiceLogger } from '@orientbot/core';
+import { createServiceLogger, getBuiltinSkillsPath, getUserSkillsPath } from '@orient-bot/core';
 
 const logger = createServiceLogger('skills-service');
 
@@ -18,6 +18,7 @@ const logger = createServiceLogger('skills-service');
 export interface SkillMetadata {
   name: string;
   description: string;
+  requires?: string[];
 }
 
 /**
@@ -28,6 +29,8 @@ export interface Skill {
   description: string;
   content: string;
   path: string;
+  source: 'builtin' | 'user';
+  requires?: string[];
 }
 
 /**
@@ -36,6 +39,7 @@ export interface Skill {
 export interface SkillSummary {
   name: string;
   description: string;
+  source: 'builtin' | 'user';
 }
 
 /**
@@ -65,26 +69,38 @@ function parseFrontmatter(content: string): { metadata: SkillMetadata; body: str
   const nameMatch = frontmatterText.match(/^name:\s*(.+)$/m);
   const descMatch = frontmatterText.match(/^description:\s*(.+)$/m);
 
+  // Parse requires array (YAML list format)
+  const requiresMatch = frontmatterText.match(/^requires:\s*\n((?:\s*-\s*.+\n?)+)/m);
+  let requires: string[] | undefined;
+  if (requiresMatch) {
+    const lines = requiresMatch[1].match(/^\s*-\s*(.+)$/gm);
+    requires = lines?.map((line) => line.replace(/^\s*-\s*/, '').trim());
+  }
+
   return {
     metadata: {
       name: nameMatch ? nameMatch[1].trim() : 'unknown',
       description: descMatch ? descMatch[1].trim() : 'No description available',
+      requires,
     },
     body: body.trim(),
   };
 }
 
 export class SkillsService {
-  private skillsPath: string;
+  private builtinSkillsPath: string;
+  private userSkillsPath: string;
   private skillsCache: Map<string, Skill> = new Map();
   private initialized: boolean = false;
 
   constructor(projectRoot?: string) {
-    // Default to the project root's .claude/skills directory
-    const root = projectRoot || process.cwd();
-    this.skillsPath = path.join(root, '.claude', 'skills');
+    this.builtinSkillsPath = getBuiltinSkillsPath(projectRoot);
+    this.userSkillsPath = getUserSkillsPath();
 
-    logger.info('Skills service created', { skillsPath: this.skillsPath });
+    logger.info('Skills service created', {
+      builtinSkillsPath: this.builtinSkillsPath,
+      userSkillsPath: this.userSkillsPath,
+    });
   }
 
   /**
@@ -98,55 +114,12 @@ export class SkillsService {
     const op = logger.startOperation('initializeSkills');
 
     try {
-      if (!fs.existsSync(this.skillsPath)) {
-        logger.warn('Skills directory not found', { path: this.skillsPath });
-        this.initialized = true;
-        op.success('No skills directory found');
-        return;
+      if (!fs.existsSync(this.userSkillsPath)) {
+        fs.mkdirSync(this.userSkillsPath, { recursive: true });
       }
 
-      const skillFiles: string[] = [];
-
-      const collectSkillFiles = (dir: string): void => {
-        const entries = fs.readdirSync(dir, { withFileTypes: true });
-        const hasSkillFile = entries.some(
-          (entry) => entry.isFile() && entry.name.toLowerCase() === 'skill.md'
-        );
-
-        if (hasSkillFile) {
-          skillFiles.push(path.join(dir, 'SKILL.md'));
-          return;
-        }
-
-        for (const entry of entries) {
-          if (!entry.isDirectory()) continue;
-          collectSkillFiles(path.join(dir, entry.name));
-        }
-      };
-
-      collectSkillFiles(this.skillsPath);
-
-      for (const skillFile of skillFiles) {
-        try {
-          const content = fs.readFileSync(skillFile, 'utf-8');
-          const { metadata, body } = parseFrontmatter(content);
-
-          const skill: Skill = {
-            name: metadata.name,
-            description: metadata.description,
-            content: body,
-            path: skillFile,
-          };
-
-          this.skillsCache.set(metadata.name, skill);
-          logger.debug('Loaded skill', { name: metadata.name });
-        } catch (error) {
-          logger.warn('Failed to load skill', {
-            path: skillFile,
-            error: error instanceof Error ? error.message : String(error),
-          });
-        }
-      }
+      this.scanDirectory(this.builtinSkillsPath, 'builtin');
+      this.scanDirectory(this.userSkillsPath, 'user');
 
       this.initialized = true;
       op.success('Skills initialized', { count: this.skillsCache.size });
@@ -168,6 +141,7 @@ export class SkillsService {
     return Array.from(this.skillsCache.values()).map((skill) => ({
       name: skill.name,
       description: skill.description,
+      source: skill.source,
     }));
   }
 
@@ -318,7 +292,59 @@ ${bodyContent}`;
    * Get the skills directory path
    */
   getSkillsPath(): string {
-    return this.skillsPath;
+    return this.userSkillsPath;
+  }
+
+  private scanDirectory(dir: string, source: 'builtin' | 'user'): void {
+    if (!fs.existsSync(dir)) {
+      logger.debug('Skills directory not found', { path: dir, source });
+      return;
+    }
+
+    const skillFiles: string[] = [];
+
+    const collectSkillFiles = (currentDir: string): void => {
+      const entries = fs.readdirSync(currentDir, { withFileTypes: true });
+      const hasSkillFile = entries.some(
+        (entry) => entry.isFile() && entry.name.toLowerCase() === 'skill.md'
+      );
+
+      if (hasSkillFile) {
+        skillFiles.push(path.join(currentDir, 'SKILL.md'));
+        return;
+      }
+
+      for (const entry of entries) {
+        if (!entry.isDirectory()) continue;
+        collectSkillFiles(path.join(currentDir, entry.name));
+      }
+    };
+
+    collectSkillFiles(dir);
+
+    for (const skillFile of skillFiles) {
+      try {
+        const content = fs.readFileSync(skillFile, 'utf-8');
+        const { metadata, body } = parseFrontmatter(content);
+
+        const skill: Skill = {
+          name: metadata.name,
+          description: metadata.description,
+          content: body,
+          path: skillFile,
+          source,
+          requires: metadata.requires,
+        };
+
+        this.skillsCache.set(metadata.name, skill);
+        logger.debug('Loaded skill', { name: metadata.name, source, requires: metadata.requires });
+      } catch (error) {
+        logger.warn('Failed to load skill', {
+          path: skillFile,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
   }
 }
 

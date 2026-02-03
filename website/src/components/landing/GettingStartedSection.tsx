@@ -5,10 +5,7 @@ import ScrollReveal from '../shared/ScrollReveal';
 import TypingEffect from '../shared/TypingEffect';
 import styles from './GettingStartedSection.module.css';
 
-const terminalLines = [
-  'git clone https://github.com/orient-bot/orient.git',
-  'docker compose -f docker/docker-compose.demo.yml up -d',
-];
+const terminalLines = ['curl -fsSL https://orient.bot/install.sh | bash', 'orient start'];
 
 const resultBadges = [
   'Dashboard ready at localhost:4098',

@@ -10,8 +10,8 @@ describe('Agents Package', () => {
     expect(AGENTS_MIGRATION_STATUS.types).toBe('migrated');
   });
 
-  it('should have pending migration for services', () => {
-    expect(AGENTS_MIGRATION_STATUS.agentService).toBe('pending');
-    expect(AGENTS_MIGRATION_STATUS.toolCallingService).toBe('pending');
+  it('should have re-exported services', () => {
+    expect(AGENTS_MIGRATION_STATUS.agentService).toBe('re-exported');
+    expect(AGENTS_MIGRATION_STATUS.toolCallingService).toBe('re-exported');
   });
 });

@@ -10,8 +10,8 @@
 import crypto from 'crypto';
 import { startDashboardServer } from './server/index.js';
 import { getSetupStatus } from './server/setupWizard.js';
-import { createServiceLogger, loadConfig, getConfig, setSecretOverrides } from '@orientbot/core';
-import { createSecretsService } from '@orientbot/database-services';
+import { createServiceLogger, loadConfig, getConfig, setSecretOverrides } from '@orient-bot/core';
+import { createSecretsService } from '@orient-bot/database-services';
 import { initializeWhatsAppIntegration } from './services/whatsappIntegration.js';
 
 const logger = createServiceLogger('dashboard');
@@ -124,6 +124,12 @@ async function main(): Promise<void> {
       if (existsSync(devFrontendPath)) {
         staticPath = devFrontendPath;
         logger.info('Auto-detected frontend path', { staticPath });
+      } else {
+        const bundledFrontendPath = resolve(__dirname, '../public');
+        if (existsSync(bundledFrontendPath)) {
+          staticPath = bundledFrontendPath;
+          logger.info('Using bundled frontend path', { staticPath });
+        }
       }
     }
 

@@ -5,7 +5,7 @@ import {
   getDatabase,
   and,
   eq,
-} from '@orientbot/database';
+} from '@orient-bot/database';
 import type { ApprovalGrant, ApprovalRequest, PermissionPolicy } from './types.js';
 import type {
   ApprovalGrantFilter,

@@ -9,7 +9,7 @@
  *   GmailMessage,
  *   CalendarEvent,
  *   Task,
- * } from '@orientbot/integrations/google';
+ * } from '@orient-bot/integrations/google';
  */
 
 // Re-export all types
@@ -62,6 +62,7 @@ export * from './sheets.js';
 export * from './slides.js';
 export * from './sheets-oauth.js';
 export * from './slides-oauth.js';
+export * from './oauth-proxy.js';
 
 export const GOOGLE_SERVICES_MIGRATION_PENDING = false;
 

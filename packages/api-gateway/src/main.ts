@@ -14,9 +14,9 @@ import {
   getConfig,
   setSecretOverrides,
   startConfigPoller,
-} from '@orientbot/core';
+} from '@orient-bot/core';
 import express from 'express';
-import { createSecretsService } from '@orientbot/database-services';
+import { createSecretsService } from '@orient-bot/database-services';
 
 const logger = createServiceLogger('api-gateway');
 const secretsService = createSecretsService();

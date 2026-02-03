@@ -164,13 +164,32 @@ export default function IntegrationCatalog() {
     loadCatalog();
 
     // Listen for OAuth completion messages
-    const handleMessage = (event: MessageEvent) => {
+    const handleMessage = async (event: MessageEvent) => {
       if (event.data?.type === 'oauth-complete') {
-        // Refresh catalog to show updated connection status
-        loadCatalog();
-        if (event.data.success) {
+        // For Atlassian, we need to call the complete endpoint to exchange code for tokens
+        if (event.data.provider === 'atlassian') {
+          try {
+            const completeResult = await fetch('/api/integrations/connect/atlassian/complete', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              credentials: 'include',
+            }).then((r) => r.json());
+
+            if (completeResult.connected) {
+              showNotification('success', 'Successfully connected to Atlassian!');
+            } else if (completeResult.error) {
+              showNotification('error', completeResult.error);
+            }
+          } catch (err) {
+            showNotification('error', 'Failed to complete Atlassian connection');
+          }
+        } else if (event.data.success) {
           showNotification('success', `${event.data.provider} connected successfully!`);
         }
+
+        // Refresh catalog to show updated connection status
+        loadCatalog();
+        setConnecting(null);
       }
     };
 
@@ -191,11 +210,74 @@ export default function IntegrationCatalog() {
 
       if (result.authUrl) {
         // Open OAuth authorization URL
-        window.open(result.authUrl, '_blank', 'width=600,height=700,popup=true');
+        const popup = window.open(result.authUrl, '_blank', 'width=600,height=700,popup=true');
         showNotification(
           'info',
           result.instructions || 'Complete authorization in the popup window.'
         );
+
+        // For Atlassian, poll the completion endpoint to exchange code for tokens
+        if (integrationName === 'atlassian') {
+          const maxAttempts = 60; // 60 attempts * 2 seconds = 2 minutes timeout
+          let attempts = 0;
+
+          const pollForCompletion = async () => {
+            while (attempts < maxAttempts) {
+              attempts++;
+              await new Promise((resolve) => setTimeout(resolve, 2000));
+
+              // Check if popup was closed without completing
+              if (popup && popup.closed) {
+                // Try one more time in case they just completed
+                try {
+                  const completeResult = await fetch(
+                    '/api/integrations/connect/atlassian/complete',
+                    {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      credentials: 'include',
+                    }
+                  ).then((r) => r.json());
+
+                  if (completeResult.connected) {
+                    showNotification('success', 'Successfully connected to Atlassian!');
+                    await loadCatalog();
+                    return;
+                  }
+                } catch {
+                  // Ignore
+                }
+                return;
+              }
+
+              try {
+                const completeResult = await fetch('/api/integrations/connect/atlassian/complete', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  credentials: 'include',
+                }).then((r) => r.json());
+
+                if (completeResult.connected) {
+                  showNotification('success', 'Successfully connected to Atlassian!');
+                  if (popup) popup.close();
+                  await loadCatalog();
+                  return;
+                } else if (completeResult.error) {
+                  showNotification('error', completeResult.error);
+                  return;
+                }
+                // If pending: true, continue polling
+              } catch {
+                // Network error, continue polling
+              }
+            }
+
+            showNotification('error', 'Authorization timed out. Please try again.');
+          };
+
+          pollForCompletion().finally(() => setConnecting(null));
+          return; // Don't call setConnecting(null) yet
+        }
       } else if (result.requiresOpenCode) {
         // Atlassian requires OpenCode
         showNotification(

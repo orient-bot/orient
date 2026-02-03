@@ -210,6 +210,7 @@ create_worktree() {
     local isolated="${2:-false}"
     local model="${3:-}"
     local goal="${4:-}"
+    local plan="${5:-}"
     local repo_root
     local project_name
 
@@ -243,12 +244,18 @@ create_worktree() {
     log_info "Fetching latest changes from remote..."
     git -C "$repo_root" fetch origin
 
-    # Get the main branch name (could be 'main' or 'master')
-    local main_branch
-    main_branch=$(git -C "$repo_root" symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's@^refs/remotes/origin/@@' || echo "main")
+    # Get the current branch name (use this as the base for new worktrees)
+    local current_branch
+    current_branch=$(git -C "$repo_root" branch --show-current 2>/dev/null || echo "")
+
+    # If in detached HEAD state or can't determine branch, fall back to main
+    if [[ -z "$current_branch" ]]; then
+        current_branch=$(git -C "$repo_root" symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's@^refs/remotes/origin/@@' || echo "main")
+        log_info "Detached HEAD state, using default branch: $current_branch"
+    fi
 
     # Check if a branch with the sanitized name already exists on origin
-    local checkout_ref="origin/$main_branch"
+    local checkout_ref="origin/$current_branch"
     if git -C "$repo_root" rev-parse "origin/$sanitized_name" >/dev/null 2>&1; then
         log_info "Found existing branch on origin: $sanitized_name"
         log_info "Pulling latest changes from origin/$sanitized_name..."
@@ -258,8 +265,8 @@ create_worktree() {
         git -C "$repo_root" branch -t "$sanitized_name" "origin/$sanitized_name"
         branch_name="$sanitized_name"
     else
-        log_info "No existing branch found on origin, creating new branch from $main_branch"
-        checkout_ref="origin/$main_branch"
+        log_info "Creating new branch from current branch: $current_branch"
+        checkout_ref="origin/$current_branch"
     fi
 
     # Create the worktree
@@ -330,6 +337,27 @@ create_worktree() {
         else
             log_warn "Could not verify model setting, but configuration was attempted"
             log_warn "You may need to manually add the model to .claude/settings.local.json"
+        fi
+    fi
+
+    # If plan is provided, construct the goal to reference it
+    if [[ -n "$plan" ]]; then
+        log_info "Plan file specified: $plan"
+        # Verify plan file exists in the repo
+        if [[ -f "$repo_root/$plan" ]]; then
+            log_success "Plan file found: $plan"
+            # Construct goal that tells agent to follow the plan
+            local plan_goal="Implement the plan at $plan. Read the plan first, then execute tasks in order. For 4+ independent tasks, consider using parallel subagents. Use two-stage review (spec compliance then code quality). Mandatory: every completion claim must include verification output."
+            # If user also provided a goal, append it
+            if [[ -n "$goal" ]]; then
+                goal="$plan_goal Additional context: $goal"
+            else
+                goal="$plan_goal"
+            fi
+        else
+            log_warn "Plan file not found: $repo_root/$plan"
+            log_warn "The worktree agent will still be instructed to look for this plan"
+            goal="Implement the plan at $plan. If the plan file is not found, ask the user for clarification."
         fi
     fi
 
@@ -449,6 +477,9 @@ Options:
                   Default: $DEFAULT_MODEL (configured in script)
     --goal        Set a goal/task description for the Claude session.
                   Opens in Ghostty tab with this goal pre-filled.
+    --plan        Path to implementation plan file (e.g., docs/plans/2026-02-01-feature.md).
+                  Creates worktree with goal instructing agent to follow the plan.
+                  Use with /discover skill for discovery-first workflow.
 
 Configuration (edit script to change defaults):
     CLAUDE_CMD="$CLAUDE_CMD"              - Command to run Claude (alias defined in ~/.zshrc)
@@ -464,9 +495,15 @@ Examples:
     $0 create schema-changes --isolated                # Isolated database
     $0 create complex-task --model opus --isolated     # Opus + isolated DB
     $0 create bugfix --goal "Fix login redirect bug"   # Goal for Ghostty tab
+    $0 create webhook-support --plan docs/plans/2026-02-01-webhooks.md  # With plan
     $0 list
     $0 cleanup
     $0 cleanup --days 14
+
+Discovery-First Workflow:
+    1. Run /discover in main branch to create plan
+    2. Create worktree with: $0 create feature --plan docs/plans/YYYY-MM-DD-feature.md
+    3. Worktree agent reads plan and executes tasks with verification
 
 EOF
 }
@@ -487,6 +524,7 @@ main() {
             local isolated="false"
             local model=""
             local goal=""
+            local plan=""
 
             # Parse optional flags
             shift 2
@@ -521,6 +559,14 @@ main() {
                         goal="$2"
                         shift 2
                         ;;
+                    --plan)
+                        if [[ $# -lt 2 ]]; then
+                            log_error "Missing plan path for --plan flag"
+                            exit 1
+                        fi
+                        plan="$2"
+                        shift 2
+                        ;;
                     *)
                         log_error "Unknown option: $1"
                         echo ""
@@ -536,7 +582,7 @@ main() {
                 model="$DEFAULT_MODEL"
             fi
 
-            create_worktree "$name" "$isolated" "$model" "$goal"
+            create_worktree "$name" "$isolated" "$model" "$goal" "$plan"
             ;;
         list)
             list_worktrees

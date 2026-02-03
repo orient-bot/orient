@@ -8,7 +8,12 @@
  */
 
 import { describe, it, expect, beforeAll } from 'vitest';
-import { createToolRegistry, ToolRegistry, ToolCategory } from '@orientbot/agents';
+import {
+  createToolRegistry,
+  ToolRegistry,
+  ToolCategory,
+  getToolExecutorRegistry,
+} from '@orient-bot/agents';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -38,7 +43,6 @@ describe('Tool Inventory Baseline', () => {
   describe('Category Distribution', () => {
     // Based on baseline captured 2026-01-11: 64 total tools
     const expectedCategories: Record<ToolCategory, { min: number; description: string }> = {
-      jira: { min: 14, description: 'JIRA issue management tools' },
       messaging: { min: 4, description: 'Slack messaging tools' },
       whatsapp: { min: 10, description: 'WhatsApp messaging tools' },
       docs: { min: 8, description: 'Google Slides/Sheets tools' },
@@ -60,12 +64,11 @@ describe('Tool Inventory Baseline', () => {
       });
     });
 
-    it('should have all 10 categories', () => {
+    it('should have all 9 categories', () => {
       const categories = registry.getCategories();
-      expect(categories).toHaveLength(10);
+      expect(categories).toHaveLength(9);
 
       const categoryNames = categories.map((c) => c.name);
-      expect(categoryNames).toContain('jira');
       expect(categoryNames).toContain('messaging');
       expect(categoryNames).toContain('whatsapp');
       expect(categoryNames).toContain('docs');
@@ -80,46 +83,43 @@ describe('Tool Inventory Baseline', () => {
 
   describe('Critical Tools Presence', () => {
     const criticalTools = [
-      // JIRA
-      'ai_first_health_check',
-      'ai_first_get_issue',
-      'ai_first_get_all_issues',
-      'ai_first_get_blockers',
-      'ai_first_get_sprint_issues',
+      // System
+      'system_health_check',
+      'system_get_config',
 
       // Messaging
-      'ai_first_slack_send_dm',
-      'ai_first_slack_send_channel_message',
+      'slack_send_dm',
+      'slack_send_channel_message',
 
       // WhatsApp
       'whatsapp_send_message',
       'whatsapp_search_messages',
 
       // Slides (required by example-presentation-automation skill)
-      'ai_first_slides_get_presentation',
-      'ai_first_slides_get_slide',
-      'ai_first_slides_duplicate_template',
-      'ai_first_slides_update_text',
-      'ai_first_slides_update_slide_text',
-      'ai_first_slides_delete_slide',
-      'ai_first_slides_update_weekly',
+      'slides_get_presentation',
+      'slides_get_slide',
+      'slides_duplicate_template',
+      'slides_update_text',
+      'slides_update_slide_text',
+      'slides_delete_slide',
+      'slides_update_weekly',
 
       // Google OAuth
       'google_calendar_list_events',
       'google_gmail_list_messages',
 
       // Apps
-      'ai_first_create_app',
-      'ai_first_list_apps',
+      'apps_create',
+      'apps_list',
 
       // Agents
-      'ai_first_get_agent_context',
-      'ai_first_list_agents',
-      'ai_first_handoff_to_agent',
+      'agents_get_context',
+      'agents_list',
+      'agents_handoff',
 
       // Skills
-      'ai_first_list_skills',
-      'ai_first_read_skill',
+      'skills_list',
+      'skills_read',
     ];
 
     criticalTools.forEach((toolName) => {
@@ -221,28 +221,28 @@ describe('Tool Inventory Baseline', () => {
 describe('Server Assignment Definitions', () => {
   describe('coding-mcp expected tools', () => {
     const codingMcpTools = [
-      // JIRA (read-only subset)
-      'ai_first_get_issue',
-      'ai_first_health_check',
+      // System
+      'system_health_check',
+      'system_get_config',
 
       // Slides (example-presentation-automation skill)
-      'ai_first_slides_get_presentation',
-      'ai_first_slides_get_slide',
-      'ai_first_slides_duplicate_template',
-      'ai_first_slides_update_text',
-      'ai_first_slides_update_slide_text',
-      'ai_first_slides_delete_slide',
-      'ai_first_slides_update_weekly',
+      'slides_get_presentation',
+      'slides_get_slide',
+      'slides_duplicate_template',
+      'slides_update_text',
+      'slides_update_slide_text',
+      'slides_delete_slide',
+      'slides_update_weekly',
 
       // Agents
-      'ai_first_get_agent_context',
-      'ai_first_list_agents',
-      'ai_first_handoff_to_agent',
+      'agents_get_context',
+      'agents_list',
+      'agents_handoff',
 
       // Apps
-      'ai_first_create_app',
-      'ai_first_get_app',
-      'ai_first_list_apps',
+      'apps_create',
+      'apps_get',
+      'apps_list',
     ];
 
     it('should define ~17 tools for coding-mcp', () => {
@@ -255,21 +255,21 @@ describe('Server Assignment Definitions', () => {
   describe('core-mcp expected tools', () => {
     const coreMcpTools = [
       // System
-      'ai_first_health_check',
-      'ai_first_get_config',
+      'system_health_check',
+      'system_get_config',
 
       // Skills
-      'ai_first_list_skills',
-      'ai_first_read_skill',
-      'ai_first_create_skill_async',
-      'ai_first_edit_skill_async',
-      'ai_first_list_skill_prs',
-      'ai_first_reload_skills',
+      'skills_list',
+      'skills_read',
+      'skills_create_async',
+      'skills_edit_async',
+      'skills_list_prs',
+      'skills_reload',
 
       // Agents
-      'ai_first_get_agent_context',
-      'ai_first_list_agents',
-      'ai_first_handoff_to_agent',
+      'agents_get_context',
+      'agents_list',
+      'agents_handoff',
 
       // Discovery (global)
       'discover_tools',
@@ -289,11 +289,71 @@ describe('Server Assignment Definitions', () => {
 
       // assistant-mcp gets all tools that aren't exclusive to coding/core
       const assistantTools = allTools.filter((t) =>
-        ['jira', 'messaging', 'whatsapp', 'docs', 'google'].includes(t.category)
+        ['messaging', 'whatsapp', 'docs', 'google'].includes(t.category)
       );
 
       console.log('assistant-mcp expected tools:', assistantTools.length);
-      expect(assistantTools.length).toBeGreaterThanOrEqual(40);
+      expect(assistantTools.length).toBeGreaterThanOrEqual(30);
+    });
+  });
+});
+
+/**
+ * Tool Executor Registry Tests
+ *
+ * Verify that all tool handlers are registered in the ToolExecutorRegistry,
+ * ensuring tools are accessible via the assistant MCP server (base-server.ts).
+ */
+describe('Tool Executor Registry', () => {
+  const executorRegistry = getToolExecutorRegistry();
+
+  describe('WhatsApp tool handlers', () => {
+    const whatsappTools = [
+      'whatsapp_search_messages',
+      'whatsapp_get_recent',
+      'whatsapp_get_conversation',
+      'whatsapp_get_group_messages',
+      'whatsapp_get_stats',
+      'whatsapp_list_contacts',
+      'whatsapp_list_groups',
+      'whatsapp_get_media',
+      'whatsapp_send_poll',
+      'whatsapp_send_message',
+    ];
+
+    whatsappTools.forEach((toolName) => {
+      it(`should have handler registered: ${toolName}`, () => {
+        expect(executorRegistry.hasHandler(toolName)).toBe(true);
+      });
+    });
+
+    it('should have all 10 WhatsApp tool handlers', () => {
+      const registeredCount = whatsappTools.filter((t) => executorRegistry.hasHandler(t)).length;
+      expect(registeredCount).toBe(10);
+    });
+  });
+
+  describe('Google tool handlers (regression)', () => {
+    const googleTools = [
+      'google_oauth_status',
+      'google_calendar_list_events',
+      'google_calendar_create_event',
+    ];
+
+    googleTools.forEach((toolName) => {
+      it(`should have handler registered: ${toolName}`, () => {
+        expect(executorRegistry.hasHandler(toolName)).toBe(true);
+      });
+    });
+  });
+
+  describe('Total handler count', () => {
+    it('should have a minimum number of registered handlers', () => {
+      const handlers = executorRegistry.getRegisteredHandlers();
+      console.log(`Total executor handlers registered: ${handlers.length}`);
+      console.log('Registered handlers:', handlers);
+      // At minimum: media + config + google + whatsapp handlers
+      expect(handlers.length).toBeGreaterThanOrEqual(15);
     });
   });
 });

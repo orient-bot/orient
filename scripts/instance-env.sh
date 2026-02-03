@@ -71,6 +71,7 @@ configure_instance() {
   local project_root="${PROJECT_ROOT:-$(pwd)}"
   export DATA_DIR="${project_root}/.dev-data/instance-${AI_INSTANCE_ID}"
   export SQLITE_DB_PATH="${DATA_DIR}/orient.db"
+  export SQLITE_DATABASE="${SQLITE_DATABASE:-$SQLITE_DB_PATH}"
 
   # S3/MinIO configuration
   export S3_BUCKET="${S3_BUCKET:-orienter-data}-${AI_INSTANCE_ID}"
@@ -94,6 +95,31 @@ configure_instance() {
     source "$script_dir/opencode-env.sh"
     configure_opencode_isolation
   fi
+
+  # Configure pnpm/corepack caches outside .opencode to avoid ENOSPC loops
+  configure_node_package_env
+}
+
+# Keep node package caches out of .opencode (XDG isolation can redirect them)
+configure_node_package_env() {
+  local project_root="${PROJECT_ROOT:-$(pwd)}"
+  local cache_root=""
+  if [ -d "$HOME/Library/Caches" ]; then
+    cache_root="$HOME/Library/Caches"
+  else
+    cache_root="$HOME/.cache"
+  fi
+  local pnpm_home_default="$cache_root/pnpm"
+  local pnpm_store_default="$cache_root/pnpm-store"
+  local npm_cache_default="$cache_root/npm"
+  local corepack_home_default="$cache_root/corepack"
+
+  export PNPM_HOME="${PNPM_HOME:-$pnpm_home_default}"
+  export PNPM_STORE_PATH="${PNPM_STORE_PATH:-$pnpm_store_default}"
+  export NPM_CONFIG_CACHE="${NPM_CONFIG_CACHE:-$npm_cache_default}"
+  export COREPACK_HOME="${COREPACK_HOME:-$corepack_home_default}"
+
+  mkdir -p "$PNPM_HOME" "$PNPM_STORE_PATH" "$NPM_CONFIG_CACHE" "$COREPACK_HOME" 2>/dev/null || true
 }
 
 # Display instance information

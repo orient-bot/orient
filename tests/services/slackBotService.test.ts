@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { SlackDatabase } from '@orientbot/database-services';
-import { SlackBotService } from '@orientbot/bot-slack';
+import type { SlackDatabase } from '@orient-bot/database-services';
+import { SlackBotService } from '@orient-bot/bot-slack';
 
 const { isServerAvailableSpy } = vi.hoisted(() => ({
   isServerAvailableSpy: vi.fn().mockResolvedValue(true),

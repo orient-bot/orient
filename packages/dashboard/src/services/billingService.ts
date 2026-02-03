@@ -7,12 +7,12 @@
  * - Cloudflare R2 (GraphQL Analytics API)
  * - Oracle Cloud (OCI Cost Analysis API)
  *
- * Exported via @orientbot/dashboard package.
+ * Exported via @orient-bot/dashboard package.
  */
 
-import { createServiceLogger } from '@orientbot/core';
+import { createServiceLogger } from '@orient-bot/core';
 import { GoogleAuth } from 'google-auth-library';
-import { createSecretsService, type SecretsService } from '@orientbot/database-services';
+import { createSecretsService, type SecretsService } from '@orient-bot/database-services';
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import type * as ociTypes from 'oci-sdk';
 import * as fs from 'fs';

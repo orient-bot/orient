@@ -39,10 +39,9 @@ services:
       - S3_BUCKET=${S3_BUCKET:-orienter-data}
 
   # ===========================================================================
-  # WhatsApp Bot - Configure for R2
-  # V2 service name: bot-whatsapp (was: whatsapp-bot)
+  # Dashboard - Configure for R2 (includes WhatsApp in unified server mode)
   # ===========================================================================
-  bot-whatsapp:
+  dashboard:
     environment:
       # Override S3 settings for Cloudflare R2
       - AWS_ACCESS_KEY_ID=${R2_ACCESS_KEY_ID}

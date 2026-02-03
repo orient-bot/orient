@@ -5,7 +5,8 @@
  */
 
 import { Router, Request, Response } from 'express';
-import { createServiceLogger } from '@orientbot/core';
+import { getParam } from './paramUtils.js';
+import { createServiceLogger } from '@orient-bot/core';
 import { SchedulerService } from '../../services/schedulerService.js';
 import { CreateScheduledJobInput, UpdateScheduledJobInput } from '../../types/scheduler.js';
 
@@ -49,7 +50,8 @@ export function createSchedulerRoutes(
   // Get recent runs across all jobs (must be before /:id to avoid conflict)
   router.get('/runs/recent', requireAuth, async (req: Request, res: Response) => {
     try {
-      const limit = parseInt(req.query.limit as string) || 50;
+      const limit =
+        parseInt(getParam(req.query.limit as string | string[] | undefined) as string) || 50;
       const runs = await schedulerService.getRecentRuns(limit);
       res.json({ runs });
     } catch (error) {
@@ -84,7 +86,7 @@ export function createSchedulerRoutes(
   // Get a specific job
   router.get('/:id', requireAuth, async (req: Request, res: Response) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = parseInt(getParam(req.params.id));
       if (isNaN(id)) {
         res.status(400).json({ error: 'Invalid job ID' });
         return;
@@ -157,7 +159,7 @@ export function createSchedulerRoutes(
   // Update a scheduled job
   router.patch('/:id', requireAuth, async (req: Request, res: Response) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = parseInt(getParam(req.params.id));
       if (isNaN(id)) {
         res.status(400).json({ error: 'Invalid job ID' });
         return;
@@ -189,7 +191,7 @@ export function createSchedulerRoutes(
   // Delete a scheduled job
   router.delete('/:id', requireAuth, async (req: Request, res: Response) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = parseInt(getParam(req.params.id));
       if (isNaN(id)) {
         res.status(400).json({ error: 'Invalid job ID' });
         return;
@@ -213,7 +215,7 @@ export function createSchedulerRoutes(
   // Toggle job enabled state
   router.post('/:id/toggle', requireAuth, async (req: Request, res: Response) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = parseInt(getParam(req.params.id));
       if (isNaN(id)) {
         res.status(400).json({ error: 'Invalid job ID' });
         return;
@@ -243,7 +245,7 @@ export function createSchedulerRoutes(
   // Run job now (manual trigger)
   router.post('/:id/run', requireAuth, async (req: Request, res: Response) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = parseInt(getParam(req.params.id));
       if (isNaN(id)) {
         res.status(400).json({ error: 'Invalid job ID' });
         return;
@@ -262,13 +264,14 @@ export function createSchedulerRoutes(
   // Get job run history
   router.get('/:id/runs', requireAuth, async (req: Request, res: Response) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = parseInt(getParam(req.params.id));
       if (isNaN(id)) {
         res.status(400).json({ error: 'Invalid job ID' });
         return;
       }
 
-      const limit = parseInt(req.query.limit as string) || 50;
+      const limit =
+        parseInt(getParam(req.query.limit as string | string[] | undefined) as string) || 50;
       const runs = await schedulerService.getJobRuns(id, limit);
       res.json({ runs });
     } catch (error) {

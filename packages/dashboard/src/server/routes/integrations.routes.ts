@@ -6,9 +6,10 @@
  */
 
 import { Router, Request, Response } from 'express';
-import { createServiceLogger } from '@orientbot/core';
-import { createSecretsService } from '@orientbot/database-services';
-import type { IntegrationManifest } from '@orientbot/integrations/types';
+import { getParam } from './paramUtils.js';
+import { createServiceLogger } from '@orient-bot/core';
+import { createSecretsService } from '@orient-bot/database-services';
+import type { IntegrationManifest } from '@orient-bot/integrations/types';
 
 const logger = createServiceLogger('integrations-routes');
 
@@ -21,7 +22,7 @@ async function getLoaderModule(): Promise<{
   loadIntegrationManifest: (name: string) => Promise<IntegrationManifest | null>;
 }> {
   if (!loaderModule) {
-    loaderModule = await import('@orientbot/integrations/catalog/loader');
+    loaderModule = await import('@orient-bot/integrations/catalog/loader');
   }
   return loaderModule;
 }
@@ -29,15 +30,15 @@ async function getLoaderModule(): Promise<{
 // Lazy-loaded OAuth modules - using 'any' type because these are dynamically imported
 // and TypeScript can't verify the module structure at compile time
 
-// Google OAuth service from @orientbot/integrations
+// Google OAuth service from @orient-bot/integrations
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let googleOAuthServiceModule: any = null;
 
-// Atlassian OAuth service from @orientbot/mcp-servers/oauth
+// Atlassian OAuth service from @orient-bot/mcp-servers/oauth
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let atlassianOAuthModule: any = null;
 
-// GitHub OAuth service from @orientbot/integrations/catalog/github
+// GitHub OAuth service from @orient-bot/integrations/catalog/github
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let gitHubOAuthModule: any = null;
 
@@ -67,7 +68,7 @@ async function getGoogleOAuthModule() {
 
   if (!googleOAuthServiceModule) {
     try {
-      googleOAuthServiceModule = await import('@orientbot/integrations');
+      googleOAuthServiceModule = await import('@orient-bot/integrations');
     } catch (error) {
       throw new Error(
         `Failed to load Google OAuth service: ${error instanceof Error ? error.message : String(error)}`
@@ -80,8 +81,8 @@ async function getGoogleOAuthModule() {
 async function getAtlassianOAuthModule() {
   if (!atlassianOAuthModule) {
     try {
-      // Use package import - Atlassian OAuth is re-exported from @orientbot/mcp-servers
-      atlassianOAuthModule = await import('@orientbot/mcp-servers/oauth');
+      // Use package import - Atlassian OAuth is re-exported from @orient-bot/mcp-servers
+      atlassianOAuthModule = await import('@orient-bot/mcp-servers/oauth');
       logger.info('Loaded Atlassian OAuth module');
     } catch (error) {
       throw new Error(
@@ -119,7 +120,7 @@ async function getGitHubOAuthModule() {
   if (!gitHubOAuthModule) {
     try {
       // Use package import - much cleaner than relative paths
-      gitHubOAuthModule = await import('@orientbot/integrations/catalog/github');
+      gitHubOAuthModule = await import('@orient-bot/integrations/catalog/github');
     } catch (error) {
       throw new Error(
         `Failed to load GitHub OAuth service: ${error instanceof Error ? error.message : String(error)}`
@@ -159,7 +160,7 @@ async function getLinearOAuthModule() {
 
   if (!linearOAuthModule) {
     try {
-      linearOAuthModule = await import('@orientbot/integrations/catalog/linear');
+      linearOAuthModule = await import('@orient-bot/integrations/catalog/linear');
     } catch (error) {
       throw new Error(
         `Failed to load Linear OAuth service: ${error instanceof Error ? error.message : String(error)}`
@@ -167,46 +168,6 @@ async function getLinearOAuthModule() {
     }
   }
   return linearOAuthModule;
-}
-
-// JIRA OAuth service lazy-loaded
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let jiraOAuthModule: any = null;
-
-async function getJiraOAuthModule() {
-  // Always reload credentials from secrets database
-  try {
-    const secretsService = createSecretsService();
-    const clientId = await secretsService.getSecret('JIRA_OAUTH_CLIENT_ID');
-    const clientSecret = await secretsService.getSecret('JIRA_OAUTH_CLIENT_SECRET');
-
-    if (clientId && clientSecret) {
-      const credentialsChanged =
-        process.env.JIRA_OAUTH_CLIENT_ID !== clientId ||
-        process.env.JIRA_OAUTH_CLIENT_SECRET !== clientSecret;
-
-      if (credentialsChanged) {
-        process.env.JIRA_OAUTH_CLIENT_ID = clientId;
-        process.env.JIRA_OAUTH_CLIENT_SECRET = clientSecret;
-        logger.info('Loaded JIRA OAuth credentials from secrets database');
-      }
-    }
-  } catch (error) {
-    logger.debug('Could not load JIRA OAuth credentials from secrets', {
-      error: error instanceof Error ? error.message : String(error),
-    });
-  }
-
-  if (!jiraOAuthModule) {
-    try {
-      jiraOAuthModule = await import('@orientbot/integrations/catalog/jira');
-    } catch (error) {
-      throw new Error(
-        `Failed to load JIRA OAuth service: ${error instanceof Error ? error.message : String(error)}`
-      );
-    }
-  }
-  return jiraOAuthModule;
 }
 
 /**
@@ -349,10 +310,11 @@ export function createIntegrationsRoutes(
       try {
         const atlassianModule = await getAtlassianOAuthModule();
         const atlassianUrl = 'https://mcp.atlassian.com/v1/sse';
-        const provider = atlassianModule.createOAuthProvider(atlassianUrl, 'atlassian');
+        // Always use 'Atlassian-MCP-Server' for consistency with OpenCode
+        const provider = atlassianModule.createOAuthProvider(atlassianUrl, 'Atlassian-MCP-Server');
         const tokens = await provider.tokens();
         if (tokens?.access_token) {
-          activeIntegrations.push('jira');
+          activeIntegrations.push('atlassian');
         }
       } catch {
         // Atlassian not available
@@ -440,7 +402,11 @@ export function createIntegrationsRoutes(
             try {
               const atlassianModule = await getAtlassianOAuthModule();
               const atlassianUrl = 'https://mcp.atlassian.com/v1/sse';
-              const provider = atlassianModule.createOAuthProvider(atlassianUrl, 'atlassian');
+              // Always use 'Atlassian-MCP-Server' for consistency with OpenCode
+              const provider = atlassianModule.createOAuthProvider(
+                atlassianUrl,
+                'Atlassian-MCP-Server'
+              );
               const tokens = await provider.tokens();
               result.isConnected = !!tokens?.access_token;
             } catch {
@@ -474,31 +440,6 @@ export function createIntegrationsRoutes(
             }
           }
 
-          // Check JIRA connection status (for API token or OAuth)
-          if (integration.manifest.name === 'jira') {
-            try {
-              const oauthModule = await getJiraOAuthModule();
-              if (oauthModule.getJiraOAuthService) {
-                const jiraOAuthService = oauthModule.getJiraOAuthService();
-                const accounts = jiraOAuthService.getConnectedAccounts();
-                result.isConnected = accounts.length > 0;
-              }
-            } catch {
-              // OAuth module not available, check API token connection
-              try {
-                const secretsService = createSecretsService();
-                const host = await secretsService.getSecret('JIRA_HOST');
-                const email = await secretsService.getSecret('JIRA_EMAIL');
-                const token = await secretsService.getSecret('JIRA_API_TOKEN');
-                if (host && email && token) {
-                  result.isConnected = true; // API token credentials are configured
-                }
-              } catch {
-                // Leave as disconnected
-              }
-            }
-          }
-
           return result;
         })
       );
@@ -515,7 +456,7 @@ export function createIntegrationsRoutes(
   // Get a specific integration
   router.get('/catalog/:name', requireAuth, async (req: Request, res: Response) => {
     try {
-      const { name } = req.params;
+      const name = getParam(req.params.name);
       const catalogEntries = await buildCatalogEntries();
       const integration = catalogEntries.find((i) => i.manifest.name === name);
 
@@ -535,7 +476,7 @@ export function createIntegrationsRoutes(
   // Save credentials for an integration (inline credential entry)
   router.post('/connect/:name/credentials', requireAuth, async (req: Request, res: Response) => {
     try {
-      const { name } = req.params;
+      const name = getParam(req.params.name);
       const { credentials, authMethod } = req.body as {
         credentials: Record<string, string>;
         authMethod?: string;
@@ -581,7 +522,7 @@ export function createIntegrationsRoutes(
   // Initiate OAuth connection for an integration
   router.post('/connect/:name', requireAuth, async (req: Request, res: Response) => {
     try {
-      const { name } = req.params;
+      const name = getParam(req.params.name);
       const { authMethod } = req.body as { authMethod?: string };
       const catalogEntries = await buildCatalogEntries();
       const integration = catalogEntries.find((i) => i.manifest.name === name);
@@ -644,7 +585,7 @@ export function createIntegrationsRoutes(
         try {
           const atlassianModule = await getAtlassianOAuthModule();
 
-          // Suppress browser auto-open
+          // Suppress browser auto-open so we can capture the URL
           atlassianModule.setSuppressBrowserOpen(true);
 
           // Ensure callback server is running (for local dev)
@@ -652,9 +593,11 @@ export function createIntegrationsRoutes(
             await atlassianModule.ensureCallbackServerRunning();
           }
 
-          // Create OAuth provider for Atlassian MCP
+          // Use 'Atlassian-MCP-Server' as the server name for consistency with OpenCode
+          // This ensures tokens are shared between Dashboard and OpenCode
           const atlassianUrl = 'https://mcp.atlassian.com/v1/sse';
-          const provider = atlassianModule.createOAuthProvider(atlassianUrl, 'atlassian');
+          const atlassianServerName = 'Atlassian-MCP-Server';
+          const provider = atlassianModule.createOAuthProvider(atlassianUrl, atlassianServerName);
 
           // Check if already has valid tokens
           const existingTokens = await provider.tokens();
@@ -667,16 +610,56 @@ export function createIntegrationsRoutes(
             });
           }
 
-          // Atlassian OAuth requires OpenCode to handle the MCP connection
+          // Try to initiate the MCP connection to trigger OAuth flow
+          // This will generate the auth URL which we can capture
+          const { Client } = await import('@modelcontextprotocol/sdk/client/index.js');
+          const { SSEClientTransport } = await import('@modelcontextprotocol/sdk/client/sse.js');
+
+          const client = new Client(
+            { name: 'orient-dashboard', version: '1.0.0' },
+            { capabilities: {} }
+          );
+
+          const transport = new SSEClientTransport(new URL(atlassianUrl), {
+            authProvider: provider,
+          });
+
+          try {
+            // This will throw UnauthorizedError and trigger OAuth URL generation
+            await client.connect(transport);
+          } catch (connectError) {
+            // Expected - OAuth is required, check if we captured the auth URL
+            logger.debug('MCP connect triggered OAuth flow', {
+              error: connectError instanceof Error ? connectError.message : String(connectError),
+            });
+          }
+
+          // Get the captured auth URL
+          const authUrl = atlassianModule.getCapturedAuthUrl(atlassianServerName);
+
+          if (authUrl) {
+            logger.info('Atlassian OAuth authorization URL generated', { name });
+
+            return res.json({
+              success: true,
+              name,
+              authUrl,
+              callbackUrl: atlassianModule.OAUTH_CALLBACK_URL,
+              instructions: 'Complete authorization in the popup window.',
+            });
+          }
+
+          // Fallback: if we couldn't capture the URL, provide instructions
+          logger.warn('Could not capture Atlassian auth URL, falling back to manual flow');
           const openCodeUrl = process.env.OPENCODE_URL || 'http://localhost:4099';
 
           return res.json({
             success: true,
             name,
-            message: 'Atlassian OAuth requires OpenCode to handle the MCP connection.',
+            message: 'Please complete authorization in OpenCode.',
             requiresOpenCode: true,
             openCodeUrl,
-            instructions: `Open ${openCodeUrl} and use any JIRA tool to trigger authentication.`,
+            instructions: `Open ${openCodeUrl} and use any Atlassian MCP tool to trigger authentication.`,
             callbackUrl: atlassianModule.OAUTH_CALLBACK_URL,
           });
         } catch (error) {
@@ -793,110 +776,6 @@ export function createIntegrationsRoutes(
         }
       }
 
-      // Handle JIRA connection (supports both API token and OAuth)
-      if (name === 'jira') {
-        try {
-          // Check if using API token method
-          if (authMethod === 'api_token') {
-            // For API token, just verify the credentials are configured
-            const secretsService = createSecretsService();
-            const host = await secretsService.getSecret('JIRA_HOST');
-            const email = await secretsService.getSecret('JIRA_EMAIL');
-            const apiToken = await secretsService.getSecret('JIRA_API_TOKEN');
-
-            if (host && email && apiToken) {
-              // Test the connection
-              try {
-                const jiraService = await import('@orientbot/integrations/jira');
-                jiraService.initializeJiraClient({
-                  jira: {
-                    host,
-                    email,
-                    apiToken,
-                    projectKey: 'TEST',
-                    component: 'TEST',
-                  },
-                  sla: [],
-                  board: { kanbanBacklogStatuses: [] },
-                });
-                const connected = await jiraService.testConnection();
-
-                if (connected) {
-                  return res.json({
-                    success: true,
-                    name,
-                    message: `Connected to JIRA at ${host}`,
-                    connected: true,
-                  });
-                }
-              } catch (testError) {
-                return res.status(400).json({
-                  error: `Failed to connect to JIRA: ${testError instanceof Error ? testError.message : String(testError)}`,
-                });
-              }
-            }
-
-            return res.status(400).json({
-              error: 'JIRA API token credentials not configured',
-              requiredSecrets: integration.manifest.requiredSecrets?.filter(
-                (s) => s.authMethod === 'api_token'
-              ),
-            });
-          }
-
-          // OAuth flow for JIRA
-          const jiraModule = await getJiraOAuthModule();
-
-          // Check if OAuth service is available
-          if (!jiraModule.getJiraOAuthService) {
-            return res.status(500).json({
-              error: 'JIRA OAuth service not available. Create the OAuth service first.',
-            });
-          }
-
-          const jiraOAuthService = jiraModule.getJiraOAuthService();
-
-          // Check if already connected
-          const accounts = jiraOAuthService.getConnectedAccounts();
-          if (accounts.length > 0) {
-            return res.json({
-              success: true,
-              name,
-              message: `Already connected as ${accounts[0].displayName || accounts[0].email}`,
-              connected: true,
-            });
-          }
-
-          // Start JIRA OAuth flow
-          const { authUrl, state } = await jiraOAuthService.startOAuthFlow();
-
-          // Ensure callback server is running (for local dev)
-          if (!jiraModule.IS_JIRA_OAUTH_PRODUCTION) {
-            await jiraOAuthService.ensureCallbackServerRunning();
-          }
-
-          logger.info('JIRA OAuth authorization URL generated', { name });
-
-          return res.json({
-            success: true,
-            name,
-            authUrl,
-            callbackUrl: jiraModule.IS_JIRA_OAUTH_PRODUCTION
-              ? process.env.JIRA_OAUTH_CALLBACK_URL
-              : jiraOAuthService.getCallbackUrl(),
-            oauthState: state,
-            instructions: 'Complete authorization in the popup window.',
-          });
-        } catch (error) {
-          logger.error('Failed to initiate JIRA connection', {
-            error: error instanceof Error ? error.message : String(error),
-          });
-          return res.status(500).json({
-            error: `Failed to initiate JIRA connection: ${error instanceof Error ? error.message : String(error)}`,
-          });
-        }
-      }
-
       // For other integrations, return info about required secrets
       res.json({
         success: false,
@@ -908,6 +787,95 @@ export function createIntegrationsRoutes(
         error: error instanceof Error ? error.message : String(error),
       });
       res.status(500).json({ error: 'Failed to connect integration' });
+    }
+  });
+
+  // Complete OAuth callback for Atlassian (exchange code for tokens)
+  router.post('/connect/atlassian/complete', requireAuth, async (_req: Request, res: Response) => {
+    logger.info('Atlassian complete endpoint called');
+    try {
+      const atlassianModule = await getAtlassianOAuthModule();
+      const atlassianServerName = 'Atlassian-MCP-Server';
+
+      // Check if we have a received auth code
+      const authCodeData = atlassianModule.getReceivedAuthCode(atlassianServerName);
+      if (!authCodeData) {
+        return res.json({
+          success: false,
+          pending: true,
+          message: 'Waiting for authorization callback...',
+        });
+      }
+
+      const { code } = authCodeData;
+      logger.info('Got Atlassian auth code, exchanging for tokens', { atlassianServerName });
+
+      // Get the provider to access stored credentials
+      const atlassianUrl = 'https://mcp.atlassian.com/v1/sse';
+      const provider = atlassianModule.createOAuthProvider(atlassianUrl, atlassianServerName);
+
+      // Get the stored code verifier and client info
+      const codeVerifier = await provider.codeVerifier();
+      const clientInfo = await provider.clientInformation();
+
+      if (!codeVerifier || !clientInfo) {
+        throw new Error('Missing code verifier or client information');
+      }
+
+      // Exchange auth code for tokens directly via HTTP
+      // Atlassian token endpoint: https://mcp.atlassian.com/v1/token
+      const tokenUrl = 'https://mcp.atlassian.com/v1/token';
+      const tokenParams = new URLSearchParams({
+        grant_type: 'authorization_code',
+        code,
+        redirect_uri: atlassianModule.OAUTH_CALLBACK_URL,
+        client_id: clientInfo.client_id,
+        code_verifier: codeVerifier,
+      });
+
+      logger.info('Exchanging auth code for tokens', { tokenUrl });
+
+      const tokenResponse = await fetch(tokenUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: tokenParams.toString(),
+      });
+
+      if (!tokenResponse.ok) {
+        const errorText = await tokenResponse.text();
+        logger.error('Token exchange failed', {
+          status: tokenResponse.status,
+          error: errorText,
+        });
+        throw new Error(`Token exchange failed: ${tokenResponse.status} - ${errorText}`);
+      }
+
+      const tokens = (await tokenResponse.json()) as {
+        access_token: string;
+        refresh_token?: string;
+        expires_in?: number;
+        token_type?: string;
+        scope?: string;
+      };
+      logger.info('Token exchange successful', { hasAccessToken: !!tokens.access_token });
+
+      // Save the tokens using the provider
+      await provider.saveTokens(tokens);
+
+      return res.json({
+        success: true,
+        connected: true,
+        message: 'Successfully connected to Atlassian!',
+      });
+    } catch (error) {
+      logger.error('Failed to complete Atlassian OAuth', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return res.status(500).json({
+        error: `Failed to complete Atlassian OAuth: ${error instanceof Error ? error.message : String(error)}`,
+      });
     }
   });
 

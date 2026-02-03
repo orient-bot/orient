@@ -4,7 +4,6 @@
  *
  * Full capabilities for WhatsApp/Slack bots and PM assistant.
  * Includes:
- * - Full JIRA (create, update, link, all queries)
  * - Slack messaging tools
  * - WhatsApp messaging tools
  * - Google Slides/Sheets tools

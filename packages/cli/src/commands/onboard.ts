@@ -8,11 +8,11 @@ import { Command } from 'commander';
 import { execSync, spawnSync } from 'child_process';
 import { existsSync, mkdirSync, writeFileSync, readFileSync, chmodSync } from 'fs';
 import { join, dirname } from 'path';
-import { homedir } from 'os';
+import { getOrientHome } from '@orient-bot/core';
 import * as readline from 'readline';
 import { randomBytes } from 'crypto';
 
-const ORIENT_HOME = process.env.ORIENT_HOME || join(homedir(), '.orient');
+const ORIENT_HOME = getOrientHome();
 
 async function promptYesNo(question: string): Promise<boolean> {
   const rl = readline.createInterface({
@@ -148,6 +148,8 @@ function createDirectories(): void {
     join(ORIENT_HOME, 'data', 'whatsapp-auth'),
     join(ORIENT_HOME, 'logs'),
     join(ORIENT_HOME, 'bin'),
+    join(ORIENT_HOME, 'skills'),
+    join(ORIENT_HOME, 'apps'),
   ];
 
   for (const dir of dirs) {

@@ -1,0 +1,37 @@
+# Subtle Frustration Detection
+# Tests detection of subtle frustration signals
+
+name: frustration-detection-subtle
+description: Detect subtle frustration signals
+type: response_quality
+agent: ori
+
+context:
+  platform: slack
+  channelId: 'C12345678'
+
+input:
+  prompt: "no, that's not what I asked at all"
+  conversationHistory:
+    - role: user
+      content: 'How do I configure the auth system?'
+    - role: assistant
+      content: "To set up authentication, you'll need to configure OAuth providers..."
+
+expect:
+  assertions:
+    - type: response_mentions
+      values:
+        - '/compact'
+
+scoring:
+  llm_judge:
+    enabled: true
+    criteria:
+      - name: frustration_detected
+        description: The system correctly identified subtle frustration
+        weight: 0.6
+      - name: appropriate_suggestion
+        description: The suggestion to compact is helpful
+        weight: 0.4
+    threshold: 0.7

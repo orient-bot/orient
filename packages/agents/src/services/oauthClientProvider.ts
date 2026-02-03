@@ -7,7 +7,7 @@
  *
  * Based on OpenCode's implementation:
  *
- * Exported via @orientbot/integrations package.
+ * Exported via @orient-bot/integrations package.
  * - Uses localhost callback URL for OAuth flow
  * - Supports dynamic client registration
  * - Implements PKCE (code verifier) management
@@ -18,8 +18,9 @@ import { createServer, type Server, type IncomingMessage, type ServerResponse } 
 import net from 'net';
 import fs from 'fs';
 import path from 'path';
+import os from 'os';
 import crypto from 'crypto';
-import { createServiceLogger } from '@orientbot/core';
+import { createServiceLogger } from '@orient-bot/core';
 import type { OAuthClientProvider } from '@modelcontextprotocol/sdk/client/auth.js';
 import type {
   OAuthClientMetadata,
@@ -58,27 +59,38 @@ function getOAuthCallbackUrl(): string {
 const OAUTH_CALLBACK_URL = getOAuthCallbackUrl();
 const IS_PRODUCTION_OAUTH = OAUTH_CALLBACK_URL.startsWith('https://');
 
-// Token storage file path
-const DATA_DIR = path.resolve(process.cwd(), 'data', 'oauth-tokens');
-const AUTH_FILE = path.join(DATA_DIR, 'mcp-auth.json');
-
-// OpenCode token storage paths (for syncing)
-// In local dev: ~/.local/share/opencode/mcp-auth.json
-// In Docker: /home/opencode/.local/share/opencode/mcp-auth.json
-function getOpenCodeAuthPaths(): string[] {
-  const paths: string[] = [];
-
-  // Local development path
-  const homeDir = process.env.HOME || process.env.USERPROFILE || '';
-  if (homeDir) {
-    paths.push(path.join(homeDir, '.local', 'share', 'opencode', 'mcp-auth.json'));
+/**
+ * Get the OAuth data directory based on environment.
+ * Priority:
+ * 1. XDG_DATA_HOME (set by opencode-env.sh in dev, PM2 in prod)
+ * 2. OPENCODE_TEST_HOME (alternative isolation)
+ * 3. ORIENT_HOME (production installation)
+ * 4. Default: ~/.local/share/opencode (standard XDG location)
+ */
+function getOAuthDataDir(): string {
+  // 1. Check XDG_DATA_HOME (set by opencode-env.sh in dev, PM2 in prod)
+  if (process.env.XDG_DATA_HOME) {
+    return path.join(process.env.XDG_DATA_HOME, 'opencode');
   }
 
-  // Docker path (for when running in Docker)
-  paths.push('/home/opencode/.local/share/opencode/mcp-auth.json');
+  // 2. Check OPENCODE_TEST_HOME (alternative isolation)
+  if (process.env.OPENCODE_TEST_HOME) {
+    return path.join(process.env.OPENCODE_TEST_HOME, 'data', 'opencode');
+  }
 
-  return paths;
+  // 3. Check ORIENT_HOME (production installation)
+  if (process.env.ORIENT_HOME) {
+    return path.join(process.env.ORIENT_HOME, 'opencode', 'data', 'opencode');
+  }
+
+  // 4. Default: ~/.local/share/opencode (standard XDG location)
+  const homeDir = process.env.HOME || os.homedir();
+  return path.join(homeDir, '.local', 'share', 'opencode');
 }
+
+// Token storage file path - uses XDG environment variables for proper isolation
+const DATA_DIR = getOAuthDataDir();
+const AUTH_FILE = path.join(DATA_DIR, 'mcp-auth.json');
 
 /**
  * Stored OAuth data per MCP server
@@ -282,66 +294,11 @@ export class MCPOAuthClientProvider implements OAuthClientProvider {
     try {
       fs.writeFileSync(AUTH_FILE, JSON.stringify(data, null, 2));
       fs.chmodSync(AUTH_FILE, 0o600); // Secure permissions
-
-      // Sync to OpenCode's token storage locations
-      this.syncToOpenCode(data);
+      logger.debug('Wrote auth data', { path: AUTH_FILE });
     } catch (error) {
       logger.error('Failed to write auth data', {
         error: error instanceof Error ? error.message : String(error),
       });
-    }
-  }
-
-  /**
-   * Sync auth data to OpenCode's token storage locations.
-   * OpenCode stores its MCP auth tokens in a different location than the dashboard.
-   * This ensures that tokens authenticated via the dashboard work in OpenCode.
-   */
-  private syncToOpenCode(data: McpAuthData): void {
-    const openCodePaths = getOpenCodeAuthPaths();
-
-    for (const openCodePath of openCodePaths) {
-      try {
-        // Ensure directory exists
-        const dir = path.dirname(openCodePath);
-        if (!fs.existsSync(dir)) {
-          // Only create if parent exists (don't create entire path if user doesn't have OpenCode)
-          const parentDir = path.dirname(dir);
-          if (fs.existsSync(parentDir)) {
-            fs.mkdirSync(dir, { recursive: true });
-          } else {
-            continue; // Skip this path if parent doesn't exist
-          }
-        }
-
-        // Read existing OpenCode auth data to merge (preserve other servers)
-        let existingData: McpAuthData = {};
-        if (fs.existsSync(openCodePath)) {
-          try {
-            existingData = JSON.parse(fs.readFileSync(openCodePath, 'utf-8'));
-          } catch {
-            // Ignore parse errors, we'll overwrite
-          }
-        }
-
-        // Merge our data with existing (our data takes precedence)
-        const mergedData = { ...existingData, ...data };
-
-        // Write merged data
-        fs.writeFileSync(openCodePath, JSON.stringify(mergedData, null, 2));
-        fs.chmodSync(openCodePath, 0o600);
-
-        logger.info('Synced OAuth tokens to OpenCode', {
-          path: openCodePath,
-          servers: Object.keys(data),
-        });
-      } catch (error) {
-        // Log but don't fail - syncing to OpenCode is best-effort
-        logger.debug('Failed to sync to OpenCode path (may not exist)', {
-          path: openCodePath,
-          error: error instanceof Error ? error.message : String(error),
-        });
-      }
     }
   }
 
@@ -652,7 +609,13 @@ const HTML_SUCCESS = `<!DOCTYPE html>
     <h1>✅ Authorization Successful</h1>
     <p>You can close this window and return to the application.</p>
   </div>
-  <script>setTimeout(() => window.close(), 2000);</script>
+  <script>
+    // Notify parent window that OAuth completed
+    if (window.opener) {
+      window.opener.postMessage({ type: 'oauth-complete', success: true, provider: 'atlassian' }, '*');
+    }
+    setTimeout(() => window.close(), 2000);
+  </script>
 </body>
 </html>`;
 
@@ -682,7 +645,7 @@ const HTML_ERROR = (error: string) => `<!DOCTYPE html>
  * In production mode (HTTPS callback URL), the callback is handled by nginx/main server,
  * so we don't need to start a local callback server.
  */
-async function ensureCallbackServerRunning(): Promise<void> {
+export async function ensureCallbackServerRunning(): Promise<void> {
   // In production mode, callbacks are handled by nginx/main server
   if (IS_PRODUCTION_OAUTH) {
     logger.info('Production mode - callback handled by main server', {
@@ -968,66 +931,6 @@ export function handleProductionOAuthCallback(
   pending.resolve(code);
 
   return { success: true, html: HTML_SUCCESS };
-}
-
-/**
- * Manually sync all MCP auth tokens from dashboard storage to OpenCode storage.
- * Call this after a successful OAuth flow to ensure OpenCode has access to the tokens.
- */
-export function syncMcpTokensToOpenCode(): void {
-  try {
-    if (!fs.existsSync(AUTH_FILE)) {
-      logger.info('No MCP auth file to sync');
-      return;
-    }
-
-    const data = JSON.parse(fs.readFileSync(AUTH_FILE, 'utf-8')) as McpAuthData;
-    const openCodePaths = getOpenCodeAuthPaths();
-
-    for (const openCodePath of openCodePaths) {
-      try {
-        // Ensure directory exists
-        const dir = path.dirname(openCodePath);
-        if (!fs.existsSync(dir)) {
-          const parentDir = path.dirname(dir);
-          if (fs.existsSync(parentDir)) {
-            fs.mkdirSync(dir, { recursive: true });
-          } else {
-            continue;
-          }
-        }
-
-        // Read existing OpenCode auth data to merge
-        let existingData: McpAuthData = {};
-        if (fs.existsSync(openCodePath)) {
-          try {
-            existingData = JSON.parse(fs.readFileSync(openCodePath, 'utf-8'));
-          } catch {
-            // Ignore parse errors
-          }
-        }
-
-        // Merge and write
-        const mergedData = { ...existingData, ...data };
-        fs.writeFileSync(openCodePath, JSON.stringify(mergedData, null, 2));
-        fs.chmodSync(openCodePath, 0o600);
-
-        logger.info('Manually synced OAuth tokens to OpenCode', {
-          path: openCodePath,
-          servers: Object.keys(data),
-        });
-      } catch (error) {
-        logger.debug('Failed to sync to OpenCode path', {
-          path: openCodePath,
-          error: error instanceof Error ? error.message : String(error),
-        });
-      }
-    }
-  } catch (error) {
-    logger.error('Failed to sync MCP tokens to OpenCode', {
-      error: error instanceof Error ? error.message : String(error),
-    });
-  }
 }
 
 // Export constants for external use

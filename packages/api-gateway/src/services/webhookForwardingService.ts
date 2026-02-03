@@ -7,7 +7,7 @@
  * - TTL-based auto-expiration of forwarding registrations
  * - Circuit breaker to stop forwarding to failing endpoints
  *
- * Exported via @orientbot/database-services package.
+ * Exported via @orient-bot/database-services package.
  * - Heartbeat-based renewal for active dev sessions
  * - Fire-and-forget forwarding (never blocks production)
  * - Shared secret authentication for registrations
@@ -17,7 +17,7 @@
  * 2. Local Dev: Registers its ngrok URL with production, sends heartbeats
  */
 
-import { createDedicatedServiceLogger } from '@orientbot/core';
+import { createDedicatedServiceLogger } from '@orient-bot/core';
 
 const logger = createDedicatedServiceLogger('webhook-forwarding', {
   maxSize: '10m',

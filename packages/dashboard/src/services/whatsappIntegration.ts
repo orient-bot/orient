@@ -6,15 +6,25 @@
  */
 
 import { Router } from 'express';
+import crypto from 'crypto';
+import fs from 'fs';
+import path from 'path';
 import {
   WhatsAppConnection,
   createWhatsAppRouter,
   TranscriptionService,
-} from '@orientbot/bot-whatsapp';
-import type { WhatsAppBotConfig, ParsedMessage } from '@orientbot/bot-whatsapp';
-import { createServiceLogger, loadConfig, getConfig, startConfigPoller } from '@orientbot/core';
-import { MessageDatabase, createChatPermissionService } from '@orientbot/database-services';
-import { createOpenCodeClient } from '@orientbot/agents';
+} from '@orient-bot/bot-whatsapp';
+import type { WhatsAppBotConfig, ParsedMessage } from '@orient-bot/bot-whatsapp';
+import {
+  createServiceLogger,
+  loadConfig,
+  getConfig,
+  startConfigPoller,
+  WHATSAPP_DEFAULT_MODEL,
+  DEFAULT_AGENT,
+} from '@orient-bot/core';
+import { MessageDatabase, createChatPermissionService } from '@orient-bot/database-services';
+import { createOpenCodeClient } from '@orient-bot/agents';
 import { downloadMediaMessage } from 'baileys';
 
 const logger = createServiceLogger('whatsapp-integration');
@@ -34,6 +44,27 @@ const INITIAL_MESSAGES = [
   'Working on it...',
   'Looking into that now...',
 ];
+
+function inferImageMimeType(source: string, contentType?: string | null): string {
+  if (contentType && contentType.startsWith('image/')) {
+    return contentType;
+  }
+
+  const ext = path.extname(source).toLowerCase();
+  switch (ext) {
+    case '.png':
+      return 'image/png';
+    case '.jpg':
+    case '.jpeg':
+      return 'image/jpeg';
+    case '.gif':
+      return 'image/gif';
+    case '.webp':
+      return 'image/webp';
+    default:
+      return 'image/jpeg';
+  }
+}
 
 interface ProgressCallbacks {
   onReact?: (emoji: string) => Promise<void>;
@@ -179,7 +210,7 @@ export async function initializeWhatsAppIntegration(): Promise<WhatsAppIntegrati
     process.env.OPENCODE_URL || `http://localhost:${process.env.OPENCODE_PORT || 4099}`;
 
   // Initialize OpenCode client
-  const openCodeClient = createOpenCodeClient(openCodeUrl, 'openai/gpt-4o-mini');
+  const openCodeClient = createOpenCodeClient(openCodeUrl, WHATSAPP_DEFAULT_MODEL);
   logger.info('OpenCode client initialized', { url: openCodeUrl });
 
   // Initialize transcription service
@@ -193,12 +224,228 @@ export async function initializeWhatsAppIntegration(): Promise<WhatsAppIntegrati
     });
   }
 
+  let currentJid: string | null = null;
+
   // Create the Express router
   const router = createWhatsAppRouter(connection);
+
+  router.post('/send-message', async (req, res) => {
+    const { message, jid } = req.body as { message?: string; jid?: string };
+    const targetJid = jid || currentJid;
+
+    if (!targetJid) {
+      res.status(400).json({ error: 'No JID provided and no current chat context' });
+      return;
+    }
+
+    if (!message || typeof message !== 'string') {
+      res.status(400).json({ error: 'Message is required' });
+      return;
+    }
+
+    try {
+      const permission = await chatPermissionService.checkWritePermission(targetJid);
+      if (!permission.allowed) {
+        res.status(403).json({
+          error: 'Write permission denied',
+          chatId: targetJid,
+          permission: permission.permission,
+          message:
+            'This chat does not have write permission. Enable "Read + Write" in the admin dashboard to allow bot messages.',
+        });
+        return;
+      }
+
+      const socket = connection.getSocket();
+      if (!socket || !connection.isConnected()) {
+        res.status(503).json({ error: 'WhatsApp not connected' });
+        return;
+      }
+
+      const sent = await socket.sendMessage(targetJid, { text: message });
+      if (sent?.key?.id) {
+        connection.registerSentMessage(sent.key.id);
+      }
+
+      res.json({ success: true, messageId: sent?.key?.id });
+    } catch (error) {
+      res
+        .status(500)
+        .json({ error: error instanceof Error ? error.message : 'Failed to send message' });
+    }
+  });
+
+  router.post('/send-image', async (req, res) => {
+    const { imageUrl, imagePath, caption, jid } = req.body as {
+      imageUrl?: string;
+      imagePath?: string;
+      caption?: string;
+      jid?: string;
+    };
+    const targetJid = jid || currentJid;
+
+    if (!targetJid) {
+      res.status(400).json({ error: 'No JID provided and no current chat context' });
+      return;
+    }
+
+    if (!imageUrl && !imagePath) {
+      res.status(400).json({ error: 'Either imageUrl or imagePath is required' });
+      return;
+    }
+
+    try {
+      const permission = await chatPermissionService.checkWritePermission(targetJid);
+      if (!permission.allowed) {
+        res.status(403).json({
+          error: 'Write permission denied',
+          chatId: targetJid,
+          permission: permission.permission,
+          message:
+            'This chat does not have write permission. Enable "Read + Write" in the admin dashboard to allow bot messages.',
+        });
+        return;
+      }
+
+      const socket = connection.getSocket();
+      if (!socket || !connection.isConnected()) {
+        res.status(503).json({ error: 'WhatsApp not connected' });
+        return;
+      }
+
+      let imageBuffer: Buffer | null = null;
+      let mimetype = 'image/jpeg';
+
+      if (imageUrl) {
+        const response = await fetch(imageUrl);
+        if (!response.ok) {
+          res.status(400).json({
+            error: `Failed to fetch image from URL: ${response.status} ${response.statusText}`,
+          });
+          return;
+        }
+        const arrayBuffer = await response.arrayBuffer();
+        imageBuffer = Buffer.from(arrayBuffer);
+        mimetype = inferImageMimeType(imageUrl, response.headers.get('content-type'));
+      } else if (imagePath) {
+        if (!fs.existsSync(imagePath)) {
+          res.status(400).json({ error: `File not found: ${imagePath}` });
+          return;
+        }
+        imageBuffer = fs.readFileSync(imagePath);
+        mimetype = inferImageMimeType(imagePath);
+      }
+
+      if (!imageBuffer) {
+        res
+          .status(400)
+          .json({ error: 'No image source provided (imageUrl or imagePath required)' });
+        return;
+      }
+
+      const sent = await socket.sendMessage(targetJid, {
+        image: imageBuffer,
+        caption,
+        mimetype,
+      });
+
+      if (sent?.key?.id) {
+        connection.registerSentMessage(sent.key.id);
+      }
+
+      res.json({ success: true, messageId: sent?.key?.id });
+    } catch (error) {
+      res
+        .status(500)
+        .json({ error: error instanceof Error ? error.message : 'Failed to send image' });
+    }
+  });
+
+  router.post('/send-poll', async (req, res) => {
+    const {
+      question,
+      options,
+      selectableCount = 1,
+      context,
+      jid,
+    } = req.body as {
+      question?: string;
+      options?: string[];
+      selectableCount?: number;
+      context?: string;
+      jid?: string;
+    };
+    const targetJid = jid || currentJid;
+
+    if (!targetJid) {
+      res.status(400).json({ error: 'No JID provided and no current chat context' });
+      return;
+    }
+
+    if (!question || !options || options.length < 2) {
+      res.status(400).json({ error: 'Question and at least 2 options are required' });
+      return;
+    }
+
+    try {
+      const permission = await chatPermissionService.checkWritePermission(targetJid);
+      if (!permission.allowed) {
+        res.status(403).json({
+          error: 'Write permission denied',
+          chatId: targetJid,
+          permission: permission.permission,
+          message:
+            'This chat does not have write permission. Enable "Read + Write" in the admin dashboard to allow bot messages.',
+        });
+        return;
+      }
+
+      const socket = connection.getSocket();
+      if (!socket || !connection.isConnected()) {
+        res.status(503).json({ error: 'WhatsApp not connected' });
+        return;
+      }
+
+      const trimmedOptions = options.slice(0, 12);
+      const messageSecret = crypto.randomBytes(32);
+      const sent = await socket.sendMessage(targetJid, {
+        poll: {
+          name: question,
+          values: trimmedOptions,
+          selectableCount: Math.min(selectableCount, trimmedOptions.length),
+          messageSecret,
+        },
+      });
+
+      if (sent?.key?.id) {
+        connection.registerSentMessage(sent.key.id);
+      }
+
+      res.json({
+        success: true,
+        pollId: sent?.key?.id,
+        question,
+        options: trimmedOptions,
+        context,
+      });
+    } catch (error) {
+      res
+        .status(500)
+        .json({ error: error instanceof Error ? error.message : 'Failed to send poll' });
+    }
+  });
 
   // Set up event handlers
   connection.on('connected', () => {
     logger.info('WhatsApp connected successfully');
+
+    // Capture LID and update permission service for admin matching
+    // WhatsApp uses LID (Linked ID) format for group participants instead of phone numbers
+    const myLid = connection.getMyLid();
+    if (myLid) {
+      chatPermissionService.setAdminLid(myLid);
+      logger.info('Admin LID captured from connection', { lid: myLid });
+    }
   });
 
   connection.on('qr', (_qr: string) => {
@@ -220,6 +467,7 @@ export async function initializeWhatsAppIntegration(): Promise<WhatsAppIntegrati
   // Set up message handling
   connection.on('message', async (message: ParsedMessage) => {
     try {
+      currentJid = message.chatId;
       logger.info('Received message', {
         from: message.chatId,
         senderPhone: message.senderPhone,
@@ -383,7 +631,7 @@ export async function initializeWhatsAppIntegration(): Promise<WhatsAppIntegrati
                 : messageText!;
               return openCodeClient.chat(contextKey, prompt, {
                 sessionTitle,
-                agent: 'pm-assistant',
+                agent: DEFAULT_AGENT,
               });
             },
             {

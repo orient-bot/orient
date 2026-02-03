@@ -4,11 +4,11 @@
  * Express routes for the Mini-Apps feature.
  * Handles app listing, details, tool execution, and sharing.
  *
- * Exported via @orientbot/apps package.
+ * Exported via @orient-bot/apps package.
  */
 
 import { Router, Request, Response } from 'express';
-import { createServiceLogger } from '@orientbot/core';
+import { createServiceLogger } from '@orient-bot/core';
 import { AppsService } from './appsService.js';
 import { AppRuntimeService } from './appRuntimeService.js';
 
@@ -25,6 +25,8 @@ export interface AppApiConfig {
 export function createAppApiRoutes(config: AppApiConfig): Router {
   const router = Router();
   const { appsService, runtimeService } = config;
+  const getParam = (value: string | string[] | undefined) =>
+    Array.isArray(value) ? value[0] : value;
 
   // ============================================
   // APP LISTING & DETAILS
@@ -62,7 +64,10 @@ export function createAppApiRoutes(config: AppApiConfig): Router {
    */
   router.get('/apps/:name', async (req: Request, res: Response) => {
     try {
-      const { name } = req.params;
+      const name = getParam(req.params.name);
+      if (!name) {
+        return res.status(400).json({ error: 'App name is required' });
+      }
       const app = appsService.getApp(name);
 
       if (!app) {
@@ -117,7 +122,10 @@ export function createAppApiRoutes(config: AppApiConfig): Router {
    */
   router.post('/apps/:name/tools', async (req: Request, res: Response) => {
     try {
-      const { name } = req.params;
+      const name = getParam(req.params.name);
+      if (!name) {
+        return res.status(400).json({ error: 'App name is required' });
+      }
       const shareToken = (req.headers['x-share-token'] as string) || req.body.shareToken || '';
       const { method, params } = req.body;
 
@@ -153,7 +161,10 @@ export function createAppApiRoutes(config: AppApiConfig): Router {
    */
   router.post('/apps/:name/share', async (req: Request, res: Response) => {
     try {
-      const { name } = req.params;
+      const name = getParam(req.params.name);
+      if (!name) {
+        return res.status(400).json({ error: 'App name is required' });
+      }
       const { expiryDays, maxUses } = req.body;
 
       const app = appsService.getApp(name);
@@ -188,7 +199,10 @@ export function createAppApiRoutes(config: AppApiConfig): Router {
    */
   router.get('/apps/:name/share', async (req: Request, res: Response) => {
     try {
-      const { name } = req.params;
+      const name = getParam(req.params.name);
+      if (!name) {
+        return res.status(400).json({ error: 'App name is required' });
+      }
 
       const app = appsService.getApp(name);
       if (!app) {
@@ -213,7 +227,10 @@ export function createAppApiRoutes(config: AppApiConfig): Router {
    */
   router.delete('/apps/:name/share/:token', async (req: Request, res: Response) => {
     try {
-      const { token } = req.params;
+      const token = getParam(req.params.token);
+      if (!token) {
+        return res.status(400).json({ error: 'Token is required' });
+      }
 
       const revoked = runtimeService.revokeShareToken(token);
 
@@ -238,7 +255,10 @@ export function createAppApiRoutes(config: AppApiConfig): Router {
    */
   router.get('/apps/:name/stats', async (req: Request, res: Response) => {
     try {
-      const { name } = req.params;
+      const name = getParam(req.params.name);
+      if (!name) {
+        return res.status(400).json({ error: 'App name is required' });
+      }
 
       const app = appsService.getApp(name);
       if (!app) {

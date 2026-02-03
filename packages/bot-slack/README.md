@@ -1,4 +1,4 @@
-# @orientbot/bot-slack
+# @orient-bot/bot-slack
 
 Slack bot service for the Orient.
 
@@ -13,14 +13,14 @@ Slack bot service for the Orient.
 ## Installation
 
 ```bash
-pnpm add @orientbot/bot-slack
+pnpm add @orient-bot/bot-slack
 ```
 
 ## Usage
 
 ```typescript
-import { SlackBotService } from '@orientbot/bot-slack';
-import { loadConfig } from '@orientbot/core';
+import { SlackBotService } from '@orient-bot/bot-slack';
+import { loadConfig } from '@orient-bot/core';
 
 const config = loadConfig();
 const bot = new SlackBotService(config);

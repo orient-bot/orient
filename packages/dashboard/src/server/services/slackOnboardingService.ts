@@ -5,7 +5,7 @@
  */
 
 import { WebClient } from '@slack/web-api';
-import { createServiceLogger } from '@orientbot/core';
+import { createServiceLogger } from '@orient-bot/core';
 
 const logger = createServiceLogger('slack-onboarding');
 

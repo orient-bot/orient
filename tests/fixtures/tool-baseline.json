@@ -1,96 +1,31 @@
 {
-  "exportedAt": "2026-01-27T09:58:00.161Z",
-  "totalCount": 82,
+  "exportedAt": "2026-02-01T19:23:24.689Z",
+  "totalCount": 72,
   "tools": [
     {
-      "name": "ai_first_get_all_issues",
-      "category": "jira",
-      "description": "Get all Jira issues for the YOUR_COMPONENT component. Returns issue key, summary, status, assignee, "
-    },
-    {
-      "name": "ai_first_get_issue",
-      "category": "jira",
-      "description": "Get details of a specific Jira issue by its key (e.g., PROJ-123)."
-    },
-    {
-      "name": "ai_first_get_in_progress",
-      "category": "jira",
-      "description": "Get all issues currently in progress for the YOUR_COMPONENT component."
-    },
-    {
-      "name": "ai_first_get_board_issues",
-      "category": "jira",
-      "description": "Get all issues currently visible on the Kanban board (excluding Kanban backlog). Returns issues in c"
-    },
-    {
-      "name": "ai_first_get_blockers",
-      "category": "jira",
-      "description": "Get all blocker issues or issues with blocked label for YOUR_COMPONENT."
-    },
-    {
-      "name": "ai_first_check_sla_breaches",
-      "category": "jira",
-      "description": "Check for SLA breaches - tickets that have been in a status longer than allowed."
-    },
-    {
-      "name": "ai_first_get_sprint_issues",
-      "category": "jira",
-      "description": "Get all issues in the current active sprint for YOUR_COMPONENT."
-    },
-    {
-      "name": "ai_first_get_completed_this_week",
-      "category": "jira",
-      "description": "Get all issues completed (moved to Done) in the last 7 days for YOUR_COMPONENT."
-    },
-    {
-      "name": "ai_first_get_created_this_week",
-      "category": "jira",
-      "description": "Get all issues created in the last 7 days for YOUR_COMPONENT."
-    },
-    {
-      "name": "ai_first_get_daily_digest",
-      "category": "jira",
-      "description": "Get a daily digest including today's in-progress issues and blockers."
-    },
-    {
-      "name": "ai_first_get_weekly_summary",
-      "category": "jira",
-      "description": "Get a weekly summary including completed issues, velocity points, newly added issues, and aging tick"
-    },
-    {
-      "name": "ai_first_jira_create_issue_link",
-      "category": "jira",
-      "description": "Create an issue link between two JIRA issues (e.g., blocks, relates to)."
-    },
-    {
-      "name": "ai_first_jira_get_issue_links",
-      "category": "jira",
-      "description": "Get all issue links for a given JIRA issue."
-    },
-    {
-      "name": "ai_first_jira_delete_issue_link",
-      "category": "jira",
-      "description": "Delete an issue link between two JIRA issues."
-    },
-    {
-      "name": "ai_first_slack_lookup_user_by_email",
+      "name": "slack_lookup_user",
       "category": "messaging",
       "description": "Look up a Slack user by their email address. Returns user ID and profile information."
     },
     {
-      "name": "ai_first_slack_send_dm",
+      "name": "slack_send_dm",
       "category": "messaging",
       "description": "Send a direct message to a Slack user. Can use either user ID or email address."
     },
     {
-      "name": "ai_first_slack_send_channel_message",
+      "name": "slack_send_channel_message",
       "category": "messaging",
       "description": "Send a message to a Slack channel."
     },
     {
-      "name": "ai_first_slack_get_channel_messages",
+      "name": "slack_get_channel_messages",
       "category": "messaging",
       "description": "Get messages from a Slack channel. Can filter by date range and limit the number of messages returne"
+    },
+    {
+      "name": "slack_send_image",
+      "category": "messaging",
+      "description": "Upload and send an image to a Slack channel or DM. Provide either a URL or local file path."
     },
     {
       "name": "whatsapp_search_messages",
@@ -143,42 +78,47 @@
       "description": "Send a WhatsApp message to the current active chat. Use this when you need to send an immediate mess"
     },
     {
-      "name": "ai_first_slides_get_presentation",
+      "name": "whatsapp_send_image",
+      "category": "whatsapp",
+      "description": "Send an image to the current WhatsApp chat. Provide either a URL or local file path to the image."
+    },
+    {
+      "name": "slides_get_presentation",
       "category": "docs",
       "description": "Get presentation metadata and list of all slides with their titles."
     },
     {
-      "name": "ai_first_slides_get_slide",
+      "name": "slides_get_slide",
       "category": "docs",
       "description": "Get the content of a specific slide by its ID."
     },
     {
-      "name": "ai_first_slides_update_text",
+      "name": "slides_update_text",
       "category": "docs",
       "description": "Update text placeholders on ALL slides globally. Placeholders should be in format {{PLACEHOLDER_NAME"
     },
     {
-      "name": "ai_first_slides_update_slide_text",
+      "name": "slides_update_slide_text",
       "category": "docs",
       "description": "Update text on a SPECIFIC slide only (not globally)."
     },
     {
-      "name": "ai_first_slides_duplicate_template",
+      "name": "slides_duplicate_template",
       "category": "docs",
       "description": "Duplicate a template slide and optionally apply text replacements."
     },
     {
-      "name": "ai_first_slides_update_weekly",
+      "name": "slides_update_weekly",
       "category": "docs",
       "description": "Update or create the weekly status slide with current Jira data."
     },
     {
-      "name": "ai_first_slides_delete_slide",
+      "name": "slides_delete_slide",
       "category": "docs",
       "description": "Delete a slide from the presentation."
     },
     {
-      "name": "ai_first_slides_create_table",
+      "name": "slides_create_table",
       "category": "docs",
       "description": "Create an actual table on a slide with data. Use this instead of text-based pseudo-tables for proper"
     },
@@ -223,97 +163,107 @@
       "description": "Mark a task as completed in Google Tasks."
     },
     {
-      "name": "ai_first_health_check",
+      "name": "system_health_check",
       "category": "system",
       "description": "Check the health and connectivity of the Orient, including Jira connection status and issue count."
     },
     {
-      "name": "ai_first_get_config",
+      "name": "system_get_config",
       "category": "system",
       "description": "Get the current configuration for the Orient (excluding sensitive credentials)."
     },
     {
-      "name": "ai_first_list_skills",
+      "name": "skills_list",
       "category": "system",
       "description": "List all available skills with their names and descriptions. Skills provide specialized knowledge mo"
     },
     {
-      "name": "ai_first_read_skill",
+      "name": "skills_read",
       "category": "system",
       "description": "Read the full content of a specific skill by name. Returns the skill body content for detailed guida"
     },
     {
-      "name": "ai_first_create_skill_async",
+      "name": "skills_save",
+      "category": "system",
+      "description": "Save or update a skill directly in the user skills directory (~/.orient/skills). Writes SKILL.md and"
+    },
+    {
+      "name": "skills_create_async",
       "category": "system",
       "description": "Create a new skill and submit it as a GitHub PR. This is an ASYNC operation - it starts a background"
     },
     {
-      "name": "ai_first_edit_skill_async",
+      "name": "skills_edit_async",
       "category": "system",
       "description": "Edit an existing skill and submit changes as a GitHub PR. This is an ASYNC operation. ADMIN ONLY."
     },
     {
-      "name": "ai_first_list_skill_prs",
+      "name": "skills_list_prs",
       "category": "system",
       "description": "List all pending GitHub PRs for skill changes that are awaiting review. ADMIN ONLY."
     },
     {
-      "name": "ai_first_reload_skills",
+      "name": "skills_reload",
       "category": "system",
       "description": "Reload all skills from disk. Use after a skill PR is merged and deployed to refresh the skill cache."
     },
     {
-      "name": "ai_first_create_app",
+      "name": "apps_create",
       "category": "apps",
       "description": "Create a new Mini-App from a description. The AI generates a React application that can access calen"
     },
     {
-      "name": "ai_first_list_apps",
+      "name": "apps_list",
       "category": "apps",
       "description": "List all available Mini-Apps. Shows app name, title, description, status, and whether it has been bu"
     },
     {
-      "name": "ai_first_get_app",
+      "name": "apps_save",
+      "category": "apps",
+      "description": "Save or update a Mini-App manifest directly in the user apps directory (~/.orient/apps). Writes APP."
+    },
+    {
+      "name": "apps_get",
       "category": "apps",
       "description": "Get detailed information about a specific Mini-App including permissions, capabilities, and sharing "
     },
     {
-      "name": "ai_first_share_app",
+      "name": "apps_share",
       "category": "apps",
       "description": "Generate a shareable link for a Mini-App. The link can have an expiry time and maximum use count."
     },
     {
-      "name": "ai_first_update_app",
+      "name": "apps_update",
       "category": "apps",
       "description": "Update an existing Mini-App based on a change request. Creates a new version via PR."
     },
     {
-      "name": "ai_first_get_agent_context",
+      "name": "agents_get_context",
       "category": "agents",
       "description": "Discover your current agent role, skills, and tool permissions. Call this at the start of a session "
     },
     {
-      "name": "ai_first_list_agents",
+      "name": "agents_list",
       "category": "agents",
       "description": "List all available agents in the registry. See which specialized agents are available for handoffs."
     },
     {
-      "name": "ai_first_handoff_to_agent",
+      "name": "agents_handoff",
       "category": "agents",
       "description": "Delegate a task to a specialized agent. Creates a sub-session with the target agent and returns the "
     },
     {
-      "name": "ai_first_read_context",
+      "name": "context_read",
       "category": "context",
       "description": "Read persistent context for the current chat/channel. Retrieve user preferences, past interactions, "
     },
     {
-      "name": "ai_first_update_context",
+      "name": "context_update",
       "category": "context",
       "description": "Update persistent context for the current chat/channel. Save user preferences, record activity, and "
     },
     {
-      "name": "ai_first_generate_mascot",
+      "name": "media_generate_mascot",
       "category": "media",
       "description": "Generate a variation of the Orient mascot (border collie dog with blue bandana). Supports different "
     },
@@ -414,27 +364,12 @@
     }
   ],
   "byCategory": {
-    "jira": [
-      "ai_first_get_all_issues",
-      "ai_first_get_issue",
-      "ai_first_get_in_progress",
-      "ai_first_get_board_issues",
-      "ai_first_get_blockers",
-      "ai_first_check_sla_breaches",
-      "ai_first_get_sprint_issues",
-      "ai_first_get_completed_this_week",
-      "ai_first_get_created_this_week",
-      "ai_first_get_daily_digest",
-      "ai_first_get_weekly_summary",
-      "ai_first_jira_create_issue_link",
-      "ai_first_jira_get_issue_links",
-      "ai_first_jira_delete_issue_link"
-    ],
     "messaging": [
-      "ai_first_slack_lookup_user_by_email",
-      "ai_first_slack_send_dm",
-      "ai_first_slack_send_channel_message",
-      "ai_first_slack_get_channel_messages"
+      "slack_lookup_user",
+      "slack_send_dm",
+      "slack_send_channel_message",
+      "slack_get_channel_messages",
+      "slack_send_image"
     ],
     "whatsapp": [
       "whatsapp_search_messages",
@@ -446,17 +381,18 @@
       "whatsapp_list_groups",
       "whatsapp_get_media",
       "whatsapp_send_poll",
-      "whatsapp_send_message"
+      "whatsapp_send_message",
+      "whatsapp_send_image"
     ],
     "docs": [
-      "ai_first_slides_get_presentation",
-      "ai_first_slides_get_slide",
-      "ai_first_slides_update_text",
-      "ai_first_slides_update_slide_text",
-      "ai_first_slides_duplicate_template",
-      "ai_first_slides_update_weekly",
-      "ai_first_slides_delete_slide",
-      "ai_first_slides_create_table"
+      "slides_get_presentation",
+      "slides_get_slide",
+      "slides_update_text",
+      "slides_update_slide_text",
+      "slides_duplicate_template",
+      "slides_update_weekly",
+      "slides_delete_slide",
+      "slides_create_table"
     ],
     "google": [
       "google_oauth_status",
@@ -469,14 +405,15 @@
       "google_tasks_complete"
     ],
     "system": [
-      "ai_first_health_check",
-      "ai_first_get_config",
-      "ai_first_list_skills",
-      "ai_first_read_skill",
-      "ai_first_create_skill_async",
-      "ai_first_edit_skill_async",
-      "ai_first_list_skill_prs",
-      "ai_first_reload_skills",
+      "system_health_check",
+      "system_get_config",
+      "skills_list",
+      "skills_read",
+      "skills_save",
+      "skills_create_async",
+      "skills_edit_async",
+      "skills_list_prs",
+      "skills_reload",
       "config_confirm_action",
       "config_list_pending",
       "config_cancel_action",
@@ -497,15 +434,9 @@
       "config_delete_schedule",
       "config_list_schedules"
     ],
-    "apps": [
-      "ai_first_create_app",
-      "ai_first_list_apps",
-      "ai_first_get_app",
-      "ai_first_share_app",
-      "ai_first_update_app"
-    ],
-    "agents": ["ai_first_get_agent_context", "ai_first_list_agents", "ai_first_handoff_to_agent"],
-    "context": ["ai_first_read_context", "ai_first_update_context"],
-    "media": ["ai_first_generate_mascot"]
+    "apps": ["apps_create", "apps_list", "apps_save", "apps_get", "apps_share", "apps_update"],
+    "agents": ["agents_get_context", "agents_list", "agents_handoff"],
+    "context": ["context_read", "context_update"],
+    "media": ["media_generate_mascot"]
   }
 }

@@ -4,14 +4,14 @@
  * Central registry for all MCP tools with metadata, categories, and search capabilities.
  * Implements the "Tool Search Tool" pattern from Anthropic's advanced tool use guide.
  *
- * Exported via @orientbot/mcp-tools package.
+ * Exported via @orient-bot/mcp-tools package.
  *
  * @see https://www.anthropic.com/engineering/advanced-tool-use
  */
 
 import { Tool } from '@modelcontextprotocol/sdk/types.js';
-import { createServiceLogger } from '@orientbot/core';
-import type { ToolContext } from '@orientbot/mcp-tools';
+import { createServiceLogger } from '@orient-bot/core';
+import type { ToolContext } from '@orient-bot/mcp-tools';
 
 const logger = createServiceLogger('tool-registry');
 
@@ -19,7 +19,6 @@ const logger = createServiceLogger('tool-registry');
  * Tool categories for organizing tools by domain
  */
 export type ToolCategory =
-  | 'jira'
   | 'messaging'
   | 'whatsapp'
   | 'docs'
@@ -70,7 +69,6 @@ export class ToolRegistry {
   constructor() {
     // Initialize category index
     const categories: ToolCategory[] = [
-      'jira',
       'messaging',
       'whatsapp',
       'docs',
@@ -135,22 +133,6 @@ export class ToolRegistry {
   getCategories(): CategoryInfo[] {
     const categoryDescriptions: Record<ToolCategory, { description: string; keywords: string[] }> =
       {
-        jira: {
-          description:
-            'JIRA issue management - create, update, query issues, sprints, blockers, and SLA tracking',
-          keywords: [
-            'issue',
-            'ticket',
-            'sprint',
-            'blocker',
-            'backlog',
-            'kanban',
-            'story',
-            'task',
-            'bug',
-            'epic',
-          ],
-        },
         messaging: {
           description: 'Slack messaging - send DMs, channel messages, and lookup users',
           keywords: ['slack', 'message', 'dm', 'channel', 'notify', 'alert', 'communication'],
@@ -296,7 +278,6 @@ export function createToolRegistry(): ToolRegistry {
   const registry = new ToolRegistry();
 
   // Register all tools with their metadata
-  registerJiraTools(registry);
   registerMessagingTools(registry);
   registerWhatsAppTools(registry);
   registerDocsTools(registry);
@@ -314,321 +295,13 @@ export function createToolRegistry(): ToolRegistry {
 }
 
 /**
- * Register JIRA tools
- */
-function registerJiraTools(registry: ToolRegistry): void {
-  // ai_first_get_all_issues
-  registry.registerTool({
-    tool: {
-      name: 'ai_first_get_all_issues',
-      description:
-        'Get all Jira issues for the YOUR_COMPONENT component. Returns issue key, summary, status, assignee, and priority.',
-      inputSchema: {
-        type: 'object',
-        properties: {
-          limit: {
-            type: 'number',
-            description: 'Maximum number of issues to return (default: 50)',
-          },
-        },
-        required: [],
-      },
-    },
-    category: 'jira',
-    keywords: ['issues', 'all', 'list', 'jira', 'tickets', 'query'],
-    useCases: [
-      'Get a list of all issues in the project',
-      'See all tickets assigned to the team',
-      'Review the full backlog',
-    ],
-    examples: [
-      { description: 'Get first 50 issues', input: {} },
-      { description: 'Get first 10 issues', input: { limit: 10 } },
-    ],
-  });
-
-  // ai_first_get_issue
-  registry.registerTool({
-    tool: {
-      name: 'ai_first_get_issue',
-      description: 'Get details of a specific Jira issue by its key (e.g., PROJ-123).',
-      inputSchema: {
-        type: 'object',
-        properties: {
-          issueKey: {
-            type: 'string',
-            description: 'The Jira issue key (e.g., PROJ-123)',
-          },
-        },
-        required: ['issueKey'],
-      },
-    },
-    category: 'jira',
-    keywords: ['issue', 'get', 'details', 'ticket', 'specific', 'lookup', 'find'],
-    useCases: [
-      'Get details of a specific ticket',
-      'Look up an issue by its key',
-      'Check the status of a particular issue',
-    ],
-    examples: [{ description: 'Get issue PROJ-123', input: { issueKey: 'PROJ-123' } }],
-  });
-
-  // ai_first_get_in_progress
-  registry.registerTool({
-    tool: {
-      name: 'ai_first_get_in_progress',
-      description: 'Get all issues currently in progress for the YOUR_COMPONENT component.',
-      inputSchema: {
-        type: 'object',
-        properties: {},
-        required: [],
-      },
-    },
-    category: 'jira',
-    keywords: ['in progress', 'wip', 'working', 'active', 'current', 'ongoing'],
-    useCases: [
-      'See what the team is currently working on',
-      'Check work in progress',
-      'Review active issues',
-    ],
-  });
-
-  // ai_first_get_board_issues
-  registry.registerTool({
-    tool: {
-      name: 'ai_first_get_board_issues',
-      description:
-        'Get all issues currently visible on the Kanban board (excluding Kanban backlog). Returns issues in columns like TO DO, IN PROGRESS, and DONE - but NOT issues in the Kanban backlog section.',
-      inputSchema: {
-        type: 'object',
-        properties: {},
-        required: [],
-      },
-    },
-    category: 'jira',
-    keywords: ['board', 'kanban', 'visible', 'open', 'active', 'columns'],
-    useCases: [
-      'See what is on the board right now',
-      'Check open issues',
-      'Review the kanban board state',
-    ],
-  });
-
-  // ai_first_get_blockers
-  registry.registerTool({
-    tool: {
-      name: 'ai_first_get_blockers',
-      description: 'Get all blocker issues or issues with blocked label for YOUR_COMPONENT.',
-      inputSchema: {
-        type: 'object',
-        properties: {},
-        required: [],
-      },
-    },
-    category: 'jira',
-    keywords: ['blocker', 'blocked', 'impediment', 'stuck', 'obstacle'],
-    useCases: ['Check for blockers', 'Find issues that are stuck', 'Identify impediments'],
-  });
-
-  // ai_first_check_sla_breaches
-  registry.registerTool({
-    tool: {
-      name: 'ai_first_check_sla_breaches',
-      description:
-        'Check for SLA breaches - tickets that have been in a status longer than allowed.',
-      inputSchema: {
-        type: 'object',
-        properties: {},
-        required: [],
-      },
-    },
-    category: 'jira',
-    keywords: ['sla', 'breach', 'overdue', 'aging', 'stale', 'stuck'],
-    useCases: ['Check for SLA violations', 'Find stale tickets', 'Identify aging issues'],
-  });
-
-  // ai_first_get_sprint_issues
-  registry.registerTool({
-    tool: {
-      name: 'ai_first_get_sprint_issues',
-      description: 'Get all issues in the current active sprint for YOUR_COMPONENT.',
-      inputSchema: {
-        type: 'object',
-        properties: {},
-        required: [],
-      },
-    },
-    category: 'jira',
-    keywords: ['sprint', 'iteration', 'current', 'active', 'cycle'],
-    useCases: ['See sprint issues', 'Check current sprint progress', 'Review sprint backlog'],
-  });
-
-  // ai_first_get_completed_this_week
-  registry.registerTool({
-    tool: {
-      name: 'ai_first_get_completed_this_week',
-      description:
-        'Get all issues completed (moved to Done) in the last 7 days for YOUR_COMPONENT.',
-      inputSchema: {
-        type: 'object',
-        properties: {},
-        required: [],
-      },
-    },
-    category: 'jira',
-    keywords: ['completed', 'done', 'finished', 'weekly', 'velocity'],
-    useCases: [
-      'Check what was completed this week',
-      'Prepare weekly summary',
-      'Calculate velocity',
-    ],
-  });
-
-  // ai_first_get_created_this_week
-  registry.registerTool({
-    tool: {
-      name: 'ai_first_get_created_this_week',
-      description: 'Get all issues created in the last 7 days for YOUR_COMPONENT.',
-      inputSchema: {
-        type: 'object',
-        properties: {},
-        required: [],
-      },
-    },
-    category: 'jira',
-    keywords: ['created', 'new', 'added', 'weekly', 'incoming'],
-    useCases: ['See new issues this week', 'Check incoming work', 'Review new tickets'],
-  });
-
-  // ai_first_get_daily_digest
-  registry.registerTool({
-    tool: {
-      name: 'ai_first_get_daily_digest',
-      description: "Get a daily digest including today's in-progress issues and blockers.",
-      inputSchema: {
-        type: 'object',
-        properties: {},
-        required: [],
-      },
-    },
-    category: 'jira',
-    keywords: ['daily', 'digest', 'summary', 'today', 'standup'],
-    useCases: ['Get daily status update', 'Prepare for standup', "Check today's priorities"],
-  });
-
-  // ai_first_get_weekly_summary
-  registry.registerTool({
-    tool: {
-      name: 'ai_first_get_weekly_summary',
-      description:
-        'Get a weekly summary including completed issues, velocity points, newly added issues, and aging tickets.',
-      inputSchema: {
-        type: 'object',
-        properties: {},
-        required: [],
-      },
-    },
-    category: 'jira',
-    keywords: ['weekly', 'summary', 'report', 'velocity', 'metrics'],
-    useCases: ['Prepare weekly report', 'Check team velocity', 'Review weekly progress'],
-  });
-
-  // ai_first_jira_create_issue_link
-  registry.registerTool({
-    tool: {
-      name: 'ai_first_jira_create_issue_link',
-      description: 'Create an issue link between two JIRA issues (e.g., blocks, relates to).',
-      inputSchema: {
-        type: 'object',
-        properties: {
-          inwardIssueKey: {
-            type: 'string',
-            description: 'The key of the inward issue (e.g., the blocking issue)',
-          },
-          outwardIssueKey: {
-            type: 'string',
-            description: 'The key of the outward issue (e.g., the blocked issue)',
-          },
-          linkType: {
-            type: 'string',
-            description:
-              'The type of link (default: "Blocks"). Common types: "Blocks", "Relates to", "Duplicates"',
-            default: 'Blocks',
-          },
-          comment: {
-            type: 'string',
-            description: 'Optional comment to add to the link',
-          },
-        },
-        required: ['inwardIssueKey', 'outwardIssueKey'],
-      },
-    },
-    category: 'jira',
-    keywords: ['link', 'blocks', 'relates', 'dependency', 'connect'],
-    useCases: [
-      'Link two issues together',
-      'Mark an issue as blocking another',
-      'Create a dependency relationship',
-    ],
-    examples: [
-      {
-        description: 'Link PROJ-100 blocks PROJ-101',
-        input: { inwardIssueKey: 'PROJ-100', outwardIssueKey: 'PROJ-101', linkType: 'Blocks' },
-      },
-    ],
-  });
-
-  // ai_first_jira_get_issue_links
-  registry.registerTool({
-    tool: {
-      name: 'ai_first_jira_get_issue_links',
-      description: 'Get all issue links for a given JIRA issue.',
-      inputSchema: {
-        type: 'object',
-        properties: {
-          issueKey: {
-            type: 'string',
-            description: 'The key of the issue to get links for',
-          },
-        },
-        required: ['issueKey'],
-      },
-    },
-    category: 'jira',
-    keywords: ['links', 'dependencies', 'related', 'connections'],
-    useCases: ['Check issue dependencies', 'See related issues', 'Find blocking relationships'],
-  });
-
-  // ai_first_jira_delete_issue_link
-  registry.registerTool({
-    tool: {
-      name: 'ai_first_jira_delete_issue_link',
-      description: 'Delete an issue link between two JIRA issues.',
-      inputSchema: {
-        type: 'object',
-        properties: {
-          linkId: {
-            type: 'string',
-            description: 'The ID of the issue link to delete',
-          },
-        },
-        required: ['linkId'],
-      },
-    },
-    category: 'jira',
-    keywords: ['delete', 'remove', 'link', 'unlink'],
-    useCases: ['Remove a link between issues', 'Delete a dependency'],
-  });
-}
-
-/**
  * Register Messaging (Slack) tools
  */
 function registerMessagingTools(registry: ToolRegistry): void {
-  // ai_first_slack_lookup_user_by_email
+  // slack_lookup_user
   registry.registerTool({
     tool: {
-      name: 'ai_first_slack_lookup_user_by_email',
+      name: 'slack_lookup_user',
       description:
         'Look up a Slack user by their email address. Returns user ID and profile information.',
       inputSchema: {
@@ -647,10 +320,10 @@ function registerMessagingTools(registry: ToolRegistry): void {
     useCases: ['Find a Slack user by email', 'Look up someone on Slack'],
   });
 
-  // ai_first_slack_send_dm
+  // slack_send_dm
   registry.registerTool({
     tool: {
-      name: 'ai_first_slack_send_dm',
+      name: 'slack_send_dm',
       description:
         'Send a direct message to a Slack user. Can use either user ID or email address.',
       inputSchema: {
@@ -679,10 +352,10 @@ function registerMessagingTools(registry: ToolRegistry): void {
     useCases: ['Send a Slack DM to someone', 'Message a user on Slack', 'Send a private message'],
   });
 
-  // ai_first_slack_send_channel_message
+  // slack_send_channel_message
   registry.registerTool({
     tool: {
-      name: 'ai_first_slack_send_channel_message',
+      name: 'slack_send_channel_message',
       description: 'Send a message to a Slack channel.',
       inputSchema: {
         type: 'object',
@@ -704,10 +377,10 @@ function registerMessagingTools(registry: ToolRegistry): void {
     useCases: ['Post a message to a Slack channel', 'Send an announcement', 'Notify the team'],
   });
 
-  // ai_first_slack_get_channel_messages
+  // slack_get_channel_messages
   registry.registerTool({
     tool: {
-      name: 'ai_first_slack_get_channel_messages',
+      name: 'slack_get_channel_messages',
       description:
         'Get messages from a Slack channel. Can filter by date range and limit the number of messages returned.',
       inputSchema: {
@@ -743,6 +416,48 @@ function registerMessagingTools(registry: ToolRegistry): void {
       'Read messages from a channel',
       'Check channel history',
       'Find quotes from a channel',
+    ],
+  });
+
+  // slack_send_image
+  registry.registerTool({
+    tool: {
+      name: 'slack_send_image',
+      description:
+        'Upload and send an image to a Slack channel or DM. Provide either a URL or local file path.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          channel: {
+            type: 'string',
+            description: 'Channel name (e.g., #general) or channel ID',
+          },
+          imageUrl: {
+            type: 'string',
+            description: 'URL of the image to send',
+          },
+          imagePath: {
+            type: 'string',
+            description: 'Local file path of the image to send',
+          },
+          caption: {
+            type: 'string',
+            description: 'Optional message to accompany the image',
+          },
+          filename: {
+            type: 'string',
+            description: 'Optional filename for the uploaded image',
+          },
+        },
+        required: ['channel'],
+      },
+    },
+    category: 'messaging',
+    keywords: ['slack', 'image', 'upload', 'send', 'photo', 'picture', 'file'],
+    useCases: [
+      'Send an image to a Slack channel',
+      'Upload a photo to Slack',
+      'Share an image on Slack',
     ],
   });
 }
@@ -1021,16 +736,54 @@ function registerWhatsAppTools(registry: ToolRegistry): void {
     keywords: ['whatsapp', 'send', 'message', 'reply', 'respond'],
     useCases: ['Send an immediate message', 'Reply to the user directly'],
   });
+
+  // whatsapp_send_image
+  registry.registerTool({
+    tool: {
+      name: 'whatsapp_send_image',
+      description:
+        'Send an image to the current WhatsApp chat. Provide either a URL or local file path to the image.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          imageUrl: {
+            type: 'string',
+            description: 'URL of the image to send',
+          },
+          imagePath: {
+            type: 'string',
+            description: 'Local file path of the image to send',
+          },
+          caption: {
+            type: 'string',
+            description: 'Optional caption for the image',
+          },
+          jid: {
+            type: 'string',
+            description: 'Optional: specific JID to send to (defaults to current chat)',
+          },
+        },
+        required: [],
+      },
+    },
+    category: 'whatsapp',
+    keywords: ['whatsapp', 'image', 'photo', 'picture', 'send', 'upload'],
+    useCases: [
+      'Send an image via WhatsApp',
+      'Share a photo in WhatsApp',
+      'Upload a picture to WhatsApp chat',
+    ],
+  });
 }
 
 /**
  * Register Google Docs (Slides/Sheets) tools
  */
 function registerDocsTools(registry: ToolRegistry): void {
-  // ai_first_slides_get_presentation
+  // slides_get_presentation
   registry.registerTool({
     tool: {
-      name: 'ai_first_slides_get_presentation',
+      name: 'slides_get_presentation',
       description: 'Get presentation metadata and list of all slides with their titles.',
       inputSchema: {
         type: 'object',
@@ -1048,10 +801,10 @@ function registerDocsTools(registry: ToolRegistry): void {
     useCases: ['Get information about a presentation', 'List slides in a deck'],
   });
 
-  // ai_first_slides_get_slide
+  // slides_get_slide
   registry.registerTool({
     tool: {
-      name: 'ai_first_slides_get_slide',
+      name: 'slides_get_slide',
       description: 'Get the content of a specific slide by its ID.',
       inputSchema: {
         type: 'object',
@@ -1073,10 +826,10 @@ function registerDocsTools(registry: ToolRegistry): void {
     useCases: ['Read a specific slide', 'Get slide content'],
   });
 
-  // ai_first_slides_update_text
+  // slides_update_text
   registry.registerTool({
     tool: {
-      name: 'ai_first_slides_update_text',
+      name: 'slides_update_text',
       description:
         'Update text placeholders on ALL slides globally. Placeholders should be in format {{PLACEHOLDER_NAME}}.',
       inputSchema: {
@@ -1107,10 +860,10 @@ function registerDocsTools(registry: ToolRegistry): void {
     useCases: ['Update placeholders in a presentation', 'Replace text in slides'],
   });
 
-  // ai_first_slides_update_slide_text
+  // slides_update_slide_text
   registry.registerTool({
     tool: {
-      name: 'ai_first_slides_update_slide_text',
+      name: 'slides_update_slide_text',
       description: 'Update text on a SPECIFIC slide only (not globally).',
       inputSchema: {
         type: 'object',
@@ -1144,10 +897,10 @@ function registerDocsTools(registry: ToolRegistry): void {
     useCases: ['Update text on a specific slide', 'Modify slide content'],
   });
 
-  // ai_first_slides_duplicate_template
+  // slides_duplicate_template
   registry.registerTool({
     tool: {
-      name: 'ai_first_slides_duplicate_template',
+      name: 'slides_duplicate_template',
       description: 'Duplicate a template slide and optionally apply text replacements.',
       inputSchema: {
         type: 'object',
@@ -1185,10 +938,10 @@ function registerDocsTools(registry: ToolRegistry): void {
     useCases: ['Create a new slide from a template', 'Duplicate a slide'],
   });
 
-  // ai_first_slides_update_weekly
+  // slides_update_weekly
   registry.registerTool({
     tool: {
-      name: 'ai_first_slides_update_weekly',
+      name: 'slides_update_weekly',
       description: 'Update or create the weekly status slide with current Jira data.',
       inputSchema: {
         type: 'object',
@@ -1210,14 +963,14 @@ function registerDocsTools(registry: ToolRegistry): void {
       },
     },
     category: 'docs',
-    keywords: ['weekly', 'update', 'slides', 'status', 'jira'],
+    keywords: ['weekly', 'update', 'slides', 'status'],
     useCases: ['Update the weekly status slide', 'Create weekly presentation'],
   });
 
-  // ai_first_slides_delete_slide
+  // slides_delete_slide
   registry.registerTool({
     tool: {
-      name: 'ai_first_slides_delete_slide',
+      name: 'slides_delete_slide',
       description: 'Delete a slide from the presentation.',
       inputSchema: {
         type: 'object',
@@ -1239,10 +992,10 @@ function registerDocsTools(registry: ToolRegistry): void {
     useCases: ['Delete a slide', 'Remove a slide from presentation'],
   });
 
-  // ai_first_slides_create_table
+  // slides_create_table
   registry.registerTool({
     tool: {
-      name: 'ai_first_slides_create_table',
+      name: 'slides_create_table',
       description:
         'Create an actual table on a slide with data. Use this instead of text-based pseudo-tables for proper formatting.',
       inputSchema: {
@@ -1489,10 +1242,10 @@ function registerGoogleTools(registry: ToolRegistry): void {
  * Register System tools
  */
 function registerSystemTools(registry: ToolRegistry): void {
-  // ai_first_health_check
+  // system_health_check
   registry.registerTool({
     tool: {
-      name: 'ai_first_health_check',
+      name: 'system_health_check',
       description:
         'Check the health and connectivity of the Orient, including Jira connection status and issue count.',
       inputSchema: {
@@ -1506,10 +1259,10 @@ function registerSystemTools(registry: ToolRegistry): void {
     useCases: ['Check if the bot is working', 'Verify connections are healthy'],
   });
 
-  // ai_first_get_config
+  // system_get_config
   registry.registerTool({
     tool: {
-      name: 'ai_first_get_config',
+      name: 'system_get_config',
       description:
         'Get the current configuration for the Orient (excluding sensitive credentials).',
       inputSchema: {
@@ -1528,10 +1281,10 @@ function registerSystemTools(registry: ToolRegistry): void {
  * Register Skill Management tools
  */
 function registerSkillTools(registry: ToolRegistry): void {
-  // ai_first_list_skills
+  // skills_list
   registry.registerTool({
     tool: {
-      name: 'ai_first_list_skills',
+      name: 'skills_list',
       description:
         'List all available skills with their names and descriptions. Skills provide specialized knowledge modules for domain-specific guidance.',
       inputSchema: {
@@ -1550,10 +1303,10 @@ function registerSkillTools(registry: ToolRegistry): void {
     ],
   });
 
-  // ai_first_read_skill
+  // skills_read
   registry.registerTool({
     tool: {
-      name: 'ai_first_read_skill',
+      name: 'skills_read',
       description:
         'Read the full content of a specific skill by name. Returns the skill body content for detailed guidance.',
       inputSchema: {
@@ -1577,10 +1330,40 @@ function registerSkillTools(registry: ToolRegistry): void {
     ],
   });
 
-  // ai_first_create_skill_async
+  // skills_save
   registry.registerTool({
     tool: {
-      name: 'ai_first_create_skill_async',
+      name: 'skills_save',
+      description:
+        'Save or update a skill directly in the user skills directory (~/.orient/skills). Writes SKILL.md and reloads skills.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          name: {
+            type: 'string',
+            description: 'The skill name in lowercase with hyphens (e.g., "billing-api")',
+          },
+          description: {
+            type: 'string',
+            description: 'Short description of what the skill does and when to use it.',
+          },
+          content: {
+            type: 'string',
+            description: 'The full skill body content in Markdown (no frontmatter).',
+          },
+        },
+        required: ['name', 'description', 'content'],
+      },
+    },
+    category: 'system',
+    keywords: ['skill', 'save', 'write', 'update', 'user', 'local'],
+    useCases: ['Save a skill to the user directory', 'Update a user skill'],
+  });
+
+  // skills_create_async
+  registry.registerTool({
+    tool: {
+      name: 'skills_create_async',
       description:
         'Create a new skill and submit it as a GitHub PR. This is an ASYNC operation - it starts a background job and returns immediately. The PR link will be sent via the messaging channel when ready. ADMIN ONLY.',
       inputSchema: {
@@ -1618,10 +1401,10 @@ function registerSkillTools(registry: ToolRegistry): void {
     useCases: ['Create a new skill', 'Add a skill for X', 'Submit skill as PR'],
   });
 
-  // ai_first_edit_skill_async
+  // skills_edit_async
   registry.registerTool({
     tool: {
-      name: 'ai_first_edit_skill_async',
+      name: 'skills_edit_async',
       description:
         'Edit an existing skill and submit changes as a GitHub PR. This is an ASYNC operation. ADMIN ONLY.',
       inputSchema: {
@@ -1658,10 +1441,10 @@ function registerSkillTools(registry: ToolRegistry): void {
     useCases: ['Edit an existing skill', 'Update skill content', 'Modify skill'],
   });
 
-  // ai_first_list_skill_prs
+  // skills_list_prs
   registry.registerTool({
     tool: {
-      name: 'ai_first_list_skill_prs',
+      name: 'skills_list_prs',
       description:
         'List all pending GitHub PRs for skill changes that are awaiting review. ADMIN ONLY.',
       inputSchema: {
@@ -1679,10 +1462,10 @@ function registerSkillTools(registry: ToolRegistry): void {
     ],
   });
 
-  // ai_first_reload_skills
+  // skills_reload
   registry.registerTool({
     tool: {
-      name: 'ai_first_reload_skills',
+      name: 'skills_reload',
       description:
         'Reload all skills from disk. Use after a skill PR is merged and deployed to refresh the skill cache. ADMIN ONLY.',
       inputSchema: {
@@ -1701,10 +1484,10 @@ function registerSkillTools(registry: ToolRegistry): void {
  * Register Mini-Apps tools
  */
 function registerAppsTools(registry: ToolRegistry): void {
-  // ai_first_create_app
+  // apps_create
   registry.registerTool({
     tool: {
-      name: 'ai_first_create_app',
+      name: 'apps_create',
       description:
         'Create a new Mini-App from a description. The AI generates a React application that can access calendar, Slack, scheduler, and other tools. The app is created via a PR for review.',
       inputSchema: {
@@ -1757,10 +1540,10 @@ function registerAppsTools(registry: ToolRegistry): void {
     ],
   });
 
-  // ai_first_list_apps
+  // apps_list
   registry.registerTool({
     tool: {
-      name: 'ai_first_list_apps',
+      name: 'apps_list',
       description:
         'List all available Mini-Apps. Shows app name, title, description, status, and whether it has been built.',
       inputSchema: {
@@ -1788,10 +1571,36 @@ function registerAppsTools(registry: ToolRegistry): void {
     ],
   });
 
-  // ai_first_get_app
+  // apps_save
   registry.registerTool({
     tool: {
-      name: 'ai_first_get_app',
+      name: 'apps_save',
+      description:
+        'Save or update a Mini-App manifest directly in the user apps directory (~/.orient/apps). Writes APP.yaml and reloads apps.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          name: {
+            type: 'string',
+            description: 'The app name (lowercase with hyphens).',
+          },
+          content: {
+            type: 'string',
+            description: 'The full APP.yaml content.',
+          },
+        },
+        required: ['name', 'content'],
+      },
+    },
+    category: 'apps',
+    keywords: ['app', 'save', 'write', 'update', 'manifest', 'user'],
+    useCases: ['Save an app manifest to the user directory', 'Update a user app manifest'],
+  });
+
+  // apps_get
+  registry.registerTool({
+    tool: {
+      name: 'apps_get',
       description:
         'Get detailed information about a specific Mini-App including permissions, capabilities, and sharing configuration.',
       inputSchema: {
@@ -1810,10 +1619,10 @@ function registerAppsTools(registry: ToolRegistry): void {
     useCases: ['Get details of a specific app', 'Check app permissions', 'View app configuration'],
   });
 
-  // ai_first_share_app
+  // apps_share
   registry.registerTool({
     tool: {
-      name: 'ai_first_share_app',
+      name: 'apps_share',
       description:
         'Generate a shareable link for a Mini-App. The link can have an expiry time and maximum use count.',
       inputSchema: {
@@ -1844,10 +1653,10 @@ function registerAppsTools(registry: ToolRegistry): void {
     ],
   });
 
-  // ai_first_update_app
+  // apps_update
   registry.registerTool({
     tool: {
-      name: 'ai_first_update_app',
+      name: 'apps_update',
       description:
         'Update an existing Mini-App based on a change request. Creates a new version via PR.',
       inputSchema: {
@@ -1879,10 +1688,10 @@ function registerAppsTools(registry: ToolRegistry): void {
  * Register Agent tools
  */
 function registerAgentsTools(registry: ToolRegistry): void {
-  // ai_first_get_agent_context
+  // agents_get_context
   registry.registerTool({
     tool: {
-      name: 'ai_first_get_agent_context',
+      name: 'agents_get_context',
       description:
         'Discover your current agent role, skills, and tool permissions. Call this at the start of a session to understand your capabilities.',
       inputSchema: {
@@ -1927,10 +1736,10 @@ function registerAgentsTools(registry: ToolRegistry): void {
     ],
   });
 
-  // ai_first_list_agents
+  // agents_list
   registry.registerTool({
     tool: {
-      name: 'ai_first_list_agents',
+      name: 'agents_list',
       description:
         'List all available agents in the registry. See which specialized agents are available for handoffs.',
       inputSchema: {
@@ -1958,10 +1767,10 @@ function registerAgentsTools(registry: ToolRegistry): void {
     ],
   });
 
-  // ai_first_handoff_to_agent
+  // agents_handoff
   registry.registerTool({
     tool: {
-      name: 'ai_first_handoff_to_agent',
+      name: 'agents_handoff',
       description:
         'Delegate a task to a specialized agent. Creates a sub-session with the target agent and returns the result. Use this for complex tasks that require specialized capabilities.',
       inputSchema: {
@@ -2020,10 +1829,10 @@ function registerAgentsTools(registry: ToolRegistry): void {
  * Register Context Persistence tools
  */
 function registerContextTools(registry: ToolRegistry): void {
-  // ai_first_read_context
+  // context_read
   registry.registerTool({
     tool: {
-      name: 'ai_first_read_context',
+      name: 'context_read',
       description:
         'Read persistent context for the current chat/channel. Retrieve user preferences, past interactions, activity history, and current working state.',
       inputSchema: {
@@ -2073,10 +1882,10 @@ function registerContextTools(registry: ToolRegistry): void {
     ],
   });
 
-  // ai_first_update_context
+  // context_update
   registry.registerTool({
     tool: {
-      name: 'ai_first_update_context',
+      name: 'context_update',
       description:
         'Update persistent context for the current chat/channel. Save user preferences, record activity, and update current working state. Updates are deep-merged with existing context.',
       inputSchema: {
@@ -2446,7 +2255,7 @@ function registerConfigTools(registry: ToolRegistry): void {
           },
           category: {
             type: 'string',
-            description: 'Category for organization (e.g., jira, slack, openai, google)',
+            description: 'Category for organization (e.g., slack, openai, google)',
           },
           description: {
             type: 'string',
@@ -2530,7 +2339,7 @@ function registerConfigTools(registry: ToolRegistry): void {
         properties: {
           agent_id: {
             type: 'string',
-            description: 'Agent ID (e.g., pm-assistant, communicator, onboarder, explorer)',
+            description: 'Agent ID (e.g., ori, communicator, scheduler, explorer, app-builder)',
           },
           enabled: {
             type: 'boolean',
@@ -2572,7 +2381,7 @@ function registerConfigTools(registry: ToolRegistry): void {
         properties: {
           agent_id: {
             type: 'string',
-            description: 'Agent ID (e.g., pm-assistant, communicator, onboarder, explorer)',
+            description: 'Agent ID (e.g., ori, communicator, scheduler, explorer, app-builder)',
           },
         },
         required: ['agent_id'],
@@ -2754,10 +2563,10 @@ function registerConfigTools(registry: ToolRegistry): void {
  * Register Media tools (image generation, mascot variations)
  */
 function registerMediaTools(registry: ToolRegistry): void {
-  // ai_first_generate_mascot
+  // media_generate_mascot
   registry.registerTool({
     tool: {
-      name: 'ai_first_generate_mascot',
+      name: 'media_generate_mascot',
       description:
         'Generate a variation of the Orient mascot (border collie dog with blue bandana). Supports different poses, expressions, backgrounds, seasonal themes, accessories, and art styles. Use transparent=true for web/UI images with transparent backgrounds (uses OpenAI).',
       inputSchema: {
@@ -2937,6 +2746,8 @@ export function getToolExecutorRegistry(): ToolExecutorRegistry {
     registerConfigToolHandlers(executorInstance);
     // Register Google tool handlers (Calendar, Gmail, Tasks, OAuth)
     registerGoogleToolHandlers(executorInstance);
+    // Register WhatsApp tool handlers
+    registerWhatsAppToolHandlers(executorInstance);
   }
   return executorInstance;
 }
@@ -2948,7 +2759,7 @@ function registerConfigToolHandlers(registry: ToolExecutorRegistry): void {
   // Import config tools and register their handlers
   const registerHandlers = async () => {
     try {
-      const mcpToolsModule = await import('@orientbot/mcp-tools');
+      const mcpToolsModule = await import('@orient-bot/mcp-tools');
 
       const {
         confirmationTools,
@@ -3000,7 +2811,7 @@ function registerConfigToolHandlers(registry: ToolExecutorRegistry): void {
  * Registers media tool handlers (mascot generation, etc.)
  */
 function registerMediaToolHandlers(registry: ToolExecutorRegistry): void {
-  registry.registerHandler('ai_first_generate_mascot', async (args: Record<string, unknown>) => {
+  registry.registerHandler('media_generate_mascot', async (args: Record<string, unknown>) => {
     const {
       variation_type,
       prompt,
@@ -3048,7 +2859,7 @@ function registerMediaToolHandlers(registry: ToolExecutorRegistry): void {
 
       if (transparent) {
         // Use OpenAI for transparent backgrounds
-        const { getEnvWithSecrets } = await import('@orientbot/core');
+        const { getEnvWithSecrets } = await import('@orient-bot/core');
         const apiKey = getEnvWithSecrets('OPENAI_API_KEY');
         if (!apiKey) {
           return createToolError(
@@ -3087,7 +2898,7 @@ CRITICAL: Generate PNG with TRANSPARENT background. Keep same cartoon style with
       } else {
         // Use Gemini for regular images
         const { createGeminiService, initializeGeminiClient, isGeminiInitialized } =
-          await import('@orientbot/integrations/gemini');
+          await import('@orient-bot/integrations/gemini');
 
         if (!isGeminiInitialized()) {
           const geminiKey = process.env.GEMINI_API_KEY;
@@ -3185,7 +2996,7 @@ function registerGoogleToolHandlers(registry: ToolExecutorRegistry): void {
   // Google OAuth Status
   registry.registerHandler('google_oauth_status', async () => {
     try {
-      const { getGoogleOAuthService } = await import('@orientbot/integrations/google');
+      const { getGoogleOAuthService } = await import('@orient-bot/integrations/google');
       const oauthService = getGoogleOAuthService();
       const accounts = oauthService.getConnectedAccounts();
       const defaultAccount = oauthService.getDefaultAccount();
@@ -3224,7 +3035,7 @@ function registerGoogleToolHandlers(registry: ToolExecutorRegistry): void {
     };
 
     try {
-      const { getCalendarService } = await import('@orientbot/integrations/google');
+      const { getCalendarService } = await import('@orient-bot/integrations/google');
       const calendar = getCalendarService();
       const daysAhead = days || 7;
       const now = new Date();
@@ -3295,7 +3106,7 @@ function registerGoogleToolHandlers(registry: ToolExecutorRegistry): void {
       };
 
       try {
-        const { getCalendarService } = await import('@orientbot/integrations/google');
+        const { getCalendarService } = await import('@orient-bot/integrations/google');
         const calendar = getCalendarService();
         const event = await calendar.createEvent(
           {
@@ -3353,7 +3164,7 @@ function registerGoogleToolHandlers(registry: ToolExecutorRegistry): void {
       };
 
       try {
-        const { getCalendarService } = await import('@orientbot/integrations/google');
+        const { getCalendarService } = await import('@orient-bot/integrations/google');
         const calendar = getCalendarService();
         const updateOptions = {
           eventId,
@@ -3402,7 +3213,7 @@ function registerGoogleToolHandlers(registry: ToolExecutorRegistry): void {
       };
 
       try {
-        const { getCalendarService } = await import('@orientbot/integrations/google');
+        const { getCalendarService } = await import('@orient-bot/integrations/google');
         const calendar = getCalendarService();
         await calendar.deleteEvent(eventId, calendarId || 'primary', accountEmail);
 
@@ -3424,6 +3235,133 @@ function registerGoogleToolHandlers(registry: ToolExecutorRegistry): void {
     }
   );
 
+  // Google Tasks - List Tasks
+  registry.registerHandler('google_tasks_list', async (args: Record<string, unknown>) => {
+    const { taskListId, showCompleted, maxResults, accountEmail } = args as {
+      taskListId?: string;
+      showCompleted?: boolean;
+      maxResults?: number;
+      accountEmail?: string;
+    };
+
+    try {
+      const { getTasksService } = await import('@orient-bot/integrations/google');
+      const tasks = getTasksService();
+      const taskItems = await tasks.listTasks(
+        {
+          taskListId,
+          showCompleted,
+          maxResults,
+        },
+        accountEmail
+      );
+
+      return createToolResult(
+        JSON.stringify(
+          {
+            count: taskItems.length,
+            tasks: taskItems.map(
+              (t: { id: string; title: string; notes?: string; due?: Date; status: string }) => ({
+                id: t.id,
+                title: t.title,
+                notes: t.notes,
+                dueDate: t.due?.toISOString(),
+                status: t.status,
+              })
+            ),
+          },
+          null,
+          2
+        )
+      );
+    } catch (error) {
+      return createToolError(
+        `Failed to list tasks: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  });
+
+  // Google Tasks - Create Task
+  registry.registerHandler('google_tasks_create', async (args: Record<string, unknown>) => {
+    const { title, notes, dueDate, taskListId, accountEmail } = args as {
+      title: string;
+      notes?: string;
+      dueDate?: string;
+      taskListId?: string;
+      accountEmail?: string;
+    };
+
+    try {
+      const { getTasksService } = await import('@orient-bot/integrations/google');
+      const tasks = getTasksService();
+      const task = await tasks.createTask(
+        {
+          title,
+          notes,
+          due: dueDate ? new Date(dueDate) : undefined,
+          taskListId,
+        },
+        accountEmail
+      );
+
+      return createToolResult(
+        JSON.stringify(
+          {
+            success: true,
+            message: `Task created: ${task.title}`,
+            task: {
+              id: task.id,
+              title: task.title,
+              notes: task.notes,
+              dueDate: task.due?.toISOString(),
+            },
+          },
+          null,
+          2
+        )
+      );
+    } catch (error) {
+      return createToolError(
+        `Failed to create task: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  });
+
+  // Google Tasks - Complete Task
+  registry.registerHandler('google_tasks_complete', async (args: Record<string, unknown>) => {
+    const { taskId, taskListId, accountEmail } = args as {
+      taskId: string;
+      taskListId?: string;
+      accountEmail?: string;
+    };
+
+    try {
+      const { getTasksService } = await import('@orient-bot/integrations/google');
+      const tasks = getTasksService();
+      const task = await tasks.completeTask(taskId, taskListId || '@default', accountEmail);
+
+      return createToolResult(
+        JSON.stringify(
+          {
+            success: true,
+            message: `Task completed: ${task.title}`,
+            task: {
+              id: task.id,
+              title: task.title,
+              status: task.status,
+            },
+          },
+          null,
+          2
+        )
+      );
+    } catch (error) {
+      return createToolError(
+        `Failed to complete task: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  });
+
   logger.info('Google tool handlers registered synchronously', {
     tools: [
       'google_oauth_status',
@@ -3431,6 +3369,568 @@ function registerGoogleToolHandlers(registry: ToolExecutorRegistry): void {
       'google_calendar_create_event',
       'google_calendar_update_event',
       'google_calendar_delete_event',
+      'google_tasks_list',
+      'google_tasks_create',
+      'google_tasks_complete',
+    ],
+  });
+}
+
+/**
+ * Registers WhatsApp tool handlers for message database access and sending
+ *
+ * Uses lazy imports inside each handler to ensure synchronous registration
+ * while deferring the actual service loading until the handler is called.
+ */
+function registerWhatsAppToolHandlers(registry: ToolExecutorRegistry): void {
+  // Lazy-loaded database instance
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let messageDb: any = null;
+  let messageDbInitialized = false;
+
+  async function getMessageDatabase() {
+    const { createMessageDatabase } = await import('@orient-bot/database-services');
+    if (!messageDb) {
+      messageDb = createMessageDatabase();
+    }
+    if (!messageDbInitialized) {
+      await messageDb.initialize();
+      messageDbInitialized = true;
+    }
+    return messageDb;
+  }
+
+  // whatsapp_search_messages
+  registry.registerHandler('whatsapp_search_messages', async (args: Record<string, unknown>) => {
+    const {
+      text,
+      phone,
+      direction,
+      isGroup,
+      fromDate,
+      toDate,
+      limit = 50,
+    } = args as {
+      text?: string;
+      phone?: string;
+      direction?: 'incoming' | 'outgoing';
+      isGroup?: boolean;
+      fromDate?: string;
+      toDate?: string;
+      limit?: number;
+    };
+
+    try {
+      const db = await getMessageDatabase();
+      const messages = await db.searchMessages({
+        text,
+        phone,
+        direction,
+        isGroup,
+        fromDate: fromDate ? new Date(fromDate) : undefined,
+        toDate: toDate ? new Date(toDate) : undefined,
+        limit,
+      });
+
+      return createToolResult(
+        JSON.stringify(
+          {
+            count: messages.length,
+            messages: messages.map(
+              (m: {
+                id: number;
+                direction: string;
+                phone: string;
+                text: string;
+                isGroup: boolean;
+                groupId: string | null;
+                timestamp: Date;
+                mediaType: string | null;
+              }) => ({
+                id: m.id,
+                direction: m.direction,
+                phone: m.phone,
+                text: m.text,
+                isGroup: m.isGroup,
+                groupId: m.groupId,
+                timestamp: m.timestamp,
+                mediaType: m.mediaType,
+              })
+            ),
+          },
+          null,
+          2
+        )
+      );
+    } catch (error) {
+      return createToolError(
+        `Search failed: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  });
+
+  // whatsapp_get_recent
+  registry.registerHandler('whatsapp_get_recent', async (args: Record<string, unknown>) => {
+    const { limit = 50 } = args as { limit?: number };
+
+    try {
+      const db = await getMessageDatabase();
+      const messages = await db.getRecentMessages(limit);
+
+      return createToolResult(
+        JSON.stringify(
+          {
+            count: messages.length,
+            messages: messages.map(
+              (m: {
+                id: number;
+                direction: string;
+                phone: string;
+                text: string;
+                isGroup: boolean;
+                groupId: string | null;
+                timestamp: Date;
+                mediaType: string | null;
+              }) => ({
+                id: m.id,
+                direction: m.direction,
+                phone: m.phone,
+                text: m.text,
+                isGroup: m.isGroup,
+                groupId: m.groupId,
+                timestamp: m.timestamp,
+                mediaType: m.mediaType,
+              })
+            ),
+          },
+          null,
+          2
+        )
+      );
+    } catch (error) {
+      return createToolError(
+        `Failed to get recent messages: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  });
+
+  // whatsapp_get_conversation
+  registry.registerHandler('whatsapp_get_conversation', async (args: Record<string, unknown>) => {
+    const { phone, limit = 100 } = args as { phone: string; limit?: number };
+
+    try {
+      const db = await getMessageDatabase();
+      const messages = await db.getConversationHistory(phone, limit);
+
+      return createToolResult(
+        JSON.stringify(
+          {
+            phone,
+            count: messages.length,
+            messages: messages.map(
+              (m: {
+                id: number;
+                direction: string;
+                text: string;
+                timestamp: Date;
+                mediaType: string | null;
+                transcribedText: string | null;
+              }) => ({
+                id: m.id,
+                direction: m.direction,
+                text: m.text,
+                timestamp: m.timestamp,
+                mediaType: m.mediaType,
+                transcribedText: m.transcribedText,
+              })
+            ),
+          },
+          null,
+          2
+        )
+      );
+    } catch (error) {
+      return createToolError(
+        `Failed to get conversation: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  });
+
+  // whatsapp_get_group_messages
+  registry.registerHandler('whatsapp_get_group_messages', async (args: Record<string, unknown>) => {
+    const { groupId, limit = 100 } = args as { groupId: string; limit?: number };
+
+    try {
+      const db = await getMessageDatabase();
+
+      // Try to find the group by name first if it doesn't look like a JID
+      let actualGroupId = groupId;
+      if (!groupId.includes('@')) {
+        const group = await db.findGroupByName(groupId);
+        if (group) {
+          actualGroupId = group.groupId;
+        }
+      }
+
+      const messages = await db.getMessagesByGroup(actualGroupId, limit);
+      const groupInfo = await db.getGroup(actualGroupId);
+
+      return createToolResult(
+        JSON.stringify(
+          {
+            groupId: actualGroupId,
+            groupName: groupInfo?.groupName || null,
+            groupSubject: groupInfo?.groupSubject || null,
+            count: messages.length,
+            messages: messages.map(
+              (m: {
+                id: number;
+                direction: string;
+                phone: string;
+                text: string;
+                timestamp: Date;
+                mediaType: string | null;
+              }) => ({
+                id: m.id,
+                direction: m.direction,
+                phone: m.phone,
+                text: m.text,
+                timestamp: m.timestamp,
+                mediaType: m.mediaType,
+              })
+            ),
+          },
+          null,
+          2
+        )
+      );
+    } catch (error) {
+      return createToolError(
+        `Failed to get group messages: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  });
+
+  // whatsapp_get_stats
+  registry.registerHandler('whatsapp_get_stats', async () => {
+    try {
+      const db = await getMessageDatabase();
+      const stats = await db.getStats();
+      const mediaStats = await db.getMediaStats();
+
+      return createToolResult(
+        JSON.stringify(
+          {
+            ...stats,
+            media: mediaStats,
+          },
+          null,
+          2
+        )
+      );
+    } catch (error) {
+      return createToolError(
+        `Failed to get stats: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  });
+
+  // whatsapp_list_contacts
+  registry.registerHandler('whatsapp_list_contacts', async () => {
+    try {
+      const db = await getMessageDatabase();
+      const contacts = await db.getUniqueContacts();
+
+      return createToolResult(
+        JSON.stringify(
+          {
+            count: contacts.length,
+            contacts,
+          },
+          null,
+          2
+        )
+      );
+    } catch (error) {
+      return createToolError(
+        `Failed to list contacts: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  });
+
+  // whatsapp_list_groups
+  registry.registerHandler('whatsapp_list_groups', async (args: Record<string, unknown>) => {
+    const { search } = args as { search?: string };
+
+    try {
+      const db = await getMessageDatabase();
+      let groups;
+
+      if (search) {
+        groups = await db.searchGroups(search);
+      } else {
+        groups = await db.getAllGroups();
+      }
+
+      // Also get groups without names (from messages table)
+      const groupIdsWithoutNames = await db.getGroupsWithoutNames();
+
+      return createToolResult(
+        JSON.stringify(
+          {
+            namedGroupsCount: groups.length,
+            unnamedGroupsCount: groupIdsWithoutNames.length,
+            groups: groups.map(
+              (g: {
+                groupId: string;
+                groupName: string;
+                groupSubject: string;
+                participantCount: number;
+                lastUpdated: Date;
+              }) => ({
+                groupId: g.groupId,
+                name: g.groupName,
+                subject: g.groupSubject,
+                participantCount: g.participantCount,
+                lastUpdated: g.lastUpdated,
+              })
+            ),
+            groupsWithoutNames: groupIdsWithoutNames,
+          },
+          null,
+          2
+        )
+      );
+    } catch (error) {
+      return createToolError(
+        `Failed to list groups: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  });
+
+  // whatsapp_get_media
+  registry.registerHandler('whatsapp_get_media', async (args: Record<string, unknown>) => {
+    const {
+      mediaType,
+      groupId,
+      limit = 50,
+    } = args as {
+      mediaType?: 'image' | 'audio' | 'video' | 'document';
+      groupId?: string;
+      limit?: number;
+    };
+
+    try {
+      const db = await getMessageDatabase();
+      let messages;
+
+      if (groupId) {
+        messages = await db.getMediaMessagesByGroup(groupId, limit, mediaType);
+      } else {
+        messages = await db.getMediaMessages(limit, mediaType);
+      }
+
+      return createToolResult(
+        JSON.stringify(
+          {
+            count: messages.length,
+            mediaType: mediaType || 'all',
+            messages: messages.map(
+              (m: {
+                id: number;
+                direction: string;
+                phone: string;
+                text: string;
+                isGroup: boolean;
+                groupId: string | null;
+                timestamp: Date;
+                mediaType: string | null;
+                mediaPath: string | null;
+                mediaMimeType: string | null;
+                transcribedText: string | null;
+                transcribedLanguage: string | null;
+              }) => ({
+                id: m.id,
+                direction: m.direction,
+                phone: m.phone,
+                text: m.text,
+                isGroup: m.isGroup,
+                groupId: m.groupId,
+                timestamp: m.timestamp,
+                mediaType: m.mediaType,
+                mediaPath: m.mediaPath,
+                mediaMimeType: m.mediaMimeType,
+                transcribedText: m.transcribedText,
+                transcribedLanguage: m.transcribedLanguage,
+              })
+            ),
+          },
+          null,
+          2
+        )
+      );
+    } catch (error) {
+      return createToolError(
+        `Failed to get media: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  });
+
+  // whatsapp_send_poll
+  registry.registerHandler('whatsapp_send_poll', async (args: Record<string, unknown>) => {
+    const {
+      question,
+      options,
+      selectableCount = 1,
+      context,
+    } = args as {
+      question: string;
+      options: string[];
+      selectableCount?: number;
+      context?: string;
+    };
+
+    try {
+      const baseUrl =
+        process.env.WHATSAPP_API_BASE ||
+        `http://127.0.0.1:${process.env.WHATSAPP_API_PORT || '4097'}`;
+      const response = await fetch(`${baseUrl.replace(/\/+$/, '')}/send-poll`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question, options, selectableCount, context }),
+      });
+
+      const result = (await response.json()) as {
+        success?: boolean;
+        pollId?: string;
+        error?: string;
+      };
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || 'Failed to send poll');
+      }
+
+      return createToolResult(
+        JSON.stringify(
+          {
+            success: true,
+            pollId: result.pollId,
+            question,
+            options,
+            message: 'Poll sent successfully! The user will see it in their WhatsApp chat.',
+          },
+          null,
+          2
+        )
+      );
+    } catch (error) {
+      return createToolError(
+        `Failed to send poll: ${error instanceof Error ? error.message : String(error)}. Make sure the WhatsApp bot is running and connected.`
+      );
+    }
+  });
+
+  // whatsapp_send_message
+  registry.registerHandler('whatsapp_send_message', async (args: Record<string, unknown>) => {
+    const { message } = args as { message: string };
+
+    try {
+      const baseUrl =
+        process.env.WHATSAPP_API_BASE ||
+        `http://127.0.0.1:${process.env.WHATSAPP_API_PORT || '4097'}`;
+      const response = await fetch(`${baseUrl.replace(/\/+$/, '')}/send-message`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message }),
+      });
+
+      const result = (await response.json()) as { success?: boolean; error?: string };
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || 'Failed to send message');
+      }
+
+      return createToolResult(
+        JSON.stringify(
+          {
+            success: true,
+            message: 'Message sent successfully!',
+          },
+          null,
+          2
+        )
+      );
+    } catch (error) {
+      return createToolError(
+        `Failed to send message: ${error instanceof Error ? error.message : String(error)}. Make sure the WhatsApp bot is running and connected.`
+      );
+    }
+  });
+
+  // whatsapp_send_image
+  registry.registerHandler('whatsapp_send_image', async (args: Record<string, unknown>) => {
+    const { imageUrl, imagePath, caption, jid } = args as {
+      imageUrl?: string;
+      imagePath?: string;
+      caption?: string;
+      jid?: string;
+    };
+
+    if (!imageUrl && !imagePath) {
+      return createToolError('Either imageUrl or imagePath is required');
+    }
+
+    try {
+      const baseUrl =
+        process.env.WHATSAPP_API_BASE ||
+        `http://127.0.0.1:${process.env.WHATSAPP_API_PORT || '4097'}`;
+      const response = await fetch(`${baseUrl.replace(/\/+$/, '')}/send-image`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jid, imageUrl, imagePath, caption }),
+      });
+
+      const result = (await response.json()) as {
+        success?: boolean;
+        error?: string;
+        messageId?: string;
+      };
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || 'Failed to send image');
+      }
+
+      return createToolResult(
+        JSON.stringify(
+          {
+            success: true,
+            messageId: result.messageId,
+            message: 'Image sent successfully!',
+          },
+          null,
+          2
+        )
+      );
+    } catch (error) {
+      return createToolError(
+        `Failed to send image: ${error instanceof Error ? error.message : String(error)}. Make sure the WhatsApp bot is running and connected.`
+      );
+    }
+  });
+
+  logger.info('WhatsApp tool handlers registered', {
+    tools: [
+      'whatsapp_search_messages',
+      'whatsapp_get_recent',
+      'whatsapp_get_conversation',
+      'whatsapp_get_group_messages',
+      'whatsapp_get_stats',
+      'whatsapp_list_contacts',
+      'whatsapp_list_groups',
+      'whatsapp_get_media',
+      'whatsapp_send_poll',
+      'whatsapp_send_message',
+      'whatsapp_send_image',
     ],
   });
 }

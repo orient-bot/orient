@@ -3,10 +3,10 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 
-// TODO: Re-enable when apps tools are migrated to @orientbot/mcp-tools
+// TODO: Re-enable when apps tools are migrated to @orient-bot/mcp-tools
 // These tools are currently stubs - see packages/mcp-tools/src/tools/apps/index.ts
-// import type { ToolContext } from '@orientbot/mcp-tools';
-// import { createAppTool, getAppTool, listAppsTool, updateAppTool, shareAppTool } from '@orientbot/mcp-tools';
+// import type { ToolContext } from '@orient-bot/mcp-tools';
+// import { createAppTool, getAppTool, listAppsTool, updateAppTool, shareAppTool } from '@orient-bot/mcp-tools';
 
 const baseContext = { config: {}, correlationId: 'test' } as any;
 

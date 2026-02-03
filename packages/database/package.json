@@ -1,22 +1,25 @@
 {
-  "name": "@orientbot/database",
-  "version": "1.0.0",
+  "name": "@orient-bot/database",
+  "version": "1.1.0",
   "description": "Database schemas, migrations, and clients for Orient",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
+      "source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "default": "./dist/index.js"
     },
     "./schema": {
+      "source": "./src/schema/index.ts",
       "types": "./dist/schema/index.d.ts",
       "import": "./dist/schema/index.js",
       "default": "./dist/schema/index.js"
     },
     "./client": {
+      "source": "./src/client.ts",
       "types": "./dist/client.d.ts",
       "import": "./dist/client.js",
       "default": "./dist/client.js"
@@ -42,7 +45,7 @@
     "db:studio:sqlite": "drizzle-kit studio --config=drizzle.sqlite.config.ts"
   },
   "dependencies": {
-    "@orientbot/core": "workspace:*",
+    "@orient-bot/core": "workspace:*",
     "better-sqlite3": "^11.7.0",
     "drizzle-orm": "^0.45.1",
     "pg": "^8.13.1",

@@ -9,7 +9,7 @@ let createJobSpy: ReturnType<typeof vi.fn>;
 let updateJobSpy: ReturnType<typeof vi.fn>;
 let deleteJobSpy: ReturnType<typeof vi.fn>;
 
-vi.mock('@orientbot/database-services', () => ({
+vi.mock('@orient-bot/database-services', () => ({
   createSchedulerDatabase: () => ({
     createJob: createJobSpy,
     updateJob: updateJobSpy,

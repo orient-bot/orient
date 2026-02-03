@@ -1,5 +1,5 @@
 /**
- * @orientbot/mcp-tools
+ * @orient-bot/mcp-tools
  *
  * Portable MCP tools and registry for the Orient.
  *
@@ -7,7 +7,6 @@
  * - Base tool class for creating MCP-compatible tools
  * - Tool registry with search and discovery
  * - Tool context factory for service injection
- * - JIRA tools for issue management
  * - System tools for health and config
  */
 
@@ -27,35 +26,10 @@ export type {
 } from './types.js';
 
 // Re-export tools module
-export {
-  MCPTool,
-  createTool,
-  createToolContext,
-  clearContextCache,
-  requireJiraClient,
-} from './tools/index.js';
+export { MCPTool, createTool, createToolContext, clearContextCache } from './tools/index.js';
 
 // Re-export registry module
 export { ToolRegistry, getToolRegistry, resetToolRegistry } from './registry/index.js';
-
-// Re-export JIRA tools
-export {
-  GetAllIssuesTool,
-  getAllIssuesTool,
-  GetIssueTool,
-  getIssueTool,
-  GetInProgressTool,
-  getInProgressTool,
-  GetBlockersTool,
-  getBlockersTool,
-  GetDailyDigestTool,
-  getDailyDigestTool,
-  GetWeeklySummaryTool,
-  getWeeklySummaryTool,
-} from './tools/jira/index.js';
-
-// Re-export JIRA tool definitions for agent services
-export { getSlackJiraTools, getWhatsAppJiraTools } from './tools/definitions/index.js';
 
 // Re-export System tools
 export {
@@ -112,9 +86,6 @@ export {
   scheduleTools,
   allConfigTools,
 } from './tools/config/index.js';
-
-// Re-export shared tool definitions
-export * from './tools/definitions/index.js';
 
 // Re-export Agent tools (stubs - migration pending)
 export { getAgentContextTool, listAgentsTool, handoffToAgentTool } from './tools/agents/index.js';

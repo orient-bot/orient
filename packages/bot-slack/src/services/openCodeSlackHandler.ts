@@ -4,10 +4,10 @@
  * This service handles Slack messages by delegating AI processing to an OpenCode server.
  * It manages sessions per channel/thread for conversation continuity and supports model switching.
  *
- * Exported via @orientbot/bot-slack package.
+ * Exported via @orient-bot/bot-slack package.
  */
 
-import { createServiceLogger } from '@orientbot/core';
+import { createServiceLogger } from '@orient-bot/core';
 import type {
   SlackInternalContext,
   SlackProcessedResponse,
@@ -33,7 +33,7 @@ import {
   OpenCodeHandlerBase,
   type PromptService,
   createOpenCodeClient,
-} from '@orientbot/agents';
+} from '@orient-bot/agents';
 
 const logger = createServiceLogger('opencode-slack');
 
@@ -70,6 +70,9 @@ export class OpenCodeSlackHandler extends OpenCodeHandlerBase<
       defaultAgent: resolvedConfig.defaultAgent,
       defaultModel: resolvedConfig.defaultModel,
     });
+
+    // Initialize LLM classifier for intelligent context control
+    this.initializeLLMClassifier();
   }
 
   /**
@@ -174,11 +177,18 @@ export class OpenCodeSlackHandler extends OpenCodeHandlerBase<
     // Check for session commands first (/reset, /compact, /help)
     const cmdResult = sharedDetectSessionCommand(text);
     if (cmdResult.isCommand && cmdResult.commandType) {
+      // Reset context counters on clear/compact commands
+      if (cmdResult.commandType === 'reset' || cmdResult.commandType === 'compact') {
+        await this.resetContextCounters('slack', context.channelId);
+      }
       return await this.handleSessionCommand(cmdResult.commandType, context, {
         helpText: buildSlackHelpText(),
         resetCommandLabel: '`/reset`',
       });
     }
+
+    // Analyze message for context management suggestions (topic shift, frustration)
+    const analysisResult = await this.analyzeMessageForContext(text, 'slack', context.channelId);
 
     // Check if this is a model switch command
     const switchResult = this.detectModelSwitch(text);
@@ -300,8 +310,15 @@ export class OpenCodeSlackHandler extends OpenCodeHandlerBase<
       // Store session mapping for potential future reference
       this.sessionMap.set(contextKey, result.sessionId);
 
+      // Update context with extracted keywords
+      await this.updateContextAfterMessage('slack', context.channelId, analysisResult);
+
+      // Append context management suggestion if any
+      const suggestion = this.formatContextSuggestion(analysisResult.suggestion, 'slack');
+      const finalResponse = suggestion ? result.response + suggestion : result.response;
+
       return {
-        text: result.response,
+        text: finalResponse,
         sessionId: result.sessionId,
         cost: result.cost,
         tokens: result.tokens,

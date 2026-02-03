@@ -57,7 +57,7 @@ function parseEvalFile(filepath: string): { name: string; agent: string } | null
 // Run eval validation (schema check)
 function runEvalValidation(): { passed: boolean; errors: string[] } {
   try {
-    execSync('pnpm run --filter @orientbot/eval validate', {
+    execSync('pnpm run --filter @orient-bot/eval validate', {
       cwd: PROJECT_ROOT,
       timeout: 30000,
       encoding: 'utf-8',

@@ -24,7 +24,7 @@ Get Orient running in three commands:
 
 ```bash
 # Clone the repo
-git clone https://github.com/orient-bot/orient.git
+git clone https://github.com/orient/orient.git
 
 # Start the demo
 docker compose -f docker/docker-compose.demo.yml up -d
@@ -67,4 +67,4 @@ Orient is open-source (MIT licensed) and designed to be self-hosted. No cloud de
 - [Tips & Tricks](./help/tips) — get the most out of Orient
 - [FAQ](./help/faq) — common questions answered
 - [Troubleshooting](./help/troubleshooting) — fix common issues
-- [GitHub](https://github.com/orient-bot/orient) — report bugs, request features, contribute
+- [GitHub](https://github.com/orient/orient) — report bugs, request features, contribute

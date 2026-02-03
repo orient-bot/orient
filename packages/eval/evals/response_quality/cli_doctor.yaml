@@ -1,0 +1,27 @@
+# Response Quality: CLI Doctor Command
+# Tests that agent explains orient doctor command for diagnostics
+
+name: cli_orient_doctor
+description: Agent explains orient doctor command for diagnostics
+type: response_quality
+agent: default
+
+input:
+  prompt: 'My Orient installation seems broken. How can I diagnose?'
+
+expect:
+  assertions:
+    - type: response_matches
+      pattern: 'orient doctor|doctor|diagnos'
+
+scoring:
+  llm_judge:
+    enabled: true
+    threshold: 0.7
+    criteria:
+      - name: accuracy
+        description: Correctly recommends orient doctor command
+        weight: 0.6
+      - name: clarity
+        description: Response is clear and helpful
+        weight: 0.4

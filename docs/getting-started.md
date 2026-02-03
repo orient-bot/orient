@@ -41,9 +41,9 @@ pnpm install
 
 This installs all packages in the monorepo, including:
 
-- `@orientbot/core` - Configuration and utilities
-- `@orientbot/dashboard` - Dashboard server and frontend
-- `@orientbot/mcp-tools` - MCP tool implementations
+- `@orient-bot/core` - Configuration and utilities
+- `@orient-bot/dashboard` - Dashboard server and frontend
+- `@orient-bot/mcp-tools` - MCP tool implementations
 - And more in `packages/`
 
 ## Step 3: Configure

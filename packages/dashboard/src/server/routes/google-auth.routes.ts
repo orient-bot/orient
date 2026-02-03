@@ -7,16 +7,45 @@
  */
 
 import { Router, Request, Response } from 'express';
+import { getParam } from './paramUtils.js';
 import { google, Auth } from 'googleapis';
 import { CodeChallengeMethod } from 'google-auth-library';
 import crypto from 'crypto';
 import { DashboardAuth } from '../../auth.js';
-import type { MessageDatabase } from '@orientbot/database-services';
-import { createServiceLogger } from '@orientbot/core';
-import { createSecretsService } from '@orientbot/database-services';
-import { getGoogleOAuthService, DEFAULT_SCOPES } from '@orientbot/integrations';
+import type { MessageDatabase } from '@orient-bot/database-services';
+import { createServiceLogger } from '@orient-bot/core';
+import { createSecretsService } from '@orient-bot/database-services';
+import {
+  getGoogleOAuthService,
+  DEFAULT_SCOPES,
+  GoogleOAuthProxyClient,
+  isProxyModeEnabled,
+} from '@orient-bot/integrations';
 
 const logger = createServiceLogger('google-auth-routes');
+
+// Proxy client for external instances
+let proxyClient: GoogleOAuthProxyClient | null = null;
+
+/**
+ * Get or create proxy client if proxy mode is enabled
+ */
+function getProxyClient(): GoogleOAuthProxyClient | null {
+  if (!isProxyModeEnabled()) {
+    return null;
+  }
+  if (!proxyClient) {
+    try {
+      proxyClient = new GoogleOAuthProxyClient();
+    } catch (error) {
+      logger.error('Failed to create proxy client', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return null;
+    }
+  }
+  return proxyClient;
+}
 
 // Use full integration scopes - signing in with Google also sets up the integration
 const AUTH_SCOPES = DEFAULT_SCOPES;
@@ -75,17 +104,17 @@ function getCallbackUrl(): string {
 
   // Production: Use HTTPS with app domain
   if (isProduction && appDomain) {
-    return `https://${appDomain}/auth/google/callback`;
+    return `https://${appDomain}/api/auth/google/callback`;
   }
 
   // Staging: Use HTTPS with staging domain (if exists)
   if (nodeEnv === 'staging' && appDomain) {
-    return `https://staging.${appDomain}/auth/google/callback`;
+    return `https://staging.${appDomain}/api/auth/google/callback`;
   }
 
   // Local/Development: Use localhost with dashboard port
   const port = process.env.DASHBOARD_PORT || '4098';
-  return `http://localhost:${port}/auth/google/callback`;
+  return `http://localhost:${port}/api/auth/google/callback`;
 }
 
 /**
@@ -171,15 +200,46 @@ export function createGoogleAuthRoutes(auth: DashboardAuth, db: MessageDatabase)
    *
    * Initiate Google OAuth flow.
    * Returns the authorization URL for the frontend to redirect to.
+   *
+   * Supports two modes:
+   * 1. Direct mode: Local credentials configured (GOOGLE_OAUTH_CLIENT_ID/SECRET)
+   * 2. Proxy mode: Use production's OAuth client via GOOGLE_OAUTH_PROXY_URL
    */
   router.post('/start', async (req: Request, res: Response) => {
     // Wait for initialization
     await initPromise;
 
+    // Try proxy mode if local credentials aren't configured
     if (!isConfigured || !oauth2Client) {
+      const proxy = getProxyClient();
+      if (proxy) {
+        try {
+          logger.info('Using OAuth proxy mode');
+          const result = await proxy.startOAuthFlow(AUTH_SCOPES);
+          res.json({
+            authUrl: result.authUrl,
+            state: result.state,
+            proxyMode: true,
+            sessionId: result.sessionId,
+          });
+          return;
+        } catch (error) {
+          logger.error('Proxy OAuth flow failed', {
+            error: error instanceof Error ? error.message : String(error),
+          });
+          res.status(503).json({
+            error: 'Google OAuth proxy unavailable',
+            message:
+              'Google sign-in is temporarily unavailable. Please create an account using username and password instead.',
+          });
+          return;
+        }
+      }
+
       res.status(503).json({
         error: 'Google OAuth not configured',
-        message: 'Contact administrator to enable Google sign-in',
+        message:
+          'Google sign-in is not available. Please create an account using username and password instead.',
       });
       return;
     }
@@ -208,7 +268,7 @@ export function createGoogleAuthRoutes(auth: DashboardAuth, db: MessageDatabase)
         prompt: 'consent', // Always prompt for consent
       });
 
-      logger.info('OAuth flow started', {
+      logger.info('OAuth flow started (direct mode)', {
         state: state.substring(0, 8) + '...',
       });
 
@@ -219,6 +279,96 @@ export function createGoogleAuthRoutes(auth: DashboardAuth, db: MessageDatabase)
       });
       res.status(500).json({
         error: 'Failed to start Google OAuth flow',
+      });
+    }
+  });
+
+  /**
+   * POST /auth/google/poll
+   *
+   * Poll for tokens in proxy mode.
+   * Frontend calls this after user completes OAuth consent in popup.
+   */
+  router.post('/poll', async (req: Request, res: Response) => {
+    const { sessionId } = req.body;
+
+    if (!sessionId) {
+      res.status(400).json({ error: 'Session ID is required' });
+      return;
+    }
+
+    const proxy = getProxyClient();
+    if (!proxy) {
+      res.status(503).json({
+        error: 'Proxy mode not enabled',
+        message: 'This endpoint is only available in proxy mode',
+      });
+      return;
+    }
+
+    try {
+      const tokens = await proxy.pollForTokens(sessionId);
+
+      // Create or login user with Google
+      let loginResult = await auth.loginWithGoogle(tokens.email, tokens.email);
+
+      if (!loginResult) {
+        logger.info('Creating new user from proxy OAuth', { email: tokens.email });
+        await auth.createUserWithGoogle(tokens.email, tokens.email);
+        loginResult = await auth.loginWithGoogle(tokens.email, tokens.email);
+
+        if (!loginResult) {
+          throw new Error('Failed to login after creating user');
+        }
+      }
+
+      // Store OAuth tokens for Google integration
+      if (tokens.refreshToken) {
+        try {
+          const oauthService = getGoogleOAuthService();
+          oauthService.addAccountFromTokens({
+            email: tokens.email,
+            accessToken: tokens.accessToken,
+            refreshToken: tokens.refreshToken,
+            expiresAt: tokens.expiresAt,
+            scopes: tokens.scopes,
+          });
+          logger.info('Google integration tokens stored from proxy', { email: tokens.email });
+        } catch (integrationError) {
+          logger.warn('Failed to store Google integration tokens from proxy', {
+            error:
+              integrationError instanceof Error
+                ? integrationError.message
+                : String(integrationError),
+          });
+        }
+      }
+
+      logger.info('User authenticated via proxy OAuth', { username: loginResult.username });
+
+      res.json({
+        success: true,
+        token: loginResult.token,
+        username: loginResult.username,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+
+      // Check if still pending (not completed yet)
+      if (message.includes('pending') || message.includes('not completed')) {
+        res.json({
+          success: false,
+          status: 'pending',
+          message: 'Waiting for user to complete OAuth flow',
+        });
+        return;
+      }
+
+      logger.error('Proxy poll failed', { error: message });
+      res.status(500).json({
+        success: false,
+        error: 'Failed to retrieve tokens from proxy',
+        message,
       });
     }
   });

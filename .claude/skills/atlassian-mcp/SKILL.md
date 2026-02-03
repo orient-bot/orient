@@ -1,11 +1,13 @@
 ---
 name: atlassian-mcp
-description: Use the Atlassian MCP Server to interact with JIRA from coding agents (Cursor, Claude Code). This skill documents how to use the official Atlassian MCP server for JIRA operations instead of the ai_first_* tools. Enable this MCP server in your Cursor/Claude Code settings for JIRA access.
+description: Use the Atlassian MCP Server to interact with JIRA from coding agents (Cursor, Claude Code). This skill documents how to use the official Atlassian MCP server for JIRA and Confluence operations. Enable this MCP server in your Cursor/Claude Code settings for JIRA access.
+requires:
+  - atlassian-oauth
 ---
 
 # Atlassian MCP Server for JIRA
 
-The Atlassian MCP Server provides direct access to JIRA from coding agents. Use this instead of `ai_first_*` JIRA tools when you need full JIRA capabilities in Cursor or Claude Code.
+The Atlassian MCP Server provides direct access to JIRA and Confluence from coding agents. This is the supported way to access Atlassian data from Cursor or Claude Code.
 
 ## Setup
 
@@ -137,30 +139,6 @@ project = YOUR_PROJECT AND component = "YOUR_COMPONENT" AND assignee = currentUs
 # Sprint issues
 project = YOUR_PROJECT AND component = "YOUR_COMPONENT" AND sprint in openSprints()
 ```
-
-## When to Use Which
-
-| Need                                 | Use This                                                   |
-| ------------------------------------ | ---------------------------------------------------------- |
-| Quick issue lookup from Cursor       | Atlassian MCP Server                                       |
-| Create/update issues from IDE        | Atlassian MCP Server                                       |
-| Complex queries in IDE               | Atlassian MCP Server (full JQL)                            |
-| Automated workflows (WhatsApp/Slack) | `ai_first_*` tools                                         |
-| Presentation updates                 | `ai_first_*` tools (has slide integration)                 |
-| SLA monitoring                       | `ai_first_check_sla_breaches`                              |
-| Digest/summary reports               | `ai_first_get_daily_digest`, `ai_first_get_weekly_summary` |
-
-## Comparison
-
-| Feature               | Atlassian MCP       | ai*first*\* tools |
-| --------------------- | ------------------- | ----------------- |
-| Authentication        | OAuth via Atlassian | API token         |
-| Issue CRUD            | Full support        | Read + links only |
-| Comments              | Full support        | Not available     |
-| Transitions           | Full support        | Not available     |
-| JQL Search            | Full support        | Pre-built queries |
-| Workspace integration | None                | Slack/WhatsApp    |
-| Presentation sync     | None                | Built-in          |
 
 ## Troubleshooting
 

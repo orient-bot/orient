@@ -119,17 +119,17 @@ See the `mini-apps` skill for detailed usage instructions.
 
 ```
 packages/
-├── core/              # @orientbot/core - Config, logger, types, utils
-├── database/          # @orientbot/database - Drizzle ORM schema
-├── database-services/ # @orientbot/database-services - DB service implementations
-├── integrations/      # @orientbot/integrations - JIRA, Google services
-├── agents/            # @orientbot/agents - Agent services and registry
-├── apps/              # @orientbot/apps - Mini-apps system
-├── mcp-tools/         # @orientbot/mcp-tools - MCP tool implementations
-├── mcp-servers/       # @orientbot/mcp-servers - MCP server implementations
-├── bot-slack/         # @orientbot/bot-slack - Slack bot
-├── bot-whatsapp/      # @orientbot/bot-whatsapp - WhatsApp bot
-├── dashboard/         # @orientbot/dashboard - Dashboard server + frontend
-├── api-gateway/       # @orientbot/api-gateway - API gateway
-└── test-utils/        # @orientbot/test-utils - Test helpers
+├── core/              # @orient-bot/core - Config, logger, types, utils
+├── database/          # @orient-bot/database - Drizzle ORM schema
+├── database-services/ # @orient-bot/database-services - DB service implementations
+├── integrations/      # @orient-bot/integrations - JIRA, Google services
+├── agents/            # @orient-bot/agents - Agent services and registry
+├── apps/              # @orient-bot/apps - Mini-apps system
+├── mcp-tools/         # @orient-bot/mcp-tools - MCP tool implementations
+├── mcp-servers/       # @orient-bot/mcp-servers - MCP server implementations
+├── bot-slack/         # @orient-bot/bot-slack - Slack bot
+├── bot-whatsapp/      # @orient-bot/bot-whatsapp - WhatsApp bot
+├── dashboard/         # @orient-bot/dashboard - Dashboard server + frontend
+├── api-gateway/       # @orient-bot/api-gateway - API gateway
+└── test-utils/        # @orient-bot/test-utils - Test helpers
 ```

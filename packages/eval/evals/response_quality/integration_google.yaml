@@ -1,0 +1,27 @@
+# Response Quality: Google Integration
+# Tests that agent explains Google OAuth setup correctly
+
+name: integration_google_setup
+description: Agent explains Google integration setup correctly
+type: response_quality
+agent: default
+
+input:
+  prompt: 'How do I connect Orient to Google Calendar?'
+
+expect:
+  assertions:
+    - type: response_matches
+      pattern: 'google|oauth|calendar'
+
+scoring:
+  llm_judge:
+    enabled: true
+    threshold: 0.7
+    criteria:
+      - name: accuracy
+        description: Correctly explains Google OAuth connection process
+        weight: 0.6
+      - name: completeness
+        description: Mentions OAuth and calendar permissions
+        weight: 0.4

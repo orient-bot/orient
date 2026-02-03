@@ -3,13 +3,13 @@
  *
  * Executes confirmed prompt configuration actions.
  *
- * IMPORTANT: This executor uses @orientbot/database-services directly instead of
- * @orientbot/agents to avoid ESM/CJS circular import issues. The PromptService
- * in @orientbot/agents is a higher-level wrapper, but for the executor we can
+ * IMPORTANT: This executor uses @orient-bot/database-services directly instead of
+ * @orient-bot/agents to avoid ESM/CJS circular import issues. The PromptService
+ * in @orient-bot/agents is a higher-level wrapper, but for the executor we can
  * work directly with the database layer.
  */
 
-import { createServiceLogger } from '@orientbot/core';
+import { createServiceLogger } from '@orient-bot/core';
 import { getPendingActionsStore } from '../pending-store.js';
 import type { PendingAction, ActionExecutionResult } from '../pending-store.js';
 
@@ -18,8 +18,8 @@ const logger = createServiceLogger('prompt-executor');
 /**
  * Execute a prompt configuration action
  *
- * Uses MessageDatabase directly from @orientbot/database-services to avoid
- * circular import issues with @orientbot/agents when called from CJS contexts.
+ * Uses MessageDatabase directly from @orient-bot/database-services to avoid
+ * circular import issues with @orient-bot/agents when called from CJS contexts.
  */
 async function executePromptAction(action: PendingAction): Promise<ActionExecutionResult> {
   logger.info('Executing prompt action', {
@@ -30,7 +30,7 @@ async function executePromptAction(action: PendingAction): Promise<ActionExecuti
 
   try {
     // Import database-services directly - this package has no cycle issues
-    const { createMessageDatabase } = await import('@orientbot/database-services');
+    const { createMessageDatabase } = await import('@orient-bot/database-services');
     const messageDb = createMessageDatabase();
 
     const { targetType, promptText, displayName, platform } = action.changes as {

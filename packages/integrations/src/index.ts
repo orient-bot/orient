@@ -1,64 +1,17 @@
 /**
- * @orientbot/integrations
+ * @orient-bot/integrations
  *
  * External service integrations for the Orient.
- * Provides unified access to JIRA, Google, Linear, GitHub, and other services.
+ * Provides unified access to Google, Linear, GitHub, and other services.
  *
  * @example
- * // JIRA types and service
- * import {
- *   initializeJiraClient,
- *   getAllIssues,
- *   JiraIssue,
- *   JiraUser,
- * } from '@orientbot/integrations';
- *
- * // Or use the subpath export
- * import * as jira from '@orientbot/integrations/jira';
- * import * as google from '@orientbot/integrations/google';
+ * // Google types and service
+ * import * as google from '@orient-bot/integrations/google';
  *
  * // New catalog-based integrations
- * import * as catalog from '@orientbot/integrations/catalog';
- * import { IntegrationManifest } from '@orientbot/integrations/types';
+ * import * as catalog from '@orient-bot/integrations/catalog';
+ * import { IntegrationManifest } from '@orient-bot/integrations/types';
  */
-
-// Re-export JIRA types
-export type {
-  JiraUser,
-  JiraIssue,
-  JiraSprint,
-  SLABreach,
-  DigestTransition,
-  JiraConfig,
-  JiraServiceConfig,
-  SLAConfig,
-  BoardConfig,
-  IssueLink,
-} from './jira/index.js';
-
-// Re-export JIRA service functions
-export {
-  initializeJiraClient,
-  getJiraClient,
-  testConnection,
-  getIssueCount,
-  getAllIssues,
-  getIssuesByStatus,
-  getInProgressIssues,
-  getBoardIssues,
-  getBlockerIssues,
-  getIssueByKey,
-  getRecentlyUpdatedIssues,
-  checkSLABreaches,
-  getYesterdayTransitions,
-  getActiveSprintIssues,
-  getCompletedThisWeek,
-  getCreatedThisWeek,
-  findJiraUserByEmail,
-  deleteIssueLink,
-  createIssueLink,
-  getIssueLinks,
-} from './jira/index.js';
 
 // Re-export Google types
 export * from './google/index.js';
@@ -106,7 +59,6 @@ export { validateManifest } from './types/integration.js';
  * Integration Services Status
  *
  * Package-native implementations:
- * - JIRA service functions (fully migrated)
  * - Google services (migrated)
  *
  * Services available via src/services/:
@@ -118,18 +70,16 @@ export { validateManifest } from './types/integration.js';
  * - slidesService - Presentation operations
  * - sheetsOAuthService - OAuth for Sheets
  * - slidesOAuthService - OAuth for Slides
- * - jiraService - Legacy JIRA service
  * - githubService - GitHub API
  * - gitWorktreeService - Git worktree management
  */
 export const INTEGRATIONS_SERVICES = {
   // Package-native (preferred)
-  jira: 'fully-migrated',
   google: 'migrated',
   gemini: 'migrated',
   // Catalog-based integrations (new architecture)
   catalogIntegrations: ['linear', 'github'],
   // Available via src/services/ imports
-  srcServices: ['jiraService'],
+  srcServices: [],
   reExportedServices: ['githubService', 'gitWorktreeService'],
 } as const;

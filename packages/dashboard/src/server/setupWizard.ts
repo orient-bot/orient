@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
-import { createServiceLogger, invalidateConfigCache, setSecretOverrides } from '@orientbot/core';
-import { createSecretsService, createMessageDatabase } from '@orientbot/database-services';
+import { createServiceLogger, invalidateConfigCache, setSecretOverrides } from '@orient-bot/core';
+import { createSecretsService, createMessageDatabase } from '@orient-bot/database-services';
 
 const logger = createServiceLogger('setup-wizard');
 const secretsService = createSecretsService();
@@ -17,41 +17,9 @@ export type SetupField = {
   required: boolean;
 };
 
+// SQLite mode: Only JWT secret is required
+// PostgreSQL and MinIO are only needed for Docker/production deployments
 const REQUIRED_FIELDS: SetupField[] = [
-  {
-    key: 'POSTGRES_USER',
-    label: 'Postgres user',
-    description: 'Database user for the workspace metadata store.',
-    placeholder: 'orient',
-    defaultValue: 'orient',
-    required: true,
-  },
-  {
-    key: 'POSTGRES_PASSWORD',
-    label: 'Postgres password',
-    description: 'Password for the Postgres user.',
-    placeholder: 'your-secure-password',
-    type: 'password',
-    defaultValue: 'your-secure-password',
-    required: true,
-  },
-  {
-    key: 'MINIO_ROOT_USER',
-    label: 'MinIO access key',
-    description: 'Root user for S3-compatible storage (MinIO/S3).',
-    placeholder: 'orientadmin',
-    defaultValue: 'orientadmin',
-    required: true,
-  },
-  {
-    key: 'MINIO_ROOT_PASSWORD',
-    label: 'MinIO secret key',
-    description: 'Root password for MinIO/S3.',
-    placeholder: 'your-secure-password',
-    type: 'password',
-    defaultValue: 'your-secure-password',
-    required: true,
-  },
   {
     key: 'DASHBOARD_JWT_SECRET',
     label: 'Workspace JWT secret',

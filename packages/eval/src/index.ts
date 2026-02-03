@@ -63,7 +63,6 @@ export {
   SlackMockService,
   GoogleMockService,
   WhatsAppMockService,
-  createMockJiraIssue,
   createMockSlackUser,
   createMockSlackChannel,
   createMockSlide,

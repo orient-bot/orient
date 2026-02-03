@@ -8,7 +8,7 @@
 import { z, ZodSchema } from 'zod';
 import type { Tool } from '@modelcontextprotocol/sdk/types.js';
 import type { ToolCategory, ToolContext, ToolMetadata, ToolResult } from '../types.js';
-import { createServiceLogger } from '@orientbot/core';
+import { createServiceLogger } from '@orient-bot/core';
 
 /**
  * Convert a Zod schema to JSON Schema format for MCP
@@ -87,7 +87,7 @@ function zodToJsonSchema(schema: ZodSchema): Record<string, unknown> {
  * - Registry integration
  */
 export abstract class MCPTool<TInput = unknown, TOutput = unknown> {
-  /** Unique tool name (e.g., "ai_first_get_all_issues") */
+  /** Unique tool name (e.g., "system_health_check") */
   abstract readonly name: string;
 
   /** Human-readable description */

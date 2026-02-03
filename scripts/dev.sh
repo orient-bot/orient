@@ -10,15 +10,14 @@
 # - Direct TypeScript execution from source
 #
 # What runs where:
-#   Docker:  nginx:80 (proxies to Vite for hot-reload), postgres:5432, minio:9000
-#   Native:  vite:5173, dashboard:4098 (unified: Dashboard API + WhatsApp), opencode:4099
+#   Docker:  nginx:80 (proxies to Vite for hot-reload), minio:9000
+#   Database: SQLite (local file, no Docker container needed)
+#   Native:  vite:5173, opencode:4099, whatsapp:4097
 #
 # Access via nginx (localhost:80):
 #   /           -> Dashboard with hot-reload (proxied to Vite)
-#   /qr/        -> WhatsApp QR (served by dashboard)
+#   /qr/        -> WhatsApp QR
 #   /api/       -> Dashboard API
-#
-# Architecture: Dashboard runs unified server (Dashboard + WhatsApp) on single port
 #
 # Usage:
 #   ./run.sh dev          # Start development environment
@@ -32,6 +31,9 @@ set -e
 # Get the project root directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+# Load cross-platform utilities
+source "$SCRIPT_DIR/lib/platform.sh"
 
 # Load environment variables from .env file
 # Use a safer method that handles values with spaces and special characters
@@ -77,16 +79,15 @@ NC='\033[0m' # No Color
 # PID files for tracking background processes
 # PID_DIR is set by instance-env.sh
 # Note: TSC_PID_FILE removed - we use tsx watch instead of tsc --watch
-# Note: WhatsApp is now integrated into the dashboard (unified server)
 OPENCODE_PID_FILE="$PID_DIR/opencode.pid"
+WHATSAPP_PID_FILE="$PID_DIR/whatsapp.pid"
 SLACK_PID_FILE="$PID_DIR/slack.pid"
 FRONTEND_PID_FILE="$PID_DIR/frontend.pid"
 DASHBOARD_PID_FILE="$PID_DIR/dashboard.pid"
 
 # Service flags (can be disabled via command line)
-# WhatsApp is integrated into dashboard (unified server mode)
-# Set WHATSAPP_ENABLED=false to disable WhatsApp in dashboard
-ENABLE_WHATSAPP="${WHATSAPP_ENABLED:-true}"
+# WhatsApp defaults to enabled for instance 0, disabled for worktrees (unless --enable-whatsapp)
+RUN_WHATSAPP="${WHATSAPP_ENABLED:-true}"
 RUN_SLACK=true
 FRESH_START=false
 
@@ -134,7 +135,7 @@ setup_miniapps_shared() {
         log_step "Creating apps/_shared/package.json for TypeScript resolution..."
         cat > "$shared_dir/package.json" << 'SHAREDJSON'
 {
-  "name": "@orientbot/mini-apps-shared",
+  "name": "@orient/mini-apps-shared",
   "private": true,
   "version": "1.0.0",
   "type": "module",
@@ -240,7 +241,7 @@ build_miniapps() {
                 if ! grep -q '"baseUrl"' "$app_dir/tsconfig.json"; then
                     log_info "  $app_name: adding baseUrl to tsconfig.json"
                     # Add baseUrl after the first { in compilerOptions
-                    sed -i '' 's/"compilerOptions": {/"compilerOptions": {\n    "baseUrl": ".",/' "$app_dir/tsconfig.json" 2>/dev/null || true
+                    sed_inplace "$app_dir/tsconfig.json" 's/"compilerOptions": {/"compilerOptions": {\n    "baseUrl": ".",/' 2>/dev/null || true
                 fi
             fi
 
@@ -368,18 +369,57 @@ wait_for_opencode() {
     return 1
 }
 
+# Get the OpenCode binary to use
+# Priority: 1) OPENCODE_BIN env var, 2) bundled binary, 3) system opencode
+get_opencode_binary() {
+    # Allow override via environment variable
+    if [[ -n "${OPENCODE_BIN:-}" ]] && [[ -x "$OPENCODE_BIN" ]]; then
+        echo "$OPENCODE_BIN"
+        return 0
+    fi
+
+    # Check for bundled binary
+    local os arch platform bundled_binary
+    os=$(uname -s | tr '[:upper:]' '[:lower:]')
+    arch=$(uname -m)
+    [[ "$arch" == "arm64" || "$arch" == "aarch64" ]] && arch="arm64"
+    [[ "$arch" == "x86_64" ]] && arch="x64"
+    platform="${os}-${arch}"
+    bundled_binary="$PROJECT_ROOT/vendor/opencode/$platform/opencode"
+
+    if [[ -x "$bundled_binary" ]]; then
+        # Verify it's not an LFS pointer (small file)
+        local size
+        size=$(stat -f%z "$bundled_binary" 2>/dev/null || stat -c%s "$bundled_binary" 2>/dev/null)
+        if [[ "$size" -gt 1000000 ]]; then
+            echo "$bundled_binary"
+            return 0
+        else
+            log_warn "Bundled binary appears to be LFS pointer. Run 'git lfs pull'"
+        fi
+    fi
+
+    # Fall back to system opencode
+    if command -v opencode &> /dev/null; then
+        echo "opencode"
+        return 0
+    fi
+
+    log_error "OpenCode not found. Install with: ./installer/install-local.sh"
+    return 1
+}
+
 wait_for_whatsapp() {
-    # WhatsApp is now integrated into dashboard (unified server)
-    log_step "Waiting for WhatsApp integration to be ready..."
+    log_step "Waiting for WhatsApp bot to be ready..."
     for i in {1..30}; do
-        if curl -sf "http://localhost:${DASHBOARD_PORT}/whatsapp/health" >/dev/null 2>&1; then
-            log_info "WhatsApp integration is ready!"
+        if curl -sf "http://localhost:${WHATSAPP_PORT}/health" >/dev/null 2>&1; then
+            log_info "WhatsApp bot is ready!"
             return 0
         fi
         sleep 1
     done
-    log_warn "WhatsApp integration not responding (dashboard may still work)"
-    return 0  # Don't fail - dashboard can work without WhatsApp
+    log_error "WhatsApp bot failed to start within 30 seconds"
+    return 1
 }
 
 wait_for_dashboard() {
@@ -433,9 +473,8 @@ is_slack_configured() {
 cleanup_orphaned_processes() {
     log_step "Checking for orphaned processes on required ports..."
     local had_orphans=false
-
-    # Note: WhatsApp is now integrated into dashboard (unified server on DASHBOARD_PORT)
-    for port in "$DASHBOARD_PORT" "$OPENCODE_PORT" "$VITE_PORT"; do
+    
+    for port in "$WHATSAPP_PORT" "$DASHBOARD_PORT" "$OPENCODE_PORT" "$VITE_PORT"; do
         local pids=$(lsof -ti ":$port" 2>/dev/null || true)
         if [ -n "$pids" ]; then
             had_orphans=true
@@ -443,7 +482,7 @@ cleanup_orphaned_processes() {
             kill_port "$port"
         fi
     done
-
+    
     if [ "$had_orphans" = true ]; then
         log_info "Orphaned processes cleaned up"
         # Brief pause to ensure ports are fully released
@@ -473,7 +512,7 @@ fresh_start() {
 
     # Rebuild only core packages needed for dev (using turbo for proper dependency handling)
     log_info "Rebuilding core packages..."
-    pnpm turbo build --filter=@orientbot/core --filter=@orientbot/database --filter=@orientbot/database-services --filter=@orientbot/apps --filter=@orientbot/mcp-tools --filter=@orientbot/agents 2>&1 | tail -20 || {
+    pnpm turbo build --filter=@orient/core --filter=@orient-bot/database --filter=@orient-bot/database-services --filter=@orient/apps --filter=@orient/mcp-tools --filter=@orient/agents 2>&1 | tail -20 || {
         log_warn "Some packages failed to build. Dev mode may still work with tsx."
     }
 
@@ -500,12 +539,12 @@ start_dev() {
 
             # Generate secure ORIENT_MASTER_KEY (64 hex characters = 256 bits)
             local master_key=$(openssl rand -hex 32)
-            sed -i '' "s/ORIENT_MASTER_KEY=GENERATE_ON_INSTALL/ORIENT_MASTER_KEY=${master_key}/" "$PROJECT_ROOT/.env"
+            sed_inplace "$PROJECT_ROOT/.env" "s/ORIENT_MASTER_KEY=GENERATE_ON_INSTALL/ORIENT_MASTER_KEY=${master_key}/"
             log_info "Generated secure ORIENT_MASTER_KEY for secrets encryption"
 
             # Generate secure DASHBOARD_JWT_SECRET (64 hex characters)
             local jwt_secret=$(openssl rand -hex 32)
-            sed -i '' "s/DASHBOARD_JWT_SECRET=dev-jwt-secret-for-local-development-only-change-in-production/DASHBOARD_JWT_SECRET=${jwt_secret}/" "$PROJECT_ROOT/.env"
+            sed_inplace "$PROJECT_ROOT/.env" "s/DASHBOARD_JWT_SECRET=dev-jwt-secret-for-local-development-only-change-in-production/DASHBOARD_JWT_SECRET=${jwt_secret}/"
             log_info "Generated secure DASHBOARD_JWT_SECRET"
 
             log_warn "Created .env with development defaults. Review and customize as needed."
@@ -536,7 +575,7 @@ start_dev() {
 
     # Generate instance-specific Nginx configuration from template
     log_step "Generating Nginx configuration for instance $AI_INSTANCE_ID..."
-    envsubst '$VITE_PORT,$DASHBOARD_PORT,$OPENCODE_PORT' < "$PROJECT_ROOT/docker/nginx-local.template.conf" > "$PROJECT_ROOT/docker/nginx-local.conf"
+    envsubst '$VITE_PORT,$WHATSAPP_PORT,$DASHBOARD_PORT,$OPENCODE_PORT' < "$PROJECT_ROOT/docker/nginx-local.template.conf" > "$PROJECT_ROOT/docker/nginx-local.conf"
     log_info "Nginx config generated: docker/nginx-local.conf"
 
     # Step 1: Start Docker infrastructure
@@ -562,10 +601,15 @@ start_dev() {
     rm -f /tmp/docker-compose-output.txt
     cd "$PROJECT_ROOT"
 
-    # Database: SQLite (file-based, no external database server needed)
-    # SQLite database will be created automatically on first access
-    log_info "Database: SQLite at ${SQLITE_DB_PATH}"
-    mkdir -p "$(dirname "$SQLITE_DB_PATH")"
+    # Step 2: Initialize database schema (SQLite, migrations + agent seed)
+    log_step "Initializing database schema..."
+    if [ -f "$PROJECT_ROOT/scripts/init-db.sh" ]; then
+        "$PROJECT_ROOT/scripts/init-db.sh" || {
+            log_warn "Database initialization had issues (continuing anyway)"
+        }
+    else
+        log_warn "init-db.sh not found, skipping database initialization"
+    fi
 
     # Note: No TypeScript build step needed!
     # We use tsx for JIT TypeScript execution - saves 30-60+ seconds
@@ -579,7 +623,7 @@ start_dev() {
     # Step 3: Start frontend dev server with hot-reload
     log_step "Starting frontend dev server (Vite)..."
     cd "$PROJECT_ROOT"
-    pnpm --filter @orientbot/dashboard-frontend run dev > "$LOG_DIR/frontend-dev.log" 2>&1 &
+    pnpm --filter @orient-bot/dashboard-frontend run dev > "$LOG_DIR/frontend-dev.log" 2>&1 &
     echo $! > "$FRONTEND_PID_FILE"
     log_info "Frontend dev server started (PID: $(cat $FRONTEND_PID_FILE))"
 
@@ -590,7 +634,7 @@ start_dev() {
     # Ensure database package is built (required for module resolution with tsx)
     if [ ! -f "packages/database/dist/index.js" ]; then
         log_warn "Database package not built, building now..."
-        pnpm --filter @orientbot/database build || {
+        pnpm --filter @orient-bot/database build || {
             log_error "Failed to build database package"
             return 1
         }
@@ -599,7 +643,7 @@ start_dev() {
     # Ensure database-services package is built (it imports from database)
     if [ ! -f "packages/database-services/dist/index.js" ]; then
         log_warn "Database-services package not built, building now..."
-        pnpm --filter @orientbot/database-services build || {
+        pnpm --filter @orient-bot/database-services build || {
             log_error "Failed to build database-services package"
             return 1
         }
@@ -608,7 +652,7 @@ start_dev() {
     # Ensure apps package is built (required for storage capabilities in mini-apps)
     if [ ! -f "packages/apps/dist/types.js" ]; then
         log_warn "Apps package not built, building now..."
-        pnpm --filter @orientbot/apps build || {
+        pnpm --filter @orient/apps build || {
             log_error "Failed to build apps package"
             return 1
         }
@@ -616,7 +660,7 @@ start_dev() {
 
     # Start dashboard using pnpm (handles workspace resolution better than direct tsx)
     # Run from project root to ensure proper workspace resolution
-    pnpm --filter @orientbot/dashboard dev > "$LOG_DIR/dashboard-dev.log" 2>&1 &
+    pnpm --filter @orient-bot/dashboard dev > "$LOG_DIR/dashboard-dev.log" 2>&1 &
     echo $! > "$DASHBOARD_PID_FILE"
     log_info "Dashboard API server started (PID: $(cat $DASHBOARD_PID_FILE))"
     
@@ -624,7 +668,7 @@ start_dev() {
     if ! wait_for_dashboard; then
         log_error "Dashboard failed to start. Check logs: $LOG_DIR/dashboard-dev.log"
         log_error "Common issues:"
-        log_error "  1. Database package not built - run: pnpm --filter @orientbot/database build"
+        log_error "  1. Database package not built - run: pnpm --filter @orient-bot/database build"
         log_error "  2. Module resolution issues - try: pnpm install"
         log_error "  3. Port already in use - check: lsof -i :${DASHBOARD_PORT}"
         return 1
@@ -635,47 +679,8 @@ start_dev() {
         log_info "Mini-apps cache refreshed"
     fi
 
-    # Step 4: Start OpenCode server (dashboard must be ready first)
-    log_step "Starting OpenCode server..."
-
-    # Configure OpenCode isolation to use project-local data
-    # This prevents interference with user's global ~/.opencode/ installation
-    source "$SCRIPT_DIR/opencode-env.sh"
-    configure_opencode_isolation
-
-    opencode serve --port "$OPENCODE_PORT" --hostname 0.0.0.0 > "$LOG_DIR/opencode-dev.log" 2>&1 &
-    echo $! > "$OPENCODE_PID_FILE"
-    log_info "OpenCode started (PID: $(cat $OPENCODE_PID_FILE))"
-
-    # Step 5: Wait for OpenCode
-    wait_for_opencode
-
-    # Step 6: Start WhatsApp bot with tsx watch (instant hot-reload)
-
-    # Set environment variables for local development
-    # (DATABASE_URL, AWS_ENDPOINT_URL, and S3_BUCKET are already set by instance-env.sh)
-    export NODE_ENV="development"
-    export OPENCODE_URL="http://localhost:${OPENCODE_PORT}"
-    export OPENCODE_SERVER_URL="http://localhost:${OPENCODE_PORT}"
-    export AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID:-minioadmin}"
-    export AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY:-minioadmin123}"
-
-    # WhatsApp integration is now part of dashboard (unified server)
-    # Set WHATSAPP_ENABLED to control whether WhatsApp is initialized
-    if [ "$ENABLE_WHATSAPP" = true ]; then
-        export WHATSAPP_ENABLED="true"
-        log_info "WhatsApp integration enabled (unified server mode)"
-    else
-        export WHATSAPP_ENABLED="false"
-        if [ "$AI_INSTANCE_ID" != "0" ]; then
-            log_warn "WhatsApp integration disabled in worktree (use --enable-whatsapp to override)"
-        else
-            log_warn "WhatsApp integration disabled (--no-whatsapp)"
-        fi
-    fi
-
-    # Step 5b: Load secrets from database into environment
-    # This makes secrets saved via the dashboard available to bots
+    # Step 4: Load secrets from database into environment BEFORE starting OpenCode
+    # This makes secrets saved via the dashboard available to OpenCode and bots
     if [ -f "$PROJECT_ROOT/scripts/load-secrets.ts" ]; then
         log_step "Loading secrets from database..."
         local secrets_output
@@ -689,12 +694,62 @@ start_dev() {
         fi
     fi
 
-    # Wait for WhatsApp integration to be ready (if enabled)
-    if [ "$ENABLE_WHATSAPP" = true ]; then
+    # Step 5: Start OpenCode server (dashboard must be ready first, secrets loaded)
+    log_step "Starting OpenCode server..."
+    # Use local config if it exists
+    if [ -f "$PROJECT_ROOT/opencode.local.json" ]; then
+        export OPENCODE_CONFIG="$PROJECT_ROOT/opencode.local.json"
+    fi
+    # Use bundled binary if available, otherwise fall back to system opencode
+    local opencode_bin
+    opencode_bin=$(get_opencode_binary) || { log_error "Failed to find OpenCode binary"; return 1; }
+    log_info "Using OpenCode binary: $opencode_bin"
+    local opencode_version
+    opencode_version=$("$opencode_bin" --version 2>&1 | tail -1)
+    log_info "OpenCode version: $opencode_version"
+    # Bind to 127.0.0.1 for local dev - only localhost can reach OpenCode
+    # This avoids network exposure and removes need for password auth
+    "$opencode_bin" serve --port "$OPENCODE_PORT" --hostname 127.0.0.1 > "$LOG_DIR/opencode-dev.log" 2>&1 &
+    echo $! > "$OPENCODE_PID_FILE"
+    log_info "OpenCode started (PID: $(cat $OPENCODE_PID_FILE))"
+
+    # Step 6: Wait for OpenCode
+    wait_for_opencode
+
+    # Step 7: Start WhatsApp bot with tsx watch (instant hot-reload)
+
+    # Set environment variables for local development
+    # (DATABASE_URL, AWS_ENDPOINT_URL, and S3_BUCKET are already set by instance-env.sh)
+    export NODE_ENV="development"
+    export OPENCODE_URL="http://localhost:${OPENCODE_PORT}"
+    export OPENCODE_SERVER_URL="http://localhost:${OPENCODE_PORT}"
+    export AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID:-minioadmin}"
+    export AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY:-minioadmin123}"
+    # Avoid starting the legacy dashboard inside the WhatsApp bot.
+    # The dashboard API is already started via @orient-bot/dashboard.
+    export DASHBOARD_ENABLED="false"
+
+    # Run with tsx watch for instant hot-reload (JIT TypeScript execution)
+    # - No compilation step needed - tsx executes TypeScript directly
+    # - Watches src/ and packages/ for changes, restarts on any .ts change
+    # - Much faster than nodemon + tsc --watch
+    if [ "$RUN_WHATSAPP" = true ]; then
+        log_step "Starting WhatsApp bot with tsx watch..."
+        npx tsx watch --clear-screen=false packages/bot-whatsapp/src/main.ts > "$LOG_DIR/whatsapp-dev.log" 2>&1 &
+        echo $! > "$WHATSAPP_PID_FILE"
+        log_info "WhatsApp bot started with tsx watch (PID: $(cat $WHATSAPP_PID_FILE))"
+
+        # Wait for WhatsApp bot to be ready before continuing
         wait_for_whatsapp
+    else
+        if [ "$AI_INSTANCE_ID" != "0" ]; then
+            log_warn "WhatsApp bot disabled in worktree (use --enable-whatsapp to override)"
+        else
+            log_warn "WhatsApp bot disabled (--no-whatsapp)"
+        fi
     fi
 
-    # Step 7: Start Slack bot if configured
+    # Step 8: Start Slack bot if configured
     if [ "$RUN_SLACK" = true ] && is_slack_configured; then
         log_step "Starting Slack bot with tsx watch..."
         npx tsx watch --clear-screen=false packages/bot-slack/src/main.ts > "$LOG_DIR/slack-dev.log" 2>&1 &
@@ -712,16 +767,15 @@ start_dev() {
     echo -e "${GREEN}╠═══════════════════════════════════════════════════════════════╣${NC}"
     echo -e "${GREEN}║  Access points:                                               ║${NC}"
     printf "${GREEN}║    • http://localhost:%-6s      - Dashboard (hot-reload!)    ║${NC}\n" "$NGINX_PORT"
-    if [ "$ENABLE_WHATSAPP" = true ]; then
-    printf "${GREEN}║    • http://localhost:%-6s/qr   - WhatsApp QR                ║${NC}\n" "$NGINX_PORT"
+    if [ "$RUN_WHATSAPP" = true ]; then
+    printf "${GREEN}║    • http://localhost:%-6s/qr/  - WhatsApp QR                ║${NC}\n" "$NGINX_PORT"
     fi
     printf "${GREEN}║    • http://localhost:%-6s      - OpenCode (direct)          ║${NC}\n" "$OPENCODE_PORT"
     printf "${GREEN}║    • http://localhost:%-6s      - MinIO Console              ║${NC}\n" "$MINIO_CONSOLE_PORT"
     echo -e "${GREEN}║                                                               ║${NC}"
-    echo -e "${GREEN}║  Services (unified server on port ${DASHBOARD_PORT}):                       ║${NC}"
-    echo -e "${GREEN}║    • Dashboard API: running                                   ║${NC}"
-    if [ "$ENABLE_WHATSAPP" = true ]; then
-    echo -e "${GREEN}║    • WhatsApp integration: enabled                            ║${NC}"
+    echo -e "${GREEN}║  Services:                                                    ║${NC}"
+    if [ "$RUN_WHATSAPP" = true ]; then
+    printf "${GREEN}║    • WhatsApp bot: running (port %-6s)                   ║${NC}\n" "$WHATSAPP_PORT"
     fi
     if [ "$RUN_SLACK" = true ] && is_slack_configured; then
     echo -e "${GREEN}║    • Slack bot: running (Socket Mode)                         ║${NC}"
@@ -738,25 +792,25 @@ start_dev() {
     
     # Wait for processes and handle Ctrl+C
     trap 'stop_dev; exit 0' SIGINT SIGTERM
-
-    # Collect PIDs to monitor (dashboard is the primary service, plus optional Slack)
+    
+    # Collect all bot PIDs to monitor
     WAIT_PIDS=""
-    if [ -f "$DASHBOARD_PID_FILE" ]; then
-        WAIT_PIDS="$WAIT_PIDS $(cat $DASHBOARD_PID_FILE)"
+    if [ "$RUN_WHATSAPP" = true ] && [ -f "$WHATSAPP_PID_FILE" ]; then
+        WAIT_PIDS="$WAIT_PIDS $(cat $WHATSAPP_PID_FILE)"
     fi
     if [ "$RUN_SLACK" = true ] && [ -f "$SLACK_PID_FILE" ]; then
         WAIT_PIDS="$WAIT_PIDS $(cat $SLACK_PID_FILE)"
     fi
-
+    
     if [ -z "$WAIT_PIDS" ]; then
-        log_warn "No services running, press Ctrl+C to stop"
+        log_warn "No bots running, press Ctrl+C to stop"
         while true; do sleep 3600; done
     else
-        # Monitor processes - if any exits, clean up all
+        # Monitor all bot processes - if any exits, clean up all
         while true; do
             for pid in $WAIT_PIDS; do
                 if ! kill -0 $pid 2>/dev/null; then
-                    log_warn "Service process (PID: $pid) exited, stopping all services..."
+                    log_warn "Bot process (PID: $pid) exited, stopping all services..."
                     stop_dev
                     exit 1
                 fi
@@ -775,8 +829,7 @@ stop_dev() {
     log_info "Stopping development environment..."
 
     # Step 1: Stop tracked processes via PID files
-    # Note: WhatsApp is now integrated into dashboard (no separate PID file)
-    for pid_file in "$SLACK_PID_FILE" "$FRONTEND_PID_FILE" "$DASHBOARD_PID_FILE" "$OPENCODE_PID_FILE"; do
+    for pid_file in "$WHATSAPP_PID_FILE" "$SLACK_PID_FILE" "$FRONTEND_PID_FILE" "$DASHBOARD_PID_FILE" "$OPENCODE_PID_FILE"; do
         if [ -f "$pid_file" ]; then
             local pid=$(cat "$pid_file")
             local name=$(basename "$pid_file" .pid)
@@ -786,17 +839,19 @@ stop_dev() {
     done
 
     # Step 2: Kill any tsx/node processes related to our bots
+    kill_by_pattern "tsx.*watch.*whatsapp-bot" "WhatsApp tsx"
     kill_by_pattern "tsx.*watch.*slack-bot" "Slack tsx"
     kill_by_pattern "tsx.*packages/dashboard/src/main.ts" "Dashboard API"
     kill_by_pattern "tsx.*src/main.ts" "Dashboard API (tsx)"
-    kill_by_pattern "pnpm.*@orientbot/dashboard.*dev" "Dashboard API (pnpm)"
+    kill_by_pattern "pnpm.*@orient-bot/dashboard.*dev" "Dashboard API (pnpm)"
+    kill_by_pattern "node.*whatsapp-bot" "WhatsApp node"
     kill_by_pattern "node.*slack-bot" "Slack node"
     kill_by_pattern "vite.*dashboard-frontend" "Vite"
-
+    
     # Step 3: Clean up any orphaned processes on our ports
-    # Note: WhatsApp is now part of dashboard (unified server on DASHBOARD_PORT)
     log_step "Checking for orphaned processes on ports..."
-    kill_port "$DASHBOARD_PORT"  # Dashboard API (includes WhatsApp)
+    kill_port "$WHATSAPP_PORT"  # WhatsApp bot
+    kill_port "$DASHBOARD_PORT"  # Dashboard API
     kill_port "$OPENCODE_PORT"  # OpenCode
     kill_port "$VITE_PORT"  # Vite dev server
 
@@ -810,10 +865,10 @@ stop_dev() {
     rm -f "$PID_DIR"/*.pid 2>/dev/null || true
 
     log_info "Development environment stopped"
-
+    
     # Final verification
     local remaining=""
-    for port in "$DASHBOARD_PORT" "$OPENCODE_PORT" "$VITE_PORT"; do
+    for port in "$WHATSAPP_PORT" "$DASHBOARD_PORT" "$OPENCODE_PORT" "$VITE_PORT"; do
         if lsof -ti ":$port" >/dev/null 2>&1; then
             remaining="$remaining $port"
         fi
@@ -833,8 +888,7 @@ stop_dev() {
 
 show_logs() {
     echo -e "${CYAN}Tailing development logs (Ctrl+C to stop)...${NC}"
-    # Note: WhatsApp logs are now in dashboard-dev.log (unified server)
-    tail -f "$LOG_DIR/dashboard-dev.log" "$LOG_DIR/frontend-dev.log" "$LOG_DIR/opencode-dev.log" 2>/dev/null
+    tail -f "$LOG_DIR/whatsapp-dev.log" "$LOG_DIR/frontend-dev.log" "$LOG_DIR/opencode-dev.log" 2>/dev/null
 }
 
 # =============================================================================
@@ -845,7 +899,7 @@ show_status() {
     echo ""
     echo -e "${CYAN}Development Environment Status${NC}"
     echo "═══════════════════════════════════════"
-
+    
     # Check Docker containers
     echo -e "\n${BLUE}Docker Containers (Instance $AI_INSTANCE_ID):${NC}"
     if docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" | grep -E "orienter-.*-${AI_INSTANCE_ID}" 2>/dev/null; then
@@ -853,7 +907,7 @@ show_status() {
     else
         echo "  No instance $AI_INSTANCE_ID containers running"
     fi
-
+    
     # Check native processes
     echo -e "\n${BLUE}Native Processes:${NC}"
 
@@ -865,10 +919,6 @@ show_status() {
 
     if is_process_running "$DASHBOARD_PID_FILE"; then
         echo -e "  Dashboard API:    ${GREEN}running${NC} (PID: $(cat $DASHBOARD_PID_FILE))"
-        # Check if WhatsApp integration is enabled
-        if [ "$WHATSAPP_ENABLED" = "true" ]; then
-            echo -e "    └─ WhatsApp:    ${GREEN}integrated${NC} (unified server)"
-        fi
     else
         echo -e "  Dashboard API:    ${RED}stopped${NC}"
     fi
@@ -879,6 +929,12 @@ show_status() {
         echo -e "  OpenCode:         ${RED}stopped${NC}"
     fi
 
+    if is_process_running "$WHATSAPP_PID_FILE"; then
+        echo -e "  WhatsApp bot:     ${GREEN}running${NC} (PID: $(cat $WHATSAPP_PID_FILE))"
+    else
+        echo -e "  WhatsApp bot:     ${RED}stopped${NC}"
+    fi
+
     if is_process_running "$SLACK_PID_FILE"; then
         echo -e "  Slack bot:        ${GREEN}running${NC} (PID: $(cat $SLACK_PID_FILE))"
     elif is_slack_configured; then
@@ -886,7 +942,7 @@ show_status() {
     else
         echo -e "  Slack bot:        ${YELLOW}not configured${NC}"
     fi
-
+    
     # Check endpoints
     echo -e "\n${BLUE}Endpoints:${NC}"
     if curl -sf "http://localhost:$NGINX_PORT/" >/dev/null 2>&1; then
@@ -913,17 +969,16 @@ show_status() {
         fi
     fi
 
-    # WhatsApp health (integrated into dashboard)
-    if curl -sf "http://localhost:$DASHBOARD_PORT/whatsapp/health" >/dev/null 2>&1; then
-        echo -e "  WhatsApp (unified): ${GREEN}healthy${NC}"
-    else
-        echo -e "  WhatsApp (unified): ${YELLOW}not responding${NC} (check WHATSAPP_ENABLED)"
-    fi
-
     if curl -sf "http://localhost:$OPENCODE_PORT/global/health" >/dev/null 2>&1; then
         echo -e "  OpenCode ($OPENCODE_PORT):  ${GREEN}healthy${NC}"
     else
         echo -e "  OpenCode ($OPENCODE_PORT):  ${RED}unreachable${NC}"
+    fi
+
+    if curl -sf "http://localhost:$WHATSAPP_PORT/health" >/dev/null 2>&1; then
+        echo -e "  WhatsApp ($WHATSAPP_PORT):  ${GREEN}healthy${NC}"
+    else
+        echo -e "  WhatsApp ($WHATSAPP_PORT):  ${RED}unreachable${NC}"
     fi
 
     if curl -sf "http://localhost:$NGINX_PORT/health" >/dev/null 2>&1; then
@@ -955,20 +1010,20 @@ while [[ $# -gt 0 ]]; do
             shift
             ;;
         --no-whatsapp)
-            ENABLE_WHATSAPP=false
+            RUN_WHATSAPP=false
             shift
             ;;
         --enable-whatsapp)
-            ENABLE_WHATSAPP=true
+            RUN_WHATSAPP=true
             shift
             ;;
         --slack-only)
-            ENABLE_WHATSAPP=false
+            RUN_WHATSAPP=false
             RUN_SLACK=true
             shift
             ;;
         --whatsapp-only)
-            ENABLE_WHATSAPP=true
+            RUN_WHATSAPP=true
             RUN_SLACK=false
             shift
             ;;

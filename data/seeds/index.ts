@@ -71,6 +71,9 @@ export async function seedAll(options: SeedOptions = {}): Promise<void> {
   }
 
   console.log('\n✅ All seeds complete!');
+  console.log(
+    '💡 Tip: Run `npx tsx scripts/sync-agents-to-opencode.ts` to sync agents into opencode.json files'
+  );
 }
 
 /**

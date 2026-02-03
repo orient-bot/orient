@@ -69,16 +69,17 @@ Builds all workspace packages. Required before running tests.
 
 ## Test Suite
 
-Orient v0.2.0 includes a baseline of **~286 tests**.
+Orient v0.2.0 includes a baseline of **~350+ tests** across 71 test files.
 
 ### Test Categories
 
 | Category    | Command                                        | Expected Tests | Expected Files |
 | ----------- | ---------------------------------------------- | -------------- | -------------- |
-| Unit        | `pnpm test:unit`                               | ~243           | ~24 files      |
-| Integration | `INTEGRATION_TESTS=true pnpm test:integration` | ~43            | ~1 file        |
+| Unit        | `pnpm test:unit`                               | ~280           | ~30 files      |
+| Integration | `INTEGRATION_TESTS=true pnpm test:integration` | ~50            | ~5 files       |
+| E2E         | `E2E_TESTS=true pnpm test:e2e`                 | ~20            | ~3 files       |
 
-**Total: ~286 tests**
+**Total: ~350+ tests**
 
 ### Run All Tests (Quick Reference)
 
@@ -231,6 +232,103 @@ orient uninstall   # Removes Orient (prompts for confirmation)
 
 ---
 
+## Context Analyzer Testing
+
+Test the intelligent context control system.
+
+### Unit Tests
+
+```bash
+pnpm vitest run packages/agents/__tests__/contextAnalyzer.test.ts
+```
+
+**Expected**: ~15 tests covering:
+
+- Frustration detection (keywords, tone, patterns)
+- Topic shift detection (conversation flow changes)
+- Context reset recommendations
+
+### Integration Tests
+
+```bash
+INTEGRATION_TESTS=true pnpm vitest run packages/agents/__tests__/contextAnalyzer.integration.test.ts
+```
+
+**Expected**: ~20 tests covering multi-turn conversations and LLM-based analysis.
+
+### E2E Tests
+
+```bash
+E2E_TESTS=true pnpm vitest run tests/e2e/context-analyzer.e2e.test.ts
+```
+
+**Expected**: ~15 tests with real conversation scenarios.
+
+### Eval Cases
+
+Run behavior evaluations:
+
+```bash
+# Frustration detection
+pnpm vitest run evals/context-control/frustration-detection.yaml
+pnpm vitest run evals/context-control/frustration-false-positive.yaml
+
+# Topic shift detection
+pnpm vitest run evals/context-control/topic-shift-detection.yaml
+pnpm vitest run evals/context-control/topic-shift-false-positive.yaml
+```
+
+---
+
+## Slack Interactive Buttons Testing
+
+Test the new Slack approval buttons and session persistence.
+
+### Manual Testing
+
+1. Start the bot: `./run.sh dev start`
+2. Send a message to the bot that triggers a permission prompt
+3. Verify you see "Approve" and "Reject" buttons (not text commands)
+4. Click a button and verify the action completes
+5. Restart the bot: `./run.sh dev restart`
+6. Send another message and verify the conversation context is preserved
+
+### Unit Tests
+
+```bash
+pnpm vitest run packages/bot-slack/__tests__/pendingActions.test.ts
+```
+
+---
+
+## Mini-Apps Backend Storage Testing
+
+Test the key-value storage API for mini-apps.
+
+### Manual Testing
+
+1. Open the dashboard at `http://localhost:4098`
+2. Navigate to Mini-Apps > Simple Todo
+3. Add a todo item
+4. Refresh the page - item should persist
+5. Open in another browser - data should be shared (backend storage)
+
+### API Testing
+
+```bash
+# Start services
+./run.sh dev start
+
+# Test storage endpoints
+curl -X POST http://localhost:4098/api/mini-apps/storage \
+  -H "Content-Type: application/json" \
+  -d '{"key": "test-key", "value": {"data": "test"}}'
+
+curl http://localhost:4098/api/mini-apps/storage/test-key
+```
+
+---
+
 ## Slack Bot Live Testing
 
 Test real Slack integration with credentials.
@@ -326,14 +424,15 @@ sqlite3 data/sqlite/orient.db "SELECT * FROM drizzle_migrations LIMIT 5;"
 
 ## Test Coverage by Package
 
-| Package                        | Tests | Critical Paths                    |
-| ------------------------------ | ----- | --------------------------------- |
-| `@orientbot/core`              | 26    | Crypto, config                    |
-| `@orientbot/database-services` | 120+  | Feature flags, secrets, scheduler |
-| `@orientbot/dashboard`         | 50+   | Routes, agents, integrations      |
-| `@orientbot/bot-whatsapp`      | 30+   | Messaging, QR, connection         |
-| `@orientbot/bot-slack`         | 25+   | Messaging, pending actions        |
-| `@orientbot/integrations`      | 20+   | OAuth flows, JIRA, Linear         |
+| Package                         | Tests | Critical Paths                              |
+| ------------------------------- | ----- | ------------------------------------------- |
+| `@orient-bot/core`              | 26    | Crypto, config                              |
+| `@orient-bot/database-services` | 120+  | Feature flags, secrets, scheduler           |
+| `@orient-bot/dashboard`         | 50+   | Routes, agents, integrations                |
+| `@orient-bot/bot-whatsapp`      | 30+   | Messaging, QR, connection                   |
+| `@orient-bot/bot-slack`         | 25+   | Messaging, pending actions, buttons         |
+| `@orient-bot/integrations`      | 20+   | OAuth flows, JIRA, Linear                   |
+| `@orient-bot/agents`            | 50+   | Context analyzer, prompts, OpenCode handler |
 
 ### Key Test Files
 
@@ -361,6 +460,19 @@ sqlite3 data/sqlite/orient.db "SELECT * FROM drizzle_migrations LIMIT 5;"
 - `packages/bot-slack/__tests__/messaging.test.ts` - Slack messaging
 - `packages/bot-slack/__tests__/pendingActions.test.ts` - Approval buttons
 
+#### Context Analyzer (NEW in v0.2.0)
+
+- `packages/agents/__tests__/contextAnalyzer.test.ts` - Unit tests for frustration/topic detection
+- `packages/agents/__tests__/contextAnalyzer.integration.test.ts` - Integration tests with LLM
+- `tests/e2e/context-analyzer.e2e.test.ts` - End-to-end conversation scenarios
+
+#### Eval Cases (NEW in v0.2.0)
+
+- `evals/context-control/frustration-detection.yaml` - Frustration detection accuracy
+- `evals/context-control/frustration-false-positive.yaml` - False positive prevention
+- `evals/context-control/topic-shift-detection.yaml` - Topic shift accuracy
+- `evals/context-control/topic-shift-false-positive.yaml` - False positive prevention
+
 ---
 
 ## Cleanup
@@ -379,10 +491,76 @@ orient uninstall
 
 ---
 
+## OpenCode Security Testing
+
+OpenCode uses different security models depending on the deployment mode.
+
+### Local Install (PM2 / dev-local) — No Password
+
+In local mode, OpenCode binds to `127.0.0.1` (localhost only). No password auth is needed since only local processes can reach it.
+
+**Verify localhost-only binding:**
+
+```bash
+# Start local dev
+./run.sh dev-local start
+
+# Should work — localhost access
+curl -s http://localhost:4099/global/health
+# Expected: 200 OK
+
+# Should NOT work — external access (from another machine on the network)
+# Replace <ip> with the machine's LAN IP
+curl -s http://<lan-ip>:4099/global/health
+# Expected: Connection refused
+```
+
+**Verify no password prompt:**
+
+```bash
+# Open OpenCode directly — should load without credentials
+open http://localhost:4099
+# Expected: OpenCode UI loads, no Basic Auth prompt
+```
+
+**Verify sidebar link works:**
+
+1. Open dashboard at `http://localhost:5173`
+2. Click "OpenCode" in sidebar under "Tools"
+3. Expected: OpenCode opens in new tab without password prompt
+
+### Remote / Docker (nginx) — Password Protected
+
+In Docker mode, OpenCode binds to `0.0.0.0` behind nginx. Nginx validates JWT cookies via `auth_request` and proxies to OpenCode with the server password.
+
+**Verify auth is enforced:**
+
+```bash
+# Direct access without auth should be blocked by nginx
+curl -s -o /dev/null -w "%{http_code}" http://localhost/opencode/
+# Expected: 302 (redirect to login)
+
+# With valid dashboard session cookie, should work
+curl -s -b "session_cookie" http://localhost/opencode/
+# Expected: 200 OK
+```
+
+**Verify password is set in Docker:**
+
+```bash
+# Inside the Docker container
+docker exec orienter-opencode env | grep OPENCODE_SERVER_PASSWORD
+# Expected: OPENCODE_SERVER_PASSWORD=<64-char hex>
+```
+
+---
+
 ## Known Issues (v0.2.0)
 
 - **E2E Timeouts**: Up to 4 timeout errors in E2E tests are expected due to OpenCode server load
 - **First Run**: SQLite database creation may take a few seconds on first start
+- **Context Analyzer**: Requires valid ANTHROPIC_API_KEY for integration tests
+- **Slack Buttons**: Require valid Slack app with interactivity enabled
 
 ---
 

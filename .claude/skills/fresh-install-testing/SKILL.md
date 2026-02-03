@@ -26,6 +26,16 @@ cd orient-fresh-test
 
 ## Phase 1: Environment Setup
 
+### Pre-flight Checks
+
+```bash
+# Verify LFS binaries are fetched (not pointers)
+git lfs pull
+
+# Verify bundled binary checksums match
+./installer/install-local.sh --check
+```
+
 ### Run Doctor
 
 ```bash
@@ -57,43 +67,34 @@ Builds all 16 workspace packages. Required before running tests.
 
 ## Phase 2: Dev Mode Startup
 
-### Start Without Bots (for basic testing)
+### Start Dev-Local Mode (SQLite, no Docker)
 
 ```bash
-./run.sh dev start --no-whatsapp --no-slack
+./run.sh dev-local
 ```
 
-### Start With Slack Only
-
-```bash
-./run.sh dev start --no-whatsapp
-```
-
-### Start With WhatsApp Only
-
-```bash
-./run.sh dev start --no-slack
-```
+This starts the development environment using SQLite (no PostgreSQL required).
 
 ### Stop Dev Mode
 
 ```bash
-./run.sh dev stop
+./run.sh stop
 ```
 
 ## Phase 3: Run Test Suite
 
-### Test Categories (7 total)
+### Test Categories
 
-| Category    | Command                                        | Expected Files |
+| Category    | Command                                        | Expected Tests |
 | ----------- | ---------------------------------------------- | -------------- |
-| Unit        | `pnpm test:unit`                               | ~24 files      |
-| Integration | `INTEGRATION_TESTS=true pnpm test:integration` | ~1 file        |
-| E2E         | `E2E_TESTS=true pnpm test:e2e`                 | ~5 files       |
-| Contract    | `pnpm vitest run tests/contracts/`             | ~6 files       |
-| Config      | `pnpm vitest run tests/config/`                | ~4 files       |
-| Services    | `pnpm vitest run tests/services/`              | ~6 files       |
-| Docker      | `pnpm test:docker:build` (optional, slow)      | ~3 files       |
+| Unit        | `pnpm test:unit`                               | ~243           |
+| Integration | `INTEGRATION_TESTS=true pnpm test:integration` | ~43            |
+| Contract    | `pnpm vitest run tests/contracts/`             | ~20            |
+| Config      | `pnpm vitest run tests/config/`                | ~22            |
+| Services    | `pnpm vitest run tests/services/`              | ~22            |
+| E2E         | `E2E_TESTS=true pnpm test:e2e`                 | ~50            |
+| Eval        | `pnpm test:eval`                               | ~53            |
+| Docker      | `pnpm test:docker:build` (optional, slow)      | ~10            |
 
 ### Interpreting Results
 
@@ -106,7 +107,7 @@ Builds all 16 workspace packages. Required before running tests.
 **Expected Skips**:
 
 - Some tests are skipped by default (e.g., Slack live tests without tokens)
-- Dashboard export contract tests are skipped (no dashboard-specific tests)
+- Eval tests: 15 passing, ~38 failing is expected (ongoing refinement)
 
 ## Phase 4: Slack Bot Live Testing
 
@@ -131,12 +132,12 @@ E2E_TESTS=true RUN_SLACK_LIVE_TESTS=true \
 ### Start Dev Mode with WhatsApp
 
 ```bash
-./run.sh dev start --no-slack
+./run.sh dev-local
 ```
 
 ### Scan QR Code
 
-1. Open http://localhost/qr/ (or http://localhost:4098/qr/)
+1. Open http://localhost:4098/qr/
 2. Open WhatsApp on phone > Settings > Linked Devices > Link a Device
 3. Scan the QR code
 
@@ -157,7 +158,7 @@ curl -s http://localhost:4098/qr/status | jq .
 
 1. Check logs for "loggedOut" reason:
    ```bash
-   grep -E "(loggedOut|logged out)" logs/instance-0/dashboard-dev.log
+   grep -E "(loggedOut|logged out)" .dev-data/instance-0/logs/*.log
    ```
 2. If logged out, a new QR code is automatically generated
 3. Wait for "QR Code received" message in logs
@@ -165,8 +166,8 @@ curl -s http://localhost:4098/qr/status | jq .
 
 **Log Locations**:
 
-- Main log: `logs/instance-0/dashboard-dev.log`
-- Connection debug: `logs/whatsapp-debug-*.log`
+- Main log: `.dev-data/instance-0/logs/dashboard.log`
+- WhatsApp debug: `.dev-data/instance-0/logs/whatsapp-*.log`
 
 ## Phase 6: Health Verification
 
@@ -174,13 +175,13 @@ curl -s http://localhost:4098/qr/status | jq .
 
 ```bash
 curl -s http://localhost:4098/health | jq .
-# Should return: {"status":"ok","timestamp":"...","whatsapp":{"connected":true}}
+# Should return: {"status":"ok","timestamp":"..."}
 ```
 
 ### Dashboard Accessibility
 
 ```bash
-curl -s -o /dev/null -w "%{http_code}" http://localhost:80/
+curl -s -o /dev/null -w "%{http_code}" http://localhost:4098/
 # Should return: 200
 ```
 
@@ -198,11 +199,57 @@ sqlite3 .dev-data/instance-0/orient.db "SELECT COUNT(*) FROM agents;"
 # Should return: 5 (or more)
 ```
 
+## Phase 7: Mac Installer Testing
+
+### Method 1: Local bundled binary
+
+```bash
+./installer/install-local.sh --check   # Verify versions/checksums
+./installer/install-local.sh           # Install to ~/.orient/bin/
+```
+
+### Method 2: Full installer script
+
+```bash
+# Clean slate
+rm -rf ~/.orient
+
+# Run installer
+bash installer/install.sh
+
+# Verify
+orient doctor
+orient start
+curl -s http://localhost:4098/health | jq .
+orient stop
+```
+
+### Method 3: Docker simulation (cleanest environment)
+
+```bash
+pnpm test:installer:docker
+```
+
+### CLI Command Verification
+
+After installer:
+
+```bash
+orient --help      # Shows help
+orient doctor      # All checks pass
+orient start       # Starts services
+orient status      # Shows "online" status
+orient logs        # Shows logs
+orient stop        # Stops services
+orient config      # Opens config in editor
+orient version     # Shows 0.2.0
+```
+
 ## Cleanup
 
 ```bash
 cd /Users/tombensim/code/tombensim/orient-fresh-test
-./run.sh dev stop
+./run.sh stop
 cd ..
 rm -rf orient-fresh-test
 ```
@@ -215,37 +262,40 @@ cd /Users/tombensim/code/tombensim
 rm -rf orient-fresh-test
 git clone https://github.com/orient-bot/orient.git orient-fresh-test
 cd orient-fresh-test
+git lfs pull
 ./run.sh doctor --fix
 cp ../orient/.env .env
 pnpm build:packages
 
-# Start dev mode
-./run.sh dev start --no-whatsapp --no-slack
+# Start dev-local mode
+./run.sh dev-local
 
 # Run all tests
 pnpm test:unit
 INTEGRATION_TESTS=true pnpm test:integration
-E2E_TESTS=true pnpm test:e2e
 pnpm vitest run tests/contracts/
 pnpm vitest run tests/config/
 pnpm vitest run tests/services/
+E2E_TESTS=true pnpm test:e2e
+pnpm test:eval
 
 # Verify health
 curl -s http://localhost:4098/health | jq .
 
 # Cleanup
-./run.sh dev stop
+./run.sh stop
 ```
 
-## Expected Results (v0.1.0 baseline)
+## Expected Results (v0.2.0 baseline)
 
-| Category    | Tests Passed | Notes                         |
-| ----------- | ------------ | ----------------------------- |
-| Unit        | ~246         |                               |
-| Integration | ~43          |                               |
-| E2E         | ~34          | 4 timeout failures acceptable |
-| Contract    | ~62          |                               |
-| Config      | ~22          |                               |
-| Services    | ~22          |                               |
-| Slack Live  | ~9           | Requires credential export    |
-| **Total**   | **~438**     |                               |
+| Category    | Tests Passed | Notes                          |
+| ----------- | ------------ | ------------------------------ |
+| Unit        | ~243         |                                |
+| Integration | ~43          |                                |
+| Contract    | ~20          |                                |
+| Config      | ~22          |                                |
+| Services    | ~22          |                                |
+| E2E         | ~50          | Timeout failures acceptable    |
+| Eval        | ~15          | 38 known failures (acceptable) |
+| Slack Live  | ~9           | Requires credential export     |
+| **Total**   | **~380+**    |                                |

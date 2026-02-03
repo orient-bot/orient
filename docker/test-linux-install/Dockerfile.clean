@@ -1,0 +1,13 @@
+FROM ubuntu:22.04
+
+# Only install absolutely minimal tools
+RUN apt-get update && apt-get install -y \
+    git \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+COPY . .
+
+# Test: Run doctor.sh and verify it shows correct hints
+CMD ["./scripts/doctor.sh"]

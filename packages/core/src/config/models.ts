@@ -19,6 +19,110 @@
 import { getEnvWithSecrets } from './loader.js';
 
 // ============================================
+// MODEL TIER & CAPABILITY TYPES
+// ============================================
+
+/**
+ * Model pricing/quality tiers for intelligent selection
+ * - free: No API key required (Zen free models)
+ * - cheap: Low cost, good for simple tasks (Haiku, GPT-4o Mini)
+ * - balanced: Good cost/quality balance (Sonnet, GPT-4o)
+ * - quality: Best quality, higher cost (Opus, GPT-5)
+ */
+export type ModelTier = 'free' | 'cheap' | 'balanced' | 'quality';
+
+/**
+ * Model capabilities for intelligent routing
+ */
+export interface ModelCapabilities {
+  vision: boolean;
+  longContext: boolean; // >100K tokens
+  toolCalling: boolean;
+  coding: boolean;
+}
+
+/**
+ * Extended model definition with tier and capabilities
+ */
+export interface ModelDefinitionExt {
+  id: string;
+  name: string;
+  provider: string;
+  aliases?: readonly string[];
+  supportsVision?: boolean;
+  tier: ModelTier;
+  capabilities: ModelCapabilities;
+  costPerMillionTokens?: number; // for cost optimization
+}
+
+// ============================================
+// FREE ZEN MODELS
+// ============================================
+
+/**
+ * Free models available via OpenCode Zen
+ * These require no API key and are perfect for onboarding
+ */
+export const FREE_MODELS: Record<string, ModelDefinitionExt> = {
+  'glm-4-flash-free': {
+    id: 'opencode/glm-4-flash-free',
+    name: 'GLM 4 Flash (Free)',
+    provider: 'opencode',
+    tier: 'free',
+    capabilities: { vision: false, longContext: false, toolCalling: true, coding: true },
+    costPerMillionTokens: 0,
+  },
+  'glm-4.1v-flash-thinking-free': {
+    id: 'opencode/glm-4.1v-flash-thinking-free',
+    name: 'GLM 4.1V Flash Thinking (Free)',
+    provider: 'opencode',
+    tier: 'free',
+    capabilities: { vision: true, longContext: false, toolCalling: true, coding: true },
+    costPerMillionTokens: 0,
+  },
+  'kimi-k2-0711-free': {
+    id: 'opencode/kimi-k2-0711-free',
+    name: 'Kimi K2 (Free)',
+    provider: 'opencode',
+    tier: 'free',
+    capabilities: { vision: false, longContext: true, toolCalling: true, coding: true },
+    costPerMillionTokens: 0,
+  },
+  'gemini-2.5-flash-preview-05-20': {
+    id: 'opencode/gemini-2.5-flash-preview-05-20',
+    name: 'Gemini 2.5 Flash Preview (Free)',
+    provider: 'opencode',
+    tier: 'free',
+    capabilities: { vision: true, longContext: true, toolCalling: true, coding: true },
+    costPerMillionTokens: 0,
+  },
+  'mistral-small-2503': {
+    id: 'opencode/mistral-small-2503',
+    name: 'Mistral Small (Free)',
+    provider: 'opencode',
+    tier: 'free',
+    capabilities: { vision: false, longContext: false, toolCalling: true, coding: true },
+    costPerMillionTokens: 0,
+  },
+};
+
+/**
+ * Default free model to use when no API keys are configured
+ */
+export const DEFAULT_FREE_MODEL = 'opencode/gemini-2.5-flash-preview-05-20';
+
+/**
+ * Fallback chain for free models (in order of preference)
+ */
+export const FREE_MODEL_FALLBACK_CHAIN = [
+  'opencode/gemini-2.5-flash-preview-05-20',
+  'opencode/kimi-k2-0711-free',
+  'opencode/glm-4.1v-flash-thinking-free',
+  'opencode/glm-4-flash-free',
+  'opencode/mistral-small-2503',
+];
+
+// ============================================
 // MODEL DEFINITIONS
 // ============================================
 
@@ -34,6 +138,9 @@ export const AVAILABLE_MODELS = {
     provider: 'openai',
     aliases: ['gpt-mini', 'gpt4o-mini', '4o-mini', 'mini'],
     supportsVision: true,
+    tier: 'cheap' as ModelTier,
+    capabilities: { vision: true, longContext: false, toolCalling: true, coding: true },
+    costPerMillionTokens: 0.15,
   },
   // OpenAI models
   gpt: {
@@ -42,14 +149,30 @@ export const AVAILABLE_MODELS = {
     provider: 'openai',
     aliases: ['gpt', 'gpt5', 'gpt-5', 'gpt5.2', 'openai'],
     supportsVision: true, // GPT-5.2 has vision capabilities
+    tier: 'quality' as ModelTier,
+    capabilities: { vision: true, longContext: true, toolCalling: true, coding: true },
+    costPerMillionTokens: 15,
   },
   // Anthropic models
+  haiku: {
+    id: 'anthropic/claude-haiku-4-5-20251001',
+    name: 'Claude Haiku 4.5',
+    provider: 'anthropic',
+    aliases: ['haiku', 'claude-haiku', 'haiku-4.5'],
+    supportsVision: true,
+    tier: 'cheap' as ModelTier,
+    capabilities: { vision: true, longContext: false, toolCalling: true, coding: true },
+    costPerMillionTokens: 0.8,
+  },
   opus: {
     id: 'claude-opus-4.5',
     name: 'Claude Opus 4.5',
     provider: 'anthropic',
     aliases: ['opus', 'claude-opus', 'opus-4.5', 'opus4.5', 'anthropic-opus'],
     supportsVision: true, // Claude Opus has vision
+    tier: 'quality' as ModelTier,
+    capabilities: { vision: true, longContext: true, toolCalling: true, coding: true },
+    costPerMillionTokens: 75,
   },
   sonnet: {
     id: 'claude-sonnet-4.5',
@@ -65,6 +188,9 @@ export const AVAILABLE_MODELS = {
       'anthropic',
     ],
     supportsVision: true, // Claude Sonnet is the default vision model
+    tier: 'balanced' as ModelTier,
+    capabilities: { vision: true, longContext: true, toolCalling: true, coding: true },
+    costPerMillionTokens: 15,
   },
 } as const;
 
@@ -77,15 +203,16 @@ export type ModelDefinition = (typeof AVAILABLE_MODELS)[ModelKey];
 
 /** Default model for WhatsApp - can be overridden via WHATSAPP_DEFAULT_MODEL env var */
 export const WHATSAPP_DEFAULT_MODEL =
-  getEnvWithSecrets('WHATSAPP_DEFAULT_MODEL') || 'openai/gpt-4o-mini';
-export const WHATSAPP_DEFAULT_MODEL_NAME = 'GPT-4o Mini';
+  getEnvWithSecrets('WHATSAPP_DEFAULT_MODEL') || 'anthropic/claude-haiku-4-5-20251001';
+export const WHATSAPP_DEFAULT_MODEL_NAME = 'Claude Haiku 4.5';
 
 /** Default model for Slack - can be overridden via SLACK_DEFAULT_MODEL env var */
-export const SLACK_DEFAULT_MODEL = getEnvWithSecrets('SLACK_DEFAULT_MODEL') || 'openai/gpt-4o-mini';
-export const SLACK_DEFAULT_MODEL_NAME = 'GPT-4o Mini';
+export const SLACK_DEFAULT_MODEL =
+  getEnvWithSecrets('SLACK_DEFAULT_MODEL') || 'anthropic/claude-haiku-4-5-20251001';
+export const SLACK_DEFAULT_MODEL_NAME = 'Claude Haiku 4.5';
 
 /** Default agent for all bot integrations */
-export const DEFAULT_AGENT = 'pm-assistant';
+export const DEFAULT_AGENT = 'ori';
 
 // ============================================
 // VISION MODEL CONFIGURATION
@@ -291,6 +418,125 @@ export function modelSupportsVision(modelId: string): boolean {
       return model.supportsVision;
     }
   }
+  // Check free models
+  for (const model of Object.values(FREE_MODELS)) {
+    if (model.id === modelId) {
+      return model.capabilities.vision;
+    }
+  }
   // Check for known vision models
   return modelId.includes('gpt-4') || modelId.includes('claude') || modelId.includes('vision');
+}
+
+// ============================================
+// TIER-BASED MODEL SELECTION HELPERS
+// ============================================
+
+/**
+ * Get all models for a specific tier
+ */
+export function getModelsForTier(tier: ModelTier): ModelDefinitionExt[] {
+  const models: ModelDefinitionExt[] = [];
+
+  // Add free models if tier is 'free'
+  if (tier === 'free') {
+    models.push(...Object.values(FREE_MODELS));
+  }
+
+  // Add paid models matching the tier
+  for (const model of Object.values(AVAILABLE_MODELS)) {
+    if (model.tier === tier) {
+      models.push(model as unknown as ModelDefinitionExt);
+    }
+  }
+
+  return models;
+}
+
+/**
+ * Get the default free model ID
+ */
+export function getDefaultFreeModel(): string {
+  return DEFAULT_FREE_MODEL;
+}
+
+/**
+ * Get fallback models for a given model ID
+ * Returns a chain of alternative models to try if the primary fails
+ */
+export function getFallbackModels(modelId: string): string[] {
+  // Check if it's a free model
+  if (modelId.startsWith('opencode/')) {
+    const currentIndex = FREE_MODEL_FALLBACK_CHAIN.indexOf(modelId);
+    if (currentIndex !== -1) {
+      return FREE_MODEL_FALLBACK_CHAIN.slice(currentIndex + 1);
+    }
+    return FREE_MODEL_FALLBACK_CHAIN;
+  }
+
+  // For paid models, return tier-appropriate fallbacks
+  const model = Object.values(AVAILABLE_MODELS).find((m) => m.id === modelId);
+  if (!model) return [];
+
+  const sameTierModels = getModelsForTier(model.tier)
+    .filter((m) => m.id !== modelId)
+    .map((m) => m.id);
+
+  return sameTierModels;
+}
+
+/**
+ * Get all available model IDs (both paid and free)
+ */
+export function getAllModelIds(): string[] {
+  const paidModels = Object.values(AVAILABLE_MODELS).map((m) => m.id);
+  const freeModels = Object.values(FREE_MODELS).map((m) => m.id);
+  return [...paidModels, ...freeModels];
+}
+
+/**
+ * Check if a model ID is a free model
+ */
+export function isFreeModel(modelId: string): boolean {
+  return (
+    modelId.startsWith('opencode/') || Object.values(FREE_MODELS).some((m) => m.id === modelId)
+  );
+}
+
+/**
+ * Get model tier by model ID
+ */
+export function getModelTier(modelId: string): ModelTier | null {
+  // Check paid models
+  for (const model of Object.values(AVAILABLE_MODELS)) {
+    if (model.id === modelId) {
+      return model.tier;
+    }
+  }
+  // Check free models
+  for (const model of Object.values(FREE_MODELS)) {
+    if (model.id === modelId) {
+      return model.tier;
+    }
+  }
+  return null;
+}
+
+/**
+ * Get model capabilities by model ID
+ */
+export function getModelCapabilities(modelId: string): ModelCapabilities | null {
+  // Check paid models
+  for (const model of Object.values(AVAILABLE_MODELS)) {
+    if (model.id === modelId) {
+      return model.capabilities;
+    }
+  }
+  // Check free models
+  for (const model of Object.values(FREE_MODELS)) {
+    if (model.id === modelId) {
+      return model.capabilities;
+    }
+  }
+  return null;
 }

@@ -5,8 +5,8 @@
  * Run with: npx tsx data/seeds/sample-prompts.ts
  */
 
-import { getDatabase, systemPrompts, eq, and } from '@orientbot/database';
-import { createServiceLogger } from '@orientbot/core';
+import { getDatabase, systemPrompts, eq, and } from '@orient-bot/database';
+import { createServiceLogger } from '@orient-bot/core';
 
 const logger = createServiceLogger('sample-prompts-seed');
 

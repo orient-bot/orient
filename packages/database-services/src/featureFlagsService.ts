@@ -7,9 +7,9 @@
  * Uses Drizzle ORM with SQLite.
  */
 
-import { createServiceLogger } from '@orientbot/core';
-import { getDatabase, closeDatabase, eq, and, asc, schema } from '@orientbot/database';
-import type { Database } from '@orientbot/database';
+import { createServiceLogger } from '@orient-bot/core';
+import { getDatabase, closeDatabase, eq, and, asc, schema } from '@orient-bot/database';
+import type { Database } from '@orient-bot/database';
 
 const logger = createServiceLogger('feature-flags-service');
 

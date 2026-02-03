@@ -1,5 +1,5 @@
 /**
- * @orientbot/database
+ * @orient-bot/database
  *
  * Database schemas and client for the Orient.
  * Uses SQLite for both development and production.
