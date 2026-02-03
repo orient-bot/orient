@@ -33,7 +33,7 @@ const program = new Command();
 program
   .name('orient')
   .description('Orient CLI - Manage your AI assistant installation')
-  .version('0.1.1');
+  .version('0.2.1');
 
 // Add commands
 program.addCommand(onboardCommand);

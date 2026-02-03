@@ -1,6 +1,6 @@
 {
   "name": "@orient-bot/api-gateway",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "REST API gateway for Orient - webhooks, scheduler, and health monitoring",
   "type": "module",
   "main": "./dist/index.js",
@@ -67,6 +67,6 @@
   ],
   "publishConfig": {
     "access": "public",
-    "registry": "https://registry.npmjs.org"
+    "registry": "https://registry.npmjs.org/"
   }
 }

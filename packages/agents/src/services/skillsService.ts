@@ -18,6 +18,7 @@ const logger = createServiceLogger('skills-service');
 export interface SkillMetadata {
   name: string;
   description: string;
+  requires?: string[];
 }
 
 /**
@@ -29,6 +30,7 @@ export interface Skill {
   content: string;
   path: string;
   source: 'builtin' | 'user';
+  requires?: string[];
 }
 
 /**
@@ -67,10 +69,19 @@ function parseFrontmatter(content: string): { metadata: SkillMetadata; body: str
   const nameMatch = frontmatterText.match(/^name:\s*(.+)$/m);
   const descMatch = frontmatterText.match(/^description:\s*(.+)$/m);
 
+  // Parse requires array (YAML list format)
+  const requiresMatch = frontmatterText.match(/^requires:\s*\n((?:\s*-\s*.+\n?)+)/m);
+  let requires: string[] | undefined;
+  if (requiresMatch) {
+    const lines = requiresMatch[1].match(/^\s*-\s*(.+)$/gm);
+    requires = lines?.map((line) => line.replace(/^\s*-\s*/, '').trim());
+  }
+
   return {
     metadata: {
       name: nameMatch ? nameMatch[1].trim() : 'unknown',
       description: descMatch ? descMatch[1].trim() : 'No description available',
+      requires,
     },
     body: body.trim(),
   };
@@ -322,10 +333,11 @@ ${bodyContent}`;
           content: body,
           path: skillFile,
           source,
+          requires: metadata.requires,
         };
 
         this.skillsCache.set(metadata.name, skill);
-        logger.debug('Loaded skill', { name: metadata.name, source });
+        logger.debug('Loaded skill', { name: metadata.name, source, requires: metadata.requires });
       } catch (error) {
         logger.warn('Failed to load skill', {
           path: skillFile,

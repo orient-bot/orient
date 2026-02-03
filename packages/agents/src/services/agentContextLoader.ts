@@ -9,14 +9,8 @@
 
 import { getAgentRegistry, AgentContext } from './agentRegistry.js';
 import { getContextService, Platform } from './contextService.js';
-import {
-  createServiceLogger,
-  getBuiltinSkillsPath,
-  getUserSkillsPath,
-  ModelTier,
-} from '@orient-bot/core';
-import { getModelSelector, ModelSelectionResult } from './modelSelector.js';
-import { getCachedApiKeyStatus } from './apiKeyDetector.js';
+import { getCapabilityAvailabilityService } from './capabilityAvailabilityService.js';
+import { createServiceLogger, getBuiltinSkillsPath, getUserSkillsPath } from '@orient-bot/core';
 import fs from 'fs/promises';
 import type { Dirent } from 'node:fs';
 import path from 'path';
@@ -30,12 +24,6 @@ export interface LoadedAgentConfig {
   agentId: string;
   agentName: string;
   model: string;
-  /** The model tier used for selection */
-  effectiveTier: ModelTier;
-  /** Whether a free model is being used */
-  usingFreeModel: boolean;
-  /** Reason for model selection */
-  modelSelectionReason: string;
   systemPromptEnhancement: string;
   skills: string[];
   allowedToolPatterns: string[];
@@ -48,52 +36,6 @@ export interface LoadedAgentConfig {
  */
 const configCache: Map<string, { config: LoadedAgentConfig; loadedAt: Date }> = new Map();
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
-
-/**
- * Select the effective model for an agent context
- * Uses ModelSelector to determine the best model based on tier and API key availability
- */
-async function selectEffectiveModel(context: AgentContext): Promise<ModelSelectionResult> {
-  try {
-    // Get API key status
-    const apiKeyStatus = await getCachedApiKeyStatus();
-
-    // Determine agent tier (default to 'cheap' if not set)
-    const agentTier = (context.agent.modelTier as ModelTier) || 'cheap';
-
-    // Use model selector to determine effective model
-    const selector = getModelSelector();
-    const result = await selector.selectModel({
-      agentTier,
-      hasApiKeys: apiKeyStatus.hasAnyApiKeys,
-      specificModelId: context.model, // Use agent's configured model as preference
-    });
-
-    logger.debug('Model selection complete', {
-      agentId: context.agent.id,
-      configuredModel: context.model,
-      selectedModel: result.modelId,
-      effectiveTier: result.effectiveTier,
-      isFreeModel: result.isFreeModel,
-      hasApiKeys: apiKeyStatus.hasAnyApiKeys,
-    });
-
-    return result;
-  } catch (error) {
-    // Fallback to agent's configured model if selection fails
-    logger.warn('Model selection failed, using agent configured model', {
-      agentId: context.agent.id,
-      error: error instanceof Error ? error.message : String(error),
-    });
-
-    return {
-      modelId: context.model,
-      effectiveTier: 'balanced',
-      isFreeModel: false,
-      reason: 'Fallback to configured model due to selection error',
-    };
-  }
-}
 
 /**
  * Load agent configuration for a given platform
@@ -143,16 +85,10 @@ export async function loadAgentConfig(
     // Determine chatId for context (use chatId or channelId)
     const chatIdForContext = options?.chatId || options?.channelId;
 
-    // Select the effective model using the model selector
-    const modelSelection = await selectEffectiveModel(context);
-
     const config: LoadedAgentConfig = {
       agentId: context.agent.id,
       agentName: context.agent.name,
-      model: modelSelection.modelId,
-      effectiveTier: modelSelection.effectiveTier,
-      usingFreeModel: modelSelection.isFreeModel,
-      modelSelectionReason: modelSelection.reason,
+      model: context.model,
       systemPromptEnhancement: await buildSystemPromptEnhancement(
         context,
         skillContent,
@@ -181,10 +117,29 @@ export async function loadAgentConfig(
 }
 
 /**
+ * Skill data with content and requirements
+ */
+interface SkillWithRequirements {
+  content: string;
+  requires?: string[];
+}
+
+/**
+ * Parse YAML list for requires field from frontmatter
+ */
+function parseRequiresFromFrontmatter(frontmatter: string): string[] | undefined {
+  const requiresMatch = frontmatter.match(/^requires:\s*\n((?:\s*-\s*.+\n?)+)/m);
+  if (!requiresMatch) return undefined;
+
+  const lines = requiresMatch[1].match(/^\s*-\s*(.+)$/gm);
+  return lines?.map((line) => line.replace(/^\s*-\s*/, '').trim());
+}
+
+/**
  * Load skill content from filesystem
  */
-async function loadSkillContent(skillNames: string[]): Promise<Map<string, string>> {
-  const content = new Map<string, string>();
+async function loadSkillContent(skillNames: string[]): Promise<Map<string, SkillWithRequirements>> {
+  const content = new Map<string, SkillWithRequirements>();
 
   const builtinDir = getBuiltinSkillsPath();
   const userDir = getUserSkillsPath();
@@ -238,11 +193,16 @@ async function loadSkillContent(skillNames: string[]): Promise<Map<string, strin
       try {
         const skillText = await fs.readFile(skillPath, 'utf-8');
 
+        // Parse frontmatter for requires
+        const frontmatterMatch = skillText.match(/^---\s*\n([\s\S]*?)\n---\s*\n/);
+        const frontmatter = frontmatterMatch?.[1] ?? '';
+        const requires = parseRequiresFromFrontmatter(frontmatter);
+
         // Extract just the body (remove YAML frontmatter)
         const bodyMatch = skillText.match(/^---[\s\S]*?---\s*([\s\S]*)$/);
         const body = bodyMatch ? bodyMatch[1].trim() : skillText;
 
-        content.set(skillName, body);
+        content.set(skillName, { content: body, requires });
         loaded = true;
         break;
       } catch (error) {
@@ -264,7 +224,7 @@ async function loadSkillContent(skillNames: string[]): Promise<Map<string, strin
  */
 async function buildSystemPromptEnhancement(
   context: AgentContext,
-  skillContent: Map<string, string>,
+  skillContent: Map<string, SkillWithRequirements>,
   platform?: Platform,
   chatId?: string
 ): Promise<string> {
@@ -299,12 +259,30 @@ async function buildSystemPromptEnhancement(
     }
   }
 
+  // Filter skills by capability availability
+  const capabilityService = getCapabilityAvailabilityService();
+  const availableSkills = new Map<string, SkillWithRequirements>();
+  const filteredSkills: string[] = [];
+
+  for (const [skillName, skillData] of skillContent.entries()) {
+    const available = await capabilityService.areCapabilitiesAvailable(skillData.requires);
+    if (available) {
+      availableSkills.set(skillName, skillData);
+    } else {
+      filteredSkills.push(skillName);
+    }
+  }
+
+  if (filteredSkills.length > 0) {
+    logger.debug('Skills filtered due to unavailable capabilities', { filtered: filteredSkills });
+  }
+
   // Add skill knowledge (summarized to avoid token bloat)
-  if (skillContent.size > 0) {
+  if (availableSkills.size > 0) {
     sections.push('\n## Available Skills Reference');
-    for (const [skillName, content] of skillContent.entries()) {
+    for (const [skillName, skillData] of availableSkills.entries()) {
       // Extract just the first section or quick reference
-      const quickRef = extractQuickReference(content);
+      const quickRef = extractQuickReference(skillData.content);
       if (quickRef) {
         sections.push(`### ${skillName}\n${quickRef}`);
       }

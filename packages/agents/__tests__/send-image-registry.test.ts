@@ -5,7 +5,7 @@
  * are properly registered in the tool registry with correct metadata.
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, afterEach, vi } from 'vitest';
 
 // Mock logger before imports
 vi.mock('@orient-bot/core', () => ({
@@ -22,11 +22,6 @@ vi.mock('@orient-bot/core', () => ({
 }));
 
 describe('Send Image Tool Registry', () => {
-  beforeEach(async () => {
-    const { resetToolRegistry } = await import('../src/registry/index.js');
-    resetToolRegistry();
-  });
-
   afterEach(() => {
     vi.clearAllMocks();
   });
@@ -81,12 +76,12 @@ describe('Send Image Tool Registry', () => {
       expect(tool!.keywords).toContain('image');
     });
 
-    it('should be searchable by image-related queries', async () => {
+    it('should be discoverable by category', async () => {
       const { createToolRegistry } = await import('../src/services/toolRegistry.js');
       const registry = createToolRegistry();
 
-      const results = registry.searchTools('slack image');
-      const names = results.map((r) => r.tool.tool.name);
+      const messagingTools = registry.getToolsByCategory('messaging');
+      const names = messagingTools.map((t) => t.tool.name);
       expect(names).toContain('slack_send_image');
     });
   });
@@ -141,12 +136,12 @@ describe('Send Image Tool Registry', () => {
       expect(tool!.keywords).toContain('image');
     });
 
-    it('should be searchable by whatsapp image queries', async () => {
+    it('should be discoverable by category', async () => {
       const { createToolRegistry } = await import('../src/services/toolRegistry.js');
       const registry = createToolRegistry();
 
-      const results = registry.searchTools('whatsapp photo');
-      const names = results.map((r) => r.tool.tool.name);
+      const whatsappTools = registry.getToolsByCategory('whatsapp');
+      const names = whatsappTools.map((t) => t.tool.name);
       expect(names).toContain('whatsapp_send_image');
     });
   });

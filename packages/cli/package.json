@@ -1,6 +1,6 @@
 {
   "name": "@orient-bot/cli",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "type": "module",
   "bin": {
     "orient": "./dist/cli.js"
@@ -38,6 +38,6 @@
   ],
   "publishConfig": {
     "access": "public",
-    "registry": "https://registry.npmjs.org"
+    "registry": "https://registry.npmjs.org/"
   }
 }

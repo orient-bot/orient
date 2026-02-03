@@ -5,11 +5,9 @@ import {
   getProviderDefaults,
   setProviderDefaults,
   restartOpenCode,
-  getFreeModelStatus,
   type ProviderDefaults,
   type ProviderId,
   type ProviderStatus,
-  type FreeModelStatusResponse,
 } from '../api';
 
 type ProviderDefinition = {
@@ -56,7 +54,6 @@ const DEFAULTS_FALLBACK: ProviderDefaults = {
 export default function ProvidersTab() {
   const [providers, setProviders] = useState<ProviderStatus[]>([]);
   const [defaults, setDefaults] = useState<ProviderDefaults>(DEFAULTS_FALLBACK);
-  const [freeModelStatus, setFreeModelStatus] = useState<FreeModelStatusResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [savingProvider, setSavingProvider] = useState<ProviderId | null>(null);
   const [savingDefaults, setSavingDefaults] = useState(false);
@@ -79,14 +76,12 @@ export default function ProvidersTab() {
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
-      const [providersResult, defaultsResult, freeModelResult] = await Promise.all([
+      const [providersResult, defaultsResult] = await Promise.all([
         getProviders(),
         getProviderDefaults(),
-        getFreeModelStatus().catch(() => null), // Don't fail if free model check fails
       ]);
       setProviders(providersResult.providers);
       setDefaults(defaultsResult.defaults ?? DEFAULTS_FALLBACK);
-      setFreeModelStatus(freeModelResult);
       setError(null);
     } catch (err) {
       console.error('Failed to load providers', err);
@@ -180,13 +175,6 @@ export default function ProvidersTab() {
     );
   }
 
-  // Extract active model name for display
-  const getActiveModelName = () => {
-    if (!freeModelStatus?.activeModel) return 'Free Model';
-    const model = freeModelStatus.freeModels.find((m) => m.id === freeModelStatus.activeModel);
-    return model?.name || freeModelStatus.activeModel;
-  };
-
   return (
     <div className="space-y-6">
       <div className="rounded-xl border border-border bg-card p-6">
@@ -195,66 +183,6 @@ export default function ProvidersTab() {
           Configure API keys and choose which provider to use for each capability.
         </p>
       </div>
-
-      {/* Free Model Status Banner - shown when no API keys configured */}
-      {freeModelStatus && !freeModelStatus.hasApiKeys && (
-        <div className="rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/20 p-5">
-          <div className="flex items-start gap-3">
-            <div className="flex-shrink-0">
-              <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-emerald-100 dark:bg-emerald-800">
-                <svg
-                  className="w-4 h-4 text-emerald-600 dark:text-emerald-400"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M5 13l4 4L19 7"
-                  />
-                </svg>
-              </span>
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <span className="px-2 py-0.5 text-[11px] font-medium rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-800 dark:text-emerald-300">
-                  Active
-                </span>
-                <h3 className="text-sm font-semibold text-emerald-800 dark:text-emerald-200">
-                  Using free model: {getActiveModelName()}
-                </h3>
-              </div>
-              <p className="mt-1 text-sm text-emerald-700 dark:text-emerald-300">
-                Orient is running with free Zen models. Add an API key below for faster responses
-                and better quality.
-              </p>
-              {freeModelStatus.availableModels.length > 0 && (
-                <p className="mt-2 text-xs text-emerald-600 dark:text-emerald-400 font-mono">
-                  {freeModelStatus.availableModels.length} free model
-                  {freeModelStatus.availableModels.length !== 1 ? 's' : ''} available
-                </p>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Show a subtle indicator when API keys ARE configured */}
-      {freeModelStatus && freeModelStatus.hasApiKeys && (
-        <div className="rounded-xl border border-border bg-card/50 p-4">
-          <div className="flex items-center gap-2">
-            <span className="px-2 py-0.5 text-[11px] font-medium rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
-              Premium
-            </span>
-            <span className="text-sm text-muted-foreground">
-              Using configured provider{freeModelStatus.configuredProviders.length > 1 ? 's' : ''}:{' '}
-              {freeModelStatus.configuredProviders.join(', ')}
-            </span>
-          </div>
-        </div>
-      )}
 
       <div className="grid gap-4 md:grid-cols-4">
         {PROVIDERS.map((provider) => {

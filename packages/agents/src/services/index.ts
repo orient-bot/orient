@@ -46,6 +46,7 @@ export * from './openCodeClient.js';
 export * from './mcpClientManager.js';
 export * from './oauthClientProvider.js';
 export * from './integrationConnectionService.js';
+export * from './capabilityAvailabilityService.js';
 export * from './openCodeMessageProcessor.js';
 export * from './freeModelHealthChecker.js';
 export * from './modelSelector.js';

@@ -10,19 +10,8 @@ import { existsSync, readFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { getParam } from './paramUtils.js';
-import {
-  createServiceLogger,
-  invalidateConfigCache,
-  setSecretOverrides,
-  FREE_MODELS,
-  DEFAULT_FREE_MODEL,
-} from '@orient-bot/core';
+import { createServiceLogger, invalidateConfigCache, setSecretOverrides } from '@orient-bot/core';
 import { createSecretsService } from '@orient-bot/database-services';
-import {
-  getFreeModelHealthChecker,
-  getCachedApiKeyStatus,
-  clearApiKeyCache,
-} from '@orient-bot/agents';
 
 const logger = createServiceLogger('providers-routes');
 
@@ -329,70 +318,6 @@ export function createProvidersRoutes(
     } catch (error) {
       logger.error('Failed to restart OpenCode', { error: String(error) });
       res.status(500).json({ error: 'Failed to restart OpenCode' });
-    }
-  });
-
-  /**
-   * GET /providers/free-models
-   * Get status of free models and API key availability.
-   * Used by the dashboard to show free model banner when no API keys are configured.
-   */
-  router.get('/free-models', requireAuth, async (_req: Request, res: Response) => {
-    try {
-      // Check API key status
-      const apiKeyStatus = await getCachedApiKeyStatus();
-
-      // Get free model health status
-      const healthChecker = getFreeModelHealthChecker();
-      const availableModels = healthChecker.getAvailableModelsSync();
-      const lastChecked = healthChecker.getLastCheckTime();
-      const activeModel = healthChecker.getFirstAvailableModel();
-
-      // Get all free model definitions for display
-      const freeModelsList = Object.entries(FREE_MODELS).map(([key, model]) => ({
-        key,
-        id: model.id,
-        name: model.name,
-        available: healthChecker.isModelAvailable(model.id),
-        status: healthChecker.getModelStatus(model.id),
-      }));
-
-      res.json({
-        hasApiKeys: apiKeyStatus.hasAnyApiKeys,
-        configuredProviders: apiKeyStatus.configuredProviders,
-        usingFreeModels: !apiKeyStatus.hasAnyApiKeys,
-        activeModel: activeModel || DEFAULT_FREE_MODEL,
-        availableModels,
-        freeModels: freeModelsList,
-        lastChecked: lastChecked?.toISOString() || null,
-        defaultFreeModel: DEFAULT_FREE_MODEL,
-      });
-    } catch (error) {
-      logger.error('Failed to get free model status', { error: String(error) });
-      res.status(500).json({ error: 'Failed to get free model status' });
-    }
-  });
-
-  /**
-   * POST /providers/refresh-free-models
-   * Force a refresh of free model health checks.
-   */
-  router.post('/refresh-free-models', requireAuth, async (_req: Request, res: Response) => {
-    try {
-      const healthChecker = getFreeModelHealthChecker();
-      await healthChecker.refresh();
-
-      // Also clear API key cache to force re-detection
-      clearApiKeyCache();
-
-      res.json({
-        success: true,
-        message: 'Free model health checks refreshed',
-        availableModels: healthChecker.getAvailableModelsSync(),
-      });
-    } catch (error) {
-      logger.error('Failed to refresh free model status', { error: String(error) });
-      res.status(500).json({ error: 'Failed to refresh free model status' });
     }
   });
 

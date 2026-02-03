@@ -98,6 +98,14 @@ export {
   type ToolCategoryIntegration,
 } from './services/integrationConnectionService.js';
 
+export {
+  CapabilityAvailabilityService,
+  getCapabilityAvailabilityService,
+  resetCapabilityAvailabilityService,
+  type CapabilityType,
+  type CapabilityStatus,
+} from './services/capabilityAvailabilityService.js';
+
 // Export permissions system
 export * from './permissions/index.js';
 
