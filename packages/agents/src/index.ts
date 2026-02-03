@@ -113,6 +113,31 @@ export { MCPClientManager } from './services/mcpClientManager.js';
 export { getAgentRegistry } from './services/agentRegistry.js';
 export { clearConfigCache } from './services/agentContextLoader.js';
 
+// Export free model and API key utilities
+export {
+  FreeModelHealthChecker,
+  getFreeModelHealthChecker,
+  resetFreeModelHealthChecker,
+  type FreeModelStatus,
+  type FreeModelHealthCheckerOptions,
+} from './services/freeModelHealthChecker.js';
+
+export {
+  ModelSelector,
+  getModelSelector,
+  resetModelSelector,
+  type ModelSelectionContext,
+  type ModelSelectionResult,
+  type ModelSelectorOptions,
+} from './services/modelSelector.js';
+
+export {
+  detectApiKeys,
+  getCachedApiKeyStatus,
+  clearApiKeyCache,
+  type ApiKeyDetectionResult,
+} from './services/apiKeyDetector.js';
+
 // Export OAuth client provider utilities
 export {
   createOAuthProvider,

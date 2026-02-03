@@ -1,30 +1,31 @@
 # =============================================================================
 # Orient Installer Test Environment
 # =============================================================================
-# Docker image simulating a clean macOS-like environment for testing the
+# Docker image simulating a clean Linux environment for testing the
 # Orient installer scripts.
 #
-# Based on node:20-alpine (lightweight, has Node 20)
+# Based on node:20-slim (glibc-based, required for OpenCode binary)
 # Includes: git, bash, curl, openssl (prerequisites)
 # Does NOT include: pnpm (installer should handle this)
 # =============================================================================
 
-FROM node:20-alpine
+FROM node:20-slim
 
-# Install required tools (simulating macOS prerequisites)
-# Note: macOS users would have these via Xcode CLI tools or Homebrew
-RUN apk add --no-cache \
+# Install required tools (simulating prerequisites)
+# Note: Using glibc-based image (not Alpine) for OpenCode binary compatibility
+RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
+    git-lfs \
     bash \
     curl \
     openssl \
-    coreutils \
-    shadow
+    jq \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user to simulate developer environment
 # This is important because installers should work without root
-RUN adduser -D -s /bin/bash developer && \
-    mkdir -p /home/developer && \
+RUN useradd -m -s /bin/bash developer && \
     chown -R developer:developer /home/developer
 
 # pnpm is NOT pre-installed - the installer should detect this and install it
