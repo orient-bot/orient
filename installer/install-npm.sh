@@ -16,7 +16,7 @@
 set -e
 
 # Version - matches @orient-bot/cli version
-ORIENT_VERSION="0.2.0"
+ORIENT_VERSION="0.2.1"
 
 # Installation directory
 INSTALL_DIR="${ORIENT_HOME:-$HOME/.orient}"

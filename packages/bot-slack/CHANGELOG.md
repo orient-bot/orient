@@ -1,0 +1,15 @@
+# @orient-bot/bot-slack
+
+## 1.1.0
+
+### Minor Changes
+
+- Initial publish to npm registry
+
+### Patch Changes
+
+- Updated dependencies
+  - @orient-bot/core@1.1.0
+  - @orient-bot/database@1.1.0
+  - @orient-bot/mcp-tools@1.1.0
+  - @orient-bot/agents@1.1.0

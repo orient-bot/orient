@@ -1,6 +1,6 @@
 {
   "name": "@orient-bot/integrations",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "External service integrations for Orient (Google, etc.)",
   "type": "module",
   "main": "./dist/index.js",
@@ -106,6 +106,6 @@
   ],
   "publishConfig": {
     "access": "public",
-    "registry": "https://npm.pkg.github.com/"
+    "registry": "https://registry.npmjs.org/"
   }
 }

@@ -1,6 +1,6 @@
 {
   "name": "@orient-bot/apps",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "Mini-apps system for the Orient",
   "type": "module",
   "main": "./dist/index.js",
@@ -47,6 +47,6 @@
   ],
   "publishConfig": {
     "access": "public",
-    "registry": "https://npm.pkg.github.com/"
+    "registry": "https://registry.npmjs.org/"
   }
 }
