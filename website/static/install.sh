@@ -77,6 +77,11 @@ prompt_install() {
     local package_name=$1
     local install_cmd=$2
     echo ""
+    if ! is_interactive; then
+        log "Installing $package_name automatically (non-interactive)..."
+        eval "$install_cmd"
+        return
+    fi
     read -p "$(echo -e "${YELLOW}[orient]${NC}") $package_name is required. Install it? [Y/n] " response
     case "$response" in
         [nN])
@@ -253,7 +258,7 @@ install_orient_source() {
         cd "$INSTALL_DIR/orient"
         git fetch origin
         git checkout main
-        git pull origin main
+        git reset --hard origin/main
     else
         log "Cloning Orient repository..."
         git clone --depth 1 https://github.com/orient-bot/orient.git "$INSTALL_DIR/orient"
@@ -278,6 +283,10 @@ configure_orient() {
 
     if [[ -f "$env_file" ]]; then
         log "Existing configuration found at $env_file"
+        if ! is_interactive; then
+            log "Keeping existing configuration (non-interactive)"
+            return
+        fi
         read -p "Do you want to keep existing configuration? [Y/n] " keep_config
         if [[ "$keep_config" != "n" && "$keep_config" != "N" ]]; then
             log "Keeping existing configuration"
@@ -614,7 +623,7 @@ case "$1" in
         cd "$ORIENT_HOME/orient"
         git fetch origin
         git checkout main
-        git pull origin main
+        git reset --hard origin/main
         pnpm install --frozen-lockfile
         pnpm run build:all
         echo -e "${GREEN}Upgrade complete. Run 'orient restart' to apply changes.${NC}"
