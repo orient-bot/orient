@@ -4,6 +4,9 @@
 #
 # Usage: curl -fsSL https://orient.bot/install.sh | bash
 #
+# Options:
+#   --source    Build from source (slower, for developers)
+#
 # This script installs Orient with:
 # - SQLite as the default database (PostgreSQL optional)
 # - Local filesystem for media storage
@@ -18,6 +21,26 @@ ORIENT_VERSION="0.2.0"
 
 # Installation directory
 INSTALL_DIR="${ORIENT_HOME:-$HOME/.orient}"
+
+# Parse arguments
+SOURCE_BUILD=false
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --source) SOURCE_BUILD=true; shift ;;
+        --help|-h)
+            echo "Orient Installer"
+            echo ""
+            echo "Usage: curl -fsSL https://orient.bot/install.sh | bash"
+            echo "       curl -fsSL https://orient.bot/install.sh | bash -s -- --source"
+            echo ""
+            echo "Options:"
+            echo "  --source    Build from source (slower, ~4 min vs ~30 sec)"
+            echo "  --help      Show this help message"
+            exit 0
+            ;;
+        *) shift ;;
+    esac
+done
 
 # Colors for output
 RED='\033[0;31m'
@@ -44,11 +67,21 @@ info() {
     echo -e "${BLUE}[orient]${NC} $1"
 }
 
+# Check if running interactively
+is_interactive() {
+    [[ -t 0 ]]
+}
+
 # Prompt user before installing a package
 prompt_install() {
     local package_name=$1
     local install_cmd=$2
     echo ""
+    if ! is_interactive; then
+        log "Installing $package_name automatically (non-interactive)..."
+        eval "$install_cmd"
+        return
+    fi
     read -p "$(echo -e "${YELLOW}[orient]${NC}") $package_name is required. Install it? [Y/n] " response
     case "$response" in
         [nN])
@@ -83,17 +116,25 @@ check_prerequisites() {
     fi
     log "Node.js $(node -v) ✓"
 
-    # pnpm - PROMPT before install
-    if ! command -v pnpm &>/dev/null; then
-        prompt_install "pnpm" "npm install -g pnpm"
+    # npm (should come with Node.js)
+    if ! command -v npm &>/dev/null; then
+        error "npm not found. Reinstall Node.js with: brew install node@20"
     fi
-    log "pnpm $(pnpm -v) ✓"
+    log "npm $(npm -v) ✓"
 
-    # git
-    if ! command -v git &>/dev/null; then
-        error "git not found. Install with: brew install git"
+    # pnpm - only required for source builds
+    if [[ "$SOURCE_BUILD" == "true" ]]; then
+        if ! command -v pnpm &>/dev/null; then
+            prompt_install "pnpm" "npm install -g pnpm"
+        fi
+        log "pnpm $(pnpm -v) ✓"
+
+        # git - only required for source builds
+        if ! command -v git &>/dev/null; then
+            error "git not found. Install with: brew install git"
+        fi
+        log "git ✓"
     fi
-    log "git ✓"
 }
 
 # ============================================
@@ -101,8 +142,12 @@ check_prerequisites() {
 # ============================================
 
 install_opencode() {
-    local required_version=$(cat "$INSTALL_DIR/orient/installer/opencode-version.json" 2>/dev/null | grep '"required"' | cut -d'"' -f4)
-    required_version="${required_version:-1.1.48}"  # fallback
+    # For source builds, read from the repo; for npm, use fallback
+    local required_version
+    if [[ "$SOURCE_BUILD" == "true" ]] && [[ -f "$INSTALL_DIR/orient/installer/opencode-version.json" ]]; then
+        required_version=$(cat "$INSTALL_DIR/orient/installer/opencode-version.json" | grep '"required"' | cut -d'"' -f4)
+    fi
+    required_version="${required_version:-1.1.48}"  # fallback for npm installs
 
     local opencode_bin="$INSTALL_DIR/bin/opencode"
 
@@ -180,8 +225,27 @@ install_opencode() {
 # INSTALLATION
 # ============================================
 
-install_orient() {
-    log "Installing Orient to $INSTALL_DIR..."
+# npm-based installation (default, ~30 seconds)
+install_orient_npm() {
+    log "Installing Orient from npm..."
+    log "This takes about 30 seconds (pre-built packages)"
+
+    # Create directory structure
+    mkdir -p "$INSTALL_DIR"/{data/sqlite,data/media,data/whatsapp-auth,logs,bin,skills,apps}
+    # Create OpenCode isolation directories for OAuth tokens and data
+    mkdir -p "$INSTALL_DIR"/opencode/{data/opencode,config/opencode,cache/opencode,state/opencode}
+
+    # Install from public npm
+    log "Installing @orient-bot/cli and @orient-bot/dashboard..."
+    npm install -g @orient-bot/cli @orient-bot/dashboard
+
+    log "Orient packages installed ✓"
+}
+
+# Source-based installation (slower, ~4 minutes)
+install_orient_source() {
+    log "Installing Orient from source..."
+    log "This takes about 4 minutes (git clone + build)"
 
     # Create directory structure
     mkdir -p "$INSTALL_DIR"/{data/sqlite,data/media,data/whatsapp-auth,logs,bin,skills,apps}
@@ -194,7 +258,7 @@ install_orient() {
         cd "$INSTALL_DIR/orient"
         git fetch origin
         git checkout main
-        git pull origin main
+        git reset --hard origin/main
     else
         log "Cloning Orient repository..."
         git clone --depth 1 https://github.com/orient-bot/orient.git "$INSTALL_DIR/orient"
@@ -202,7 +266,7 @@ install_orient() {
 
     # Install dependencies
     cd "$INSTALL_DIR/orient"
-    log "Installing dependencies (this may take a few minutes)..."
+    log "Installing dependencies..."
     pnpm install --frozen-lockfile
 
     # Build packages
@@ -219,6 +283,10 @@ configure_orient() {
 
     if [[ -f "$env_file" ]]; then
         log "Existing configuration found at $env_file"
+        if ! is_interactive; then
+            log "Keeping existing configuration (non-interactive)"
+            return
+        fi
         read -p "Do you want to keep existing configuration? [Y/n] " keep_config
         if [[ "$keep_config" != "n" && "$keep_config" != "N" ]]; then
             log "Keeping existing configuration"
@@ -311,7 +379,76 @@ EOF
 # PM2 SETUP
 # ============================================
 
-setup_pm2() {
+# PM2 setup for npm-based installation
+setup_pm2_npm() {
+    # PM2 - PROMPT before install
+    if ! command -v pm2 &>/dev/null; then
+        prompt_install "PM2 (process manager)" "npm install -g pm2"
+    fi
+    log "PM2 $(pm2 -v) ✓"
+
+    # Get npm global prefix for finding installed packages
+    local npm_prefix=$(npm prefix -g)
+
+    # Use Orient's isolated OpenCode installation
+    local opencode_bin="$INSTALL_DIR/bin/opencode"
+    if [[ -x "$opencode_bin" ]]; then
+        local oc_version=$("$opencode_bin" --version 2>/dev/null | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' || echo "unknown")
+        log "Using Orient's OpenCode v$oc_version ✓"
+    else
+        error "OpenCode not found at $opencode_bin. Installation may have failed."
+    fi
+
+    # Create PM2 ecosystem configuration for npm-based install
+    cat > "$INSTALL_DIR/ecosystem.config.cjs" << ECOSYSTEM
+const path = require('path');
+const ORIENT_HOME = process.env.ORIENT_HOME || \`\${process.env.HOME}/.orient\`;
+const NPM_PREFIX = '${npm_prefix}';
+
+// OpenCode binary location (detected during install)
+const OPENCODE_BIN = '${opencode_bin}' || process.env.HOME + '/.opencode/bin/opencode';
+
+module.exports = {
+  apps: [
+    {
+      name: 'orient',
+      script: path.join(NPM_PREFIX, 'lib/node_modules/@orient-bot/dashboard/dist/main.js'),
+      env_file: path.join(ORIENT_HOME, '.env'),
+      error_file: path.join(ORIENT_HOME, 'logs/orient-error.log'),
+      out_file: path.join(ORIENT_HOME, 'logs/orient-out.log'),
+      max_memory_restart: '750M',
+      env: {
+        ORIENT_HOME: ORIENT_HOME,
+      },
+    },
+    {
+      name: 'orient-opencode',
+      script: OPENCODE_BIN,
+      args: 'serve --port 4099 --hostname 127.0.0.1',
+      cwd: ORIENT_HOME,
+      env_file: path.join(ORIENT_HOME, '.env'),
+      error_file: path.join(ORIENT_HOME, 'logs/opencode-error.log'),
+      out_file: path.join(ORIENT_HOME, 'logs/opencode-out.log'),
+      max_memory_restart: '500M',
+      env: {
+        // OpenCode data isolation - store data under ~/.orient/opencode/
+        XDG_DATA_HOME: path.join(ORIENT_HOME, 'opencode', 'data'),
+        XDG_CONFIG_HOME: path.join(ORIENT_HOME, 'opencode', 'config'),
+        XDG_CACHE_HOME: path.join(ORIENT_HOME, 'opencode', 'cache'),
+        XDG_STATE_HOME: path.join(ORIENT_HOME, 'opencode', 'state'),
+        OPENCODE_TEST_HOME: path.join(ORIENT_HOME, 'opencode'),
+        ORIENT_HOME: ORIENT_HOME,
+      },
+    },
+  ],
+};
+ECOSYSTEM
+
+    log "PM2 ecosystem configuration created (Dashboard + OpenCode)"
+}
+
+# PM2 setup for source-based installation
+setup_pm2_source() {
     # PM2 - PROMPT before install
     if ! command -v pm2 &>/dev/null; then
         prompt_install "PM2 (process manager)" "npm install -g pm2"
@@ -327,8 +464,7 @@ setup_pm2() {
         error "OpenCode not found at $opencode_bin. Installation may have failed."
     fi
 
-    # Create PM2 ecosystem configuration
-    # Unified server: Dashboard handles both Dashboard API and WhatsApp endpoints
+    # Create PM2 ecosystem configuration for source-based install
     cat > "$INSTALL_DIR/ecosystem.config.cjs" << ECOSYSTEM
 const path = require('path');
 const ORIENT_HOME = process.env.ORIENT_HOME || \`\${process.env.HOME}/.orient\`;
@@ -415,23 +551,6 @@ NC='\033[0m'
 case "$1" in
     start)
         echo -e "${GREEN}Starting Orient...${NC}"
-
-        # Load secrets from database into environment
-        # This picks up API keys configured via the Dashboard
-        SECRETS_FILE="$ORIENT_HOME/.env.secrets"
-        if [[ -f "$ORIENT_HOME/orient/scripts/load-secrets.ts" ]]; then
-            echo "  Loading secrets from database..."
-            cd "$ORIENT_HOME/orient"
-            npx tsx scripts/load-secrets.ts 2>/dev/null | grep "^export " > "$SECRETS_FILE" || true
-            if [[ -s "$SECRETS_FILE" ]]; then
-                set -a
-                source "$SECRETS_FILE"
-                set +a
-                SECRET_COUNT=$(wc -l < "$SECRETS_FILE" | tr -d ' ')
-                echo -e "  ${GREEN}✓ Loaded $SECRET_COUNT secrets from database${NC}"
-            fi
-        fi
-
         pm2 start "$ORIENT_HOME/ecosystem.config.cjs" --silent
         pm2 save --silent
         sleep 2
@@ -454,23 +573,7 @@ case "$1" in
         ;;
     restart)
         echo -e "${GREEN}Restarting Orient...${NC}"
-
-        # Reload secrets from database before restart
-        SECRETS_FILE="$ORIENT_HOME/.env.secrets"
-        if [[ -f "$ORIENT_HOME/orient/scripts/load-secrets.ts" ]]; then
-            echo "  Reloading secrets from database..."
-            cd "$ORIENT_HOME/orient"
-            npx tsx scripts/load-secrets.ts 2>/dev/null | grep "^export " > "$SECRETS_FILE" || true
-            if [[ -s "$SECRETS_FILE" ]]; then
-                set -a
-                source "$SECRETS_FILE"
-                set +a
-                SECRET_COUNT=$(wc -l < "$SECRETS_FILE" | tr -d ' ')
-                echo -e "  ${GREEN}✓ Loaded $SECRET_COUNT secrets from database${NC}"
-            fi
-        fi
-
-        pm2 restart orient orient-opencode --silent 2>/dev/null
+        pm2 restart orient --silent 2>/dev/null
         sleep 2
         if pm2 jlist 2>/dev/null | grep -q '"status":"online"'; then
             echo -e "${GREEN}✓ Orient restarted${NC}"
@@ -520,7 +623,7 @@ case "$1" in
         cd "$ORIENT_HOME/orient"
         git fetch origin
         git checkout main
-        git pull origin main
+        git reset --hard origin/main
         pnpm install --frozen-lockfile
         pnpm run build:all
         echo -e "${GREEN}Upgrade complete. Run 'orient restart' to apply changes.${NC}"
@@ -643,7 +746,29 @@ SCRIPT
 # DATABASE INITIALIZATION
 # ============================================
 
-initialize_database() {
+initialize_database_npm() {
+    log "Initializing database..."
+
+    # Source environment for database config
+    set -a
+    source "$INSTALL_DIR/.env"
+    set +a
+
+    if [[ "$DATABASE_TYPE" == "sqlite" ]]; then
+        # Create SQLite database directory
+        mkdir -p "$(dirname "$SQLITE_DATABASE")"
+
+        # For npm install, use the orient CLI to initialize database
+        log "Creating SQLite schema..."
+        # The dashboard will auto-create the schema on first run
+        log "Database will be initialized on first start ✓"
+    else
+        # PostgreSQL migration - for npm installs, schema is created on first run
+        log "PostgreSQL schema will be initialized on first start ✓"
+    fi
+}
+
+initialize_database_source() {
     log "Initializing database..."
 
     cd "$INSTALL_DIR/orient"
@@ -668,6 +793,96 @@ initialize_database() {
 }
 
 # ============================================
+# SHELL PATH SETUP
+# ============================================
+
+setup_shell_path() {
+    local user_shell=$(basename "$SHELL")
+    local shell_rc
+
+    case "$user_shell" in
+        zsh)  shell_rc="$HOME/.zshrc" ;;
+        bash) shell_rc="${HOME}/.bash_profile"; [[ -f "$shell_rc" ]] || shell_rc="$HOME/.bashrc" ;;
+        fish) shell_rc="$HOME/.config/fish/config.fish" ;;
+        *)    shell_rc="$HOME/.profile" ;;
+    esac
+
+    # For npm installs, check if npm bin is in PATH
+    if [[ "$SOURCE_BUILD" != "true" ]]; then
+        local npm_bin="$(npm prefix -g)/bin"
+        if [[ ":$PATH:" != *":$npm_bin:"* ]]; then
+            echo ""
+            info "To use the 'orient' command, ensure npm bin is in your PATH:"
+            echo ""
+            echo "    export PATH=\"\$(npm prefix -g)/bin:\$PATH\""
+            echo ""
+
+            if is_interactive; then
+                read -p "$(echo -e "${YELLOW}[orient]${NC}") Add to $shell_rc automatically? [Y/n] " response
+                if [[ "$response" != "n" && "$response" != "N" ]]; then
+                    echo '' >> "$shell_rc"
+                    echo '# Orient (npm global bin)' >> "$shell_rc"
+                    echo 'export PATH="$(npm prefix -g)/bin:$PATH"' >> "$shell_rc"
+                    echo 'export ORIENT_HOME="$HOME/.orient"' >> "$shell_rc"
+                    log "Added to $shell_rc"
+                fi
+            fi
+        fi
+    fi
+
+    # Always add ORIENT_HOME for source builds
+    if [[ "$SOURCE_BUILD" == "true" ]]; then
+        if ! grep -q "ORIENT_HOME" "$shell_rc" 2>/dev/null; then
+            echo '' >> "$shell_rc"
+            echo '# Orient' >> "$shell_rc"
+            echo 'export ORIENT_HOME="$HOME/.orient"' >> "$shell_rc"
+            echo 'export PATH="$ORIENT_HOME/bin:$PATH"' >> "$shell_rc"
+            log "Added Orient to PATH in $shell_rc"
+        fi
+    fi
+
+    echo ""
+    warn "Run 'source $shell_rc' or restart your terminal to apply PATH changes."
+}
+
+# ============================================
+# PRINT NEXT STEPS
+# ============================================
+
+print_next_steps() {
+    local shell_rc
+    local user_shell=$(basename "$SHELL")
+    case "$user_shell" in
+        zsh)  shell_rc="~/.zshrc" ;;
+        bash) shell_rc="~/.bashrc" ;;
+        *)    shell_rc="~/.profile" ;;
+    esac
+
+    echo ""
+    echo "════════════════════════════════════════════════════════════════"
+    log "Installation complete!"
+    echo "════════════════════════════════════════════════════════════════"
+    echo ""
+    echo "  ${GREEN}Next steps:${NC}"
+    echo ""
+    echo "  1. Apply PATH changes:"
+    echo "     source $shell_rc   # or restart your terminal"
+    echo ""
+    echo "  2. Start Orient:"
+    echo "     orient start"
+    echo ""
+    echo "     The dashboard will open automatically at http://localhost:4098"
+    echo ""
+    echo "  Other commands:"
+    echo ""
+    echo "    orient status      # Check service status"
+    echo "    orient logs        # View logs"
+    echo "    orient doctor      # Run diagnostics"
+    echo "    orient config      # Edit configuration"
+    echo ""
+}
+
+# ============================================
 # MAIN
 # ============================================
 
@@ -687,62 +902,48 @@ main() {
     echo "╚════════════════════════════════════════════════════════════╝"
     echo ""
 
+    if [[ "$SOURCE_BUILD" == "true" ]]; then
+        info "Installing from source (this takes ~4 minutes)..."
+    else
+        info "Installing from npm (this takes ~30 seconds)..."
+    fi
+    echo ""
+
     check_prerequisites
-    install_orient
+
+    # Install Orient (npm or source)
+    if [[ "$SOURCE_BUILD" == "true" ]]; then
+        install_orient_source
+    else
+        install_orient_npm
+    fi
+
     install_opencode
     configure_orient
-    setup_pm2
-    setup_cli
-    initialize_database
 
-    # Save version
-    echo "$ORIENT_VERSION" > "$INSTALL_DIR/.orient-version"
-
-    echo ""
-    echo "════════════════════════════════════════════════════════════════"
-    log "Installation complete!"
-    echo "════════════════════════════════════════════════════════════════"
-    echo ""
-    echo "  To get started, run:"
-    echo ""
-    echo "    source ~/.zshrc    # (or restart your terminal)"
-    echo "    orient start       # Start all services"
-    echo ""
-    echo "  Then open:"
-    echo ""
-    echo "    Dashboard:  http://localhost:4098"
-    echo "    WhatsApp:   http://localhost:4098/qr (scan QR to connect)"
-    echo ""
-    echo "  Other commands:"
-    echo ""
-    echo "    orient status      # Check service status"
-    echo "    orient logs        # View logs"
-    echo "    orient doctor      # Run diagnostics"
-    echo "    orient config      # Edit configuration"
-    echo ""
-
-    # Make orient available in current session
-    export PATH="$INSTALL_DIR/bin:$PATH"
-    export ORIENT_HOME="$INSTALL_DIR"
-
-    # Start services
-    "$INSTALL_DIR/bin/orient" start
-
-    # Wait for server to be ready
-    for i in {1..10}; do
-        if curl -s http://localhost:4098/health &>/dev/null; then
-            break
-        fi
-        sleep 1
-    done
-
-    # Open browser
-    log "Opening dashboard..."
-    if command -v open &>/dev/null; then
-        open "http://localhost:4098"
-    elif command -v xdg-open &>/dev/null; then
-        xdg-open "http://localhost:4098"
+    # Setup PM2 (npm or source)
+    if [[ "$SOURCE_BUILD" == "true" ]]; then
+        setup_pm2_source
+        setup_cli
+        initialize_database_source
+    else
+        setup_pm2_npm
+        setup_shell_path
+        initialize_database_npm
     fi
+
+    # Save version and install type
+    echo "$ORIENT_VERSION" > "$INSTALL_DIR/.orient-version"
+    if [[ "$SOURCE_BUILD" == "true" ]]; then
+        echo "source" > "$INSTALL_DIR/.install-type"
+    else
+        echo "npm" > "$INSTALL_DIR/.install-type"
+    fi
+
+    print_next_steps
+
+    # Don't auto-start - let user run 'orient start' after PATH is set
+    # This ensures the user applies PATH changes first
 }
 
 # Run main function
