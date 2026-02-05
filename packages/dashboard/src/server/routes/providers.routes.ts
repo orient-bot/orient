@@ -5,8 +5,8 @@
  */
 
 import { Router, Request, Response } from 'express';
-import { spawn } from 'child_process';
-import { existsSync, readFileSync } from 'fs';
+import { spawn, execSync } from 'child_process';
+import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { getParam } from './paramUtils.js';
@@ -51,6 +51,46 @@ const VALID_DEFAULTS: Record<keyof ProviderDefaults, ProviderId[]> = {
   imageGeneration: ['openai', 'google'],
   agentChat: ['opencode_zen'],
 };
+
+/**
+ * Write a key-value pair to ~/.orient/.env so PM2-managed processes can read it.
+ * Creates the file if it doesn't exist. Updates existing keys in-place.
+ */
+function writeToOrientEnv(key: string, value: string): void {
+  const orientHome = process.env.ORIENT_HOME || join(process.env.HOME || '', '.orient');
+  const envPath = join(orientHome, '.env');
+
+  try {
+    mkdirSync(orientHome, { recursive: true });
+    const existing = existsSync(envPath) ? readFileSync(envPath, 'utf-8') : '';
+    const lines = existing.split(/\r?\n/);
+
+    // Escape value if it contains spaces or special chars
+    const formatted = /[\s#=]/.test(value) ? `"${value.replace(/"/g, '\\"')}"` : value;
+
+    let found = false;
+    const updated = lines.map((line) => {
+      const match = line.match(/^\s*([A-Z0-9_]+)\s*=/);
+      if (match && match[1] === key) {
+        found = true;
+        return `${key}=${formatted}`;
+      }
+      return line;
+    });
+
+    if (!found) {
+      if (updated.length > 0 && updated[updated.length - 1].trim() !== '') {
+        updated.push('');
+      }
+      updated.push(`${key}=${formatted}`);
+    }
+
+    writeFileSync(envPath, updated.join('\n'));
+    logger.info('Wrote API key to .env', { key, envPath });
+  } catch (error) {
+    logger.warn('Failed to write API key to .env', { key, error: String(error) });
+  }
+}
 
 function isProviderId(value: string): value is ProviderId {
   return (
@@ -130,6 +170,9 @@ export function createProvidersRoutes(
       setSecretOverrides({ [secretKey]: value });
       invalidateConfigCache();
 
+      // Also write to ~/.orient/.env so PM2-managed processes (OpenCode) can read it
+      writeToOrientEnv(secretKey, value);
+
       res.json({ success: true });
     } catch (error) {
       logger.error('Failed to set provider key', { error: String(error) });
@@ -192,16 +235,38 @@ export function createProvidersRoutes(
       const pidFile = join(pidDir, 'opencode.pid');
       const opencodePort = process.env.OPENCODE_PORT || '4099';
 
-      // Check if we're in development mode (PID file exists)
+      // Check if we're in development mode (PID file exists) or PM2 mode
       if (!existsSync(pidFile)) {
-        logger.warn('OpenCode PID file not found - restart only supported in dev mode', {
-          pidFile,
-        });
-        return res.status(400).json({
-          error: 'OpenCode restart only supported in development mode',
-          message:
-            'In production, restart the orient-opencode service via PM2 or your process manager.',
-        });
+        // No PID file — try PM2 restart instead
+        try {
+          // First, sync all secrets to .env so PM2 picks them up
+          const allSecrets = await secretsService.getAllSecrets();
+          for (const [key, value] of Object.entries(allSecrets)) {
+            writeToOrientEnv(key, value);
+            setSecretOverrides({ [key]: value });
+          }
+          invalidateConfigCache();
+
+          execSync('pm2 restart orient-opencode --update-env', {
+            timeout: 15000,
+            stdio: 'pipe',
+          });
+          logger.info('Restarted OpenCode via PM2');
+          return res.json({
+            success: true,
+            message: 'OpenCode restarted via PM2 with updated secrets',
+            mode: 'pm2',
+            secretsLoaded: Object.keys(allSecrets).length,
+          });
+        } catch (pm2Error) {
+          logger.warn('PM2 restart failed, OpenCode may not be running via PM2', {
+            error: String(pm2Error),
+          });
+          return res.status(400).json({
+            error: 'Could not restart OpenCode',
+            message: 'No dev PID file found and PM2 restart failed. Is orient-opencode running?',
+          });
+        }
       }
 
       // Read current PID

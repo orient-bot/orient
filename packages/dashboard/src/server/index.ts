@@ -254,28 +254,6 @@ function attachFrontend(app: Application, config: DashboardServerConfig): void {
     app.use(express.static(staticPath, staticOptions));
     app.use('/dashboard', express.static(staticPath, staticOptions));
 
-    // If frontend is built with base "/dashboard/", redirect root SPA routes
-    app.use((req, res, next) => {
-      if (req.method !== 'GET') return next();
-      if (
-        req.path.startsWith('/dashboard') ||
-        req.path.startsWith('/api') ||
-        req.path.startsWith('/dashboard/api') ||
-        req.path === '/health' ||
-        req.path.startsWith('/qr') ||
-        req.path.startsWith('/pairing-code') ||
-        req.path.startsWith('/flush-session')
-      ) {
-        return next();
-      }
-
-      if (req.accepts('html')) {
-        return res.redirect(302, `/dashboard${req.path}`);
-      }
-
-      return next();
-    });
-
     // SPA fallback - serve index.html for any non-API routes
     // This allows React Router to handle client-side routing
     // Note: Express 5 / path-to-regexp v8 requires named wildcards

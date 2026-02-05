@@ -531,8 +531,29 @@ export function createGoogleAuthRoutes(auth: DashboardAuth, db: MessageDatabase)
 
       logger.info('User authenticated with Google', { username: loginResult.username });
 
-      // Redirect to dashboard with success
-      res.redirect('/?google_auth=success');
+      // Send inline HTML that uses postMessage to notify the opener window,
+      // then closes the popup. This is more reliable than URL-based detection
+      // which can fail due to SPA routing or cross-origin restrictions.
+      res.send(`<!DOCTYPE html>
+<html>
+<head><title>Sign-in Successful</title></head>
+<body>
+<script>
+  if (window.opener) {
+    window.opener.postMessage({
+      type: 'GOOGLE_AUTH_SUCCESS',
+      token: ${JSON.stringify(loginResult.token)},
+      username: ${JSON.stringify(loginResult.username)}
+    }, window.location.origin);
+    window.close();
+  } else {
+    // Fallback: if no opener (e.g. popup blocker), redirect to dashboard
+    window.location.href = '/';
+  }
+</script>
+<noscript><a href="/">Return to Dashboard</a></noscript>
+</body>
+</html>`);
     } catch (error) {
       // Clean up pending state on error
       pendingStates.delete(state);

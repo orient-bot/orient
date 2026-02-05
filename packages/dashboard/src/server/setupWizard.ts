@@ -143,7 +143,17 @@ function findProjectRoot(): string {
   return nearestPackageRoot || process.cwd();
 }
 
-const ENV_PATH = process.env.ORIENT_ENV_PATH || path.resolve(findProjectRoot(), '.env');
+const ENV_PATH =
+  process.env.ORIENT_ENV_PATH ||
+  (() => {
+    // Check ORIENT_HOME first (for npm installs where cwd isn't the project root)
+    const orientHome = process.env.ORIENT_HOME;
+    if (orientHome) {
+      const orientEnv = path.join(orientHome, '.env');
+      if (fs.existsSync(orientEnv)) return orientEnv;
+    }
+    return path.resolve(findProjectRoot(), '.env');
+  })();
 
 function parseEnv(content: string): Record<string, string> {
   const result: Record<string, string> = {};

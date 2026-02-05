@@ -402,22 +402,46 @@ setup_pm2_npm() {
     # Create PM2 ecosystem configuration for npm-based install
     cat > "$INSTALL_DIR/ecosystem.config.cjs" << ECOSYSTEM
 const path = require('path');
+const fs = require('fs');
 const ORIENT_HOME = process.env.ORIENT_HOME || \`\${process.env.HOME}/.orient\`;
 const NPM_PREFIX = '${npm_prefix}';
 
 // OpenCode binary location (detected during install)
 const OPENCODE_BIN = '${opencode_bin}' || process.env.HOME + '/.opencode/bin/opencode';
 
+// Load .env file into env object (PM2 does not support env_file natively)
+function loadEnvFile(filePath) {
+  const env = {};
+  try {
+    const content = fs.readFileSync(filePath, 'utf-8');
+    for (const line of content.split(/\r?\n/)) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith('#')) continue;
+      const idx = trimmed.indexOf('=');
+      if (idx <= 0) continue;
+      const key = trimmed.slice(0, idx).trim();
+      let value = trimmed.slice(idx + 1).trim();
+      if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+        value = value.slice(1, -1);
+      }
+      env[key] = value;
+    }
+  } catch (e) { /* .env file may not exist yet */ }
+  return env;
+}
+
+const dotenv = loadEnvFile(path.join(ORIENT_HOME, '.env'));
+
 module.exports = {
   apps: [
     {
       name: 'orient',
       script: path.join(NPM_PREFIX, 'lib/node_modules/@orient-bot/dashboard/dist/main.js'),
-      env_file: path.join(ORIENT_HOME, '.env'),
       error_file: path.join(ORIENT_HOME, 'logs/orient-error.log'),
       out_file: path.join(ORIENT_HOME, 'logs/orient-out.log'),
       max_memory_restart: '750M',
       env: {
+        ...dotenv,
         ORIENT_HOME: ORIENT_HOME,
       },
     },
@@ -426,11 +450,11 @@ module.exports = {
       script: OPENCODE_BIN,
       args: 'serve --port 4099 --hostname 127.0.0.1',
       cwd: ORIENT_HOME,
-      env_file: path.join(ORIENT_HOME, '.env'),
       error_file: path.join(ORIENT_HOME, 'logs/opencode-error.log'),
       out_file: path.join(ORIENT_HOME, 'logs/opencode-out.log'),
       max_memory_restart: '500M',
       env: {
+        ...dotenv,
         // OpenCode data isolation - store data under ~/.orient/opencode/
         XDG_DATA_HOME: path.join(ORIENT_HOME, 'opencode', 'data'),
         XDG_CONFIG_HOME: path.join(ORIENT_HOME, 'opencode', 'config'),
@@ -467,10 +491,34 @@ setup_pm2_source() {
     # Create PM2 ecosystem configuration for source-based install
     cat > "$INSTALL_DIR/ecosystem.config.cjs" << ECOSYSTEM
 const path = require('path');
+const fs = require('fs');
 const ORIENT_HOME = process.env.ORIENT_HOME || \`\${process.env.HOME}/.orient\`;
 
 // OpenCode binary location (detected during install)
 const OPENCODE_BIN = '${opencode_bin}' || process.env.HOME + '/.opencode/bin/opencode';
+
+// Load .env file into env object (PM2 does not support env_file natively)
+function loadEnvFile(filePath) {
+  const env = {};
+  try {
+    const content = fs.readFileSync(filePath, 'utf-8');
+    for (const line of content.split(/\r?\n/)) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith('#')) continue;
+      const idx = trimmed.indexOf('=');
+      if (idx <= 0) continue;
+      const key = trimmed.slice(0, idx).trim();
+      let value = trimmed.slice(idx + 1).trim();
+      if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+        value = value.slice(1, -1);
+      }
+      env[key] = value;
+    }
+  } catch (e) { /* .env file may not exist yet */ }
+  return env;
+}
+
+const dotenv = loadEnvFile(path.join(ORIENT_HOME, '.env'));
 
 module.exports = {
   apps: [
@@ -478,10 +526,13 @@ module.exports = {
       name: 'orient',
       cwd: path.join(ORIENT_HOME, 'orient'),
       script: 'packages/dashboard/dist/main.js',
-      env_file: path.join(ORIENT_HOME, '.env'),
       error_file: path.join(ORIENT_HOME, 'logs/orient-error.log'),
       out_file: path.join(ORIENT_HOME, 'logs/orient-out.log'),
       max_memory_restart: '750M',
+      env: {
+        ...dotenv,
+        ORIENT_HOME: ORIENT_HOME,
+      },
       // Unified server handles Dashboard + WhatsApp on port 4098
     },
     {
@@ -489,11 +540,11 @@ module.exports = {
       script: OPENCODE_BIN,
       args: 'serve --port 4099 --hostname 127.0.0.1',
       cwd: path.join(ORIENT_HOME, 'orient'),
-      env_file: path.join(ORIENT_HOME, '.env'),
       error_file: path.join(ORIENT_HOME, 'logs/opencode-error.log'),
       out_file: path.join(ORIENT_HOME, 'logs/opencode-out.log'),
       max_memory_restart: '500M',
       env: {
+        ...dotenv,
         OPENCODE_CONFIG: path.join(ORIENT_HOME, 'orient', 'opencode.json'),
         // OpenCode data isolation - store data under ~/.orient/opencode/
         XDG_DATA_HOME: path.join(ORIENT_HOME, 'opencode', 'data'),
@@ -508,10 +559,13 @@ module.exports = {
       name: 'orient-slack',
       cwd: path.join(ORIENT_HOME, 'orient'),
       script: 'packages/bot-slack/dist/main.js',
-      env_file: path.join(ORIENT_HOME, '.env'),
       error_file: path.join(ORIENT_HOME, 'logs/slack-error.log'),
       out_file: path.join(ORIENT_HOME, 'logs/slack-out.log'),
       max_memory_restart: '500M',
+      env: {
+        ...dotenv,
+        ORIENT_HOME: ORIENT_HOME,
+      },
       autorestart: false,  // Don't auto-restart Slack bot (optional service)
     },
   ],
