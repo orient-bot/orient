@@ -92,16 +92,19 @@ SQLite was chosen for simplicity — no external database server needed. The ent
 
 ## Self-Hosted Deployment
 
-Orient runs as a set of Docker containers:
+Orient can be installed with a single command:
 
 ```bash
-docker compose -f docker/docker-compose.demo.yml up -d
+curl -fsSL https://orient.bot/install.sh | bash
+orient start
 ```
 
 This starts:
 
 - **Orient server** — the main application
 - **Dashboard** — web UI at `localhost:4098`
+
+For Docker-based deployments, see the `docker/` directory in the [repository](https://github.com/orient-bot/orient).
 
 No external services are required. All AI inference uses your configured LLM provider (OpenAI, Anthropic, etc.) with your own API keys.
 

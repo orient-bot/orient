@@ -20,18 +20,19 @@ Your private AI assistant that actually does things — schedule meetings, manag
 
 ## Quick Start
 
-Get Orient running in three commands:
+Get Orient running with one command:
 
 ```bash
-# Clone the repo
-git clone https://github.com/orient/orient.git
-
-# Start the demo
-docker compose -f docker/docker-compose.demo.yml up -d
-
-# Open the dashboard
-open http://localhost:4098
+curl -fsSL https://orient.bot/install.sh | bash
 ```
+
+Then start Orient:
+
+```bash
+orient start
+```
+
+Open the dashboard at `http://localhost:4098` and scan the QR code to connect WhatsApp.
 
 Then connect your preferred platform:
 
@@ -67,4 +68,4 @@ Orient is open-source (MIT licensed) and designed to be self-hosted. No cloud de
 - [Tips & Tricks](./help/tips) — get the most out of Orient
 - [FAQ](./help/faq) — common questions answered
 - [Troubleshooting](./help/troubleshooting) — fix common issues
-- [GitHub](https://github.com/orient/orient) — report bugs, request features, contribute
+- [GitHub](https://github.com/orient-bot/orient) — report bugs, request features, contribute
