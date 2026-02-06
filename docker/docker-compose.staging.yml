@@ -1,16 +1,22 @@
 # =============================================================================
-# Orient - Staging Environment Override
+# Orient v0.2.0 - Staging Environment Override
 # =============================================================================
 # This file overrides the base v2 compose configuration for staging deployment.
 #
 # Usage on server:
-#   docker compose -f docker-compose.v2.yml -f docker-compose.staging.yml up -d
+#   docker compose -p staging -f docker-compose.v2.yml -f docker-compose.staging.yml up -d
+#
+# IMPORTANT: Always use `-p staging` project flag to avoid overwriting production.
+#
+# v0.2.0 changes:
+#   - PostgreSQL removed (now uses SQLite file-based database)
+#   - WhatsApp integrated into Dashboard (no separate bot-whatsapp)
+#   - Image registry: ghcr.io/orient-core/orient
 #
 # Features:
-#   - Staging-specific ports (5097-5099 instead of 4097-4099)
-#   - Separate database (whatsapp_bot_staging)
+#   - Staging-specific ports (5098-5099 instead of 4098-4099)
+#   - Separate SQLite database (in ~/orient/data/staging/)
 #   - Container names with -staging suffix
-#   - Staging environment variables
 #   - Pre-built images from ghcr.io with :staging tag
 # =============================================================================
 
@@ -22,23 +28,6 @@ services:
   # dynamic DNS resolution. Staging containers must be on the production network.
   # See nginx-ssl.conf for routing configuration.
   # ===========================================================================
-
-  # ===========================================================================
-  # PostgreSQL - Staging Database
-  # ===========================================================================
-  postgres:
-    container_name: orienter-postgres-staging
-    environment:
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      # Staging uses separate database
-      - POSTGRES_DB=whatsapp_bot_staging
-    # Staging database volume (replaces production volume)
-    volumes: !override
-      - postgres-data-staging:/var/lib/postgresql/data
-    # Staging postgres port 5433
-    ports: !override
-      - '5433:5432'
 
   # ===========================================================================
   # MinIO - Staging Object Storage
@@ -70,7 +59,7 @@ services:
   # OpenCode Server + MCP Server (Staging)
   # ===========================================================================
   opencode:
-    image: ghcr.io/orient/orient/opencode:staging
+    image: ghcr.io/orient-core/orient/opencode:staging
     container_name: orienter-opencode-staging
     environment:
       - NODE_ENV=staging
@@ -79,8 +68,9 @@ services:
       - OPENCODE_HOSTNAME=0.0.0.0
       - DATA_DIR=/app/data
       - LOG_DIR=/app/logs
-      # Staging database connection
-      - DATABASE_URL=postgresql://orient:orient@orienter-postgres-staging:5432/whatsapp_bot_staging
+      # SQLite database (file-based)
+      - DATABASE_TYPE=sqlite
+      - SQLITE_DATABASE=/app/data/orient.db
       - S3_BUCKET=${S3_BUCKET_STAGING:-orient-data-staging}
       - S3_SYNC_INTERVAL=${S3_SYNC_INTERVAL:-60}
       - AWS_ACCESS_KEY_ID=${MINIO_ROOT_USER}
@@ -92,6 +82,7 @@ services:
       - OAUTH_CALLBACK_PROTOCOL=${OAUTH_CALLBACK_PROTOCOL:-http}
       # Staging OAuth callback URL
       - OAUTH_CALLBACK_URL=https://${ORIENT_STAGING_DOMAIN}/oauth/callback
+      - ORIENT_MASTER_KEY=${ORIENT_MASTER_KEY}
     volumes: !override
       - opencode-data-staging:/app/data
       - opencode-storage-staging:/home/opencode/.local/share/opencode/storage
@@ -113,12 +104,14 @@ services:
   # Slack Bot (Staging - Optional)
   # ===========================================================================
   bot-slack:
-    image: ghcr.io/orient/orient/slack-bot:staging
+    image: ghcr.io/orient-core/orient/slack-bot:staging
     container_name: orienter-bot-slack-staging
     environment:
       - NODE_ENV=staging
       - TZ=Asia/Jerusalem
-      - DATABASE_URL=postgresql://orient:orient@orienter-postgres-staging:5432/whatsapp_bot_staging
+      # SQLite database (file-based)
+      - DATABASE_TYPE=sqlite
+      - SQLITE_DATABASE=/app/data/orient.db
       - OPENCODE_SERVER_URL=http://orienter-opencode-staging:5099
       - OPENCODE_URL=http://orienter-opencode-staging:5099
       - OPENCODE_ENABLED=true
@@ -127,7 +120,9 @@ services:
       - SLACK_SIGNING_SECRET=${SLACK_SIGNING_SECRET_STAGING}
       - SLACK_APP_TOKEN=${SLACK_APP_TOKEN_STAGING}
       - SLACK_STANDUP_CHANNEL=${SLACK_STANDUP_CHANNEL_STAGING:-#standup-staging}
+      - ORIENT_MASTER_KEY=${ORIENT_MASTER_KEY}
     volumes: !override
+      - opencode-data-staging:/app/data
       - ../logs/staging:/app/logs
       - ../.mcp.config.local.json:/app/.mcp.config.json:ro
       - ../credentials:/app/credentials:ro
@@ -136,14 +131,17 @@ services:
   # API Gateway (Staging - Optional)
   # ===========================================================================
   api-gateway:
-    image: ghcr.io/orient/orient/api-gateway:staging
+    image: ghcr.io/orient-core/orient/api-gateway:staging
     container_name: orienter-api-gateway-staging
     environment:
       - NODE_ENV=staging
       - TZ=Asia/Jerusalem
-      - DATABASE_URL=postgresql://orient:orient@orienter-postgres-staging:5432/whatsapp_bot_staging
+      # SQLite database (file-based)
+      - DATABASE_TYPE=sqlite
+      - SQLITE_DATABASE=/app/data/orient.db
       - API_GATEWAY_PORT=4100
     volumes: !override
+      - opencode-data-staging:/app/data
       - ../logs/staging:/app/logs
       - ../.mcp.config.local.json:/app/.mcp.config.json:ro
     ports: !override
@@ -153,27 +151,32 @@ services:
   # Dashboard - Unified server (Dashboard + WhatsApp) - Staging
   # ===========================================================================
   dashboard:
-    image: ghcr.io/orient/orient/dashboard:staging
+    image: ghcr.io/orient-core/orient/dashboard:staging
     container_name: orienter-dashboard-staging
     environment:
       - NODE_ENV=staging
       - TZ=Asia/Jerusalem
       - DASHBOARD_PORT=4098
-      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@orienter-postgres-staging:5432/whatsapp_bot_staging
+      # SQLite database (file-based)
+      - DATABASE_TYPE=sqlite
+      - SQLITE_DATABASE=/app/data/orient.db
       - DASHBOARD_JWT_SECRET=${DASHBOARD_JWT_SECRET_STAGING}
+      - ORIENT_MASTER_KEY=${ORIENT_MASTER_KEY}
       # SSH key path for production monitoring (mounted from ~/.ssh)
       - SSH_KEY_PATH=/app/.ssh/id_rsa
       # WhatsApp integration (unified server mode)
       - WHATSAPP_ENABLED=true
       - OPENCODE_URL=http://orienter-opencode-staging:5099
       - SESSION_PATH=/app/data/whatsapp-auth
+      # Staging domain for OAuth auto-detection
+      - ORIENT_STAGING_DOMAIN=${ORIENT_STAGING_DOMAIN}
       # Staging Google OAuth callback URL
-      - GOOGLE_OAUTH_CALLBACK_URL=https://${ORIENT_STAGING_DOMAIN}/oauth/google/callback
+      - GOOGLE_OAUTH_CALLBACK_URL=https://${ORIENT_STAGING_DOMAIN}/api/auth/google/callback
     volumes: !override
       - ../logs/staging:/app/logs
       # Mount SSH key for production server monitoring (from docker/.ssh directory)
       - ./.ssh:/app/.ssh:ro
-      # WhatsApp session data
+      # WhatsApp session data and SQLite database
       - ../data/staging:/app/data
     ports: !override
       - '5098:4098'
@@ -210,8 +213,6 @@ services:
 # Volumes (Staging-specific)
 # =============================================================================
 volumes:
-  postgres-data-staging:
-    driver: local
   minio-data-staging:
     driver: local
   opencode-data-staging:
