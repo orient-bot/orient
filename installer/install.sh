@@ -431,6 +431,7 @@ function loadEnvFile(filePath) {
 }
 
 const dotenv = loadEnvFile(path.join(ORIENT_HOME, '.env'));
+
 module.exports = {
   apps: [
     {
