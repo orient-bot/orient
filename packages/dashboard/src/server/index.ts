@@ -269,7 +269,7 @@ function attachFrontend(app: Application, config: DashboardServerConfig): void {
       const indexPath = path.join(staticPath, 'index.html');
       if (fs.existsSync(indexPath)) {
         res.setHeader('Cache-Control', 'no-cache');
-        return res.sendFile(indexPath);
+        return res.sendFile('index.html', { root: staticPath });
       }
 
       return next();

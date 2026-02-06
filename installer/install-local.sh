@@ -240,32 +240,42 @@ install_binary() {
 
 # Main
 main() {
-    case "${1:-}" in
-        --check|-c)
-            check_versions
-            ;;
-        --force|-f)
-            install_binary "true"
-            ;;
-        --help|-h)
-            echo "Usage: $0 [--check|--force|--help]"
-            echo ""
-            echo "Install bundled OpenCode binary for local development."
-            echo ""
-            echo "Options:"
-            echo "  --check   Check versions without installing"
-            echo "  --force   Force reinstall even if versions match"
-            echo "  --help    Show this help"
-            ;;
-        "")
-            install_binary "false"
-            ;;
-        *)
-            log_error "Unknown option: $1"
-            echo "Run: $0 --help"
-            exit 1
-            ;;
-    esac
+    local force=false
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --check|-c)
+                check_versions
+                return
+                ;;
+            --force|-f)
+                force=true
+                ;;
+            --verbose|-v)
+                # Accepted for compatibility with test-install.sh (currently no-op)
+                ;;
+            --help|-h)
+                echo "Usage: $0 [--check|--force|--verbose|--help]"
+                echo ""
+                echo "Install bundled OpenCode binary for local development."
+                echo ""
+                echo "Options:"
+                echo "  --check     Check versions without installing"
+                echo "  --force     Force reinstall even if versions match"
+                echo "  --verbose   Verbose output (for test compatibility)"
+                echo "  --help      Show this help"
+                return
+                ;;
+            *)
+                log_error "Unknown option: $1"
+                echo "Run: $0 --help"
+                exit 1
+                ;;
+        esac
+        shift
+    done
+
+    install_binary "$force"
 }
 
 main "$@"

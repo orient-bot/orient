@@ -161,12 +161,17 @@ export const doctorCommand = new Command('doctor')
     // === Database ===
     console.log('Database:');
 
-    const databaseType = process.env.DATABASE_TYPE || 'postgres';
+    // Parse DATABASE_TYPE from .env file (process.env may not have it loaded)
+    const envFileContent = existsSync(envPath) ? readFileSync(envPath, 'utf8') : '';
+    const dbTypeMatch = envFileContent.match(/^DATABASE_TYPE=(\S+)/m);
+    const databaseType = dbTypeMatch ? dbTypeMatch[1] : process.env.DATABASE_TYPE || 'postgres';
     console.log(`  Type: ${databaseType}`);
 
     if (databaseType === 'sqlite') {
-      const sqlitePath =
-        process.env.SQLITE_DATABASE || join(ORIENT_HOME, 'data', 'sqlite', 'orient.db');
+      const sqliteMatch = envFileContent.match(/^SQLITE_DATABASE=(\S+)/m);
+      const sqlitePath = sqliteMatch
+        ? sqliteMatch[1]
+        : process.env.SQLITE_DATABASE || join(ORIENT_HOME, 'data', 'sqlite', 'orient.db');
       if (existsSync(sqlitePath)) {
         const stats = statSync(sqlitePath);
         const sizeMB = (stats.size / 1024 / 1024).toFixed(2);
@@ -175,7 +180,8 @@ export const doctorCommand = new Command('doctor')
         checkWarn('SQLite database not initialized', 'Will be created on first run');
       }
     } else {
-      const dbUrl = process.env.DATABASE_URL;
+      const dbUrlMatch = envFileContent.match(/^DATABASE_URL=(\S+)/m);
+      const dbUrl = dbUrlMatch ? dbUrlMatch[1] : process.env.DATABASE_URL;
       if (dbUrl) {
         checkOk('DATABASE_URL configured');
       } else {
@@ -212,8 +218,8 @@ export const doctorCommand = new Command('doctor')
       const pm2List = execSync('pm2 jlist', { encoding: 'utf8' });
       const processes = JSON.parse(pm2List);
 
-      const orientProcesses = processes.filter((p: { name: string }) =>
-        p.name.startsWith('orient-')
+      const orientProcesses = processes.filter(
+        (p: { name: string }) => p.name === 'orient' || p.name.startsWith('orient-')
       );
 
       if (orientProcesses.length === 0) {

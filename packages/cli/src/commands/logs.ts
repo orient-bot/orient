@@ -19,7 +19,7 @@ function checkPM2(): boolean {
 
 export const logsCommand = new Command('logs')
   .description('View Orient service logs')
-  .argument('[service]', 'Service name (dashboard, whatsapp, slack)')
+  .argument('[service]', 'Service name (dashboard, opencode, whatsapp, slack)')
   .option('-n, --lines <number>', 'Number of lines to show', '50')
   .option('-f, --follow', 'Follow log output')
   .action((service, options) => {
@@ -32,7 +32,8 @@ export const logsCommand = new Command('logs')
     // Map friendly names to PM2 process names
     if (service) {
       const serviceMap: Record<string, string> = {
-        dashboard: 'orient-dashboard',
+        dashboard: 'orient',
+        opencode: 'orient-opencode',
         whatsapp: 'orient-whatsapp',
         slack: 'orient-slack',
       };
