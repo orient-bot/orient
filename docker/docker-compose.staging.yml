@@ -4,9 +4,13 @@
 # This file overrides the base v2 compose configuration for staging deployment.
 #
 # Usage on server:
-#   docker compose -p staging -f docker-compose.v2.yml -f docker-compose.staging.yml up -d
+#   docker compose -p staging -f docker-compose.v2.yml -f docker-compose.staging.yml \
+#     up -d --no-deps minio opencode dashboard
+#   docker network connect staging_orienter-network orienter-nginx
 #
 # IMPORTANT: Always use `-p staging` project flag to avoid overwriting production.
+# After starting, connect production nginx to the staging network so it can
+# route to staging containers (the last command above).
 #
 # v0.2.0 changes:
 #   - PostgreSQL removed (now uses SQLite file-based database)
@@ -18,15 +22,14 @@
 #   - Separate SQLite database (in ~/orient/data/staging/)
 #   - Container names with -staging suffix
 #   - Pre-built images from ghcr.io with :staging tag
+#   - Isolated network to avoid DNS collision with production
 # =============================================================================
 
 services:
   # ===========================================================================
-  # NOTE: Nginx is NOT overridden here - staging uses production nginx
-  # ===========================================================================
-  # Production nginx (orienter-nginx) serves both production and staging via
-  # dynamic DNS resolution. Staging containers must be on the production network.
-  # See nginx-ssl.conf for routing configuration.
+  # NOTE: Nginx is NOT included here - staging uses production nginx.
+  # After starting staging, connect nginx to the staging network:
+  #   docker network connect staging_orienter-network orienter-nginx
   # ===========================================================================
 
   # ===========================================================================
@@ -221,12 +224,17 @@ volumes:
     driver: local
 
 # =============================================================================
-# Networks - Join production network for nginx routing
+# Networks - Isolated staging network
 # =============================================================================
-# Staging containers must be on the same network as production nginx.
-# Using external: true connects to the existing production network instead of
-# creating a new staging_orienter-network.
+# Staging uses its OWN network (not the production network) to prevent DNS
+# alias collisions. Docker Compose always registers the service name (e.g.
+# "dashboard") as a DNS alias. If staging joins the production network,
+# both production and staging register "dashboard", causing nginx to route
+# production traffic to staging containers.
+#
+# After starting staging, connect production nginx to this network:
+#   docker network connect staging_orienter-network orienter-nginx
+# =============================================================================
 networks:
   orienter-network:
-    external: true
-    name: docker_orienter-network
+    driver: bridge
