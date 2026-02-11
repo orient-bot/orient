@@ -27,6 +27,7 @@ const makeWASocket = (Baileys as any).default || Baileys;
 
 const logger = createServiceLogger('whatsapp-connection');
 
+import type { proto } from 'baileys';
 import type { ParsedMessage } from '../types.js';
 
 export interface ConnectionEvents {
@@ -38,6 +39,7 @@ export interface ConnectionEvents {
   error: (error: Error) => void;
   ready: () => void;
   message: (message: ParsedMessage) => void;
+  poll_vote_raw: (msg: proto.IWebMessageInfo) => void;
 }
 
 /**
@@ -61,9 +63,13 @@ export class WhatsAppConnection extends EventEmitter {
   private isShuttingDown = false;
   private currentQrCode: string | null = null;
   private myLid: string | null = null;
+  private qrGenerationPaused = false;
 
   // Track message IDs we've sent to avoid processing our own responses
   private sentMessageIds: Set<string> = new Set();
+  // Track chats where we're currently in a sendMessage() call (guards the race condition
+  // where messages.upsert fires before registerSentMessage completes)
+  private pendingSendChats: Set<string> = new Set();
 
   constructor(config: WhatsAppBotConfig) {
     super();
@@ -109,10 +115,66 @@ export class WhatsAppConnection extends EventEmitter {
   }
 
   /**
+   * Mark a chat as having a pending bot send (call before sendMessage)
+   */
+  markSending(chatId: string): void {
+    this.pendingSendChats.add(chatId);
+  }
+
+  /**
+   * Clear the pending send flag for a chat (call after registerSentMessage)
+   */
+  clearSending(chatId: string): void {
+    this.pendingSendChats.delete(chatId);
+  }
+
+  /**
    * Get current QR code (for web display)
    */
   getCurrentQrCode(): string | null {
     return this.currentQrCode;
+  }
+
+  /**
+   * Check if QR generation is paused (max retries exhausted)
+   */
+  isQrGenerationPaused(): boolean {
+    return this.qrGenerationPaused;
+  }
+
+  /**
+   * Request fresh QR code generation (resets retry counter and reconnects)
+   */
+  async requestQrRegeneration(): Promise<void> {
+    logger.info('User requested QR regeneration');
+
+    // Reset state
+    this.reconnectAttempt = 0;
+    this.qrGenerationPaused = false;
+    this.currentQrCode = null;
+
+    // Force disconnect any existing socket
+    if (this.socket) {
+      try {
+        this.socket.end(undefined);
+      } catch {
+        // Socket may already be closed
+      }
+      this.socket = null;
+    }
+
+    // Clear any pending reconnect timeout
+    if (this.reconnectTimeout) {
+      clearTimeout(this.reconnectTimeout);
+      this.reconnectTimeout = null;
+    }
+
+    // Reset shutdown flag
+    this.isShuttingDown = false;
+    this.state = 'connecting';
+
+    // Trigger a fresh connection attempt
+    await this.connect();
   }
 
   /**
@@ -205,6 +267,7 @@ export class WhatsAppConnection extends EventEmitter {
         if (connection === 'open') {
           this.state = 'open';
           this.reconnectAttempt = 0;
+          this.qrGenerationPaused = false;
           this.currentQrCode = null;
           this.startKeepAlive();
 
@@ -249,6 +312,16 @@ export class WhatsAppConnection extends EventEmitter {
           // Skip if no message content or key
           if (!msg.message || !msg.key) {
             logger.debug('Skipping message - no content or key');
+            continue;
+          }
+
+          // Detect poll vote updates (pollUpdateMessage) and emit raw event
+          if (msg.message.pollUpdateMessage) {
+            logger.info('Poll vote detected in messages.upsert', {
+              pollCreationMsgId: msg.message.pollUpdateMessage.pollCreationMessageKey?.id,
+              voterJid: msg.key.participant || msg.key.remoteJid,
+            });
+            this.emit('poll_vote_raw', msg);
             continue;
           }
 
@@ -306,33 +379,31 @@ export class WhatsAppConnection extends EventEmitter {
           const senderJid = isGroup ? msg.key.participant || msg.key.remoteJid : msg.key.remoteJid;
           const senderPhone = senderJid?.replace(/@.*/, '') || '';
 
-          // For linked devices mode, fromMe is true for all messages from your account
-          // For GROUPS: Don't skip based on LID match - user might be sending from same account
-          //             The permission system will decide whether to respond
-          // For DMs: Skip if the message appears to be from the bot (prevents echo)
-          let isFromMe = false;
-
-          if (!isGroup) {
-            // For DMs, check if this is a message we sent (not one we received)
-            // In DMs with fromMe=true, it's an outgoing message we don't need to process
-            isFromMe = msg.key.fromMe === true;
-          }
-          // For groups, we DON'T set isFromMe - we process all group messages
-          // and let the permission system in main.ts decide what to respond to
-
-          logger.debug('Message sender check', {
-            senderPhone,
-            isFromMe,
-            fromMeFlag: msg.key.fromMe,
-            isGroup,
-            myLid: this.myLid,
-            note: isGroup ? 'Groups process all messages' : 'DMs skip fromMe=true',
-          });
-
-          // Skip DM messages from ourselves
-          if (isFromMe) {
-            logger.debug('Skipping DM message from self');
-            continue;
+          // For linked devices mode, fromMe is true for ALL messages from the account
+          // (both user-typed and bot-sent). We need to distinguish them:
+          // - DMs: always skip fromMe (outgoing echo)
+          // - Groups: skip only if we KNOW this is a bot-sent message
+          //   (via sentMessageIds or pendingSendChats race-condition guard)
+          if (msg.key.fromMe === true) {
+            if (!isGroup) {
+              logger.debug('Skipping DM fromMe message', { messageId: msg.key.id });
+              continue;
+            }
+            // Group fromMe: check if this is a bot-sent message
+            if (
+              (msg.key.id && this.sentMessageIds.has(msg.key.id)) ||
+              this.pendingSendChats.has(jid)
+            ) {
+              // Auto-register in case it came via pendingSendChats race guard
+              if (msg.key.id) this.sentMessageIds.add(msg.key.id);
+              logger.debug('Skipping bot-sent group message', { messageId: msg.key.id });
+              continue;
+            }
+            // Otherwise it's the user typing from the same account - process it
+            logger.debug('Processing fromMe group message as user message', {
+              messageId: msg.key.id,
+              senderPhone,
+            });
           }
 
           // Parse timestamp - can be number, Long, or undefined
@@ -355,7 +426,7 @@ export class WhatsAppConnection extends EventEmitter {
             text,
             timestamp,
             isGroup,
-            isFromMe: !!isFromMe,
+            isFromMe: msg.key.fromMe === true,
             hasMedia: !!mediaType,
             mediaType,
             rawMessage: msg,
@@ -369,6 +440,38 @@ export class WhatsAppConnection extends EventEmitter {
           });
 
           this.emit('message', parsedMessage);
+        }
+      });
+      // Handle poll vote updates via messages.update (fallback path)
+      socket.ev.on('messages.update', async (updates) => {
+        for (const update of updates) {
+          const msgUpdate = update.update as any;
+          if (msgUpdate?.pollUpdates && msgUpdate.pollUpdates.length > 0) {
+            const pollId = update.key?.id;
+            if (!pollId) continue;
+
+            logger.info('Poll vote detected in messages.update', {
+              pollId,
+              updateCount: msgUpdate.pollUpdates.length,
+            });
+
+            // Synthesize a raw message for the handler
+            const latestUpdate = msgUpdate.pollUpdates[msgUpdate.pollUpdates.length - 1];
+            const syntheticMsg: proto.IWebMessageInfo = {
+              key: update.key,
+              message: {
+                pollUpdateMessage: {
+                  pollCreationMessageKey: {
+                    id: pollId,
+                    remoteJid: update.key.remoteJid,
+                    fromMe: true,
+                  },
+                  vote: latestUpdate.vote,
+                },
+              },
+            };
+            this.emit('poll_vote_raw', syntheticMsg);
+          }
         }
       });
     } catch (error) {
@@ -388,6 +491,8 @@ export class WhatsAppConnection extends EventEmitter {
 
     if (this.reconnectAttempt >= this.maxReconnectAttempts) {
       logger.error('Max reconnect attempts reached');
+      this.qrGenerationPaused = true;
+      this.currentQrCode = null;
       this.emit('disconnected', 'max_reconnect_attempts');
       return;
     }
@@ -438,9 +543,29 @@ export class WhatsAppConnection extends EventEmitter {
   private async clearSession(): Promise<void> {
     const sessionPath = this.config.sessionPath;
     if (fs.existsSync(sessionPath)) {
-      fs.rmSync(sessionPath, { recursive: true });
-      fs.mkdirSync(sessionPath, { recursive: true });
-      logger.info('Session folder cleared');
+      try {
+        fs.rmSync(sessionPath, { recursive: true, force: true });
+        fs.mkdirSync(sessionPath, { recursive: true });
+        logger.info('Session folder cleared');
+      } catch (error) {
+        logger.error('Failed to clear session folder, removing individual files', {
+          error: error instanceof Error ? error.message : String(error),
+        });
+        // Fallback: try to remove individual files instead of the directory
+        try {
+          const files = fs.readdirSync(sessionPath);
+          for (const file of files) {
+            try {
+              fs.unlinkSync(`${sessionPath}/${file}`);
+            } catch {
+              // Skip files we can't delete
+            }
+          }
+          logger.info('Session files cleared (individual removal)');
+        } catch {
+          logger.error('Failed to clear session files entirely');
+        }
+      }
     }
   }
 

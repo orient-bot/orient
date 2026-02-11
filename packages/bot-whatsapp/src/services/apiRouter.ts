@@ -77,8 +77,32 @@ export function createWhatsAppRouter(connection: WhatsAppConnection): Router {
       qrCode: qrCode || null,
       qrDataUrl,
       adminPhone,
+      qrGenerationPaused: connection.isQrGenerationPaused(),
       updatedAt: new Date().toISOString(),
     });
+  });
+
+  /**
+   * Regenerate QR code (resets retry counter and reconnects)
+   */
+  router.post('/qr/regenerate', async (_req: Request, res: Response): Promise<void> => {
+    try {
+      logger.info('QR regeneration requested');
+      await connection.requestQrRegeneration();
+
+      res.json({
+        success: true,
+        message: 'QR regeneration started. New QR code will appear shortly.',
+      });
+    } catch (error) {
+      logger.error('Failed to regenerate QR', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to regenerate QR code',
+      });
+    }
   });
 
   /**
@@ -1246,6 +1270,30 @@ function generateQrPageHtml(): string {
       }
     }
 
+    async function regenerateQr() {
+      const btn = document.getElementById('regenerate-btn');
+      if (btn) { btn.disabled = true; btn.textContent = 'Generating...'; }
+
+      try {
+        const response = await fetch('/qr/regenerate', { method: 'POST' });
+        const data = await response.json();
+
+        if (data.success) {
+          lastQrCode = null;
+          // Resume fast polling
+          if (pollInterval) clearInterval(pollInterval);
+          pollInterval = setInterval(checkStatus, 2000);
+        } else {
+          alert('Failed to regenerate QR: ' + (data.error || 'Unknown error'));
+        }
+      } catch (error) {
+        console.error('Regenerate QR error:', error);
+        alert('Failed to regenerate QR code. Please try again.');
+      } finally {
+        if (btn) { btn.disabled = false; btn.textContent = 'Generate New QR'; }
+      }
+    }
+
     async function checkStatus() {
       try {
         const response = await fetch('/qr/status');
@@ -1275,7 +1323,10 @@ function generateQrPageHtml(): string {
         connectedPanel.style.display = 'none';
         pairingPanel.style.display = 'block';
 
-        if (data.qrDataUrl && data.qrCode !== lastQrCode) {
+        if (data.qrGenerationPaused) {
+          statusEl.innerHTML = '<span class="status-dot waiting" style="background:#9ca3af;animation:none"></span><span class="status-text" style="color:#9ca3af">QR expired - click to regenerate</span>';
+          qrContainer.innerHTML = '<div class="qr-frame"><div class="qr-placeholder"><div style="font-size:2rem;margin-bottom:0.5rem">⏸️</div><span style="margin-bottom:0.75rem">QR code expired</span><button onclick="regenerateQr()" class="btn btn-primary" id="regenerate-btn" style="font-size:0.8rem;height:32px">Generate New QR</button></div></div>';
+        } else if (data.qrDataUrl && data.qrCode !== lastQrCode) {
           lastQrCode = data.qrCode;
           statusEl.innerHTML = '<span class="status-dot waiting"></span><span class="status-text waiting">Waiting for pairing...</span>';
           qrContainer.innerHTML = '<div class="qr-frame"><img class="qr-code" src="' + data.qrDataUrl + '" alt="WhatsApp QR Code" /></div>';
